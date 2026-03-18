@@ -1,0 +1,112 @@
+{
+  "project_info": {
+    "project_number": "80872957470",
+    "project_id": "tfti-app",
+    "storage_bucket": "tfti-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:80872957470:android:8dc1315da5b8a45bf0b00f",
+        "android_client_info": {
+          "package_name": "com.bearmoose.tfti"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "80872957470-abbtgroitg2799sos6pbgq2ugc16eo7o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bearmoose.tfti",
+            "certificate_hash": "acd02d9b31c575d1402c6d245a4ea589ef37b3ce"
+          }
+        },
+        {
+          "client_id": "80872957470-ekk88nu7imcv1qpvbg4152tglno325dd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bearmoose.tfti",
+            "certificate_hash": "4c1fa061808de6078ca038eb2a378f9a700666a7"
+          }
+        },
+        {
+          "client_id": "80872957470-ntubpeqj9qmkm66kp7agl0978aojalg5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBK6_r1G9l4Llwn1CUXpT-4bdra_BnVVPY"
+        },
+        {
+          "current_key": "AIzaSyAcvPq_QhwNTmVOEN03BPEXXi8dPwvzKgM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "80872957470-ntubpeqj9qmkm66kp7agl0978aojalg5.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "80872957470-74he6m0jga1ot7riua7lsdc3j3our1tt.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.bearmoose.tfti"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:80872957470:android:5692134a06ad07abf0b00f",
+        "android_client_info": {
+          "package_name": "com.bearmoose.tftiapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "80872957470-39fll0u9puha118u2s1t56l122t207el.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bearmoose.tftiapp",
+            "certificate_hash": "4c1fa061808de6078ca038eb2a378f9a700666a7"
+          }
+        },
+        {
+          "client_id": "80872957470-ntubpeqj9qmkm66kp7agl0978aojalg5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBK6_r1G9l4Llwn1CUXpT-4bdra_BnVVPY"
+        },
+        {
+          "current_key": "AIzaSyAcvPq_QhwNTmVOEN03BPEXXi8dPwvzKgM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "80872957470-ntubpeqj9qmkm66kp7agl0978aojalg5.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "80872957470-74he6m0jga1ot7riua7lsdc3j3our1tt.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.bearmoose.tfti"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
