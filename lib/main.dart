@@ -93,6 +93,9 @@ class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
   bool _showTutorial = false;
 
+  // ADDED: GlobalKey to preserve state across layout changes
+  final GlobalKey _contentKey = GlobalKey();
+
   final List<Widget> _pages = [
     const HomeFeedTab(),
     const FriendCirclesPage(),
@@ -155,7 +158,6 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    // --- NEW: DETECT LANDSCAPE ORIENTATION ---
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -183,7 +185,6 @@ class _MainShellState extends State<MainShell> {
         return Stack(
           children: [
             Scaffold(
-              // --- NEW: DYNAMIC LAYOUT BUILDER ---
               body: isLandscape
                   ? Row(
                       children: [
@@ -238,15 +239,20 @@ class _MainShellState extends State<MainShell> {
                         ),
                         Expanded(
                           child: IndexedStack(
+                            key: _contentKey, // ADDED: GlobalKey attached here
                             index: _selectedIndex,
                             children: _pages,
                           ),
                         ),
                       ],
                     )
-                  : IndexedStack(index: _selectedIndex, children: _pages),
+                  : IndexedStack(
+                      key: _contentKey, // ADDED: GlobalKey attached here
+                      index: _selectedIndex,
+                      children: _pages,
+                    ),
               bottomNavigationBar: isLandscape
-                  ? null // Hide bottom bar in landscape!
+                  ? null
                   : BottomNavigationBar(
                       type: BottomNavigationBarType.fixed,
                       backgroundColor: Theme.of(context).cardColor,
@@ -308,7 +314,6 @@ class HomeFeedTab extends StatefulWidget {
 class _HomeFeedTabState extends State<HomeFeedTab> {
   String _selectedFilter = 'all';
 
-  // --- NEW: SPLIT SCREEN STATE TRACKERS ---
   String? _selectedEventId;
   Map<String, dynamic>? _selectedEventData;
 
@@ -479,7 +484,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
-    // --- REFACTORED TO SEPARATE THE LIST LOGIC ---
     Widget feedContent = Column(
       children: [
         Container(
@@ -655,6 +659,8 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                   }
 
                   return ListView.builder(
+                    // ADDED: PageStorageKey to remember exact scroll position
+                    key: const PageStorageKey<String>('home_feed_list'),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 8,
@@ -667,7 +673,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                         isDark,
                         primaryColor,
                         user?.uid,
-                        isLandscape, // Pass landscape info down
+                        isLandscape,
                       );
                     },
                   );
@@ -691,12 +697,11 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
           decoration: BoxDecoration(gradient: themeProvider.appGradient),
         ),
       ),
-      // --- TIER-1 UX: PROPORTIONAL SPLIT SCREEN ---
       body: isLandscape
           ? Row(
               children: [
                 Expanded(
-                  flex: 35, // Takes up exactly 35% of the screen
+                  flex: 35,
                   child: Scaffold(
                     backgroundColor: Colors.transparent,
                     body: feedContent,
@@ -709,7 +714,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                   color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
                 ),
                 Expanded(
-                  flex: 65, // Takes up the remaining 65% of the screen
+                  flex: 65,
                   child: _selectedEventId != null && _selectedEventData != null
                       ? EventDetailsPage(
                           key: ValueKey(_selectedEventId),
@@ -782,7 +787,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
     bool isDark,
     Color primaryColor,
     String? myUid,
-    bool isLandscape, // <-- NEW
+    bool isLandscape,
   ) {
     final String eventId = item['id'];
     final Map<String, dynamic> data = item['eventData'];
@@ -888,7 +893,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
       }
     }
 
-    // --- NEW: SELECTED HIGHLIGHT STATE ---
     final bool isSelected = isLandscape && _selectedEventId == eventId;
 
     return Dismissible(
@@ -928,10 +932,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: isSelected
-              ? BorderSide(
-                  color: primaryColor,
-                  width: 2,
-                ) // Bold border if selected
+              ? BorderSide(color: primaryColor, width: 2)
               : ((isHappeningNow || isStartingSoon)
                     ? BorderSide(color: iconColor, width: 1.5)
                     : (isDark
@@ -943,7 +944,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
           borderRadius: BorderRadius.circular(16),
           onLongPress: () => _toggleHideStatus(eventId, isHidden),
           onTap: () {
-            // --- NEW: SPLIT SCREEN ROUTING ---
             if (isLandscape) {
               setState(() {
                 _selectedEventId = eventId;
