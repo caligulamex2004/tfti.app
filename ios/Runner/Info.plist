@@ -32,7 +32,7 @@
 					<string>com.googleusercontent.apps.80872957470-mf8r2v37plu9e67rkgm6mtm6nb2rpo6u</string>
 				</array>
 			</dict>
-        </array>
+		</array>
 		<key>CFBundleVersion</key>
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>FirebaseAppDelegateProxyEnabled</key>

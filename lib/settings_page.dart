@@ -226,10 +226,14 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               child: Column(
                 children: [
-                  _buildThemeToggle('Royal Purple', AppTheme.original, isDark),
                   _buildThemeToggle(
                     'Daylight (Blue)',
-                    AppTheme.lightBlue,
+                    AppTheme.original,
+                    isDark,
+                  ),
+                  _buildThemeToggle(
+                    'Royal (Purple)',
+                    AppTheme.royalPurple,
                     isDark,
                   ),
                   _buildThemeToggle(

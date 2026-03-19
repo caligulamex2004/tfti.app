@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// 1. Added electricAmber
 enum AppTheme {
   original,
-  lightBlue,
+  royalPurple,
   darkBlue,
   dark,
   lipGloss,
@@ -30,13 +29,13 @@ class ThemeProvider extends ChangeNotifier {
         return const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF4A00E0), Color(0xFF8E2DE2)],
+          colors: [Color(0xFF1976D2), Color(0xFF81D4FA)],
         );
-      case AppTheme.lightBlue:
-        return LinearGradient(
+      case AppTheme.royalPurple:
+        return const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.blue.shade700, Colors.lightBlue.shade300],
+          colors: [Color(0xFF4A00E0), Color(0xFF8E2DE2)],
         );
       case AppTheme.darkBlue:
         return const LinearGradient(
@@ -48,7 +47,7 @@ class ThemeProvider extends ChangeNotifier {
         return LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.grey.shade900, Colors.black],
+          colors: [const Color(0xFF212121), Colors.black],
         );
       case AppTheme.lipGloss:
         return const LinearGradient(
@@ -85,7 +84,9 @@ class ThemeProvider extends ChangeNotifier {
 
   Color get onPrimaryColor {
     final primary = themeData.colorScheme.primary;
-    return primary.computeLuminance() > 0.5 ? Colors.black87 : Colors.white;
+    return primary.computeLuminance() > 0.5
+        ? const Color(0xDD000000)
+        : Colors.white;
   }
 
   ThemeData get themeData {
@@ -96,6 +97,20 @@ class ThemeProvider extends ChangeNotifier {
           brightness: Brightness.light,
           scaffoldBackgroundColor: const Color(0xFFF0F2F5),
           cardColor: Colors.white,
+          appBarTheme: const AppBarTheme(foregroundColor: Colors.white),
+          colorScheme: const ColorScheme.light(
+            primary: Colors.lightBlue,
+            secondary: Colors.blueAccent,
+          ),
+          useMaterial3: true,
+        );
+
+      // --- Royal Purple Theme ---
+      case AppTheme.royalPurple:
+        return ThemeData(
+          brightness: Brightness.light,
+          scaffoldBackgroundColor: const Color(0xFFE1F5FE),
+          cardColor: Colors.white,
           appBarTheme: const AppBarTheme(
             foregroundColor: Colors.white,
             elevation: 4,
@@ -103,20 +118,6 @@ class ThemeProvider extends ChangeNotifier {
           colorScheme: const ColorScheme.light(
             primary: Color(0xFF4A00E0),
             secondary: Color(0xFF8E2DE2),
-          ),
-          useMaterial3: true,
-        );
-
-      // --- Light Blue Theme ---
-      case AppTheme.lightBlue:
-        return ThemeData(
-          brightness: Brightness.light,
-          scaffoldBackgroundColor: const Color(0xFFE1F5FE),
-          cardColor: Colors.white,
-          appBarTheme: const AppBarTheme(foregroundColor: Colors.white),
-          colorScheme: const ColorScheme.light(
-            primary: Colors.lightBlue,
-            secondary: Colors.blueAccent,
           ),
           useMaterial3: true,
         );
