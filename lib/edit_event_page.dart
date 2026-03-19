@@ -177,8 +177,10 @@ class _EditEventPageState extends State<EditEventPage> {
           title: const Text("Save Favorite Place"),
           content: TextField(
             autofocus: true,
+            maxLength: 50,
             decoration: InputDecoration(
               hintText: "e.g. Bob's House, Poker Room",
+              counterText: "",
               focusedBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: primaryColor, width: 2),
               ),
@@ -303,10 +305,12 @@ class _EditEventPageState extends State<EditEventPage> {
         content: TextField(
           controller: nameController,
           autofocus: true,
+          maxLength: 30,
           textCapitalization: TextCapitalization.sentences,
           decoration: const InputDecoration(
             hintText: "e.g. Work Besties",
             border: OutlineInputBorder(),
+            counterText: "",
           ),
         ),
         actions: [
@@ -329,11 +333,9 @@ class _EditEventPageState extends State<EditEventPage> {
                     'createdAt': FieldValue.serverTimestamp(),
                   });
 
-              // 1. Guard the dialog's context and pop it
               if (!ctx.mounted) return;
               Navigator.pop(ctx);
 
-              // 2. Guard the State's context using 'mounted'
               if (!mounted) return;
 
               setState(() {
@@ -345,7 +347,7 @@ class _EditEventPageState extends State<EditEventPage> {
                 }
               });
 
-              Navigator.pop(context); // Pop the outer Circle Selector Dialog
+              Navigator.pop(context);
 
               Navigator.push(
                 context,
@@ -894,7 +896,6 @@ class _EditEventPageState extends State<EditEventPage> {
     if (picked != null) setState(() => _selectedTime = picked);
   }
 
-  // --- RESPONSIVE HELPER ---
   Widget _buildResponsiveRow(bool isLandscape, Widget child1, Widget child2) {
     if (isLandscape) {
       return Padding(
@@ -1074,13 +1075,13 @@ class _EditEventPageState extends State<EditEventPage> {
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
-    // --- EXTRACTED FORM FIELDS FOR MAIN HOST ---
     final titleField = TextFormField(
       controller: _titleController,
+      maxLength: 50,
       decoration: _buildInputDecoration(
         label: 'Event Title',
         prefixIcon: Icon(Symbols.campaign, color: primaryColor),
-      ),
+      ).copyWith(counterText: ""),
       validator: (val) => val == null || val.isEmpty ? 'Required' : null,
     );
 
@@ -1088,6 +1089,7 @@ class _EditEventPageState extends State<EditEventPage> {
       controller: _locationController,
       readOnly: true,
       onTap: _selectLocation,
+      maxLength: 100,
       decoration: _buildInputDecoration(
         label: 'Location',
         hint: "Tap to search address...",
@@ -1110,7 +1112,7 @@ class _EditEventPageState extends State<EditEventPage> {
                 Icons.search,
                 color: isDark ? Colors.grey.shade500 : Colors.grey,
               ),
-      ),
+      ).copyWith(counterText: ""),
       validator: (val) => val == null || val.isEmpty ? 'Required' : null,
     );
 
@@ -1186,13 +1188,14 @@ class _EditEventPageState extends State<EditEventPage> {
 
     final detailsField = TextFormField(
       controller: _detailsController,
+      maxLength: 500,
       decoration: _buildInputDecoration(
         label: 'Details / Description',
         prefixIcon: Icon(
           Icons.notes,
           color: isDark ? Colors.grey.shade400 : Colors.grey,
         ),
-      ).copyWith(alignLabelWithHint: true),
+      ).copyWith(alignLabelWithHint: true, counterText: ""),
       maxLines: 3,
     );
 
@@ -1320,7 +1323,6 @@ class _EditEventPageState extends State<EditEventPage> {
                 key: _formKey,
                 child: Column(
                   children: [
-                    // --- RESPONSIVE LAYOUT ASSEMBLY ---
                     _buildResponsiveRow(isLandscape, titleField, locationField),
                     _buildResponsiveRow(isLandscape, dateTimeRow, rsvpField),
                     _buildResponsiveRow(isLandscape, detailsField, togglesRow),
@@ -1410,7 +1412,6 @@ class _EditEventPageState extends State<EditEventPage> {
                             ),
                           );
 
-                          // Apply responsive layout to the final two inputs
                           return _buildResponsiveRow(
                             isLandscape,
                             circlesField,

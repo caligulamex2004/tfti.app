@@ -35,12 +35,15 @@ class FavoritePlacesPage extends StatelessWidget {
         title: const Text("Rename Place"),
         content: TextField(
           autofocus: true,
+          maxLength: 50,
           decoration: InputDecoration(
             hintText: "Enter a new name",
+            counterText: "",
             focusedBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: primaryColor, width: 2),
             ),
           ),
+          textCapitalization: TextCapitalization.words,
           onChanged: (val) => newName = val,
           controller: TextEditingController(text: currentName),
         ),

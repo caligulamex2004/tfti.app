@@ -1090,12 +1090,14 @@ class _EventChatPageState extends State<EventChatPage> {
                       textCapitalization: TextCapitalization.sentences,
                       minLines: 1,
                       maxLines: 5,
+                      maxLength: 1000,
                       keyboardType: TextInputType.multiline,
                       style: TextStyle(
                         color: isDark ? Colors.white : Colors.black87,
                       ),
                       decoration: InputDecoration(
                         hintText: "Say something...",
+                        counterText: "",
                         hintStyle: TextStyle(
                           color: isDark
                               ? Colors.grey.shade500

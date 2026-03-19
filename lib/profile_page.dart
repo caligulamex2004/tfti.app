@@ -667,6 +667,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   TextField(
                     controller: _nameController,
                     textInputAction: TextInputAction.done,
+                    maxLength: 50,
                     decoration: InputDecoration(
                       labelText: "Display Name",
                       prefixIcon: Icon(
@@ -678,6 +679,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      //counterText: "", // Comment this line to show character count
                     ),
                     onChanged: (val) => setState(() {}),
                     onTapOutside: (event) {

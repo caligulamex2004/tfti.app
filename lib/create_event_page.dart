@@ -132,8 +132,10 @@ class _CreateEventPageState extends State<CreateEventPage> {
           title: const Text("Save Favorite Place"),
           content: TextField(
             autofocus: true,
+            maxLength: 50,
             decoration: InputDecoration(
               hintText: "e.g. Bob's House, Poker Room",
+              counterText: "",
               focusedBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: primaryColor, width: 2),
               ),
@@ -272,10 +274,12 @@ class _CreateEventPageState extends State<CreateEventPage> {
         content: TextField(
           controller: nameController,
           autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
+          maxLength: 30,
+          textCapitalization: TextCapitalization.words,
           decoration: const InputDecoration(
             hintText: "e.g. Work Besties",
             border: OutlineInputBorder(),
+            counterText: "",
           ),
         ),
         actions: [
@@ -298,14 +302,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     'createdAt': FieldValue.serverTimestamp(),
                   });
 
-              // 1. Guard the dialog's context and pop it
               if (!ctx.mounted) return;
               Navigator.pop(ctx);
 
-              // 2. Guard the State's context using 'mounted'
               if (!mounted) return;
 
-              // 3. Update state and continue navigation safely
               setState(() {
                 _selectedCircleIds.add(docRef.id);
                 _inviteAll = false;
@@ -313,7 +314,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 _selectedCoHostName = null;
               });
 
-              Navigator.pop(context); // Pop the outer Circle Selector Dialog
+              Navigator.pop(context);
 
               Navigator.push(
                 context,
@@ -509,9 +510,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
                       Expanded(
                         child: TextField(
                           controller: _roleInputController,
+                          maxLength: 30,
                           textCapitalization: TextCapitalization.sentences,
                           decoration: InputDecoration(
                             hintText: "New item...",
+                            counterText: "",
                             filled: true,
                             fillColor: isDark
                                 ? Colors.grey.shade800
@@ -846,7 +849,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
     }
   }
 
-  // --- RESPONSIVE HELPER ---
   Widget _buildResponsiveRow(bool isLandscape, Widget child1, Widget child2) {
     if (isLandscape) {
       return Padding(
@@ -884,15 +886,15 @@ class _CreateEventPageState extends State<CreateEventPage> {
         "${_selectedDate.month}/${_selectedDate.day}/${_selectedDate.year}";
     final timeString = _selectedTime.format(context);
 
-    // --- EXTRACTED FORM FIELDS ---
     final titleField = TextFormField(
       controller: _titleController,
       textCapitalization: TextCapitalization.sentences,
+      maxLength: 50,
       decoration: _buildInputDecoration(
         label: "Let's do...",
         hint: "e.g. Taco Night 🌮",
         prefixIcon: Icon(Symbols.campaign, color: primaryColor),
-      ),
+      ).copyWith(counterText: ""),
       validator: (v) => v!.isEmpty ? "Required" : null,
     );
 
@@ -900,6 +902,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
       controller: _locController,
       readOnly: true,
       onTap: _selectLocation,
+      maxLength: 100,
       decoration: _buildInputDecoration(
         label: "Where at?",
         hint: "Tap to search address...",
@@ -922,7 +925,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 Icons.search,
                 color: isDark ? Colors.grey.shade500 : Colors.grey,
               ),
-      ),
+      ).copyWith(counterText: ""),
       validator: (v) => v!.isEmpty ? "Please select a location" : null,
     );
 
@@ -989,6 +992,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
     final detailsField = TextFormField(
       controller: _detailsController,
       textCapitalization: TextCapitalization.sentences,
+      maxLength: 500,
       decoration: _buildInputDecoration(
         label: "Need to Know",
         hint: "e.g. Meet in the lobby at 7...",
@@ -996,7 +1000,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
           Icons.notes,
           color: isDark ? Colors.grey.shade400 : Colors.grey,
         ),
-      ).copyWith(alignLabelWithHint: true),
+      ).copyWith(alignLabelWithHint: true, counterText: ""),
       maxLines: 3,
       keyboardType: TextInputType.multiline,
     );
@@ -1129,7 +1133,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      // --- RESPONSIVE LAYOUT ASSEMBLY ---
                       _buildResponsiveRow(
                         isLandscape,
                         titleField,
@@ -1232,7 +1235,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
                               ),
                             );
 
-                            // Apply responsive layout to the final two inputs
                             return _buildResponsiveRow(
                               isLandscape,
                               circlesField,
