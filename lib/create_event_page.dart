@@ -261,7 +261,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
     }
   }
 
-  // --- NEW: IMPROMPTU CIRCLE CREATION ENGINE ---
   void _showCreateCircleImpromptu() {
     final nameController = TextEditingController();
     final primaryColor = Theme.of(context).colorScheme.primary;
@@ -299,9 +298,14 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     'createdAt': FieldValue.serverTimestamp(),
                   });
 
-              // --- FIX: Check BOTH contexts after the async gap ---
-              if (!ctx.mounted || !context.mounted) return;
+              // 1. Guard the dialog's context and pop it
+              if (!ctx.mounted) return;
+              Navigator.pop(ctx);
 
+              // 2. Guard the State's context using 'mounted'
+              if (!mounted) return;
+
+              // 3. Update state and continue navigation safely
               setState(() {
                 _selectedCircleIds.add(docRef.id);
                 _inviteAll = false;
@@ -309,8 +313,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 _selectedCoHostName = null;
               });
 
-              Navigator.pop(ctx); // Pop Name Dialog
-              Navigator.pop(context); // Pop Circle Selector Dialog
+              Navigator.pop(context); // Pop the outer Circle Selector Dialog
 
               Navigator.push(
                 context,
@@ -413,7 +416,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
                           ? Colors.grey.shade800
                           : Colors.grey.shade200,
                     ),
-                    // --- NEW: IN-FLOW CIRCLE CREATOR ---
                     ListTile(
                       leading: Icon(
                         Icons.add_circle_outline,
@@ -844,15 +846,269 @@ class _CreateEventPageState extends State<CreateEventPage> {
     }
   }
 
+  // --- RESPONSIVE HELPER ---
+  Widget _buildResponsiveRow(bool isLandscape, Widget child1, Widget child2) {
+    if (isLandscape) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 16.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: child1),
+            const SizedBox(width: 16),
+            Expanded(child: child2),
+          ],
+        ),
+      );
+    } else {
+      return Column(
+        children: [
+          child1,
+          const SizedBox(height: 16),
+          child2,
+          const SizedBox(height: 16),
+        ],
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
     final user = FirebaseAuth.instance.currentUser;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     final dateString =
         "${_selectedDate.month}/${_selectedDate.day}/${_selectedDate.year}";
     final timeString = _selectedTime.format(context);
+
+    // --- EXTRACTED FORM FIELDS ---
+    final titleField = TextFormField(
+      controller: _titleController,
+      textCapitalization: TextCapitalization.sentences,
+      decoration: _buildInputDecoration(
+        label: "Let's do...",
+        hint: "e.g. Taco Night 🌮",
+        prefixIcon: Icon(Symbols.campaign, color: primaryColor),
+      ),
+      validator: (v) => v!.isEmpty ? "Required" : null,
+    );
+
+    final locationField = TextFormField(
+      controller: _locController,
+      readOnly: true,
+      onTap: _selectLocation,
+      decoration: _buildInputDecoration(
+        label: "Where at?",
+        hint: "Tap to search address...",
+        prefixIcon: Icon(
+          Icons.location_on,
+          color: isDark ? Colors.redAccent : Colors.red,
+        ),
+        suffixIcon: _locController.text.isNotEmpty
+            ? IconButton(
+                icon: Icon(
+                  _isLocFavorite ? Icons.star : Icons.star_border,
+                  color: _isLocFavorite
+                      ? Colors.amber
+                      : (isDark ? Colors.grey.shade500 : Colors.grey),
+                  size: 26,
+                ),
+                onPressed: _toggleFavoriteStatus,
+              )
+            : Icon(
+                Icons.search,
+                color: isDark ? Colors.grey.shade500 : Colors.grey,
+              ),
+      ),
+      validator: (v) => v!.isEmpty ? "Please select a location" : null,
+    );
+
+    final dateTimeRow = Row(
+      children: [
+        Expanded(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: _pickDate,
+            child: InputDecorator(
+              decoration: _buildInputDecoration(
+                label: "Date",
+                prefixIcon: Icon(
+                  Icons.calendar_today,
+                  color: isDark ? Colors.lightBlueAccent : Colors.blue,
+                ),
+              ),
+              child: Text(dateString, style: const TextStyle(fontSize: 16)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: _pickTime,
+            child: InputDecorator(
+              decoration: _buildInputDecoration(
+                label: "Time",
+                prefixIcon: Icon(
+                  Icons.access_time,
+                  color: isDark ? Colors.orangeAccent : Colors.orange,
+                ),
+              ),
+              child: Text(timeString, style: const TextStyle(fontSize: 16)),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    final rsvpField = DropdownButtonFormField<int>(
+      initialValue: _rsvpDeadlineOffset,
+      decoration: _buildInputDecoration(
+        label: "RSVP Deadline",
+        prefixIcon: Icon(Icons.timer_off_outlined, color: primaryColor),
+      ),
+      dropdownColor: Theme.of(context).cardColor,
+      icon: const Icon(Icons.arrow_drop_down),
+      items: const [
+        DropdownMenuItem(value: -240, child: Text("4 hours before")),
+        DropdownMenuItem(value: -120, child: Text("2 hours before")),
+        DropdownMenuItem(value: -60, child: Text("1 hour before")),
+        DropdownMenuItem(value: -30, child: Text("30 mins before")),
+        DropdownMenuItem(value: 0, child: Text("At event start (Default)")),
+        DropdownMenuItem(value: 30, child: Text("30 mins after")),
+        DropdownMenuItem(value: 60, child: Text("1 hour after")),
+        DropdownMenuItem(value: 120, child: Text("2 hours after")),
+        DropdownMenuItem(value: 240, child: Text("4 hours after")),
+      ],
+      onChanged: (val) => setState(() => _rsvpDeadlineOffset = val ?? 0),
+    );
+
+    final detailsField = TextFormField(
+      controller: _detailsController,
+      textCapitalization: TextCapitalization.sentences,
+      decoration: _buildInputDecoration(
+        label: "Need to Know",
+        hint: "e.g. Meet in the lobby at 7...",
+        prefixIcon: Icon(
+          Icons.notes,
+          color: isDark ? Colors.grey.shade400 : Colors.grey,
+        ),
+      ).copyWith(alignLabelWithHint: true),
+      maxLines: 3,
+      keyboardType: TextInputType.multiline,
+    );
+
+    final togglesRow = Row(
+      children: [
+        Expanded(
+          child: InkWell(
+            onTap: _showRolesDialog,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: _roles.isNotEmpty
+                      ? primaryColor
+                      : (isDark
+                            ? Colors.white12
+                            : Colors.black.withValues(alpha: 0.05)),
+                  width: _roles.isNotEmpty ? 2 : 1,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.check_box_outlined,
+                    color: _roles.isNotEmpty
+                        ? primaryColor
+                        : (isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _roles.isEmpty ? "Squad Needs" : "${_roles.length} Needs",
+                      style: TextStyle(
+                        fontWeight: _roles.isNotEmpty
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: _roles.isNotEmpty
+                            ? primaryColor
+                            : (isDark ? Colors.white : Colors.black87),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: InkWell(
+            onTap: () =>
+                setState(() => _isImportantDetails = !_isImportantDetails),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: _isImportantDetails
+                      ? Colors.red
+                      : (isDark
+                            ? Colors.white12
+                            : Colors.black.withValues(alpha: 0.05)),
+                  width: _isImportantDetails ? 2 : 1,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _isImportantDetails
+                        ? Icons.campaign
+                        : Icons.campaign_outlined,
+                    color: _isImportantDetails
+                        ? Colors.red
+                        : (isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "Important",
+                      style: TextStyle(
+                        fontWeight: _isImportantDetails
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: _isImportantDetails
+                            ? Colors.red
+                            : (isDark ? Colors.white : Colors.black87),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -873,305 +1129,18 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      TextFormField(
-                        controller: _titleController,
-                        textCapitalization: TextCapitalization.sentences,
-                        decoration: _buildInputDecoration(
-                          label: "Let's do...",
-                          hint: "e.g. Taco Night 🌮",
-                          prefixIcon: Icon(
-                            Symbols.campaign,
-                            color: primaryColor,
-                          ),
-                        ),
-                        validator: (v) => v!.isEmpty ? "Required" : null,
+                      // --- RESPONSIVE LAYOUT ASSEMBLY ---
+                      _buildResponsiveRow(
+                        isLandscape,
+                        titleField,
+                        locationField,
                       ),
-                      const SizedBox(height: 16),
-
-                      TextFormField(
-                        controller: _locController,
-                        readOnly: true,
-                        onTap: _selectLocation,
-                        decoration: _buildInputDecoration(
-                          label: "Where at?",
-                          hint: "Tap to search address...",
-                          prefixIcon: Icon(
-                            Icons.location_on,
-                            color: isDark ? Colors.redAccent : Colors.red,
-                          ),
-                          suffixIcon: _locController.text.isNotEmpty
-                              ? IconButton(
-                                  icon: Icon(
-                                    _isLocFavorite
-                                        ? Icons.star
-                                        : Icons.star_border,
-                                    color: _isLocFavorite
-                                        ? Colors.amber
-                                        : (isDark
-                                              ? Colors.grey.shade500
-                                              : Colors.grey),
-                                    size: 26,
-                                  ),
-                                  onPressed: _toggleFavoriteStatus,
-                                )
-                              : Icon(
-                                  Icons.search,
-                                  color: isDark
-                                      ? Colors.grey.shade500
-                                      : Colors.grey,
-                                ),
-                        ),
-                        validator: (v) =>
-                            v!.isEmpty ? "Please select a location" : null,
+                      _buildResponsiveRow(isLandscape, dateTimeRow, rsvpField),
+                      _buildResponsiveRow(
+                        isLandscape,
+                        detailsField,
+                        togglesRow,
                       ),
-                      const SizedBox(height: 16),
-
-                      Row(
-                        children: [
-                          Expanded(
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(16),
-                              onTap: _pickDate,
-                              child: InputDecorator(
-                                decoration: _buildInputDecoration(
-                                  label: "Date",
-                                  prefixIcon: Icon(
-                                    Icons.calendar_today,
-                                    color: isDark
-                                        ? Colors.lightBlueAccent
-                                        : Colors.blue,
-                                  ),
-                                ),
-                                child: Text(
-                                  dateString,
-                                  style: const TextStyle(fontSize: 16),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(16),
-                              onTap: _pickTime,
-                              child: InputDecorator(
-                                decoration: _buildInputDecoration(
-                                  label: "Time",
-                                  prefixIcon: Icon(
-                                    Icons.access_time,
-                                    color: isDark
-                                        ? Colors.orangeAccent
-                                        : Colors.orange,
-                                  ),
-                                ),
-                                child: Text(
-                                  timeString,
-                                  style: const TextStyle(fontSize: 16),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      DropdownButtonFormField<int>(
-                        initialValue: _rsvpDeadlineOffset,
-                        decoration: _buildInputDecoration(
-                          label: "RSVP Deadline",
-                          prefixIcon: Icon(
-                            Icons.timer_off_outlined,
-                            color: primaryColor,
-                          ),
-                        ),
-                        dropdownColor: Theme.of(context).cardColor,
-                        icon: const Icon(Icons.arrow_drop_down),
-                        items: const [
-                          DropdownMenuItem(
-                            value: -240,
-                            child: Text("4 hours before"),
-                          ),
-                          DropdownMenuItem(
-                            value: -120,
-                            child: Text("2 hours before"),
-                          ),
-                          DropdownMenuItem(
-                            value: -60,
-                            child: Text("1 hour before"),
-                          ),
-                          DropdownMenuItem(
-                            value: -30,
-                            child: Text("30 mins before"),
-                          ),
-                          DropdownMenuItem(
-                            value: 0,
-                            child: Text("At event start (Default)"),
-                          ),
-                          DropdownMenuItem(
-                            value: 30,
-                            child: Text("30 mins after"),
-                          ),
-                          DropdownMenuItem(
-                            value: 60,
-                            child: Text("1 hour after"),
-                          ),
-                          DropdownMenuItem(
-                            value: 120,
-                            child: Text("2 hours after"),
-                          ),
-                          DropdownMenuItem(
-                            value: 240,
-                            child: Text("4 hours after"),
-                          ),
-                        ],
-                        onChanged: (val) =>
-                            setState(() => _rsvpDeadlineOffset = val ?? 0),
-                      ),
-                      const SizedBox(height: 16),
-
-                      TextFormField(
-                        controller: _detailsController,
-                        textCapitalization: TextCapitalization.sentences,
-                        decoration: _buildInputDecoration(
-                          label: "Need to Know",
-                          hint: "e.g. Meet in the lobby at 7...",
-                          prefixIcon: Icon(
-                            Icons.notes,
-                            color: isDark ? Colors.grey.shade400 : Colors.grey,
-                          ),
-                        ).copyWith(alignLabelWithHint: true),
-                        maxLines: 3,
-                        keyboardType: TextInputType.multiline,
-                      ),
-                      const SizedBox(height: 12),
-
-                      Row(
-                        children: [
-                          Expanded(
-                            child: InkWell(
-                              onTap: _showRolesDialog,
-                              borderRadius: BorderRadius.circular(16),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                  horizontal: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).cardColor,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: _roles.isNotEmpty
-                                        ? primaryColor
-                                        : (isDark
-                                              ? Colors.white12
-                                              : Colors.black.withValues(
-                                                  alpha: 0.05,
-                                                )),
-                                    width: _roles.isNotEmpty ? 2 : 1,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.check_box_outlined,
-                                      color: _roles.isNotEmpty
-                                          ? primaryColor
-                                          : (isDark
-                                                ? Colors.grey.shade400
-                                                : Colors.grey.shade600),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        _roles.isEmpty
-                                            ? "Squad Needs"
-                                            : "${_roles.length} Needs",
-                                        style: TextStyle(
-                                          fontWeight: _roles.isNotEmpty
-                                              ? FontWeight.bold
-                                              : FontWeight.normal,
-                                          color: _roles.isNotEmpty
-                                              ? primaryColor
-                                              : (isDark
-                                                    ? Colors.white
-                                                    : Colors.black87),
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => setState(
-                                () =>
-                                    _isImportantDetails = !_isImportantDetails,
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                  horizontal: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).cardColor,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: _isImportantDetails
-                                        ? Colors.red
-                                        : (isDark
-                                              ? Colors.white12
-                                              : Colors.black.withValues(
-                                                  alpha: 0.05,
-                                                )),
-                                    width: _isImportantDetails ? 2 : 1,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      _isImportantDetails
-                                          ? Icons.campaign
-                                          : Icons.campaign_outlined,
-                                      color: _isImportantDetails
-                                          ? Colors.red
-                                          : (isDark
-                                                ? Colors.grey.shade400
-                                                : Colors.grey.shade600),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        "Important",
-                                        style: TextStyle(
-                                          fontWeight: _isImportantDetails
-                                              ? FontWeight.bold
-                                              : FontWeight.normal,
-                                          color: _isImportantDetails
-                                              ? Colors.red
-                                              : (isDark
-                                                    ? Colors.white
-                                                    : Colors.black87),
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
 
                       if (user != null) ...[
                         StreamBuilder<QuerySnapshot>(
@@ -1205,7 +1174,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                                   : "Selected Circles";
                             }
 
-                            return InkWell(
+                            final circlesField = InkWell(
                               borderRadius: BorderRadius.circular(16),
                               onTap: () => _showCircleDialog(circles),
                               child: InputDecorator(
@@ -1227,43 +1196,52 @@ class _CreateEventPageState extends State<CreateEventPage> {
                                 ),
                               ),
                             );
+
+                            final coHostField = InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: _showCoHostDialog,
+                              child: InputDecorator(
+                                decoration: _buildInputDecoration(
+                                  label: "Add co-host (optional)",
+                                  prefixIcon: Icon(
+                                    Icons.person_add_alt_1,
+                                    color: isDark
+                                        ? Colors.amberAccent
+                                        : Colors.amber.shade700,
+                                  ),
+                                  suffixIcon: _selectedCoHostId != null
+                                      ? IconButton(
+                                          icon: const Icon(
+                                            Icons.close,
+                                            size: 20,
+                                          ),
+                                          onPressed: () => setState(() {
+                                            _selectedCoHostId = null;
+                                            _selectedCoHostName = null;
+                                          }),
+                                        )
+                                      : const Icon(Icons.arrow_drop_down),
+                                ),
+                                child: Text(
+                                  _selectedCoHostName ??
+                                      "Select a trusted friend...",
+                                  style: const TextStyle(fontSize: 16),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            );
+
+                            // Apply responsive layout to the final two inputs
+                            return _buildResponsiveRow(
+                              isLandscape,
+                              circlesField,
+                              coHostField,
+                            );
                           },
                         ),
-                        const SizedBox(height: 16),
-
-                        InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: _showCoHostDialog,
-                          child: InputDecorator(
-                            decoration: _buildInputDecoration(
-                              label: "Add co-host (optional)",
-                              prefixIcon: Icon(
-                                Icons.person_add_alt_1,
-                                color: isDark
-                                    ? Colors.amberAccent
-                                    : Colors.amber.shade700,
-                              ),
-                              suffixIcon: _selectedCoHostId != null
-                                  ? IconButton(
-                                      icon: const Icon(Icons.close, size: 20),
-                                      onPressed: () => setState(() {
-                                        _selectedCoHostId = null;
-                                        _selectedCoHostName = null;
-                                      }),
-                                    )
-                                  : const Icon(Icons.arrow_drop_down),
-                            ),
-                            child: Text(
-                              _selectedCoHostName ??
-                                  "Select a trusted friend...",
-                              style: const TextStyle(fontSize: 16),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
                       ],
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 24),
 
                       SizedBox(
                         width: double.infinity,

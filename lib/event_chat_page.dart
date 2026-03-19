@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -801,6 +802,8 @@ class _EventChatPageState extends State<EventChatPage> {
 
   Widget _buildMentionList() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     final filteredGuests = _eventGuests.where((g) {
       final tag = g['tag'] as String;
@@ -810,7 +813,8 @@ class _EventChatPageState extends State<EventChatPage> {
     if (filteredGuests.isEmpty) return const SizedBox.shrink();
 
     return Container(
-      constraints: const BoxConstraints(maxHeight: 180),
+      // UPDATED: Dynamic max height to avoid overflow when keyboard is open in landscape
+      constraints: BoxConstraints(maxHeight: isLandscape ? 120 : 180),
       margin: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
@@ -1036,95 +1040,100 @@ class _EventChatPageState extends State<EventChatPage> {
 
           if (_mentionQuery != null) _buildMentionList(),
 
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              boxShadow: [
-                if (!isDark)
-                  const BoxShadow(
-                    color: Colors.black12,
-                    offset: Offset(0, -2),
-                    blurRadius: 4,
+          // UPDATED: Added SafeArea around the bottom input container to protect against the iOS home bar
+          SafeArea(
+            bottom: true,
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                boxShadow: [
+                  if (!isDark)
+                    const BoxShadow(
+                      color: Colors.black12,
+                      offset: Offset(0, -2),
+                      blurRadius: 4,
+                    ),
+                ],
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (_isUploadingImage)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 14.0,
+                        vertical: 14.0,
+                      ),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  else
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2.0),
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.add_photo_alternate,
+                          color: primaryColor,
+                        ),
+                        onPressed: _pickAndUploadImage,
+                      ),
+                    ),
+
+                  Expanded(
+                    child: TextField(
+                      controller: _messageController,
+                      textCapitalization: TextCapitalization.sentences,
+                      minLines: 1,
+                      maxLines: 5,
+                      keyboardType: TextInputType.multiline,
+                      style: TextStyle(
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: "Say something...",
+                        hintStyle: TextStyle(
+                          color: isDark
+                              ? Colors.grey.shade500
+                              : Colors.grey.shade600,
+                        ),
+                        filled: true,
+                        fillColor: isDark
+                            ? Colors.grey.shade800
+                            : Colors.grey.shade100,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(25),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
                   ),
-              ],
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (_isUploadingImage)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 14.0,
-                      vertical: 14.0,
-                    ),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                else
+                  const SizedBox(width: 8),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 2.0),
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.add_photo_alternate,
-                        color: primaryColor,
-                      ),
-                      onPressed: _pickAndUploadImage,
-                    ),
-                  ),
-
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    textCapitalization: TextCapitalization.sentences,
-                    minLines: 1,
-                    maxLines: 5,
-                    keyboardType: TextInputType.multiline,
-                    style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: "Say something...",
-                      hintStyle: TextStyle(
-                        color: isDark
-                            ? Colors.grey.shade500
-                            : Colors.grey.shade600,
-                      ),
-                      filled: true,
-                      fillColor: isDark
-                          ? Colors.grey.shade800
-                          : Colors.grey.shade100,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(25),
-                        borderSide: BorderSide.none,
+                    child: CircleAvatar(
+                      backgroundColor: primaryColor,
+                      radius: 24,
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.send,
+                          color: themeProvider.onPrimaryColor,
+                          size: 20,
+                        ),
+                        onPressed: _sendMessage,
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 2.0),
-                  child: CircleAvatar(
-                    backgroundColor: primaryColor,
-                    radius: 24,
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.send,
-                        color: themeProvider.onPrimaryColor,
-                        size: 20,
-                      ),
-                      onPressed: _sendMessage,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -1195,6 +1204,13 @@ class _EventChatPageState extends State<EventChatPage> {
       }
     } catch (_) {}
 
+    // UPDATED: Dynamically cap the bubble width for ultra-wide screens (like iPads or Landscape phones)
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    double maxBubbleWidth = screenWidth * (isLandscape ? 0.6 : 0.75);
+    maxBubbleWidth = min(maxBubbleWidth, 450); // Hard cap at 450 pixels
+
     return GestureDetector(
       onLongPress: () => _showMessageOptions(
         messageId,
@@ -1240,9 +1256,8 @@ class _EventChatPageState extends State<EventChatPage> {
                 clipBehavior: Clip.none,
                 children: [
                   Container(
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.75,
-                    ),
+                    // UPDATED: Use the new capped width
+                    constraints: BoxConstraints(maxWidth: maxBubbleWidth),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 10,

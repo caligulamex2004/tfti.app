@@ -144,7 +144,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         'hasSeen': hasSeen,
         'displayName': userData['displayName'] ?? 'Unknown',
         'phone': userData['phoneNumber'] ?? userData['phone'] ?? '',
-        // --- FIX: Ensure the fallback is an integer, not a Color object! ---
         'avatarColor': userData['avatarColor'] ?? 0xFF9E9E9E,
         'avatarUrl': userData['avatarUrl'],
       };
@@ -296,8 +295,10 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
     if (seenGuests.isEmpty) return const SizedBox.shrink();
 
-    final displayGuests = seenGuests.take(3).toList();
-    final int extraCount = seenGuests.length - 3;
+    // UPDATED: Increased limit to 5 for a better visual spread
+    const int maxAvatars = 5;
+    final displayGuests = seenGuests.take(maxAvatars).toList();
+    final int extraCount = seenGuests.length - maxAvatars;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -309,41 +310,47 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
             color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
           ),
         ),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: displayGuests.map((reader) {
-            final String? avatarUrl = reader['avatarUrl'];
+        // UPDATED: Added Flexible and SingleChildScrollView for overflow safety
+        Flexible(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: displayGuests.map((reader) {
+                final String? avatarUrl = reader['avatarUrl'];
 
-            return Align(
-              widthFactor: 0.7,
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Theme.of(context).scaffoldBackgroundColor,
-                    width: 1.5,
+                return Align(
+                  widthFactor: 0.7,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Theme.of(context).scaffoldBackgroundColor,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: CircleAvatar(
+                      radius: 10,
+                      backgroundColor: Color(reader['avatarColor']),
+                      backgroundImage: avatarUrl != null
+                          ? CachedNetworkImageProvider(avatarUrl)
+                          : null,
+                      child: avatarUrl == null
+                          ? Text(
+                              reader['displayName'][0].toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 9,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : null,
+                    ),
                   ),
-                ),
-                child: CircleAvatar(
-                  radius: 10,
-                  backgroundColor: Color(reader['avatarColor']),
-                  backgroundImage: avatarUrl != null
-                      ? CachedNetworkImageProvider(avatarUrl)
-                      : null,
-                  child: avatarUrl == null
-                      ? Text(
-                          reader['displayName'][0].toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 9,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
-                      : null,
-                ),
-              ),
-            );
-          }).toList(),
+                );
+              }).toList(),
+            ),
+          ),
         ),
         if (extraCount > 0)
           Padding(
@@ -380,7 +387,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           data = snapshot.data!.data() as Map<String, dynamic>;
         }
 
-        // --- NEW: CO-HOST PERMISSION ENGINE ---
         final bool isMainHost = data['hostId'] == currentUser.uid;
         final bool isCoHost = data['coHostId'] == currentUser.uid;
         final bool canEdit = isMainHost || isCoHost;
@@ -441,7 +447,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
               decoration: BoxDecoration(gradient: themeProvider.appGradient),
             ),
             actions: [
-              if (canEdit) // <-- EXPOSED TO CO-HOST
+              if (canEdit)
                 IconButton(
                   icon: const Icon(Icons.edit),
                   onPressed: () {
@@ -681,7 +687,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                     ),
                                   ),
                                   subtitle: Text(
-                                    canEdit // <-- EXPOSED TO CO-HOST
+                                    canEdit
                                         ? "Manage the items you need help with"
                                         : "See what the host needs help with!",
                                     style: TextStyle(
@@ -700,8 +706,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                       MaterialPageRoute(
                                         builder: (context) => EventRolesPage(
                                           eventId: widget.eventId,
-                                          isHost:
-                                              canEdit, // Pass 'true' so they can add to the list
+                                          isHost: canEdit,
                                         ),
                                       ),
                                     );
@@ -863,10 +868,14 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    _buildFacepile(
-                                      guests,
-                                      currentUser.uid,
-                                      isDark,
+                                    const SizedBox(width: 16),
+                                    // UPDATED: Wrapped Facepile in Flexible
+                                    Flexible(
+                                      child: _buildFacepile(
+                                        guests,
+                                        currentUser.uid,
+                                        isDark,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -881,7 +890,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                             final int avatarColor = guest['avatarColor'];
                             final String? avatarUrl = guest['avatarUrl'];
 
-                            // --- IDENTIFY BOTH HOST AND CO-HOST ---
                             final bool isEventMainHost =
                                 guestUid == data['hostId'];
                             final bool isEventCoHost =
@@ -997,7 +1005,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
-                                      // --- RENDER ROLES DYNAMICALLY ---
                                       if (isEventMainHost) ...[
                                         const SizedBox(width: 6),
                                         const Icon(
