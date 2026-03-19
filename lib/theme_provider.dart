@@ -95,7 +95,7 @@ class ThemeProvider extends ChangeNotifier {
       case AppTheme.original:
         return ThemeData(
           brightness: Brightness.light,
-          scaffoldBackgroundColor: const Color(0xFFF0F2F5),
+          scaffoldBackgroundColor: const Color(0xFFE1F5FE),
           cardColor: Colors.white,
           appBarTheme: const AppBarTheme(foregroundColor: Colors.white),
           colorScheme: const ColorScheme.light(
@@ -109,7 +109,7 @@ class ThemeProvider extends ChangeNotifier {
       case AppTheme.royalPurple:
         return ThemeData(
           brightness: Brightness.light,
-          scaffoldBackgroundColor: const Color(0xFFE1F5FE),
+          scaffoldBackgroundColor: const Color(0xFFF0F2F5),
           cardColor: Colors.white,
           appBarTheme: const AppBarTheme(
             foregroundColor: Colors.white,
