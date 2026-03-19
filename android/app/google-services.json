@@ -77,6 +77,14 @@
           }
         },
         {
+          "client_id": "80872957470-ht6be9073eihhdp2ufnurqqapevmk9u3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bearmoose.tftiapp",
+            "certificate_hash": "a49568b6a7deb93afb806ea312d7a9aa5481dbbf"
+          }
+        },
+        {
           "client_id": "80872957470-ntubpeqj9qmkm66kp7agl0978aojalg5.apps.googleusercontent.com",
           "client_type": 3
         }
