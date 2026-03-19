@@ -126,9 +126,11 @@ class _EventRolesPageState extends State<EventRolesPage> {
                   Expanded(
                     child: TextField(
                       controller: _roleController,
+                      maxLength: 30,
                       textCapitalization: TextCapitalization.sentences,
                       decoration: InputDecoration(
                         hintText: "e.g. Bring a Bluetooth speaker",
+                        counterText: "",
                         filled: true,
                         fillColor: isDark
                             ? Colors.grey.shade800
