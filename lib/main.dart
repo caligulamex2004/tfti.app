@@ -988,7 +988,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                           fontSize: 16,
                           color: titleTextColor,
                         ),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
@@ -1015,7 +1015,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                                     ? Colors.grey.shade400
                                     : Colors.black54),
                         ),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
 

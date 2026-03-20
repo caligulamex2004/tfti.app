@@ -966,7 +966,13 @@ class _EventChatPageState extends State<EventChatPage> {
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F0F0F) : Colors.grey[200],
       appBar: AppBar(
-        title: Text(widget.eventTitle),
+        title: Text(
+          widget.eventTitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 18, height: 1.2),
+        ),
         centerTitle: true,
         foregroundColor: Colors.white,
         flexibleSpace: Container(

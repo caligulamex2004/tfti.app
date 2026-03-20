@@ -440,7 +440,13 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
 
           appBar: AppBar(
-            title: Text(data['title'] ?? "Event"),
+            title: Text(
+              data['title'] ?? "Event",
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 18, height: 1.2),
+            ),
             centerTitle: true,
             foregroundColor: Colors.white,
             flexibleSpace: Container(
