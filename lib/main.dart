@@ -765,8 +765,9 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                         if (!isHidden && !isPast) shouldDisplay = true;
                         break;
                       case 'pending':
-                        if (status == 'pending' && !isHidden && !isPast)
+                        if (status == 'pending' && !isHidden && !isPast) {
                           shouldDisplay = true;
+                        }
                         break;
                       case 'soon':
                         if (isStartingSoon && !isHidden) shouldDisplay = true;
@@ -775,12 +776,14 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                         if (isHappeningNow && !isHidden) shouldDisplay = true;
                         break;
                       case 'going':
-                        if (status == 'going' && !isHidden && !isPast)
+                        if (status == 'going' && !isHidden && !isPast) {
                           shouldDisplay = true;
+                        }
                         break;
                       case 'declined':
-                        if (status == 'declined' && !isHidden && !isPast)
+                        if (status == 'declined' && !isHidden && !isPast) {
                           shouldDisplay = true;
+                        }
                         break;
                       case 'past_hidden':
                         if (isHidden || isPast) shouldDisplay = true;
