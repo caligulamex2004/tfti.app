@@ -380,7 +380,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           data = snapshot.data!.data() as Map<String, dynamic>;
         }
 
-        // --- NEW: VIBE CHECK IDENTIFIER ---
         final bool isVibeCheck = data['type'] == 'vibe_check';
 
         final bool isMainHost = data['hostId'] == currentUser.uid;
@@ -453,7 +452,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                 IconButton(
                   icon: const Icon(Icons.edit),
                   onPressed: () {
-                    // --- DYNAMIC EDIT ROUTING ---
                     if (isVibeCheck) {
                       Navigator.push(
                         context,
@@ -558,7 +556,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                     children: [
                       _buildAlertBanner(context, data),
 
-                      // If it's a Vibe check, render the big question here instead of Location
                       if (isVibeCheck)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12.0),
@@ -584,7 +581,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                       ),
                       const SizedBox(height: 10),
 
-                      // Only show standard Location card if it's NOT a Vibe Check
                       if (!isVibeCheck)
                         Card(
                           elevation: isDark ? 1 : 2,
@@ -772,7 +768,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
                           return Column(
                             children: [
-                              // --- RENDER POLL INSIDE DETAILS PAGE ---
                               if (isVibeCheck) ...[
                                 Container(
                                   width: double.infinity,
@@ -1158,7 +1153,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
   }
 }
 
-// --- VIBE CHECK INTERACTIVE POLL UI ---
 class VibeCheckPollUI extends StatelessWidget {
   final String eventId;
   final Map<String, dynamic> eventData;
@@ -1178,7 +1172,7 @@ class VibeCheckPollUI extends StatelessWidget {
   Future<void> _castVote(String optionId) async {
     final status = myInviteData['status'] ?? 'pending';
     if (status != 'going' && !isHost) {
-      return; // Force RSVP before voting
+      return;
     }
 
     List<String> currentVotes = List<String>.from(myInviteData['votes'] ?? []);
@@ -1217,8 +1211,9 @@ class VibeCheckPollUI extends StatelessWidget {
 
       final votes = List<String>.from(data['votes'] ?? []);
       String newStatus = votes.contains(option['id']) ? 'going' : 'pending';
-      if (data['role'] == 'host' || data['role'] == 'co-host')
+      if (data['role'] == 'host' || data['role'] == 'co-host') {
         newStatus = 'going';
+      }
 
       batch.update(doc.reference, {'status': newStatus});
     }
@@ -1231,7 +1226,15 @@ class VibeCheckPollUI extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
     final options = List<dynamic>.from(eventData['pollOptions'] ?? []);
-    final isTieBreaker = eventData['isTieBreakerNeeded'] == true;
+
+    final now = DateTime.now();
+    final Timestamp? ts = eventData['time'];
+    final DateTime eventTime = ts?.toDate() ?? now;
+    final int deadlineOffset = eventData['rsvpDeadline'] ?? 0;
+    final DateTime deadlineTime = eventTime.add(
+      Duration(minutes: deadlineOffset),
+    );
+    final bool isPastDeadline = now.isAfter(deadlineTime);
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -1255,13 +1258,31 @@ class VibeCheckPollUI extends StatelessWidget {
           }
         }
 
+        bool dynamicIsTie = false;
+        if (options.isNotEmpty) {
+          int maxV = -1;
+          int tieCount = 0;
+          for (var opt in options) {
+            int c = voteCounts[opt['id']] ?? 0;
+            if (c > maxV) {
+              maxV = c;
+              tieCount = 1;
+            } else if (c == maxV) {
+              tieCount++;
+            }
+          }
+          dynamicIsTie = (tieCount > 1);
+        }
+
+        final showTieBreaker = isHost && dynamicIsTie && isPastDeadline;
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (isTieBreaker && isHost)
+            if (showTieBreaker)
               Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(8),
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: Colors.orange.withValues(alpha: 0.1),
                   border: Border.all(color: Colors.orange),
@@ -1272,15 +1293,15 @@ class VibeCheckPollUI extends StatelessWidget {
                     Icon(
                       Icons.warning_amber_rounded,
                       color: Colors.orange,
-                      size: 18,
+                      size: 20,
                     ),
-                    SizedBox(width: 6),
+                    SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        "It's a tie! Lock in your choice below.",
+                        "It's a tie! Lock in your choice below to finalize the event.",
                         style: TextStyle(
                           color: Colors.orange,
-                          fontSize: 12,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1302,10 +1323,10 @@ class VibeCheckPollUI extends StatelessWidget {
               return GestureDetector(
                 onTap: () => _castVote(optId),
                 child: Container(
-                  margin: const EdgeInsets.only(bottom: 6),
+                  margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
                     color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: iVoted ? primaryColor : Colors.transparent,
                       width: 1.5,
@@ -1313,22 +1334,31 @@ class VibeCheckPollUI extends StatelessWidget {
                   ),
                   child: Stack(
                     children: [
-                      FractionallySizedBox(
-                        widthFactor: percentage > 0 ? percentage : 0.01,
-                        child: Container(
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: primaryColor.withValues(
-                              alpha: isDark ? 0.3 : 0.2,
+                      // 👇 THE FIX: Positioned.fill dynamically matches the Stack's height
+                      Positioned.fill(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: FractionallySizedBox(
+                            widthFactor: percentage > 0 ? percentage : 0.01,
+                            heightFactor:
+                                1.0, // Fill 100% of the vertical space
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: primaryColor.withValues(
+                                  alpha: isDark ? 0.3 : 0.2,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
-                            borderRadius: BorderRadius.circular(6),
                           ),
                         ),
                       ),
+
+                      // Foreground Content
                       Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
+                          horizontal: 14,
+                          vertical: 12,
                         ),
                         child: Row(
                           children: [
@@ -1336,44 +1366,91 @@ class VibeCheckPollUI extends StatelessWidget {
                               iVoted
                                   ? Icons.check_circle
                                   : Icons.circle_outlined,
-                              size: 16,
+                              size: 18,
                               color: iVoted
                                   ? primaryColor
                                   : (isDark
                                         ? Colors.grey.shade600
                                         : Colors.grey.shade400),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 12),
+
                             Expanded(
-                              child: Text(
-                                opt['title'],
-                                style: TextStyle(
-                                  fontWeight: iVoted
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                  fontSize: 13,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    opt['title'],
+                                    style: TextStyle(
+                                      fontWeight: iVoted
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 2, // <-- Maintained your update
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (opt['location'] != null &&
+                                      opt['location'].toString().isNotEmpty &&
+                                      opt['location'] != 'TBD')
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 2.0),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 2.0,
+                                            ),
+                                            child: Icon(
+                                              Icons.location_on,
+                                              size: 10,
+                                              color: isDark
+                                                  ? Colors.grey.shade500
+                                                  : Colors.grey.shade600,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              opt['location'],
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: isDark
+                                                    ? Colors.grey.shade400
+                                                    : Colors.grey.shade600,
+                                              ),
+                                              maxLines:
+                                                  2, // <-- Maintained your update
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
-                            if (isTieBreaker && isHost)
+
+                            if (showTieBreaker)
                               InkWell(
                                 onTap: () => _lockInTieBreaker(opt),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
+                                    horizontal: 10,
+                                    vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
                                     color: Colors.orange,
-                                    borderRadius: BorderRadius.circular(4),
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: const Text(
                                     "LOCK IN",
                                     style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: 10,
+                                      fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -1384,7 +1461,7 @@ class VibeCheckPollUI extends StatelessWidget {
                                 "$count",
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 12,
+                                  fontSize: 14,
                                   color: isDark
                                       ? Colors.white70
                                       : Colors.black54,

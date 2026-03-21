@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'theme_provider.dart';
 import 'friend_circles_page.dart';
+import 'location_search_page.dart';
 
 class CreateVibeCheckPage extends StatefulWidget {
   const CreateVibeCheckPage({super.key});
@@ -84,6 +85,20 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
       _pollOptions[index]['location']?.dispose();
       _pollOptions.removeAt(index);
     });
+  }
+
+  // --- NEW: SMART LOCATION SEARCH FOR POLL OPTIONS ---
+  Future<void> _selectOptionLocation(int index) async {
+    final selectedAddress = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const LocationSearchPage()),
+    );
+
+    if (selectedAddress != null) {
+      setState(() {
+        _pollOptions[index]['location']!.text = selectedAddress;
+      });
+    }
   }
 
   InputDecoration _buildInputDecoration({
@@ -196,9 +211,8 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
                 _inviteAll = false;
               });
 
-              Navigator.pop(context); // Pop the circle selection dialog
+              Navigator.pop(context);
 
-              // THIS is why we need the import!
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -328,7 +342,6 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
   Future<void> _saveVibeCheck() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Validate that at least 2 options are filled out completely
     int validOptions = 0;
     List<Map<String, dynamic>> finalPollOptions = [];
 
@@ -400,7 +413,6 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
         return;
       }
 
-      // --- VIBE CHECK SPECIFIC DATA ---
       final eventRef = await FirebaseFirestore.instance
           .collection('events')
           .add({
@@ -416,25 +428,22 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
             'visibleTo': visibleToIds.toList(),
             'inviteAll': _inviteAll,
             'invitedCircles': _selectedCircleIds,
-            'rsvpDeadline':
-                _rsvpDeadlineOffset, // Required for auto-convert deadline
+            'rsvpDeadline': _rsvpDeadlineOffset,
           });
 
       final batch = FirebaseFirestore.instance.batch();
 
-      // Guests default to 'pending'
       for (var friendDoc in friendsToInvite) {
         final inviteRef = eventRef.collection('invitations').doc(friendDoc.id);
         batch.set(inviteRef, {
           'uid': friendDoc.id,
           'role': 'guest',
           'status': 'pending',
-          'votes': [], // NEW: Empty array to hold chip selections
+          'votes': [],
           'sentAt': FieldValue.serverTimestamp(),
         });
       }
 
-      // Host defaults to going, down for whatever
       final hostRef = eventRef.collection('invitations').doc(user.uid);
       batch.set(hostRef, {
         'uid': user.uid,
@@ -658,8 +667,7 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      if (index >
-                                          1) // Only allow removing 3rd, 4th, 5th options
+                                      if (index > 1)
                                         IconButton(
                                           icon: const Icon(
                                             Icons.close,
@@ -697,18 +705,42 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
                                     ),
                                   ),
                                   const SizedBox(height: 12),
+                                  // --- UPDATED LOCATION INPUT ---
                                   TextFormField(
                                     controller: _pollOptions[index]['location'],
-                                    maxLength: 50,
+                                    readOnly: true,
+                                    onTap: () => _selectOptionLocation(index),
+                                    maxLength: 100,
                                     textCapitalization:
                                         TextCapitalization.words,
                                     decoration: InputDecoration(
-                                      hintText: "Location (Optional)",
+                                      hintText:
+                                          "Tap to search address... (Optional)",
                                       counterText: "",
                                       filled: true,
                                       fillColor: isDark
                                           ? Colors.grey.shade900
                                           : Colors.grey.shade100,
+                                      prefixIcon: const Icon(
+                                        Icons.location_on,
+                                        size: 18,
+                                      ),
+                                      suffixIcon:
+                                          _pollOptions[index]['location']!
+                                              .text
+                                              .isNotEmpty
+                                          ? IconButton(
+                                              icon: const Icon(
+                                                Icons.close,
+                                                size: 18,
+                                              ),
+                                              onPressed: () => setState(
+                                                () =>
+                                                    _pollOptions[index]['location']!
+                                                        .clear(),
+                                              ),
+                                            )
+                                          : null,
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                         borderSide: BorderSide.none,

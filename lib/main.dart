@@ -1172,7 +1172,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       const SizedBox(height: 8),
 
                       Text(
-                        "@ ${data['location'] ?? 'No Location'}",
+                        "@ ${data['location'] ?? 'Multiple Spots'}",
                         style: TextStyle(
                           fontSize: 13,
                           color: isPast

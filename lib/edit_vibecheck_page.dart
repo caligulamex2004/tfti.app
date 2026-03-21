@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'theme_provider.dart';
 import 'friend_circles_page.dart';
+import 'location_search_page.dart';
 
 class EditVibeCheckPage extends StatefulWidget {
   final String eventId;
@@ -59,7 +60,6 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
       widget.eventData['invitedCircles'] ?? [],
     );
 
-    // Load existing poll options and preserve their IDs so votes aren't lost
     final List<dynamic> existingOptions = widget.eventData['pollOptions'] ?? [];
     for (var opt in existingOptions) {
       _pollOptions.add({
@@ -71,10 +71,9 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
       });
     }
 
-    // Ensure there are at least 2 fields showing, even if data is missing
     while (_pollOptions.length < 2) {
       _pollOptions.add({
-        'id': null, // Will be generated on save
+        'id': null,
         'title': TextEditingController(),
         'location': TextEditingController(),
       });
@@ -111,13 +110,26 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
   void _removeOption(int index) {
     if (_pollOptions.length <= 2) return;
 
-    // Note: If an option with existing votes is removed, those votes will just
-    // be ignored by the UI since the ID no longer exists in the pollOptions array.
     setState(() {
       (_pollOptions[index]['title'] as TextEditingController).dispose();
       (_pollOptions[index]['location'] as TextEditingController).dispose();
       _pollOptions.removeAt(index);
     });
+  }
+
+  // --- NEW: SMART LOCATION SEARCH FOR EDITING POLL OPTIONS ---
+  Future<void> _selectOptionLocation(int index) async {
+    final selectedAddress = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const LocationSearchPage()),
+    );
+
+    if (selectedAddress != null) {
+      setState(() {
+        (_pollOptions[index]['location'] as TextEditingController).text =
+            selectedAddress;
+      });
+    }
   }
 
   InputDecoration _buildInputDecoration({
@@ -425,7 +437,6 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
           .text
           .trim();
 
-      // Keep original ID if it exists, otherwise generate a new one for newly added options
       final id =
           _pollOptions[i]['id'] ??
           'opt_${DateTime.now().millisecondsSinceEpoch}_$i';
@@ -473,7 +484,6 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
         'lastUpdatedAt': FieldValue.serverTimestamp(),
       };
 
-      // Diff the Guest List
       final friendsSnapshot = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -505,7 +515,7 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
       Set<String> toAdd = newIntendedIds.difference(oldIntendedIds);
       Set<String> toRemove = oldIntendedIds.difference(newIntendedIds);
 
-      toRemove.remove(widget.eventData['hostId']); // Never remove the host
+      toRemove.remove(widget.eventData['hostId']);
 
       final batch = FirebaseFirestore.instance.batch();
       final eventRef = FirebaseFirestore.instance
@@ -781,20 +791,46 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
                                     ),
                                   ),
                                   const SizedBox(height: 12),
+                                  // --- UPDATED LOCATION INPUT ---
                                   TextFormField(
                                     controller:
                                         _pollOptions[index]['location']
                                             as TextEditingController,
-                                    maxLength: 50,
+                                    readOnly: true,
+                                    onTap: () => _selectOptionLocation(index),
+                                    maxLength: 100,
                                     textCapitalization:
                                         TextCapitalization.words,
                                     decoration: InputDecoration(
-                                      hintText: "Location (Optional)",
+                                      hintText:
+                                          "Tap to search address... (Optional)",
                                       counterText: "",
                                       filled: true,
                                       fillColor: isDark
                                           ? Colors.grey.shade900
                                           : Colors.grey.shade100,
+                                      prefixIcon: const Icon(
+                                        Icons.location_on,
+                                        size: 18,
+                                      ),
+                                      suffixIcon:
+                                          (_pollOptions[index]['location']
+                                                  as TextEditingController)
+                                              .text
+                                              .isNotEmpty
+                                          ? IconButton(
+                                              icon: const Icon(
+                                                Icons.close,
+                                                size: 18,
+                                              ),
+                                              onPressed: () => setState(
+                                                () =>
+                                                    (_pollOptions[index]['location']
+                                                            as TextEditingController)
+                                                        .clear(),
+                                              ),
+                                            )
+                                          : null,
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                         borderSide: BorderSide.none,
