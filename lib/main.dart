@@ -559,10 +559,10 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                 ListTile(
                   leading: Icon(Icons.event, size: 28, color: primaryColor),
                   title: const Text(
-                    "Standard Event",
+                    "Plans Made Easy",
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
-                  subtitle: const Text("Lock in the time and place."),
+                  subtitle: const Text("Let the squad know what's happening."),
                   onTap: () {
                     Navigator.pop(ctx);
                     Navigator.push(
