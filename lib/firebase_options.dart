@@ -50,7 +50,7 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBK6_r1G9l4Llwn1CUXpT-4bdra_BnVVPY',
+    apiKey: 'AIzaSyAcvPq_QhwNTmVOEN03BPEXXi8dPwvzKgM',
     appId: '1:80872957470:android:5692134a06ad07abf0b00f',
     messagingSenderId: '80872957470',
     projectId: 'tfti-app',
