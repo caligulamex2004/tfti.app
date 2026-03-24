@@ -7,45 +7,20 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:80872957470:android:5692134a06ad07abf0b00f",
+        "mobilesdk_app_id": "1:80872957470:android:4c6d6ef7baf399a0f0b00f",
         "android_client_info": {
           "package_name": "com.bearmoose.tftiapp"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "80872957470-ht6be9073eihhdp2ufnurqqapevmk9u3.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.bearmoose.tftiapp",
-            "certificate_hash": "a49568b6a7deb93afb806ea312d7a9aa5481dbbf"
-          }
-        },
-        {
-          "client_id": "80872957470-ntubpeqj9qmkm66kp7agl0978aojalg5.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAcvPq_QhwNTmVOEN03BPEXXi8dPwvzKgM"
+          "current_key": "AIzaSyBCASDVeCfqLNdB-xo27p0qEl3bhfD3ra8"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "80872957470-ntubpeqj9qmkm66kp7agl0978aojalg5.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "80872957470-mf8r2v37plu9e67rkgm6mtm6nb2rpo6u.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.bearmoose.tftiapp"
-              }
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }
