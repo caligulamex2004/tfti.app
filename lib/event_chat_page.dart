@@ -572,9 +572,55 @@ class _EventChatPageState extends State<EventChatPage> {
     }
   }
 
-  Future<void> _pickAndUploadImage() async {
+  void _showAttachmentOptions() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text("Choose from Gallery"),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAndUploadImage(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text("Take a Photo"),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAndUploadImage(ImageSource.camera);
+              },
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadImage(ImageSource source) async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    final pickedFile = await picker.pickImage(source: source);
 
     if (pickedFile == null) return;
 
@@ -813,7 +859,6 @@ class _EventChatPageState extends State<EventChatPage> {
     if (filteredGuests.isEmpty) return const SizedBox.shrink();
 
     return Container(
-      // UPDATED: Dynamic max height to avoid overflow when keyboard is open in landscape
       constraints: BoxConstraints(maxHeight: isLandscape ? 120 : 180),
       margin: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
@@ -1046,7 +1091,6 @@ class _EventChatPageState extends State<EventChatPage> {
 
           if (_mentionQuery != null) _buildMentionList(),
 
-          // UPDATED: Added SafeArea around the bottom input container to protect against the iOS home bar
           SafeArea(
             bottom: true,
             top: false,
@@ -1086,7 +1130,7 @@ class _EventChatPageState extends State<EventChatPage> {
                           Icons.add_photo_alternate,
                           color: primaryColor,
                         ),
-                        onPressed: _pickAndUploadImage,
+                        onPressed: _showAttachmentOptions,
                       ),
                     ),
 
@@ -1212,7 +1256,6 @@ class _EventChatPageState extends State<EventChatPage> {
       }
     } catch (_) {}
 
-    // UPDATED: Dynamically cap the bubble width for ultra-wide screens (like iPads or Landscape phones)
     final screenWidth = MediaQuery.of(context).size.width;
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
@@ -1264,7 +1307,6 @@ class _EventChatPageState extends State<EventChatPage> {
                 clipBehavior: Clip.none,
                 children: [
                   Container(
-                    // UPDATED: Use the new capped width
                     constraints: BoxConstraints(maxWidth: maxBubbleWidth),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
