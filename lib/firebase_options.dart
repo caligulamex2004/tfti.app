@@ -70,6 +70,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '80872957470',
     projectId: 'tfti-app',
     storageBucket: 'tfti-app.firebasestorage.app',
+    androidClientId: '80872957470-bia11ksdk8pej7h2anmomhrv9mq4bn0o.apps.googleusercontent.com',
     iosClientId: '80872957470-ahol15ljroe7m8s1qgce24h5d02vr736.apps.googleusercontent.com',
     iosBundleId: 'com.bearmoose.tftiapp',
   );
