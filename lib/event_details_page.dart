@@ -1244,16 +1244,20 @@ class VibeCheckPollUI extends StatelessWidget {
           .snapshots(),
       builder: (context, snapshot) {
         Map<String, int> voteCounts = {};
-        int totalVotes = 0;
+
+        int totalEligibleVoters = 0;
 
         if (snapshot.hasData) {
           for (var doc in snapshot.data!.docs) {
             final d = doc.data() as Map<String, dynamic>;
+
             if (d['status'] == 'declined') continue;
+
+            totalEligibleVoters++;
+
             final vList = List<String>.from(d['votes'] ?? []);
             for (var v in vList) {
               voteCounts[v] = (voteCounts[v] ?? 0) + 1;
-              totalVotes++;
             }
           }
         }
@@ -1313,9 +1317,10 @@ class VibeCheckPollUI extends StatelessWidget {
             ...options.map((opt) {
               final optId = opt['id'];
               final count = voteCounts[optId] ?? 0;
-              final double percentage = totalVotes == 0
+
+              final double percentage = totalEligibleVoters == 0
                   ? 0
-                  : (count / totalVotes);
+                  : (count / totalEligibleVoters);
 
               final myVotes = List<String>.from(myInviteData['votes'] ?? []);
               final bool iVoted = myVotes.contains(optId);
@@ -1334,7 +1339,6 @@ class VibeCheckPollUI extends StatelessWidget {
                   ),
                   child: Stack(
                     children: [
-                      // 👇 THE FIX: Positioned.fill dynamically matches the Stack's height
                       Positioned.fill(
                         child: Align(
                           alignment: Alignment.centerLeft,
@@ -1388,7 +1392,7 @@ class VibeCheckPollUI extends StatelessWidget {
                                           : FontWeight.normal,
                                       fontSize: 14,
                                     ),
-                                    maxLines: 2, // <-- Maintained your update
+                                    maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   if (opt['location'] != null &&
@@ -1422,8 +1426,7 @@ class VibeCheckPollUI extends StatelessWidget {
                                                     ? Colors.grey.shade400
                                                     : Colors.grey.shade600,
                                               ),
-                                              maxLines:
-                                                  2, // <-- Maintained your update
+                                              maxLines: 2,
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                           ),

@@ -66,6 +66,10 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
         }
+        getByName("debug") {
+            // Force the local debug build to use your official key.properties signature
+            signingConfig = signingConfigs.getByName("release")
+        }
     }
 }
 

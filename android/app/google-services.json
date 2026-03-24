@@ -14,14 +14,6 @@
       },
       "oauth_client": [
         {
-          "client_id": "80872957470-39fll0u9puha118u2s1t56l122t207el.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.bearmoose.tftiapp",
-            "certificate_hash": "4c1fa061808de6078ca038eb2a378f9a700666a7"
-          }
-        },
-        {
           "client_id": "80872957470-ht6be9073eihhdp2ufnurqqapevmk9u3.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
