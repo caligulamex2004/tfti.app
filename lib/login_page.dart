@@ -122,7 +122,9 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     setState(() => _isLoading = true);
-
+    await FirebaseAuth.instance.setSettings(
+      appVerificationDisabledForTesting: true,
+    ); // <-- TESTING ONLY: Disable in production!
     await FirebaseAuth.instance.verifyPhoneNumber(
       phoneNumber:
           _completePhoneNumber, // <-- NEW: Passes the fully validated string
