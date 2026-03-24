@@ -16,15 +16,19 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _nameController = TextEditingController();
-  final _phoneController =
-      TextEditingController(); // Removed the hardcoded "+1"
+  final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
 
-  String _completePhoneNumber = ""; // <-- NEW: Tracks the full formatted string
+  String _completePhoneNumber = "";
   String? _verificationId;
   int? _resendToken;
   bool _codeSent = false;
   bool _isLoading = false;
+
+  // --- NEW: Flow State Variables ---
+  bool _isLoginMode = true;
+  bool _agreedToToS = false;
+  bool _agreedToPrivacy = false;
 
   Timer? _timer;
   int _start = 60;
@@ -104,7 +108,12 @@ class _LoginPageState extends State<LoginPage> {
         'phoneNumber': user.phoneNumber,
         'displayName': finalName,
         'avatarColor': Colors.blue.toARGB32(),
-        if (!docSnapshot.exists) 'createdAt': FieldValue.serverTimestamp(),
+        if (!docSnapshot.exists) ...{
+          'createdAt': FieldValue.serverTimestamp(),
+          // Track that they agreed during signup
+          'agreedToToS': _agreedToToS,
+          'agreedToPrivacy': _agreedToPrivacy,
+        },
       }, SetOptions(merge: true));
 
       await user.updateDisplayName(finalName);
@@ -112,6 +121,26 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _verifyPhone({bool isResend = false}) async {
+    // Validation for Sign Up mode
+    if (!_isLoginMode && !isResend) {
+      if (_nameController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please tell us what to call you.")),
+        );
+        return;
+      }
+      if (!_agreedToToS || !_agreedToPrivacy) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "You must agree to the Terms and Privacy Policy to sign up.",
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
     if (!isResend) {
       if (_completePhoneNumber.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -124,8 +153,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     await FirebaseAuth.instance.verifyPhoneNumber(
-      phoneNumber:
-          _completePhoneNumber, // <-- NEW: Passes the fully validated string
+      phoneNumber: _completePhoneNumber,
       forceResendingToken: isResend ? _resendToken : null,
 
       verificationCompleted: (PhoneAuthCredential credential) async {
@@ -218,9 +246,47 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  Widget _buildAgreementCheckbox(
+    String text,
+    bool value,
+    Function(bool?) onChanged,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return Row(
+      children: [
+        SizedBox(
+          height: 24,
+          width: 24,
+          child: Checkbox(
+            value: value,
+            onChanged: onChanged,
+            activeColor: primaryColor,
+            side: BorderSide(
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              width: 1.5,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       body: Container(
@@ -266,7 +332,11 @@ class _LoginPageState extends State<LoginPage> {
                       child: Column(
                         children: [
                           Text(
-                            _codeSent ? "Verify It's You" : "Welcome Back",
+                            _codeSent
+                                ? "Verify It's You"
+                                : (_isLoginMode
+                                      ? "Welcome Back"
+                                      : "Join the Squad"),
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
@@ -277,7 +347,9 @@ class _LoginPageState extends State<LoginPage> {
                           Text(
                             _codeSent
                                 ? "We sent a code to ${_phoneController.text}"
-                                : "Enter your details to get started.",
+                                : (_isLoginMode
+                                      ? "Enter your number to login."
+                                      : "Create an account to get started."),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: isDark
@@ -288,17 +360,20 @@ class _LoginPageState extends State<LoginPage> {
                           const SizedBox(height: 30),
 
                           if (!_codeSent) ...[
-                            _buildTextField(
-                              controller: _nameController,
-                              label: "What's your name? (Optional)",
-                              icon: Icons.person_outline,
-                            ),
-                            const SizedBox(height: 16),
+                            // --- SIGN UP ONLY FIELDS ---
+                            if (!_isLoginMode) ...[
+                              _buildTextField(
+                                controller: _nameController,
+                                label: "What do you want to be called?",
+                                icon: Icons.person_outline,
+                              ),
+                              const SizedBox(height: 16),
+                            ],
 
-                            // --- NEW: INTL PHONE FIELD ---
+                            // --- PHONE FIELD (BOTH MODES) ---
                             IntlPhoneField(
                               controller: _phoneController,
-                              initialCountryCode: 'US', // Defaults to +1
+                              initialCountryCode: 'US',
                               dropdownIconPosition: IconPosition.trailing,
                               dropdownIcon: Icon(
                                 Icons.arrow_drop_down,
@@ -333,12 +408,77 @@ class _LoginPageState extends State<LoginPage> {
                                 _completePhoneNumber = phone.completeNumber;
                               },
                             ),
+
+                            // --- SIGN UP ONLY CHECKBOXES ---
+                            if (!_isLoginMode) ...[
+                              const SizedBox(height: 16),
+                              _buildAgreementCheckbox(
+                                "I agree to the Terms of Service",
+                                _agreedToToS,
+                                (val) =>
+                                    setState(() => _agreedToToS = val ?? false),
+                              ),
+                              const SizedBox(height: 8),
+                              _buildAgreementCheckbox(
+                                "I agree to the Privacy Policy",
+                                _agreedToPrivacy,
+                                (val) => setState(
+                                  () => _agreedToPrivacy = val ?? false,
+                                ),
+                              ),
+                            ],
+
                             const SizedBox(height: 24),
+
+                            // --- DYNAMIC BUTTON ---
                             _buildButton(
-                              text: "Send Code",
-                              onPressed: () => _verifyPhone(isResend: false),
+                              text: _isLoginMode
+                                  ? "Get Login Code"
+                                  : "Sign Up & Get Login Code",
+                              // Disable button visually in sign up mode if checkboxes aren't ticked
+                              onPressed:
+                                  (!_isLoginMode &&
+                                      (!_agreedToToS || !_agreedToPrivacy))
+                                  ? null
+                                  : () => _verifyPhone(isResend: false),
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // --- TOGGLE MODE FOOTER ---
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _isLoginMode
+                                      ? "Don't have an account?"
+                                      : "Already have an account?",
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.grey.shade400
+                                        : Colors.grey.shade600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _isLoginMode = !_isLoginMode;
+                                    });
+                                  },
+                                  child: Text(
+                                    _isLoginMode ? "Sign Up" : "Log In",
+                                    style: TextStyle(
+                                      color: primaryColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ] else ...[
+                            // --- OTP VERIFICATION UI ---
                             _buildTextField(
                               controller: _otpController,
                               label: "6-Digit Code",
@@ -347,7 +487,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             const SizedBox(height: 24),
                             _buildButton(
-                              text: "Sign In",
+                              text: "Verify & Enter",
                               onPressed: _signInWithOTP,
                             ),
                             const SizedBox(height: 16),
@@ -419,7 +559,10 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildButton({required String text, required VoidCallback onPressed}) {
+  Widget _buildButton({
+    required String text,
+    required VoidCallback? onPressed,
+  }) {
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     return SizedBox(
@@ -430,10 +573,11 @@ class _LoginPageState extends State<LoginPage> {
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
           foregroundColor: themeProvider.onPrimaryColor,
+          disabledBackgroundColor: primaryColor.withValues(alpha: 0.3),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          elevation: 2,
+          elevation: onPressed == null ? 0 : 2,
         ),
         child: _isLoading
             ? SizedBox(
