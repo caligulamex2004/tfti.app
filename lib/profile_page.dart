@@ -478,6 +478,18 @@ class _ProfilePageState extends State<ProfilePage> {
     );
 
     if (shouldLogout == true) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .update({'fcmToken': FieldValue.delete()});
+        } catch (e) {
+          debugPrint("Failed to remove FCM token on logout: $e");
+        }
+      }
+
       await FirebaseAuth.instance.signOut();
     }
   }
@@ -512,7 +524,6 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isLoading = true);
 
     try {
-      // --- NEW: CLEAN UP FIREBASE STORAGE (PROFILE PICTURE) ---
       try {
         final Reference ref = FirebaseStorage.instance.ref().child(
           'profile_images/${user.uid}/avatar.jpg',
@@ -520,10 +531,8 @@ class _ProfilePageState extends State<ProfilePage> {
         await ref.delete();
         debugPrint("✅ Profile image deleted from Storage.");
       } catch (e) {
-        // This fails silently if the user never uploaded a photo, which is perfectly fine!
         debugPrint("Notice: No profile image found to delete, or error: $e");
       }
-      // --------------------------------------------------------
 
       final userDocRef = FirebaseFirestore.instance
           .collection('users')

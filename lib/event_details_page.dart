@@ -1263,8 +1263,8 @@ class VibeCheckPollUI extends StatelessWidget {
         }
 
         bool dynamicIsTie = false;
+        int maxV = -1;
         if (options.isNotEmpty) {
-          int maxV = -1;
           int tieCount = 0;
           for (var opt in options) {
             int c = voteCounts[opt['id']] ?? 0;
@@ -1324,6 +1324,7 @@ class VibeCheckPollUI extends StatelessWidget {
 
               final myVotes = List<String>.from(myInviteData['votes'] ?? []);
               final bool iVoted = myVotes.contains(optId);
+              final bool isThisOptionTied = showTieBreaker && (count == maxV);
 
               return GestureDetector(
                 onTap: () => _castVote(optId),
@@ -1344,8 +1345,7 @@ class VibeCheckPollUI extends StatelessWidget {
                           alignment: Alignment.centerLeft,
                           child: FractionallySizedBox(
                             widthFactor: percentage > 0 ? percentage : 0.01,
-                            heightFactor:
-                                1.0, // Fill 100% of the vertical space
+                            heightFactor: 1.0,
                             child: Container(
                               decoration: BoxDecoration(
                                 color: primaryColor.withValues(
@@ -1437,7 +1437,7 @@ class VibeCheckPollUI extends StatelessWidget {
                               ),
                             ),
 
-                            if (showTieBreaker)
+                            if (isThisOptionTied)
                               InkWell(
                                 onTap: () => _lockInTieBreaker(opt),
                                 child: Container(
