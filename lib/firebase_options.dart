@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -49,23 +46,32 @@ class DefaultFirebaseOptions {
     }
   }
 
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyDZvItN3cMKrWkscHouteMezwGGofxkm60',
+    appId: '1:80872957470:web:99f505d10490e806f0b00f',
+    messagingSenderId: '80872957470',
+    projectId: 'tfti-app',
+    authDomain: 'tfti-app.firebaseapp.com',
+    storageBucket: 'tfti-app.firebasestorage.app',
+    measurementId: 'G-LFZ5H4NMER',
+  );
+
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBK6_r1G9l4Llwn1CUXpT-4bdra_BnVVPY',
-    appId: '1:80872957470:android:5692134a06ad07abf0b00f',
+    apiKey: 'AIzaSyBCASDVeCfqLNdB-xo27p0qEl3bhfD3ra8',
+    appId: '1:80872957470:android:4c6d6ef7baf399a0f0b00f',
     messagingSenderId: '80872957470',
     projectId: 'tfti-app',
     storageBucket: 'tfti-app.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBappejbefYf0V1DAalIdTDFoP-SU0lacA',
-    appId: '1:80872957470:ios:58c4fcb90232ffcdf0b00f',
+    apiKey: 'AIzaSyCMKqQVrXUcXI9nebOY7tobMJDVAELjs3Q',
+    appId: '1:80872957470:ios:18bb3f43049375acf0b00f',
     messagingSenderId: '80872957470',
     projectId: 'tfti-app',
     storageBucket: 'tfti-app.firebasestorage.app',
-    androidClientId: '80872957470-39fll0u9puha118u2s1t56l122t207el.apps.googleusercontent.com',
-    iosClientId: '80872957470-mf8r2v37plu9e67rkgm6mtm6nb2rpo6u.apps.googleusercontent.com',
+    androidClientId: '80872957470-bia11ksdk8pej7h2anmomhrv9mq4bn0o.apps.googleusercontent.com',
+    iosClientId: '80872957470-ahol15ljroe7m8s1qgce24h5d02vr736.apps.googleusercontent.com',
     iosBundleId: 'com.bearmoose.tftiapp',
   );
-
 }

@@ -12,6 +12,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import 'login_page.dart';
 import 'create_event_page.dart';
+import 'create_vibecheck_page.dart';
 import 'event_details_page.dart';
 import 'friends_page.dart';
 import 'friend_circles_page.dart';
@@ -93,7 +94,6 @@ class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
   bool _showTutorial = false;
 
-  // ADDED: GlobalKey to preserve state across layout changes
   final GlobalKey _contentKey = GlobalKey();
 
   final List<Widget> _pages = [
@@ -239,7 +239,7 @@ class _MainShellState extends State<MainShell> {
                         ),
                         Expanded(
                           child: IndexedStack(
-                            key: _contentKey, // ADDED: GlobalKey attached here
+                            key: _contentKey,
                             index: _selectedIndex,
                             children: _pages,
                           ),
@@ -247,7 +247,7 @@ class _MainShellState extends State<MainShell> {
                       ],
                     )
                   : IndexedStack(
-                      key: _contentKey, // ADDED: GlobalKey attached here
+                      key: _contentKey,
                       index: _selectedIndex,
                       children: _pages,
                     ),
@@ -313,9 +313,11 @@ class HomeFeedTab extends StatefulWidget {
 
 class _HomeFeedTabState extends State<HomeFeedTab> {
   String _selectedFilter = 'all';
-
   String? _selectedEventId;
   Map<String, dynamic>? _selectedEventData;
+
+  // Track auto-resolves to prevent overlapping transaction attempts
+  final Set<String> _resolvingVibeChecks = {};
 
   Future<void> _quickRSVP(String eventId, String status) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -395,6 +397,94 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
     }
   }
 
+  // --- LAZY EVALUATION FAILSAFE FOR VIBE CHECKS ---
+  Future<void> _runVibeCheckAutoResolve(
+    String eventId,
+    Map<String, dynamic> eventData,
+  ) async {
+    if (_resolvingVibeChecks.contains(eventId)) return;
+    _resolvingVibeChecks.add(eventId);
+
+    try {
+      final invitesSnap = await FirebaseFirestore.instance
+          .collection('events')
+          .doc(eventId)
+          .collection('invitations')
+          .get();
+
+      Map<String, int> voteCounts = {};
+      for (var doc in invitesSnap.docs) {
+        final data = doc.data();
+        if (data['status'] == 'declined') continue;
+
+        final votes = List<String>.from(data['votes'] ?? []);
+        for (String v in votes) {
+          voteCounts[v] = (voteCounts[v] ?? 0) + 1;
+        }
+      }
+
+      final pollOptions = List<dynamic>.from(eventData['pollOptions'] ?? []);
+      if (pollOptions.isEmpty) return;
+
+      int maxVotes = -1;
+      List<String> winningIds = [];
+
+      for (var opt in pollOptions) {
+        final String optId = opt['id'];
+        final int count = voteCounts[optId] ?? 0;
+        if (count > maxVotes) {
+          maxVotes = count;
+          winningIds = [optId];
+        } else if (count == maxVotes) {
+          winningIds.add(optId);
+        }
+      }
+
+      final eventRef = FirebaseFirestore.instance
+          .collection('events')
+          .doc(eventId);
+
+      if (winningIds.length == 1) {
+        // Clear winner -> Convert to Event
+        final winnerId = winningIds.first;
+        final winnerOpt = pollOptions.firstWhere(
+          (opt) => opt['id'] == winnerId,
+        );
+
+        final batch = FirebaseFirestore.instance.batch();
+        batch.update(eventRef, {
+          'type': 'event',
+          'lockedOptionId': winnerId,
+          'title': winnerOpt['title'],
+          'location': winnerOpt['location'],
+          'isTieBreakerNeeded': false,
+        });
+
+        // Resolve Guests statuses based on vote
+        for (var doc in invitesSnap.docs) {
+          final data = doc.data();
+          if (data['status'] == 'declined') continue;
+
+          final votes = List<String>.from(data['votes'] ?? []);
+          String newStatus = votes.contains(winnerId) ? 'going' : 'pending';
+
+          if (data['role'] == 'host' || data['role'] == 'co-host')
+            newStatus = 'going';
+
+          batch.update(doc.reference, {'status': newStatus});
+        }
+        await batch.commit();
+      } else {
+        // Tie -> Flag for Host Tie Breaker
+        await eventRef.update({'isTieBreakerNeeded': true});
+      }
+    } catch (e) {
+      debugPrint("Auto-Resolve Error: $e");
+    } finally {
+      _resolvingVibeChecks.remove(eventId);
+    }
+  }
+
   String _formatTimestamp(Timestamp? timestamp) {
     if (timestamp == null) return "No Date";
     final DateTime dateTime = timestamp.toDate();
@@ -436,6 +526,86 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
     );
   }
 
+  // --- UPDATED: SPLIT FAB ACTION ---
+  Widget _buildFab(Color primaryColor, bool isDark) {
+    return FloatingActionButton(
+      backgroundColor: primaryColor,
+      foregroundColor: themeProvider.onPrimaryColor,
+      elevation: 4,
+      shape: const CircleBorder(),
+      heroTag: "btn_create_action",
+      child: const Icon(Icons.add, size: 28),
+      onPressed: () {
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          builder: (ctx) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ListTile(
+                  leading: Icon(Icons.event, size: 28, color: primaryColor),
+                  title: const Text(
+                    "Plans Made Easy",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  subtitle: const Text("Let the squad know what's happening."),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CreateEventPage(),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                ),
+                ListTile(
+                  leading: Icon(
+                    Icons.how_to_vote,
+                    size: 28,
+                    color: primaryColor,
+                  ),
+                  title: const Text(
+                    "Vibe Check",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  subtitle: const Text("Give options and let the squad vote."),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CreateVibeCheckPage(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildPlaceholder(bool isDark) {
     return Center(
       child: Column(
@@ -456,23 +626,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildFab(Color primaryColor) {
-    return FloatingActionButton(
-      backgroundColor: primaryColor,
-      foregroundColor: themeProvider.onPrimaryColor,
-      elevation: 4,
-      shape: const CircleBorder(),
-      heroTag: "btn_create_event",
-      child: const Icon(Icons.add, size: 28),
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const CreateEventPage()),
-        );
-      },
     );
   }
 
@@ -572,7 +725,18 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                     );
                     final bool isPastDeadline = now.isAfter(deadlineTime);
 
-                    if (status == 'pending' && isPastDeadline) {
+                    // --- LAZY EVALUATION TRIGGER ---
+                    if (eventData['type'] == 'vibe_check' &&
+                        eventData['lockedOptionId'] == null) {
+                      if (isPastDeadline &&
+                          eventData['isTieBreakerNeeded'] != true) {
+                        _runVibeCheckAutoResolve(eventId, eventData);
+                      }
+                    }
+
+                    if (status == 'pending' &&
+                        isPastDeadline &&
+                        eventData['type'] != 'vibe_check') {
                       status = 'declined';
                       if (inviteData.isNotEmpty &&
                           inviteData['status'] == 'pending') {
@@ -659,7 +823,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                   }
 
                   return ListView.builder(
-                    // ADDED: PageStorageKey to remember exact scroll position
                     key: const PageStorageKey<String>('home_feed_list'),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -705,7 +868,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                   child: Scaffold(
                     backgroundColor: Colors.transparent,
                     body: feedContent,
-                    floatingActionButton: _buildFab(primaryColor),
+                    floatingActionButton: _buildFab(primaryColor, isDark),
                   ),
                 ),
                 VerticalDivider(
@@ -728,7 +891,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
           : Scaffold(
               backgroundColor: Colors.transparent,
               body: feedContent,
-              floatingActionButton: _buildFab(primaryColor),
+              floatingActionButton: _buildFab(primaryColor, isDark),
             ),
     );
   }
@@ -799,6 +962,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
     final String status = item['status'];
     final bool isHidden = inviteData['isHidden'] ?? false;
 
+    final bool isVibeCheck = data['type'] == 'vibe_check';
     final bool isMyEvent = data['hostId'] == myUid;
     final String dateText = _formatTimestamp(data['time']);
     final bool isImportantDetails = data['isImportantDetails'] == true;
@@ -826,13 +990,15 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
       if (isMyEvent) {
         statusIcon = Symbols.crown;
         iconColor = primaryColor;
+      } else if (isVibeCheck) {
+        statusIcon = Icons.how_to_vote;
+        iconColor = isDark ? Colors.purpleAccent : Colors.purple;
       } else {
         statusIcon = Symbols.mail;
         iconColor = isDark ? Colors.grey.shade400 : Colors.grey.shade700;
       }
     }
 
-    final bool isPending = status == 'pending';
     final bool isGoing = status == 'going';
     final bool isDeclined = status == 'declined';
 
@@ -863,7 +1029,9 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
       statusColor = isDark ? Colors.greenAccent : Colors.green;
       statusWeight = FontWeight.bold;
     } else {
-      statusText = "Swipe 👈 👉 to RSVP";
+      statusText = isVibeCheck
+          ? "Swipe right to join, then vote!"
+          : "Swipe 👈 👉 to RSVP";
       statusColor = isDark ? Colors.orangeAccent : Colors.orange.shade800;
       statusWeight = FontWeight.bold;
     }
@@ -887,9 +1055,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
     if (lastMsgTime != null) {
       if (lastReadTime == null || lastMsgTime.seconds > lastReadTime.seconds) {
         hasUnreadChat = true;
-        if (lastMentions.contains(myUid)) {
-          wasMentioned = true;
-        }
+        if (lastMentions.contains(myUid)) wasMentioned = true;
       }
     }
 
@@ -965,7 +1131,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Badge(
-                  isLabelVisible: isPending && !isMyEvent && !isPast,
+                  isLabelVisible: status == 'pending' && !isMyEvent && !isPast,
                   label: const Text("!"),
                   child: Container(
                     padding: const EdgeInsets.all(12),
@@ -982,7 +1148,9 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        data['title'] ?? "Untitled",
+                        isVibeCheck
+                            ? "Vibe Check: ${data['title']}"
+                            : data['title'] ?? "Untitled",
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -1004,9 +1172,10 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
+
                       Text(
-                        "@ ${data['location'] ?? 'No Location'}",
+                        "@ ${data['location'] ?? 'Multiple Spots'}",
                         style: TextStyle(
                           fontSize: 13,
                           color: isPast
@@ -1021,7 +1190,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
 
                       if (isImportantDetails && !isPast)
                         Container(
-                          margin: const EdgeInsets.only(top: 6),
+                          margin: const EdgeInsets.only(top: 8),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 6,
                             vertical: 2,
@@ -1055,7 +1224,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                           ),
                         ),
 
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           if (hasCriticalUpdate)
@@ -1193,7 +1362,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-
                                 if (lastMsgTime != null)
                                   EventReadReceipts(
                                     eventId: eventId,
@@ -1207,7 +1375,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                     ],
                   ),
                 ),
-
                 if (hasCriticalUpdate)
                   const Icon(Icons.info, color: Colors.amber, size: 28)
                 else if (!isPast)
