@@ -10,6 +10,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:any_link_preview/any_link_preview.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+
 import 'theme_provider.dart';
 
 class EventChatPage extends StatefulWidget {
@@ -261,118 +263,246 @@ class _EventChatPageState extends State<EventChatPage> {
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final emojis = ['❤️', '👍', '😂', '😲', '😢', '🔥'];
+
+    final quickEmojis = ['❤️', '👍', '😂', '😲', '🔥'];
+    bool showFullPicker = false;
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 10),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setSheetState) {
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom,
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 20.0,
-                  horizontal: 16.0,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: emojis.map((emoji) {
-                    final isSelected =
-                        currentReactions[FirebaseAuth
-                            .instance
-                            .currentUser
-                            ?.uid] ==
-                        emoji;
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _toggleReaction(messageId, emoji, currentReactions);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? primaryColor.withValues(alpha: 0.2)
-                              : Colors.transparent,
-                          shape: BoxShape.circle,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 10),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.grey.shade700
+                            : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+
+                    if (!showFullPicker) ...[
+                      // --- STANDARD QUICK REACTION ROW ---
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 20.0,
+                          horizontal: 16.0,
                         ),
-                        child: Text(
-                          emoji,
-                          style: const TextStyle(fontSize: 28),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            ...quickEmojis.map((emoji) {
+                              final isSelected =
+                                  currentReactions[FirebaseAuth
+                                      .instance
+                                      .currentUser
+                                      ?.uid] ==
+                                  emoji;
+                              return GestureDetector(
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  _toggleReaction(
+                                    messageId,
+                                    emoji,
+                                    currentReactions,
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? primaryColor.withValues(alpha: 0.2)
+                                        : Colors.transparent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    emoji,
+                                    style: const TextStyle(fontSize: 28),
+                                  ),
+                                ),
+                              );
+                            }),
+
+                            // The "+" Button
+                            GestureDetector(
+                              onTap: () {
+                                setSheetState(() => showFullPicker = true);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? Colors.grey.shade800
+                                      : Colors.grey.shade200,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.add,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                  size: 24,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    );
-                  }).toList(),
+
+                      const Divider(height: 1),
+
+                      if (!isMe)
+                        ListTile(
+                          leading: const Icon(Icons.flag, color: Colors.red),
+                          title: const Text(
+                            'Report Message',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _reportMessage(messageId, text, senderId);
+                          },
+                        )
+                      else
+                        ListTile(
+                          leading: Icon(
+                            Icons.delete_outline,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade700,
+                          ),
+                          title: Text(
+                            'Delete Message',
+                            style: TextStyle(
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade700,
+                            ),
+                          ),
+                          onTap: () async {
+                            Navigator.pop(ctx);
+                            if (imageUrl != null && imageUrl.isNotEmpty) {
+                              try {
+                                await FirebaseStorage.instance
+                                    .refFromURL(imageUrl)
+                                    .delete();
+                              } catch (e) {
+                                debugPrint(
+                                  "❌ Failed to delete image from Storage: $e",
+                                );
+                              }
+                            }
+                            await FirebaseFirestore.instance
+                                .collection('events')
+                                .doc(widget.eventId)
+                                .collection('messages')
+                                .doc(messageId)
+                                .delete();
+                          },
+                        ),
+                    ] else ...[
+                      // --- FULL EMOJI PICKER UI ---
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 8.0,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              "Pick a Reaction",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () =>
+                                  setSheetState(() => showFullPicker = false),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      SizedBox(
+                        height:
+                            300, // Explicit height constraint for the picker
+                        child: EmojiPicker(
+                          onEmojiSelected: (category, emoji) {
+                            Navigator.pop(ctx);
+                            _toggleReaction(
+                              messageId,
+                              emoji.emoji,
+                              currentReactions,
+                            );
+                          },
+                          config: Config(
+                            height: 300,
+                            checkPlatformCompatibility: true,
+                            emojiViewConfig: EmojiViewConfig(
+                              backgroundColor: Theme.of(
+                                context,
+                              ).scaffoldBackgroundColor,
+                              columns: 7,
+                              emojiSizeMax: 28 * (Platform.isIOS ? 1.30 : 1.0),
+                            ),
+                            categoryViewConfig: CategoryViewConfig(
+                              backgroundColor: Theme.of(
+                                context,
+                              ).scaffoldBackgroundColor,
+                              indicatorColor: primaryColor,
+                              iconColorSelected: primaryColor,
+                              iconColor: isDark
+                                  ? Colors.grey.shade500
+                                  : Colors.grey.shade400,
+                            ),
+                            bottomActionBarConfig: BottomActionBarConfig(
+                              backgroundColor: Theme.of(
+                                context,
+                              ).scaffoldBackgroundColor,
+                              buttonColor: Theme.of(
+                                context,
+                              ).scaffoldBackgroundColor,
+                              buttonIconColor: isDark
+                                  ? Colors.white
+                                  : Colors.black,
+                            ),
+                            searchViewConfig: SearchViewConfig(
+                              backgroundColor: Theme.of(
+                                context,
+                              ).scaffoldBackgroundColor,
+                              buttonIconColor: isDark
+                                  ? Colors.white
+                                  : Colors.black,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              const Divider(height: 1),
-              if (!isMe)
-                ListTile(
-                  leading: const Icon(Icons.flag, color: Colors.red),
-                  title: const Text(
-                    'Report Message',
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _reportMessage(messageId, text, senderId);
-                  },
-                )
-              else
-                ListTile(
-                  leading: Icon(
-                    Icons.delete_outline,
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
-                  ),
-                  title: Text(
-                    'Delete Message',
-                    style: TextStyle(
-                      color: isDark
-                          ? Colors.grey.shade400
-                          : Colors.grey.shade700,
-                    ),
-                  ),
-                  onTap: () async {
-                    Navigator.pop(ctx);
-
-                    if (imageUrl != null && imageUrl.isNotEmpty) {
-                      try {
-                        final ref = FirebaseStorage.instance.refFromURL(
-                          imageUrl,
-                        );
-                        await ref.delete();
-                      } catch (e) {
-                        debugPrint("❌ Failed to delete image from Storage: $e");
-                      }
-                    }
-
-                    await FirebaseFirestore.instance
-                        .collection('events')
-                        .doc(widget.eventId)
-                        .collection('messages')
-                        .doc(messageId)
-                        .delete();
-                  },
-                ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
