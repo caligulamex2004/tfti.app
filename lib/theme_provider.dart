@@ -47,7 +47,7 @@ class ThemeProvider extends ChangeNotifier {
         return LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [const Color(0xFF212121), Colors.black],
+          colors: [Colors.black, Colors.black],
         );
       case AppTheme.lipGloss:
         return const LinearGradient(
@@ -140,7 +140,7 @@ class ThemeProvider extends ChangeNotifier {
       case AppTheme.dark:
         return ThemeData(
           brightness: Brightness.dark,
-          scaffoldBackgroundColor: const Color(0xFF1E1E1E),
+          scaffoldBackgroundColor: const Color(0xFF000000),
           cardColor: const Color(0xFF121212),
           appBarTheme: const AppBarTheme(foregroundColor: Colors.white),
           colorScheme: const ColorScheme.dark(
