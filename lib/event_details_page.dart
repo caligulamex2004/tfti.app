@@ -66,15 +66,27 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    await FirebaseFirestore.instance
+    final eventRef = FirebaseFirestore.instance
         .collection('events')
-        .doc(widget.eventId)
-        .collection('invitations')
-        .doc(user.uid)
-        .set({
-          'status': status,
-          'respondedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        .doc(widget.eventId);
+    final inviteRef = eventRef.collection('invitations').doc(user.uid);
+    final batch = FirebaseFirestore.instance.batch();
+
+    batch.set(inviteRef, {
+      'status': status,
+      'respondedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    final evSnap = await eventRef.get();
+    if (evSnap.exists) {
+      final evData = evSnap.data() as Map<String, dynamic>;
+      if (evData['type'] == 'vibe_check' &&
+          evData['isTieBreakerNeeded'] == true) {
+        batch.update(eventRef, {'isTieBreakerNeeded': false});
+      }
+    }
+
+    await batch.commit();
   }
 
   Future<void> _addFriend(
@@ -1182,12 +1194,24 @@ class VibeCheckPollUI extends StatelessWidget {
       currentVotes.add(optionId);
     }
 
-    await FirebaseFirestore.instance
+    final eventRef = FirebaseFirestore.instance
         .collection('events')
-        .doc(eventId)
-        .collection('invitations')
-        .doc(myUid)
-        .set({'votes': currentVotes}, SetOptions(merge: true));
+        .doc(eventId);
+    final inviteRef = eventRef.collection('invitations').doc(myUid);
+    final batch = FirebaseFirestore.instance.batch();
+
+    batch.set(inviteRef, {'votes': currentVotes}, SetOptions(merge: true));
+
+    final evSnap = await eventRef.get();
+    if (evSnap.exists) {
+      final evData = evSnap.data() as Map<String, dynamic>;
+      if (evData['type'] == 'vibe_check' &&
+          evData['isTieBreakerNeeded'] == true) {
+        batch.update(eventRef, {'isTieBreakerNeeded': false});
+      }
+    }
+
+    await batch.commit();
   }
 
   Future<void> _lockInTieBreaker(Map<String, dynamic> option) async {
@@ -1244,7 +1268,6 @@ class VibeCheckPollUI extends StatelessWidget {
           .snapshots(),
       builder: (context, snapshot) {
         Map<String, int> voteCounts = {};
-
         int totalEligibleVoters = 0;
 
         if (snapshot.hasData) {
@@ -1264,6 +1287,7 @@ class VibeCheckPollUI extends StatelessWidget {
 
         bool dynamicIsTie = false;
         int maxV = -1;
+
         if (options.isNotEmpty) {
           int tieCount = 0;
           for (var opt in options) {
@@ -1358,7 +1382,6 @@ class VibeCheckPollUI extends StatelessWidget {
                         ),
                       ),
 
-                      // Foreground Content
                       Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 14,

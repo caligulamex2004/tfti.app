@@ -140,8 +140,8 @@ class ThemeProvider extends ChangeNotifier {
       case AppTheme.dark:
         return ThemeData(
           brightness: Brightness.dark,
-          scaffoldBackgroundColor: const Color(0xFF000000),
-          cardColor: const Color(0xFF121212),
+          scaffoldBackgroundColor: const Color(0xFF121212),
+          cardColor: const Color(0xFF000000),
           appBarTheme: const AppBarTheme(foregroundColor: Colors.white),
           colorScheme: const ColorScheme.dark(
             primary: Color(0xFF4A00E0),
