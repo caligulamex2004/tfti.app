@@ -1117,7 +1117,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("What's the plan?"),
+        title: const Text("What's the op?"),
         centerTitle: true,
         foregroundColor: Colors.white,
         flexibleSpace: Container(

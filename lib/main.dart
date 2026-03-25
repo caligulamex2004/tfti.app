@@ -268,20 +268,20 @@ class _MainShellState extends State<MainShell> {
                             isLabelVisible: showBadge,
                             backgroundColor: Colors.redAccent,
                             smallSize: 8,
-                            child: const Icon(Icons.home),
+                            child: const Icon(Symbols.cottage),
                           ),
                           label: "Home",
                         ),
                         const BottomNavigationBarItem(
-                          icon: Icon(Icons.supervised_user_circle),
+                          icon: Icon(Symbols.guardian),
                           label: "Circles",
                         ),
                         const BottomNavigationBarItem(
-                          icon: Icon(Icons.people),
+                          icon: Icon(Symbols.group),
                           label: "Squad",
                         ),
                         const BottomNavigationBarItem(
-                          icon: Icon(Icons.account_circle),
+                          icon: Icon(Symbols.account_circle),
                           label: "Account",
                         ),
                       ],
@@ -557,7 +557,11 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                 ),
                 const SizedBox(height: 20),
                 ListTile(
-                  leading: Icon(Icons.event, size: 28, color: primaryColor),
+                  leading: Icon(
+                    Icons.how_to_vote,
+                    size: 28,
+                    color: primaryColor,
+                  ),
                   title: const Text(
                     "Special Ops",
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -578,7 +582,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                 ),
                 ListTile(
                   leading: Icon(
-                    Icons.how_to_vote,
+                    Symbols.earthquake,
                     size: 28,
                     color: primaryColor,
                   ),
@@ -586,7 +590,9 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                     "Vibe Check",
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
-                  subtitle: const Text("Give options and let the squad vote."),
+                  subtitle: const Text(
+                    "Give options and let the squad decide.",
+                  ),
                   onTap: () {
                     Navigator.pop(ctx);
                     Navigator.push(
@@ -618,7 +624,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
           ),
           const SizedBox(height: 16),
           Text(
-            "Select an event to view details",
+            "Select an op to view details",
             style: TextStyle(
               color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
               fontSize: 18,
