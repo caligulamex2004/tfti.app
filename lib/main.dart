@@ -559,7 +559,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                 ListTile(
                   leading: Icon(Icons.event, size: 28, color: primaryColor),
                   title: const Text(
-                    "Plans Made Easy",
+                    "Special Ops",
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   subtitle: const Text("Let the squad know what's happening."),
