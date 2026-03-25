@@ -569,7 +569,7 @@ class _EditEventPageState extends State<EditEventPage> {
               ),
               const SizedBox(height: 16),
               const Text(
-                "Select Co-Host",
+                "Select Co-Captain",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
@@ -579,7 +579,7 @@ class _EditEventPageState extends State<EditEventPage> {
                 ListTile(
                   leading: const Icon(Icons.person_remove, color: Colors.red),
                   title: const Text(
-                    "Remove Co-Host",
+                    "Remove Co-Captain",
                     style: TextStyle(color: Colors.red),
                   ),
                   onTap: () {
@@ -663,9 +663,9 @@ class _EditEventPageState extends State<EditEventPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Event?'),
+        title: const Text('Delete Operation?'),
         content: const Text(
-          'This will permanently delete the event, the guest list, and the chat history.',
+          'This will permanently delete the operation, the squad list, and the chat history.',
         ),
         actions: [
           TextButton(
@@ -937,11 +937,11 @@ class _EditEventPageState extends State<EditEventPage> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.handshake, color: Colors.teal, size: 28),
+                const Icon(Symbols.military_tech, color: Colors.teal, size: 28),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    "You are the Co-Host! You can manage your own guest list and add Squad Needs.",
+                    "You are the Co-Captain! You can manage your own squad list and add Squad Needs.",
                     style: TextStyle(
                       color: isDark ? Colors.tealAccent : Colors.teal.shade900,
                       fontWeight: FontWeight.bold,
@@ -964,9 +964,9 @@ class _EditEventPageState extends State<EditEventPage> {
                   ? snapshot.data!.docs
                   : <DocumentSnapshot>[];
 
-              String targetPreviewText = "Select guests...";
+              String targetPreviewText = "Select Squad...";
               if (_inviteAll) {
-                targetPreviewText = "All My Friends";
+                targetPreviewText = "Entire Squad";
               } else if (_selectedCircleIds.isNotEmpty) {
                 final selectedNames = circles
                     .where((c) => _selectedCircleIds.contains(c.id))
@@ -978,7 +978,7 @@ class _EditEventPageState extends State<EditEventPage> {
                     .join(', ');
                 targetPreviewText = selectedNames.isNotEmpty
                     ? selectedNames
-                    : "Selected Circles";
+                    : "Selected Squad Circles";
               }
 
               return InkWell(
@@ -986,7 +986,7 @@ class _EditEventPageState extends State<EditEventPage> {
                 onTap: () => _showCircleDialog(circles),
                 child: InputDecorator(
                   decoration: _buildInputDecoration(
-                    label: "Update My Guest List",
+                    label: "Update My Squad List",
                     prefixIcon: Icon(
                       Icons.people,
                       color: isDark ? Colors.tealAccent : Colors.teal,
@@ -1079,7 +1079,7 @@ class _EditEventPageState extends State<EditEventPage> {
       controller: _titleController,
       maxLength: 50,
       decoration: _buildInputDecoration(
-        label: 'Event Title',
+        label: 'Operation Name',
         prefixIcon: Icon(Symbols.campaign, color: primaryColor),
       ).copyWith(counterText: ""),
       validator: (val) => val == null || val.isEmpty ? 'Required' : null,
@@ -1177,7 +1177,7 @@ class _EditEventPageState extends State<EditEventPage> {
         DropdownMenuItem(value: -120, child: Text("2 hours before")),
         DropdownMenuItem(value: -60, child: Text("1 hour before")),
         DropdownMenuItem(value: -30, child: Text("30 mins before")),
-        DropdownMenuItem(value: 0, child: Text("At event start (Default)")),
+        DropdownMenuItem(value: 0, child: Text("At op start (Default)")),
         DropdownMenuItem(value: 30, child: Text("30 mins after")),
         DropdownMenuItem(value: 60, child: Text("1 hour after")),
         DropdownMenuItem(value: 120, child: Text("2 hours after")),
@@ -1271,8 +1271,8 @@ class _EditEventPageState extends State<EditEventPage> {
                 children: [
                   Icon(
                     _isImportantDetails
-                        ? Icons.campaign
-                        : Icons.campaign_outlined,
+                        ? Icons.gpp_maybe
+                        : Icons.gpp_maybe_outlined,
                     color: _isImportantDetails
                         ? Colors.red
                         : (isDark
@@ -1306,7 +1306,7 @@ class _EditEventPageState extends State<EditEventPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(_isMainHost ? "Change of Plans?" : "Manage Event"),
+        title: Text(_isMainHost ? "Change of Plans?" : "Manage Operation"),
         centerTitle: true,
         foregroundColor: Colors.white,
         flexibleSpace: Container(
@@ -1339,9 +1339,9 @@ class _EditEventPageState extends State<EditEventPage> {
                               ? snapshot.data!.docs
                               : <DocumentSnapshot>[];
 
-                          String targetPreviewText = "Select guests...";
+                          String targetPreviewText = "Select Squads...";
                           if (_inviteAll) {
-                            targetPreviewText = "All Friends";
+                            targetPreviewText = "Entire Squad";
                           } else if (_selectedCircleIds.isNotEmpty) {
                             final selectedNames = circles
                                 .where((c) => _selectedCircleIds.contains(c.id))
@@ -1354,7 +1354,7 @@ class _EditEventPageState extends State<EditEventPage> {
                                 .join(', ');
                             targetPreviewText = selectedNames.isNotEmpty
                                 ? selectedNames
-                                : "Selected Circles";
+                                : "Selected Squad Circles";
                           }
 
                           final circlesField = InkWell(
@@ -1362,7 +1362,7 @@ class _EditEventPageState extends State<EditEventPage> {
                             onTap: () => _showCircleDialog(circles),
                             child: InputDecorator(
                               decoration: _buildInputDecoration(
-                                label: "Update Guest List",
+                                label: "Update Squad List",
                                 prefixIcon: Icon(
                                   Icons.people,
                                   color: isDark
@@ -1385,7 +1385,7 @@ class _EditEventPageState extends State<EditEventPage> {
                             onTap: _showCoHostDialog,
                             child: InputDecorator(
                               decoration: _buildInputDecoration(
-                                label: "Change co-host",
+                                label: "Change Co-Captain (optional)",
                                 prefixIcon: Icon(
                                   Icons.person_add_alt_1,
                                   color: isDark
@@ -1403,8 +1403,7 @@ class _EditEventPageState extends State<EditEventPage> {
                                     : const Icon(Icons.arrow_drop_down),
                               ),
                               child: Text(
-                                _selectedCoHostName ??
-                                    "Select a trusted friend...",
+                                _selectedCoHostName ?? "Select a squadmate...",
                                 style: const TextStyle(fontSize: 16),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -1458,7 +1457,7 @@ class _EditEventPageState extends State<EditEventPage> {
                           color: isDark ? Colors.redAccent : Colors.red,
                         ),
                         label: Text(
-                          "Delete Event",
+                          "Delete Operation",
                           style: TextStyle(
                             color: isDark ? Colors.redAccent : Colors.red,
                             fontSize: 16,

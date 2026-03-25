@@ -216,7 +216,7 @@ class _MainShellState extends State<MainShell> {
                                 label: const Text("Home"),
                               ),
                               const NavigationRailDestination(
-                                icon: Icon(Icons.supervised_user_circle),
+                                icon: Icon(Symbols.guardian),
                                 label: Text("Circles"),
                               ),
                               const NavigationRailDestination(
@@ -468,14 +468,14 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
           final votes = List<String>.from(data['votes'] ?? []);
           String newStatus = votes.contains(winnerId) ? 'going' : 'pending';
 
-          if (data['role'] == 'host' || data['role'] == 'co-host')
+          if (data['role'] == 'host' || data['role'] == 'co-host') {
             newStatus = 'going';
+          }
 
           batch.update(doc.reference, {'status': newStatus});
         }
         await batch.commit();
       } else {
-        // Tie -> Flag for Host Tie Breaker
         await eventRef.update({'isTieBreakerNeeded': true});
       }
     } catch (e) {
@@ -1021,7 +1021,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
       statusColor = isDark ? Colors.amberAccent : Colors.amber.shade800;
       statusWeight = FontWeight.bold;
     } else if (isMyEvent) {
-      statusText = "Hosting";
+      statusText = "Captain";
       statusColor = primaryColor;
       statusWeight = FontWeight.bold;
     } else if (isGoing) {

@@ -1103,7 +1103,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                       ] else if (isEventCoHost) ...[
                                         const SizedBox(width: 6),
                                         Icon(
-                                          Icons.handshake,
+                                          Symbols.military_tech,
                                           size: 16,
                                           color: primaryColor,
                                         ),

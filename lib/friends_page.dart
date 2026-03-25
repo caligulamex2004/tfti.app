@@ -162,7 +162,7 @@ class _FriendsPageState extends State<FriendsPage> {
   Future<void> _inviteViaSms(String phone) async {
     const String kAppUrl = "https://tftiapp.com";
     final String message =
-        "Hey! Join me on TFTI so I can invite you to events! Check it out: $kAppUrl";
+        "Hey! Join me on tfti.app so I can invite you to events! Check it out: $kAppUrl";
     final String encodedMessage = Uri.encodeComponent(message);
     final Uri smsLaunchUri = Uri.parse('sms:$phone?body=$encodedMessage');
 
@@ -198,7 +198,7 @@ class _FriendsPageState extends State<FriendsPage> {
         .get();
 
     if (query.docs.isEmpty) {
-      setState(() => _statusMessage = "User not found on TFTI.");
+      setState(() => _statusMessage = "User not found on tfti.app.");
 
       if (!mounted) return;
       final primaryColor = Theme.of(context).colorScheme.primary;
@@ -206,9 +206,9 @@ class _FriendsPageState extends State<FriendsPage> {
       final invite = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text("Not on TFTI Yet"),
+          title: const Text("Not on tfti.app Yet"),
           content: Text(
-            "Would you like to invite ${PhoneFormatter.beautify(phoneToAdd)} to join TFTI via SMS?",
+            "Would you like to invite ${PhoneFormatter.beautify(phoneToAdd)} to join tfti.app via SMS?",
           ),
           actions: [
             TextButton(
@@ -326,7 +326,7 @@ class _FriendsPageState extends State<FriendsPage> {
     if (circlesSnapshot.docs.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Create some circles first!")),
+          const SnackBar(content: Text("Create some Squad Circles first!")),
         );
       }
       return;
@@ -443,7 +443,7 @@ class _FriendsPageState extends State<FriendsPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("The Whole Squad"),
+        title: const Text("Entire Squad"),
         centerTitle: true,
         foregroundColor: Colors.white,
         flexibleSpace: Container(
@@ -716,7 +716,7 @@ class _FriendsPageState extends State<FriendsPage> {
                                         Symbols.circles,
                                         color: primaryColor,
                                       ),
-                                      tooltip: "Assign to Circle",
+                                      tooltip: "Assign to Squad Circle",
                                       onPressed: () =>
                                           _editFriendCircles(uid, displayName),
                                     ),

@@ -270,7 +270,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("New Friend Circle"),
+        title: const Text("New Squad Circle"),
         content: TextField(
           controller: nameController,
           autofocus: true,
@@ -360,7 +360,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     SwitchListTile(
                       activeThumbColor: primaryColor,
                       title: const Text(
-                        "All Friends",
+                        "Entire Squad",
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       value: _inviteAll,
@@ -384,7 +384,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     if (circles.isEmpty)
                       const Padding(
                         padding: EdgeInsets.all(16.0),
-                        child: Text("No circles created yet."),
+                        child: Text("No Squad Circles created yet."),
                       ),
                     ...circles.map((doc) {
                       final data = doc.data() as Map<String, dynamic>;
@@ -423,7 +423,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         color: primaryColor,
                       ),
                       title: Text(
-                        "Create New Circle",
+                        "New Squad Circle",
                         style: TextStyle(
                           color: primaryColor,
                           fontWeight: FontWeight.bold,
@@ -480,7 +480,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                   ),
                   const SizedBox(height: 10),
                   const Text(
-                    "Add things you need guests to bring or do (e.g. Bring ice, Drive 1st half)",
+                    "Add things you need the squad to bring or do (e.g. Bring ice, Drive 1st half)",
                   ),
                   const SizedBox(height: 16),
                   Flexible(
@@ -606,7 +606,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            "Select 'Who's getting the i?' first to pick a co-host!",
+            "Select 'Who's getting the i?' first to pick a co-captain!",
           ),
         ),
       );
@@ -637,7 +637,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
               ),
               const SizedBox(height: 16),
               const Text(
-                "Select Co-Host",
+                "Select Co-Captain",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
@@ -647,7 +647,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 ListTile(
                   leading: const Icon(Icons.person_remove, color: Colors.red),
                   title: const Text(
-                    "Remove Co-Host",
+                    "Remove Co-Captain",
                     style: TextStyle(color: Colors.red),
                   ),
                   onTap: () {
@@ -833,7 +833,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text("Invited ${friendsToInvite.length} friends!"),
+              content: Text("Invited ${friendsToInvite.length} squadmates!"),
               backgroundColor: Colors.green,
             ),
           );
@@ -980,7 +980,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
         DropdownMenuItem(value: -120, child: Text("2 hours before")),
         DropdownMenuItem(value: -60, child: Text("1 hour before")),
         DropdownMenuItem(value: -30, child: Text("30 mins before")),
-        DropdownMenuItem(value: 0, child: Text("At event start (Default)")),
+        DropdownMenuItem(value: 0, child: Text("At op start (Default)")),
         DropdownMenuItem(value: 30, child: Text("30 mins after")),
         DropdownMenuItem(value: 60, child: Text("1 hour after")),
         DropdownMenuItem(value: 120, child: Text("2 hours after")),
@@ -1082,8 +1082,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 children: [
                   Icon(
                     _isImportantDetails
-                        ? Icons.campaign
-                        : Icons.campaign_outlined,
+                        ? Icons.gpp_maybe
+                        : Icons.gpp_maybe_outlined,
                     color: _isImportantDetails
                         ? Colors.red
                         : (isDark
@@ -1117,7 +1117,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("What's the Plan?"),
+        title: const Text("What's the plan?"),
         centerTitle: true,
         foregroundColor: Colors.white,
         flexibleSpace: Container(
@@ -1157,9 +1157,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
                                 ? snapshot.data!.docs
                                 : <DocumentSnapshot>[];
 
-                            String targetPreviewText = "Select guests...";
+                            String targetPreviewText = "Select Squads...";
                             if (_inviteAll) {
-                              targetPreviewText = "All Friends";
+                              targetPreviewText = "Entire Squad";
                             } else if (_selectedCircleIds.isNotEmpty) {
                               final selectedNames = circles
                                   .where(
@@ -1174,7 +1174,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                                   .join(', ');
                               targetPreviewText = selectedNames.isNotEmpty
                                   ? selectedNames
-                                  : "Selected Circles";
+                                  : "Selected Squad Circles";
                             }
 
                             final circlesField = InkWell(
@@ -1205,7 +1205,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                               onTap: _showCoHostDialog,
                               child: InputDecorator(
                                 decoration: _buildInputDecoration(
-                                  label: "Add co-host (optional)",
+                                  label: "Add Co-Captain (optional)",
                                   prefixIcon: Icon(
                                     Icons.person_add_alt_1,
                                     color: isDark
@@ -1227,7 +1227,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                                 ),
                                 child: Text(
                                   _selectedCoHostName ??
-                                      "Select a trusted friend...",
+                                      "Select a squadmate...",
                                   style: const TextStyle(fontSize: 16),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,

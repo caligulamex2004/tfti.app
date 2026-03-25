@@ -101,7 +101,7 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("New Friend Circle"),
+        title: const Text("New Squad Circle"),
         content: TextField(
           controller: _nameController,
           autofocus: true,
@@ -230,7 +230,7 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  "No circles yet.",
+                  "No Squad Circles Yet",
                   style: TextStyle(
                     color: isDark ? Colors.grey[400] : Colors.grey[600],
                     fontSize: 18,
