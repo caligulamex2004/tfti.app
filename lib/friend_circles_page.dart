@@ -101,13 +101,19 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("New Squad Circle"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          "New Team",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: TextField(
           controller: _nameController,
           autofocus: true,
-          decoration: const InputDecoration(
-            hintText: "e.g. Movie Buffs",
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            hintText: "e.g. Work Besties",
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: primaryColor, width: 2),
+            ),
           ),
           textCapitalization: TextCapitalization.sentences,
         ),
@@ -122,7 +128,10 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
               backgroundColor: primaryColor,
               foregroundColor: themeProvider.onPrimaryColor,
             ),
-            child: const Text("Create"),
+            child: const Text(
+              "Create",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -136,11 +145,19 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Rename Circle"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          "Rename Team",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: TextField(
           controller: renameController,
           autofocus: true,
-          decoration: const InputDecoration(border: OutlineInputBorder()),
+          decoration: InputDecoration(
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: primaryColor, width: 2),
+            ),
+          ),
           textCapitalization: TextCapitalization.sentences,
         ),
         actions: [
@@ -157,7 +174,10 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
               backgroundColor: primaryColor,
               foregroundColor: themeProvider.onPrimaryColor,
             ),
-            child: const Text("Save"),
+            child: const Text(
+              "Save",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -179,16 +199,23 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.touch_app,
-            size: 64,
-            color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.touch_app,
+              size: 64,
+              color: isDark ? Colors.grey.shade700 : Colors.grey.shade400,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
             "Select a Team to view members",
             style: TextStyle(
-              color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
+              color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
               fontSize: 18,
             ),
           ),
@@ -223,24 +250,32 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.supervised_user_circle_outlined,
-                  size: 80,
-                  color: isDark ? Colors.grey[700] : Colors.grey[300],
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.supervised_user_circle_outlined,
+                    size: 64,
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade400,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   "No Teams Yet",
                   style: TextStyle(
-                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
                     fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   "Create one to group your friends!",
                   style: TextStyle(
-                    color: isDark ? Colors.grey[500] : Colors.black87,
+                    color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
                   ),
                 ),
               ],
@@ -248,16 +283,12 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
           );
         }
 
-        return ListView.separated(
+        return ListView.builder(
           padding: EdgeInsets.symmetric(
-            horizontal: isLandscape ? 8.0 : 12.0,
-            vertical: 12.0,
+            horizontal: isLandscape ? 8.0 : 16.0,
+            vertical: 16.0,
           ),
           itemCount: circles.length,
-          separatorBuilder: (context, index) => Divider(
-            height: 1,
-            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
-          ),
           itemBuilder: (context, index) {
             final data = circles[index].data() as Map<String, dynamic>;
             final circleId = circles[index].id;
@@ -265,127 +296,162 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
 
             final isSelected = isLandscape && _selectedCircleId == circleId;
 
-            return Dismissible(
-              key: Key(circleId),
-              direction: DismissDirection.horizontal,
-              background: Container(
-                alignment: Alignment.centerLeft,
-                padding: const EdgeInsets.only(left: 20.0),
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  borderRadius: BorderRadius.circular(12),
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: Dismissible(
+                key: Key(circleId),
+                direction: DismissDirection.horizontal,
+                background: Container(
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.only(left: 20.0),
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.edit, color: Colors.white),
                 ),
-                child: const Icon(Icons.edit, color: Colors.white),
-              ),
-              secondaryBackground: Container(
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 20.0),
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(12),
+                secondaryBackground: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20.0),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.delete, color: Colors.white),
                 ),
-                child: const Icon(Icons.delete, color: Colors.white),
-              ),
-              confirmDismiss: (direction) async {
-                if (direction == DismissDirection.startToEnd) {
-                  _showRenameDialog(circleId, circleName);
-                  return false;
-                } else if (direction == DismissDirection.endToStart) {
-                  return await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text("Delete Team?"),
-                      content: Text("Delete '$circleName'?"),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text("Cancel"),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: Text(
-                            "Delete",
-                            style: TextStyle(
-                              color: isDark ? Colors.redAccent : Colors.red,
+                confirmDismiss: (direction) async {
+                  if (direction == DismissDirection.startToEnd) {
+                    _showRenameDialog(circleId, circleName);
+                    return false;
+                  } else if (direction == DismissDirection.endToStart) {
+                    return await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text("Delete Team?"),
+                        content: Text("Delete '$circleName'?"),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text("Cancel"),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: Text(
+                              "Delete",
+                              style: TextStyle(
+                                color: isDark ? Colors.redAccent : Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                return false;
-              },
-              onDismissed: (direction) {
-                if (direction == DismissDirection.endToStart) {
-                  _deleteCircle(circleId);
-                }
-              },
-              // --- FIX: CUSTOM ROW REPLACES LISTTILE FOR 100% LAYOUT CONTROL ---
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () {
-                  if (isLandscape) {
-                    setState(() {
-                      _selectedCircleId = circleId;
-                      _selectedCircleName = circleName;
-                      _autoOpenNewCircle = false;
-                    });
-                  } else {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CircleMembersPage(
-                          circleId: circleId,
-                          circleName: circleName,
-                        ),
+                        ],
                       ),
                     );
                   }
+                  return false;
                 },
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isLandscape ? 12.0 : 16.0,
-                    vertical: 12.0,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? primaryColor.withValues(alpha: 0.1)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      // ALIGNED ABSOLUTE LEFT
-                      CircleAvatar(
-                        backgroundColor: primaryColor.withValues(alpha: 0.1),
-                        child: Icon(Symbols.circles, color: primaryColor),
-                      ),
-                      const SizedBox(width: 16),
-                      // EXPANDS TO FILL 100% OF REMAINING MIDDLE SPACE
-                      Expanded(
-                        child: Text(
-                          circleName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: isSelected
-                                ? FontWeight.w900
-                                : FontWeight.bold,
+                onDismissed: (direction) {
+                  if (direction == DismissDirection.endToStart) {
+                    _deleteCircle(circleId);
+                  }
+                },
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () {
+                    if (isLandscape) {
+                      setState(() {
+                        _selectedCircleId = circleId;
+                        _selectedCircleName = circleName;
+                        _autoOpenNewCircle = false;
+                      });
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CircleMembersPage(
+                            circleId: circleId,
+                            circleName: circleName,
                           ),
                         ),
+                      );
+                    }
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isLandscape ? 12.0 : 16.0,
+                      vertical: 12.0,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? primaryColor.withValues(alpha: 0.1)
+                          : Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSelected
+                            ? primaryColor
+                            : (isDark
+                                  ? Colors.grey.shade800
+                                  : Colors.grey.shade200),
+                        width: isSelected ? 2 : 1,
                       ),
-                      const SizedBox(width: 16),
-                      // ALIGNED ABSOLUTE RIGHT
-                      Icon(
-                        isLandscape
-                            ? Icons.chevron_right
-                            : Icons.arrow_forward_ios,
-                        size: isLandscape ? 24 : 14,
-                        color: isSelected ? primaryColor : Colors.grey,
-                      ),
-                    ],
+                      boxShadow: [
+                        if (!isDark && !isSelected)
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: primaryColor.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: primaryColor.withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Symbols.circles,
+                            color: primaryColor,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            circleName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: isSelected
+                                  ? FontWeight.w900
+                                  : FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Icon(
+                          isLandscape
+                              ? Icons.chevron_right
+                              : Icons.arrow_forward_ios,
+                          size: isLandscape ? 24 : 14,
+                          color: isSelected
+                              ? primaryColor
+                              : (isDark
+                                    ? Colors.grey.shade500
+                                    : Colors.grey.shade400),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -398,7 +464,10 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Teams"),
+        title: const Text(
+          "Teams",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
         foregroundColor: Colors.white,
         flexibleSpace: Container(
@@ -557,7 +626,13 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
         return StatefulBuilder(
           builder: (innerContext, setDialogState) {
             return AlertDialog(
-              title: Text("Add to ${widget.circleName}"),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: Text(
+                "Add to ${widget.circleName}",
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               content: SizedBox(
                 width: double.maxFinite,
                 child: ListView.builder(
@@ -578,7 +653,10 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
 
                     return CheckboxListTile(
                       value: isSelected,
-                      title: Text(name),
+                      title: Text(
+                        name,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
                       secondary: CircleAvatar(
                         backgroundColor: avatarColor,
                         radius: 16,
@@ -651,7 +729,10 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                     backgroundColor: primaryColor,
                     foregroundColor: themeProvider.onPrimaryColor,
                   ),
-                  child: const Text("Add"),
+                  child: const Text(
+                    "Add",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             );
@@ -666,13 +747,14 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
     final user = FirebaseAuth.instance.currentUser;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(widget.circleName),
+        title: Text(
+          widget.circleName,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
         foregroundColor: Colors.white,
         flexibleSpace: Container(
@@ -704,16 +786,40 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.group_off,
-                    size: 60,
-                    color: isDark ? Colors.grey[700] : Colors.grey[300],
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.grey.shade900
+                          : Colors.grey.shade100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.group_off,
+                      size: 64,
+                      color: isDark
+                          ? Colors.grey.shade700
+                          : Colors.grey.shade400,
+                    ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 16),
                   Text(
                     "This team is empty.",
                     style: TextStyle(
-                      color: isDark ? Colors.grey[500] : Colors.black87,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade700,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Add some squadmates!",
+                    style: TextStyle(
+                      color: isDark
+                          ? Colors.grey.shade500
+                          : Colors.grey.shade600,
                     ),
                   ),
                 ],
@@ -730,13 +836,9 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
 
               final profiles = profileSnap.data!;
 
-              return ListView.separated(
+              return ListView.builder(
+                padding: const EdgeInsets.all(16.0),
                 itemCount: profiles.length,
-                separatorBuilder: (context, index) => Divider(
-                  height: 1,
-                  indent: isLandscape ? 16 : 70, // Better underline formatting
-                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
-                ),
                 itemBuilder: (context, index) {
                   final profile = profiles[index];
                   final displayName = profile['displayName'] ?? "Unknown";
@@ -752,69 +854,101 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                     avatarColor = Color(profile['avatarColor']);
                   }
 
-                  // --- FIX: CUSTOM ROW REPLACES LISTTILE FOR 100% LAYOUT CONTROL ---
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 12.0,
-                    ),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: avatarColor,
-                          backgroundImage: avatarUrl != null
-                              ? CachedNetworkImageProvider(avatarUrl)
-                              : null,
-                          child: avatarUrl == null
-                              ? Text(
-                                  displayName.isNotEmpty
-                                      ? displayName[0].toUpperCase()
-                                      : "?",
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 12.0,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isDark
+                              ? Colors.grey.shade800
+                              : Colors.grey.shade200,
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          if (!isDark)
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.03),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: avatarColor.withValues(alpha: 0.4),
+                                  blurRadius: 10,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: CircleAvatar(
+                              backgroundColor: avatarColor,
+                              backgroundImage: avatarUrl != null
+                                  ? CachedNetworkImageProvider(avatarUrl)
+                                  : null,
+                              child: avatarUrl == null
+                                  ? Text(
+                                      displayName.isNotEmpty
+                                          ? displayName[0].toUpperCase()
+                                          : "?",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  displayName,
                                   style: const TextStyle(
-                                    color: Colors.white,
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 16,
                                   ),
-                                )
-                              : null,
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                displayName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                phone,
-                                style: TextStyle(
-                                  color: isDark
-                                      ? Colors.grey.shade400
-                                      : Colors.grey.shade700,
-                                  fontSize: 14,
+                                const SizedBox(height: 4),
+                                Text(
+                                  phone,
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.grey.shade400
+                                        : Colors.grey.shade600,
+                                    fontSize: 13,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        IconButton(
-                          icon: Icon(
-                            Icons.remove_circle_outline,
-                            color: isDark ? Colors.redAccent : Colors.red,
+                          const SizedBox(width: 12),
+                          IconButton(
+                            icon: Icon(
+                              Icons.remove_circle_outline,
+                              color: isDark ? Colors.redAccent : Colors.red,
+                            ),
+                            onPressed: () => _removeMember(profile['uid']),
                           ),
-                          onPressed: () => _removeMember(profile['uid']),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
                 },
