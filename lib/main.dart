@@ -488,10 +488,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
   // --- NEW: Filter Configuration ---
   final Map<String, Map<String, dynamic>> _filterConfig = {
     'all': {'name': 'All Ops', 'icon': Icons.all_inbox},
-    'pending': {
-      'name': 'New Missions',
-      'icon': Icons.mark_email_unread_outlined,
-    },
+    'pending': {'name': 'Incoming', 'icon': Icons.mark_email_unread_outlined},
     'soon': {'name': 'Starting Soon', 'icon': Icons.timer_outlined},
     'now': {'name': 'Go Time', 'icon': Icons.local_fire_department_outlined},
     'going': {'name': 'Going', 'icon': Icons.event_available},
