@@ -301,7 +301,7 @@ class _LoginPageState extends State<LoginPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Symbols.diversity_2,
+                    Symbols.how_to_vote,
                     size: 80,
                     color: isDark ? Colors.white : Colors.black87,
                   ),

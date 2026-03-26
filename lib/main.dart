@@ -722,7 +722,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    "The Move",
+                    "the i's",
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w900,
