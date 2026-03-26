@@ -485,64 +485,32 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
     }
   }
 
-  String _formatTimestamp(Timestamp? timestamp) {
-    if (timestamp == null) return "No Date";
-    final DateTime dateTime = timestamp.toDate();
-    int hour = dateTime.hour;
-    final String period = hour >= 12 ? 'PM' : 'AM';
-    hour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
-    final String minute = dateTime.minute.toString().padLeft(2, '0');
-    return "${dateTime.month}/${dateTime.day} @ $hour:$minute $period";
-  }
+  // --- NEW: Filter Configuration ---
+  final Map<String, Map<String, dynamic>> _filterConfig = {
+    'all': {'name': 'All Ops', 'icon': Icons.all_inbox},
+    'pending': {
+      'name': 'New Missions',
+      'icon': Icons.mark_email_unread_outlined,
+    },
+    'soon': {'name': 'Starting Soon', 'icon': Icons.timer_outlined},
+    'now': {'name': 'Go Time', 'icon': Icons.local_fire_department_outlined},
+    'going': {'name': 'Going', 'icon': Icons.event_available},
+    'declined': {'name': 'Missing Out', 'icon': Icons.cancel_outlined},
+    'past_hidden': {'name': 'Past / Hidden', 'icon': Icons.history},
+  };
 
-  Widget _buildFilterChip(
-    String title,
-    String filterValue,
-    bool isDark,
-    Color primaryColor,
-  ) {
-    final isSelected = _selectedFilter == filterValue;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8.0),
-      child: ChoiceChip(
-        label: Text(
-          title,
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected
-                ? themeProvider.onPrimaryColor
-                : (isDark ? Colors.grey.shade400 : Colors.grey.shade700),
-          ),
-        ),
-        selected: isSelected,
-        selectedColor: primaryColor,
-        backgroundColor: isDark ? Colors.grey.shade900 : Colors.grey.shade200,
-        side: BorderSide.none,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        onSelected: (selected) {
-          if (selected) setState(() => _selectedFilter = filterValue);
-        },
+  // --- NEW: Modern Filter Bottom Sheet ---
+  void _showFilterBottomSheet(bool isDark, Color primaryColor) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-    );
-  }
-
-  // --- UPDATED: SPLIT FAB ACTION ---
-  Widget _buildFab(Color primaryColor, bool isDark) {
-    return FloatingActionButton(
-      backgroundColor: primaryColor,
-      foregroundColor: themeProvider.onPrimaryColor,
-      elevation: 4,
-      shape: const CircleBorder(),
-      heroTag: "btn_create_action",
-      child: const Icon(Icons.add, size: 28),
-      onPressed: () {
-        showModalBottomSheet(
-          context: context,
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          builder: (ctx) => SafeArea(
+      builder: (ctx) {
+        return SafeArea(
+          child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -555,56 +523,155 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                const SizedBox(height: 20),
-                ListTile(
-                  leading: Icon(
-                    Icons.how_to_vote,
-                    size: 28,
-                    color: primaryColor,
-                  ),
-                  title: const Text(
-                    "Special Ops",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  subtitle: const Text("Let the squad know what's happening."),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const CreateEventPage(),
+                const SizedBox(height: 16),
+                const Text(
+                  "Filter Feed",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Divider(height: 1),
+
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _filterConfig.length,
+                  itemBuilder: (context, index) {
+                    String key = _filterConfig.keys.elementAt(index);
+                    Map<String, dynamic> config = _filterConfig[key]!;
+                    bool isSelected = _selectedFilter == key;
+
+                    return ListTile(
+                      leading: Icon(
+                        config['icon'],
+                        color: isSelected
+                            ? primaryColor
+                            : (isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600),
                       ),
+                      title: Text(
+                        config['name'],
+                        style: TextStyle(
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: isSelected
+                              ? primaryColor
+                              : (isDark ? Colors.white : Colors.black87),
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? Icon(Icons.check_circle, color: primaryColor)
+                          : null,
+                      onTap: () {
+                        setState(() => _selectedFilter = key);
+                        Navigator.pop(ctx);
+                      },
                     );
                   },
                 ),
-                Divider(
-                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-                ),
-                ListTile(
-                  leading: Icon(
-                    Symbols.earthquake,
-                    size: 28,
-                    color: primaryColor,
-                  ),
-                  title: const Text(
-                    "Vibe Check",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  subtitle: const Text(
-                    "Give options and let the squad decide.",
-                  ),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const CreateVibeCheckPage(),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
               ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFab(Color primaryColor, bool isDark) {
+    return FloatingActionButton(
+      backgroundColor: primaryColor,
+      foregroundColor: themeProvider.onPrimaryColor,
+      elevation: 4,
+      shape: const CircleBorder(),
+      heroTag: "btn_create_action",
+      child: const Icon(Icons.add, size: 28),
+      onPressed: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled:
+              true, // 👇 Allows sheet to exceed 50% screen height
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          builder: (ctx) => SafeArea(
+            child: SingleChildScrollView(
+              // 👇 Prevents overflow in landscape
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.grey.shade700
+                          : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ListTile(
+                    leading: Icon(
+                      Icons.how_to_vote,
+                      size: 28,
+                      color: primaryColor,
+                    ),
+                    title: const Text(
+                      "Special Op",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      "Let the squad know what's happening.",
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CreateEventPage(),
+                        ),
+                      );
+                    },
+                  ),
+                  Divider(
+                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      Symbols.earthquake,
+                      size: 28,
+                      color: primaryColor,
+                    ),
+                    title: const Text(
+                      "Vibe Check",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      "Give options and let the squad decide.",
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CreateVibeCheckPage(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
           ),
         );
@@ -645,32 +712,76 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
 
     Widget feedContent = Column(
       children: [
-        Container(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildFilterChip('All the things', 'all', isDark, primaryColor),
-                _buildFilterChip('New', 'pending', isDark, primaryColor),
-                _buildFilterChip('Starting Soon', 'soon', isDark, primaryColor),
-                _buildFilterChip('Happening Now', 'now', isDark, primaryColor),
-                _buildFilterChip('Going', 'going', isDark, primaryColor),
-                _buildFilterChip(
-                  'Missing Out',
-                  'declined',
-                  isDark,
-                  primaryColor,
+        // Modern Section Header & Pill Selector
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // FIX: Wrap in Expanded + FittedBox to gracefully scale down text in landscape
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "The Move",
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
                 ),
-                _buildFilterChip(
-                  'Past / Hidden',
-                  'past_hidden',
-                  isDark,
-                  primaryColor,
+              ),
+              const SizedBox(width: 12), // Buffer to ensure they never touch
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _showFilterBottomSheet(isDark, primaryColor),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: primaryColor.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _filterConfig[_selectedFilter]!['icon'],
+                          size: 14,
+                          color: primaryColor,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _filterConfig[_selectedFilter]!['name'],
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 16,
+                          color: primaryColor,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
         Expanded(
@@ -970,76 +1081,76 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
 
     final bool isVibeCheck = data['type'] == 'vibe_check';
     final bool isMyEvent = data['hostId'] == myUid;
-    final String dateText = _formatTimestamp(data['time']);
     final bool isImportantDetails = data['isImportantDetails'] == true;
 
     final String? lastMessageSnippet = data['lastMessageSnippet'];
 
     Color cardBgColor = Theme.of(context).cardColor;
     double cardElevation = isDark ? 1 : 2;
-    IconData statusIcon;
-    Color iconColor;
-    Color titleTextColor = isDark ? Colors.white : Colors.black87;
 
-    if (isStartingSoon) {
-      statusIcon = Icons.directions_run;
-      iconColor = isDark ? Colors.amberAccent : Colors.amber.shade800;
-    } else if (isHappeningNow) {
-      statusIcon = Icons.whatshot;
-      iconColor = isDark ? Colors.orangeAccent : Colors.orange.shade800;
-    } else if (isPast) {
-      cardElevation = 0;
-      statusIcon = Icons.history;
-      iconColor = Colors.grey;
-      titleTextColor = isDark ? Colors.grey.shade500 : Colors.grey.shade600;
-    } else {
-      if (isMyEvent) {
-        statusIcon = Symbols.crown;
-        iconColor = primaryColor;
-      } else if (isVibeCheck) {
-        statusIcon = Icons.how_to_vote;
-        iconColor = isDark ? Colors.purpleAccent : Colors.purple;
-      } else {
-        statusIcon = Symbols.mail;
-        iconColor = isDark ? Colors.grey.shade400 : Colors.grey.shade700;
-      }
-    }
+    // --- NEW: DATE/TIME PARSING ---
+    final DateTime dt = item['time'] as DateTime;
+    final List<String> shortMonths = [
+      'JAN',
+      'FEB',
+      'MAR',
+      'APR',
+      'MAY',
+      'JUN',
+      'JUL',
+      'AUG',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DEC',
+    ];
+    final String month = shortMonths[dt.month - 1];
+    final String day = dt.day.toString();
+
+    int hour = dt.hour;
+    final String period = hour >= 12 ? "PM" : "AM";
+    hour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+    final String minute = dt.minute.toString().padLeft(2, '0');
+    final String timeString = "$hour:$minute $period";
+
+    IconData statusIcon;
+    Color statusColor;
+    String statusText;
+    Color titleTextColor = isDark ? Colors.white : Colors.black87;
 
     final bool isGoing = status == 'going';
     final bool isDeclined = status == 'declined';
 
-    String statusText;
-    Color statusColor = isDark ? Colors.grey.shade400 : Colors.grey.shade700;
-    FontWeight statusWeight = FontWeight.normal;
-
     if (isPast) {
+      cardElevation = 0;
       statusText = "Wrapped up";
       statusColor = Colors.grey;
+      statusIcon = Icons.history;
+      titleTextColor = isDark ? Colors.grey.shade500 : Colors.grey.shade600;
     } else if (isDeclined) {
       statusText = "Missing out";
       statusColor = isDark ? Colors.redAccent : Colors.red;
+      statusIcon = Icons.cancel;
     } else if (isHappeningNow) {
-      statusText = "Happening Now! 🔥";
+      statusText = "Happening Now!";
       statusColor = isDark ? Colors.orangeAccent : Colors.orange.shade800;
-      statusWeight = FontWeight.bold;
+      statusIcon = Icons.whatshot;
     } else if (isStartingSoon) {
-      statusText = "Better get going! 🏃";
+      statusText = "Starting Soon";
       statusColor = isDark ? Colors.amberAccent : Colors.amber.shade800;
-      statusWeight = FontWeight.bold;
+      statusIcon = Icons.directions_run;
     } else if (isMyEvent) {
       statusText = "Captain";
       statusColor = primaryColor;
-      statusWeight = FontWeight.bold;
+      statusIcon = Symbols.crown;
     } else if (isGoing) {
       statusText = "You're going";
       statusColor = isDark ? Colors.greenAccent : Colors.green;
-      statusWeight = FontWeight.bold;
+      statusIcon = Icons.check_circle;
     } else {
-      statusText = isVibeCheck
-          ? "Swipe right to join, then vote!"
-          : "Swipe 👈 👉 to RSVP";
-      statusColor = isDark ? Colors.orangeAccent : Colors.orange.shade800;
-      statusWeight = FontWeight.bold;
+      statusText = isVibeCheck ? "Vote Pending" : "RSVP Pending";
+      statusColor = isDark ? Colors.purpleAccent : Colors.purple;
+      statusIcon = isVibeCheck ? Icons.how_to_vote : Symbols.mail;
     }
 
     final Timestamp? lastUpdateTime = data['lastUpdatedAt'];
@@ -1105,11 +1216,10 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
           borderRadius: BorderRadius.circular(16),
           side: isSelected
               ? BorderSide(color: primaryColor, width: 2)
-              : ((isHappeningNow || isStartingSoon)
-                    ? BorderSide(color: iconColor, width: 1.5)
-                    : (isDark
-                          ? BorderSide(color: Colors.grey.shade800)
-                          : BorderSide.none)),
+              : BorderSide(
+                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                  width: 1,
+                ),
         ),
         margin: const EdgeInsets.only(bottom: 12),
         child: InkWell(
@@ -1136,153 +1246,221 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Badge(
-                  isLabelVisible: status == 'pending' && !isMyEvent && !isPast,
-                  label: const Text("!"),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: iconColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
+                // --- NEW: THE CALENDAR LEFT COLUMN ---
+                Column(
+                  children: [
+                    Container(
+                      width: 52,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.grey.shade800
+                            : Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isDark
+                              ? Colors.grey.shade700
+                              : Colors.red.shade100,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isPast ? Colors.grey : Colors.redAccent,
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              month,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Text(
+                              day,
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Icon(statusIcon, color: iconColor, size: 28),
-                  ),
+                    const SizedBox(height: 6),
+                    Text(
+                      timeString,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isPast ? Colors.grey : primaryColor,
+                      ),
+                    ),
+                  ],
                 ),
+
                 const SizedBox(width: 16),
+
+                // --- NEW: THE CONTENT RIGHT COLUMN ---
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        isVibeCheck
-                            ? "Vibe Check: ${data['title']}"
-                            : data['title'] ?? "Untitled",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: titleTextColor,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        dateText,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isPast
-                              ? Colors.grey.shade500
-                              : (isDark
-                                    ? Colors.grey.shade400
-                                    : Colors.grey[600]),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      Text(
-                        "@ ${data['location'] ?? 'Multiple Spots'}",
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isPast
-                              ? Colors.grey.shade500
-                              : (isDark
-                                    ? Colors.grey.shade400
-                                    : Colors.black54),
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-
-                      if (isImportantDetails && !isPast)
-                        Container(
-                          margin: const EdgeInsets.only(top: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: primaryColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: primaryColor.withValues(alpha: 0.4),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.announcement_outlined,
-                                size: 12,
-                                color: primaryColor,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                "PLEASE READ DETAILS",
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                  color: primaryColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                      const SizedBox(height: 8),
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (hasCriticalUpdate)
-                            Container(
-                              margin: const EdgeInsets.only(right: 6),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.amber.shade900.withValues(
-                                        alpha: 0.3,
-                                      )
-                                    : Colors.amber.shade100,
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(
-                                  color: isDark
-                                      ? Colors.amberAccent
-                                      : Colors.amber.shade800,
-                                ),
-                              ),
-                              child: Text(
-                                "UPDATED",
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark
-                                      ? Colors.amberAccent
-                                      : Colors.amber.shade900,
-                                ),
-                              ),
-                            ),
                           Expanded(
                             child: Text(
-                              statusText,
+                              isVibeCheck
+                                  ? "Vibe Check: ${data['title']}"
+                                  : data['title'] ?? "Untitled",
                               style: TextStyle(
-                                color: statusColor,
-                                fontSize: 13,
-                                fontWeight: statusWeight,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 17,
+                                color: titleTextColor,
+                                height: 1.2,
                               ),
-                              maxLines: 1,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (hasCriticalUpdate)
+                            const Padding(
+                              padding: EdgeInsets.only(left: 8.0),
+                              child: Icon(
+                                Icons.info,
+                                color: Colors.amber,
+                                size: 20,
+                              ),
+                            ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      // Location Row
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            size: 14,
+                            color: isPast
+                                ? Colors.grey.shade600
+                                : (isDark
+                                      ? Colors.grey.shade400
+                                      : Colors.grey.shade500),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              data['location'] ?? 'Multiple Spots',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isPast
+                                    ? Colors.grey.shade600
+                                    : (isDark
+                                          ? Colors.grey.shade400
+                                          : Colors.grey.shade600),
+                              ),
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
                       ),
 
+                      const SizedBox(height: 10),
+
+                      // --- NEW: PILL TAGS ---
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          // Status Pill
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: statusColor.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(statusIcon, size: 12, color: statusColor),
+                                const SizedBox(width: 4),
+                                Text(
+                                  statusText,
+                                  style: TextStyle(
+                                    color: statusColor,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Important Details Pill
+                          if (isImportantDetails && !isPast)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: primaryColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: primaryColor.withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.announcement_outlined,
+                                    size: 12,
+                                    color: primaryColor,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "PLEASE READ",
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: primaryColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+
+                      // --- REFINED CHAT SNIPPET ---
                       if (lastMessageSnippet != null &&
                           lastMessageSnippet.isNotEmpty)
                         Padding(
-                          padding: const EdgeInsets.only(top: 10.0),
+                          padding: const EdgeInsets.only(top: 12.0),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
@@ -1291,7 +1469,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                             decoration: BoxDecoration(
                               color: isDark
                                   ? Colors.grey.shade900
-                                  : Colors.grey.shade100,
+                                  : Colors.grey.shade50,
                               borderRadius: BorderRadius.circular(8),
                               border: hasUnreadChat
                                   ? Border.all(
@@ -1300,7 +1478,11 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                                           : primaryColor.withValues(alpha: 0.5),
                                       width: 1,
                                     )
-                                  : Border.all(color: Colors.transparent),
+                                  : Border.all(
+                                      color: isDark
+                                          ? Colors.grey.shade800
+                                          : Colors.grey.shade200,
+                                    ),
                             ),
                             child: Row(
                               children: [
@@ -1381,14 +1563,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                     ],
                   ),
                 ),
-                if (hasCriticalUpdate)
-                  const Icon(Icons.info, color: Colors.amber, size: 28)
-                else if (!isPast)
-                  Icon(
-                    isLandscape ? Icons.chevron_right : Icons.arrow_forward_ios,
-                    color: isSelected ? primaryColor : Colors.grey.shade400,
-                    size: isLandscape ? 24 : 14,
-                  ),
               ],
             ),
           ),

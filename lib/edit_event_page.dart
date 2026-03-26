@@ -922,147 +922,155 @@ class _EditEventPageState extends State<EditEventPage> {
   }
 
   Widget _buildCoHostView(bool isDark, Color primaryColor, User user) {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.teal.withValues(alpha: 0.2)
-                  : Colors.teal.shade50,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.teal),
-            ),
-            child: Row(
-              children: [
-                const Icon(Symbols.military_tech, color: Colors.teal, size: 28),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    "You are the Co-Captain! You can manage your own squad list and add Squad Needs.",
-                    style: TextStyle(
-                      color: isDark ? Colors.tealAccent : Colors.teal.shade900,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .collection('circles')
-                .snapshots(),
-            builder: (context, snapshot) {
-              final circles = snapshot.hasData
-                  ? snapshot.data!.docs
-                  : <DocumentSnapshot>[];
-
-              String targetPreviewText = "Select Squad...";
-              if (_inviteAll) {
-                targetPreviewText = "Entire Squad";
-              } else if (_selectedCircleIds.isNotEmpty) {
-                final selectedNames = circles
-                    .where((c) => _selectedCircleIds.contains(c.id))
-                    .map(
-                      (c) =>
-                          (c.data() as Map<String, dynamic>)['name'] ??
-                          'Unnamed',
-                    )
-                    .join(', ');
-                targetPreviewText = selectedNames.isNotEmpty
-                    ? selectedNames
-                    : "Selected Squad Circles";
-              }
-
-              return InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () => _showCircleDialog(circles),
-                child: InputDecorator(
-                  decoration: _buildInputDecoration(
-                    label: "Update My Squad List",
-                    prefixIcon: Icon(
-                      Icons.people,
-                      color: isDark ? Colors.tealAccent : Colors.teal,
-                    ),
-                    suffixIcon: const Icon(Icons.arrow_drop_down),
-                  ),
-                  child: Text(
-                    targetPreviewText,
-                    style: const TextStyle(fontSize: 16),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-
-          Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
                 color: isDark
-                    ? Colors.white12
-                    : Colors.black.withValues(alpha: 0.05),
-                width: 1,
+                    ? Colors.teal.withValues(alpha: 0.2)
+                    : Colors.teal.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.teal),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Symbols.military_tech,
+                    color: Colors.teal,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      "You are the Co-Captain! You can manage your own squad list and add Squad Needs.",
+                      style: TextStyle(
+                        color: isDark
+                            ? Colors.tealAccent
+                            : Colors.teal.shade900,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: ListTile(
-              leading: Icon(Icons.check_box_outlined, color: primaryColor),
-              title: const Text(
-                "Manage Squad Needs",
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-              ),
-              subtitle: const Text(
-                "View, add, or delete your roles",
-                style: TextStyle(fontSize: 12),
-              ),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        EventRolesPage(eventId: widget.eventId, isHost: true),
+            const SizedBox(height: 24),
+
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user.uid)
+                  .collection('circles')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                final circles = snapshot.hasData
+                    ? snapshot.data!.docs
+                    : <DocumentSnapshot>[];
+
+                String targetPreviewText = "Select Squad...";
+                if (_inviteAll) {
+                  targetPreviewText = "Entire Squad";
+                } else if (_selectedCircleIds.isNotEmpty) {
+                  final selectedNames = circles
+                      .where((c) => _selectedCircleIds.contains(c.id))
+                      .map(
+                        (c) =>
+                            (c.data() as Map<String, dynamic>)['name'] ??
+                            'Unnamed',
+                      )
+                      .join(', ');
+                  targetPreviewText = selectedNames.isNotEmpty
+                      ? selectedNames
+                      : "Selected Squad Circles";
+                }
+
+                return InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => _showCircleDialog(circles),
+                  child: InputDecorator(
+                    decoration: _buildInputDecoration(
+                      label: "Update My Squad List",
+                      prefixIcon: Icon(
+                        Icons.people,
+                        color: isDark ? Colors.tealAccent : Colors.teal,
+                      ),
+                      suffixIcon: const Icon(Icons.arrow_drop_down),
+                    ),
+                    child: Text(
+                      targetPreviewText,
+                      style: const TextStyle(fontSize: 16),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 );
               },
             ),
-          ),
-          const SizedBox(height: 40),
+            const SizedBox(height: 16),
 
-          SizedBox(
-            width: double.infinity,
-            height: 55,
-            child: ElevatedButton(
-              onPressed: _updateEvent,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                foregroundColor: themeProvider.onPrimaryColor,
-                elevation: 2,
+            Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.white12
+                      : Colors.black.withValues(alpha: 0.05),
+                  width: 1,
+                ),
+              ),
+              child: ListTile(
+                leading: Icon(Icons.check_box_outlined, color: primaryColor),
+                title: const Text(
+                  "Manage Squad Needs",
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                ),
+                subtitle: const Text(
+                  "View, add, or delete your roles",
+                  style: TextStyle(fontSize: 12),
+                ),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
-              ),
-              child: const Text(
-                "Save Changes",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          EventRolesPage(eventId: widget.eventId, isHost: true),
+                    ),
+                  );
+                },
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 40),
+
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton(
+                onPressed: _updateEvent,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  foregroundColor: themeProvider.onPrimaryColor,
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Text(
+                  "Save Changes",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
