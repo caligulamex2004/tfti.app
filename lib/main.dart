@@ -965,7 +965,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          "Thanks For The Invite",
+          "thanks for the invite",
           style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0),
         ),
         centerTitle: true,
