@@ -169,7 +169,7 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("New Friend Circle"),
+        title: const Text("New Team"),
         content: TextField(
           controller: nameController,
           autofocus: true,
@@ -277,7 +277,7 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
                     if (circles.isEmpty)
                       const Padding(
                         padding: EdgeInsets.all(16.0),
-                        child: Text("No circles created yet."),
+                        child: Text("No teams created yet."),
                       ),
                     ...circles.map((doc) {
                       final data = doc.data() as Map<String, dynamic>;
@@ -312,7 +312,7 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
                         color: primaryColor,
                       ),
                       title: Text(
-                        "Create New Circle",
+                        "Create New Team",
                         style: TextStyle(
                           color: primaryColor,
                           fontWeight: FontWeight.bold,
@@ -805,7 +805,7 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
                                   .join(', ');
                               targetPreviewText = selectedNames.isNotEmpty
                                   ? selectedNames
-                                  : "Selected Circles";
+                                  : "Selected Teams";
                             }
 
                             return InkWell(

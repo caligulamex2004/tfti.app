@@ -1,26 +1,21 @@
-import 'dart:io' show Platform;
 import 'package:flutter_contacts/flutter_contacts.dart';
 
 class ContactHelper {
   /// Requests permission and fetches contacts with phone numbers.
   static Future<List<Contact>?> getContacts() async {
-    // --- TEMPORARY iOS BYPASS ---
-    // Prevents the Swift native crash on the iOS 18 Simulator.
-    // Once tested on a physical iPhone, this check can be removed.
-    if (Platform.isIOS) {
-      return <Contact>[];
-    }
-
-    // --- REAL ANDROID EXECUTION ---
-    bool permission = await FlutterContacts.requestPermission();
+    // --- REAL CROSS-PLATFORM EXECUTION ---
+    // readonly: true is highly recommended for iOS to assure the user
+    // you are only reading contacts, not modifying them.
+    bool permission = await FlutterContacts.requestPermission(readonly: true);
 
     if (!permission) {
       return null; // Permission denied
     }
 
+    // Fetch contacts with their properties (specifically phone numbers)
     List<Contact> contacts = await FlutterContacts.getContacts(
       withProperties: true,
-      withPhoto: false, // Keep it fast, skip photos for now
+      withPhoto: false, // Keep it fast, skip photos to prevent memory spikes
     );
 
     return contacts;

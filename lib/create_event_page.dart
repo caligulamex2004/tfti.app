@@ -270,7 +270,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("New Squad Circle"),
+        title: const Text("New Team"),
         content: TextField(
           controller: nameController,
           autofocus: true,
@@ -384,7 +384,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     if (circles.isEmpty)
                       const Padding(
                         padding: EdgeInsets.all(16.0),
-                        child: Text("No Squad Circles created yet."),
+                        child: Text("No teams created yet."),
                       ),
                     ...circles.map((doc) {
                       final data = doc.data() as Map<String, dynamic>;
@@ -423,7 +423,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         color: primaryColor,
                       ),
                       title: Text(
-                        "New Squad Circle",
+                        "New Team",
                         style: TextStyle(
                           color: primaryColor,
                           fontWeight: FontWeight.bold,
@@ -668,7 +668,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     }
                     if (!snapshot.hasData || snapshot.data!.isEmpty) {
                       return const Center(
-                        child: Text("No friends found in selected circles."),
+                        child: Text("No friends found in selected teams."),
                       );
                     }
 
@@ -767,7 +767,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text("No friends found in selected circles!"),
+                content: Text("No friends found in selected teams!"),
               ),
             );
             setState(() => _isLoading = false);
@@ -1157,7 +1157,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                                 ? snapshot.data!.docs
                                 : <DocumentSnapshot>[];
 
-                            String targetPreviewText = "Select Squads...";
+                            String targetPreviewText = "Select Teams...";
                             if (_inviteAll) {
                               targetPreviewText = "Entire Squad";
                             } else if (_selectedCircleIds.isNotEmpty) {
@@ -1174,7 +1174,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                                   .join(', ');
                               targetPreviewText = selectedNames.isNotEmpty
                                   ? selectedNames
-                                  : "Selected Squad Circles";
+                                  : "Selected Teams";
                             }
 
                             final circlesField = InkWell(

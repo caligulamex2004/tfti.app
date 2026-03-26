@@ -1302,7 +1302,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     const Text(
-                                      "The Squad",
+                                      "The Crew",
                                       style: TextStyle(
                                         fontSize: 22, // Slightly larger
                                         fontWeight: FontWeight.bold,

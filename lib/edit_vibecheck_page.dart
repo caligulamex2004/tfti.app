@@ -280,7 +280,7 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
-              title: const Text("Update Guest List"),
+              title: const Text("Update The Crew"),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -308,7 +308,7 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
                     if (circles.isEmpty)
                       const Padding(
                         padding: EdgeInsets.all(16.0),
-                        child: Text("No circles created yet."),
+                        child: Text("No teams created yet."),
                       ),
                     ...circles.map((doc) {
                       final data = doc.data() as Map<String, dynamic>;
@@ -343,7 +343,7 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
                         color: primaryColor,
                       ),
                       title: Text(
-                        "Create New Circle",
+                        "Create New Team",
                         style: TextStyle(
                           color: primaryColor,
                           fontWeight: FontWeight.bold,
@@ -895,7 +895,7 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
                                   .join(', ');
                               targetPreviewText = selectedNames.isNotEmpty
                                   ? selectedNames
-                                  : "Selected Circles";
+                                  : "Selected Teams";
                             }
 
                             return InkWell(
@@ -903,7 +903,7 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
                               onTap: () => _showCircleDialog(circles),
                               child: InputDecorator(
                                 decoration: _buildInputDecoration(
-                                  label: "Update Guest List",
+                                  label: "Update Crew List",
                                   prefixIcon: Icon(
                                     Icons.people,
                                     color: isDark

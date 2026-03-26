@@ -385,7 +385,7 @@ class _EditEventPageState extends State<EditEventPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
-              title: const Text("Update Guest List"),
+              title: const Text("Update The Crew"),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -419,7 +419,7 @@ class _EditEventPageState extends State<EditEventPage> {
                     if (circles.isEmpty)
                       const Padding(
                         padding: EdgeInsets.all(16.0),
-                        child: Text("No circles created yet."),
+                        child: Text("No teams created yet."),
                       ),
                     ...circles.map((doc) {
                       final data = doc.data() as Map<String, dynamic>;
@@ -600,7 +600,7 @@ class _EditEventPageState extends State<EditEventPage> {
                     }
                     if (!snapshot.hasData || snapshot.data!.isEmpty) {
                       return const Center(
-                        child: Text("No friends found in selected circles."),
+                        child: Text("No friends found in selected teams."),
                       );
                     }
 
@@ -971,7 +971,7 @@ class _EditEventPageState extends State<EditEventPage> {
                     ? snapshot.data!.docs
                     : <DocumentSnapshot>[];
 
-                String targetPreviewText = "Select Squad...";
+                String targetPreviewText = "Select Teams...";
                 if (_inviteAll) {
                   targetPreviewText = "Entire Squad";
                 } else if (_selectedCircleIds.isNotEmpty) {
@@ -985,7 +985,7 @@ class _EditEventPageState extends State<EditEventPage> {
                       .join(', ');
                   targetPreviewText = selectedNames.isNotEmpty
                       ? selectedNames
-                      : "Selected Squad Circles";
+                      : "Selected Teams";
                 }
 
                 return InkWell(
@@ -993,7 +993,7 @@ class _EditEventPageState extends State<EditEventPage> {
                   onTap: () => _showCircleDialog(circles),
                   child: InputDecorator(
                     decoration: _buildInputDecoration(
-                      label: "Update My Squad List",
+                      label: "Update Crew List",
                       prefixIcon: Icon(
                         Icons.people,
                         color: isDark ? Colors.tealAccent : Colors.teal,
@@ -1362,7 +1362,7 @@ class _EditEventPageState extends State<EditEventPage> {
                                 .join(', ');
                             targetPreviewText = selectedNames.isNotEmpty
                                 ? selectedNames
-                                : "Selected Squad Circles";
+                                : "Selected Teams";
                           }
 
                           final circlesField = InkWell(

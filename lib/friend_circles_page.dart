@@ -186,7 +186,7 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            "Select a circle to view members",
+            "Select a Team to view members",
             style: TextStyle(
               color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
               fontSize: 18,
@@ -230,7 +230,7 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  "No Squad Circles Yet",
+                  "No Teams Yet",
                   style: TextStyle(
                     color: isDark ? Colors.grey[400] : Colors.grey[600],
                     fontSize: 18,
@@ -294,7 +294,7 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
                   return await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
-                      title: const Text("Delete Circle?"),
+                      title: const Text("Delete Team?"),
                       content: Text("Delete '$circleName'?"),
                       actions: [
                         TextButton(
@@ -398,7 +398,7 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Squad Circles"),
+        title: const Text("Teams"),
         centerTitle: true,
         foregroundColor: Colors.white,
         flexibleSpace: Container(
@@ -711,7 +711,7 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    "This circle is empty.",
+                    "This team is empty.",
                     style: TextStyle(
                       color: isDark ? Colors.grey[500] : Colors.black87,
                     ),

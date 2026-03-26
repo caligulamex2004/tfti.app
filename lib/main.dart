@@ -217,7 +217,7 @@ class _MainShellState extends State<MainShell> {
                               ),
                               const NavigationRailDestination(
                                 icon: Icon(Symbols.guardian),
-                                label: Text("Circles"),
+                                label: Text("Teams"),
                               ),
                               const NavigationRailDestination(
                                 icon: Icon(Icons.people),
@@ -274,7 +274,7 @@ class _MainShellState extends State<MainShell> {
                         ),
                         const BottomNavigationBarItem(
                           icon: Icon(Symbols.guardian),
-                          label: "Circles",
+                          label: "Teams",
                         ),
                         const BottomNavigationBarItem(
                           icon: Icon(Symbols.group),

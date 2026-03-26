@@ -36,6 +36,7 @@ class _ProfilePageState extends State<ProfilePage> {
   StreamSubscription<DocumentSnapshot>? _userSub;
   bool _hasLoadedInitialName = false;
 
+  // NEW: Added White to the color palette!
   final List<Color> _colors = [
     Colors.blue,
     const Color(0xFFEE0909), // Beyond Dark
@@ -45,6 +46,7 @@ class _ProfilePageState extends State<ProfilePage> {
     const Color(0xFF00E5FF), // Cyber Punk
     const Color(0xFFFF9A9E), // Lip Gloss
     Colors.black,
+    Colors.white,
   ];
 
   @override
@@ -138,7 +140,7 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => SafeArea(
         child: Column(
@@ -156,7 +158,10 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 20),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text("Choose from Gallery"),
+              title: const Text(
+                "Choose from Gallery",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               onTap: () {
                 Navigator.pop(ctx);
                 _uploadAvatar(ImageSource.gallery);
@@ -164,7 +169,10 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt),
-              title: const Text("Take a Photo"),
+              title: const Text(
+                "Take a Photo",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               onTap: () {
                 Navigator.pop(ctx);
                 _uploadAvatar(ImageSource.camera);
@@ -585,16 +593,426 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  // NEW: Extracted Profile Identity Section
+  Widget _buildProfileIdentityCard(bool isDark, Color primaryColor) {
+    return Container(
+      padding: const EdgeInsets.all(24.0),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+        ],
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+        ),
+      ),
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: _showAvatarOptions,
+            child: Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(
+                          _selectedColorValue,
+                        ).withValues(alpha: 0.4),
+                        blurRadius: 15,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: CircleAvatar(
+                    radius: 56,
+                    backgroundColor: Color(_selectedColorValue),
+                    backgroundImage: _avatarUrl != null
+                        ? CachedNetworkImageProvider(_avatarUrl!)
+                        : null,
+                    child: _isUploadingAvatar
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : (_avatarUrl == null
+                              ? Text(
+                                  _nameController.text.isNotEmpty
+                                      ? _nameController.text[0].toUpperCase()
+                                      : "?",
+                                  style: TextStyle(
+                                    fontSize: 44,
+                                    // If background is white, text is dark grey, otherwise white
+                                    color:
+                                        _selectedColorValue ==
+                                            Colors.white.toARGB32()
+                                        ? Colors.grey.shade800
+                                        : Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                )
+                              : null),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: primaryColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Theme.of(context).cardColor,
+                      width: 3,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.camera_alt,
+                    color: themeProvider.onPrimaryColor,
+                    size: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          TextField(
+            controller: _nameController,
+            textInputAction: TextInputAction.done,
+            maxLength: 50,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+            decoration: InputDecoration(
+              labelText: "Display Name",
+              labelStyle: TextStyle(
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              ),
+              prefixIcon: Icon(Icons.person, color: primaryColor),
+              filled: true,
+              fillColor: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: primaryColor.withValues(alpha: 0.5),
+                  width: 2,
+                ),
+              ),
+              counterText: "",
+            ),
+            onChanged: (val) => setState(() {}),
+            onTapOutside: (event) {
+              FocusManager.instance.primaryFocus?.unfocus();
+              _autoSaveIdentity();
+            },
+            onEditingComplete: () {
+              FocusManager.instance.primaryFocus?.unfocus();
+              _autoSaveIdentity();
+            },
+          ),
+          const SizedBox(height: 16),
+
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.phone_iphone, size: 20, color: primaryColor),
+                const SizedBox(width: 12),
+                Text(
+                  _phoneNumber.isNotEmpty ? _phoneNumber : "No phone number",
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                    color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 32),
+
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              "Signature Color",
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            alignment: WrapAlignment.center,
+            children: _colors.map((color) {
+              final isSelected = _selectedColorValue == color.toARGB32();
+              final isWhite = color == Colors.white;
+
+              return GestureDetector(
+                onTap: () {
+                  setState(() => _selectedColorValue = color.toARGB32());
+                  _autoSaveIdentity();
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: isSelected ? 48 : 42,
+                  height: isSelected ? 48 : 42,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      // White border for selection, unless it's the white circle in light mode (then use grey)
+                      color: isSelected
+                          ? (isWhite && !isDark
+                                ? Colors.grey.shade400
+                                : Colors.white)
+                          : (isWhite && !isDark
+                                ? Colors.grey.shade300
+                                : Colors.transparent),
+                      width: isSelected ? 3 : 1,
+                    ),
+                    boxShadow: [
+                      if (isSelected)
+                        BoxShadow(
+                          color: color.withValues(alpha: 0.4),
+                          blurRadius: 8,
+                          spreadRadius: 2,
+                        ),
+                    ],
+                  ),
+                  child: isSelected
+                      ? Icon(
+                          Icons.check,
+                          color: isWhite ? Colors.grey.shade800 : Colors.white,
+                          size: 20,
+                        )
+                      : null,
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // NEW: Extracted Settings & Legal Section
+  Widget _buildSettingsCard(bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+        ],
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+        ),
+      ),
+      child: Column(
+        children: [
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 8,
+            ),
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Symbols.settings),
+            ),
+            title: const Text(
+              "Preferences",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: const Text("Notifications & Appearance"),
+            trailing: const Icon(Icons.chevron_right, size: 16),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsPage()),
+              );
+            },
+          ),
+          Divider(
+            height: 1,
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            indent: 60,
+          ),
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 8,
+            ),
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.description_outlined, color: Colors.blue),
+            ),
+            title: const Text(
+              "Terms of Service",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            trailing: const Icon(Icons.chevron_right, size: 16),
+            onTap: () => _launchLegalUrl("https://tftiapp.com/terms"),
+          ),
+          Divider(
+            height: 1,
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            indent: 60,
+          ),
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 8,
+            ),
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.teal.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.privacy_tip_outlined, color: Colors.teal),
+            ),
+            title: const Text(
+              "Privacy Policy",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            trailing: const Icon(Icons.chevron_right, size: 16),
+            onTap: () => _launchLegalUrl("https://tftiapp.com/privacy"),
+          ),
+          Divider(
+            height: 1,
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            indent: 60,
+          ),
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 8,
+            ),
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.coffee, color: Colors.amber),
+            ),
+            title: const Text(
+              "Support the Developer",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: const Text("Help keep the servers running"),
+            trailing: const Icon(Icons.chevron_right, size: 16),
+            onTap: _showTipJar,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // NEW: Extracted Danger Zone Section
+  Widget _buildDangerCard(bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+        ],
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+        ),
+      ),
+      child: Column(
+        children: [
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 4,
+            ),
+            leading: const Icon(Icons.logout, color: Colors.orange),
+            title: const Text(
+              "Log Out",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+              ),
+            ),
+            onTap: _logout,
+          ),
+          Divider(
+            height: 1,
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+          ),
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 4,
+            ),
+            leading: const Icon(Icons.delete_forever, color: Colors.red),
+            title: const Text(
+              "Delete Account",
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+            onTap: _deleteAccount,
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final headerColor = isDark ? Colors.white70 : Colors.black87;
-    final cardColor = isDark ? Theme.of(context).cardColor : Colors.grey[50];
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F0F0F) : Colors.grey[100],
       appBar: AppBar(
-        title: const Text("Account"),
+        title: const Text(
+          "Account",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
         foregroundColor: Colors.white,
         flexibleSpace: Container(
@@ -603,266 +1021,47 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                children: [
-                  const SizedBox(height: 10),
-
-                  GestureDetector(
-                    onTap: _showAvatarOptions,
-                    child: Stack(
-                      alignment: Alignment.bottomRight,
+          // 👇 NEW: Landscape Split-View Implementation
+          : isLandscape
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 50,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24.0),
+                    child: _buildProfileIdentityCard(isDark, primaryColor),
+                  ),
+                ),
+                VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                ),
+                Expanded(
+                  flex: 50,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
                       children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Color(
-                                  _selectedColorValue,
-                                ).withValues(alpha: 0.4),
-                                blurRadius: 15,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          ),
-                          child: CircleAvatar(
-                            radius: 50,
-                            backgroundColor: Color(_selectedColorValue),
-                            backgroundImage: _avatarUrl != null
-                                ? CachedNetworkImageProvider(_avatarUrl!)
-                                : null,
-                            child: _isUploadingAvatar
-                                ? const CircularProgressIndicator(
-                                    color: Colors.white,
-                                  )
-                                : (_avatarUrl == null
-                                      ? Text(
-                                          _nameController.text.isNotEmpty
-                                              ? _nameController.text[0]
-                                                    .toUpperCase()
-                                              : "?",
-                                          style: const TextStyle(
-                                            fontSize: 40,
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        )
-                                      : null),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: primaryColor,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Theme.of(context).scaffoldBackgroundColor,
-                              width: 2.5,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.camera_alt,
-                            color: themeProvider.onPrimaryColor,
-                            size: 16,
-                          ),
-                        ),
+                        _buildSettingsCard(isDark),
+                        const SizedBox(height: 24),
+                        _buildDangerCard(isDark),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 30),
-
-                  TextField(
-                    controller: _nameController,
-                    textInputAction: TextInputAction.done,
-                    maxLength: 50,
-                    decoration: InputDecoration(
-                      labelText: "Display Name",
-                      prefixIcon: Icon(
-                        Icons.person,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      filled: true,
-                      fillColor: cardColor,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      //counterText: "", // Comment this line to show character count
-                    ),
-                    onChanged: (val) => setState(() {}),
-                    onTapOutside: (event) {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                      _autoSaveIdentity();
-                    },
-                    onEditingComplete: () {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                      _autoSaveIdentity();
-                    },
-                  ),
-
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.phone_iphone,
-                        size: 16,
-                        color: isDark
-                            ? Colors.grey.shade400
-                            : Colors.grey.shade600,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _phoneNumber.isNotEmpty
-                            ? _phoneNumber
-                            : "No phone number",
-                        style: TextStyle(
-                          fontSize: 15,
-                          letterSpacing: 1.0,
-                          color: isDark
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 30),
-
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      "Signature Color",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: headerColor,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 16,
-                    runSpacing: 16,
-                    alignment: WrapAlignment.center,
-                    children: _colors.map((color) {
-                      final isSelected =
-                          _selectedColorValue == color.toARGB32();
-                      return GestureDetector(
-                        onTap: () {
-                          setState(
-                            () => _selectedColorValue = color.toARGB32(),
-                          );
-                          _autoSaveIdentity();
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: isSelected ? 48 : 42,
-                          height: isSelected ? 48 : 42,
-                          decoration: BoxDecoration(
-                            color: color,
-                            shape: BoxShape.circle,
-                            border: isSelected
-                                ? Border.all(color: Colors.white, width: 3)
-                                : null,
-                            boxShadow: [
-                              if (isSelected)
-                                BoxShadow(
-                                  color: color.withValues(alpha: 0.4),
-                                  blurRadius: 8,
-                                  spreadRadius: 2,
-                                ),
-                            ],
-                          ),
-                          child: isSelected
-                              ? const Icon(
-                                  Icons.check,
-                                  color: Colors.white,
-                                  size: 20,
-                                )
-                              : null,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-
-                  const SizedBox(height: 30),
-                  const Divider(),
-                  const SizedBox(height: 10),
-
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      "App Settings & Legal",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: headerColor,
-                      ),
-                    ),
-                  ),
-
-                  ListTile(
-                    leading: const Icon(Symbols.settings),
-                    title: const Text("Preferences"),
-                    subtitle: const Text("Notifications & Appearance"),
-                    trailing: const Icon(Icons.chevron_right, size: 16),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SettingsPage(),
-                        ),
-                      );
-                    },
-                  ),
-
-                  ListTile(
-                    leading: const Icon(Icons.description_outlined),
-                    title: const Text("Terms of Service (EULA)"),
-                    trailing: const Icon(Icons.chevron_right, size: 16),
-                    onTap: () => _launchLegalUrl("https://tftiapp.com/terms"),
-                  ),
-
-                  ListTile(
-                    leading: const Icon(Icons.privacy_tip_outlined),
-                    title: const Text("Privacy Policy"),
-                    trailing: const Icon(Icons.chevron_right, size: 16),
-                    onTap: () => _launchLegalUrl("https://tftiapp.com/privacy"),
-                  ),
-
-                  ListTile(
-                    leading: const Icon(Icons.coffee, color: Colors.amber),
-                    title: const Text("Support the Developer"),
-                    subtitle: const Text("Help keep the servers running"),
-                    trailing: const Icon(Icons.chevron_right, size: 16),
-                    onTap: _showTipJar,
-                  ),
-
-                  ListTile(
-                    leading: const Icon(Icons.logout),
-                    title: const Text("Log Out"),
-                    onTap: _logout,
-                  ),
-
-                  const Divider(),
-
-                  ListTile(
-                    leading: const Icon(
-                      Icons.delete_forever,
-                      color: Colors.red,
-                    ),
-                    title: const Text(
-                      "Delete Account",
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: const Text("Permanently remove all data"),
-                    onTap: _deleteAccount,
-                  ),
-
+                ),
+              ],
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                children: [
+                  _buildProfileIdentityCard(isDark, primaryColor),
+                  const SizedBox(height: 24),
+                  _buildSettingsCard(isDark),
+                  const SizedBox(height: 24),
+                  _buildDangerCard(isDark),
                   const SizedBox(height: 40),
                 ],
               ),
