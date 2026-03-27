@@ -633,7 +633,7 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
             onTap: _pickTime,
             child: InputDecorator(
               decoration: _buildInputDecoration(
-                label: "Roughly what time?",
+                label: "What time?",
                 prefixIcon: Icon(
                   Icons.access_time,
                   color: isDark ? Colors.orangeAccent : Colors.orange,

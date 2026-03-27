@@ -602,7 +602,7 @@ class _FriendsPageState extends State<FriendsPage> {
               ),
             ),
 
-          // 👇 NEW: Prominent Import Button
+          // NEW: Prominent Import Button
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -889,7 +889,7 @@ class _FriendsPageState extends State<FriendsPage> {
         MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F0F0F) : Colors.grey[100],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           "The Squad",
@@ -902,7 +902,7 @@ class _FriendsPageState extends State<FriendsPage> {
         ),
         // Notice: Import Contacts icon is gone from here! It's moved to the main UI.
       ),
-      // 👇 NEW: Landscape Split-View Implementation
+      // NEW: Landscape Split-View Implementation
       body: isLandscape
           ? Row(
               children: [

@@ -491,6 +491,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
   final Map<String, Map<String, dynamic>> _filterConfig = {
     'all': {'name': 'All Hangouts', 'icon': Icons.all_inbox},
     'pending': {'name': 'Incoming', 'icon': Icons.mark_email_unread_outlined},
+    'vibes': {'name': 'Vibes', 'icon': Symbols.earthquake},
     'soon': {'name': 'Starting Soon', 'icon': Icons.timer_outlined},
     'now': {'name': 'Go Time', 'icon': Icons.local_fire_department_outlined},
     'going': {'name': 'Going', 'icon': Icons.event_available},
@@ -885,6 +886,13 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                           shouldDisplay = true;
                         }
                         break;
+                      case 'vibes':
+                        if (eventData['type'] == 'vibe_check' &&
+                            !isHidden &&
+                            !isPast) {
+                          shouldDisplay = true;
+                        }
+                        break;
                       case 'soon':
                         if (isStartingSoon && !isHidden) shouldDisplay = true;
                         break;
@@ -1019,6 +1027,9 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
     if (_selectedFilter == 'pending') {
       message = "You're all caught up!";
       icon = Icons.mark_email_read_outlined;
+    } else if (_selectedFilter == 'vibes') {
+      message = "No Vibe Checks to vote on.";
+      icon = Symbols.earthquake;
     } else if (_selectedFilter == 'soon') {
       message = "Nothing starting soon.";
       icon = Icons.timer_outlined;
@@ -1317,14 +1328,53 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (isVibeCheck)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .tertiaryContainer, // Dynamic Material 3 Pill Color
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.tertiary.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Symbols.earthquake,
+                                size: 12,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .tertiary, // Dynamic Material 3 Accent
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                "VIBE CHECK",
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                  color: Theme.of(context).colorScheme.tertiary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Text(
-                              isVibeCheck
-                                  ? "Vibe Check: ${data['title']}"
-                                  : data['title'] ?? "Untitled",
+                              data['title'] ?? "Untitled",
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 17,
