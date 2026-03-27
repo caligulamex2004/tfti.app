@@ -15,6 +15,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   // Theme metadata for the new visual selector
   final List<Map<String, dynamic>> _themeOptions = [
+    // --- 6 LIGHT THEMES ---
     {
       'name': 'Daylight',
       'theme': AppTheme.original,
@@ -39,6 +40,20 @@ class _SettingsPageState extends State<SettingsPage> {
       'color': const Color(0xFF1C8D6C),
       'isDark': false,
     },
+    {
+      'name': 'Lavender Haze',
+      'theme': AppTheme.lavenderHaze,
+      'color': const Color(0xFF7B61FF),
+      'isDark': false,
+    },
+    {
+      'name': 'Golden Hour',
+      'theme': AppTheme.goldenHour,
+      'color': const Color(0xFFFF7E5F),
+      'isDark': false,
+    },
+
+    // --- 6 DARK THEMES ---
     {
       'name': 'Vigilante',
       'theme': AppTheme.darkBlue,
@@ -67,6 +82,12 @@ class _SettingsPageState extends State<SettingsPage> {
       'name': 'CyberPunk',
       'theme': AppTheme.cyberPunk,
       'color': const Color(0xFF00E5FF),
+      'isDark': true,
+    },
+    {
+      'name': 'Velvet Dust',
+      'theme': AppTheme.velvetDust,
+      'color': const Color(0xFFFF2A7A),
       'isDark': true,
     },
   ];
