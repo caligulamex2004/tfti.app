@@ -148,6 +148,67 @@ class _LoginPageState extends State<LoginPage> {
         );
         return;
       }
+
+      // NEW: Pre-Flight Database Check
+      setState(() => _isLoading = true);
+
+      try {
+        // Query Firestore to see if this phone number is already registered
+        final query = await FirebaseFirestore.instance
+            .collection('users')
+            .where('phoneNumber', isEqualTo: _completePhoneNumber)
+            .limit(1)
+            .get();
+
+        final bool accountExists = query.docs.isNotEmpty;
+
+        if (_isLoginMode && !accountExists) {
+          // They tried to log in, but no account exists. Bump to Sign Up.
+          setState(() {
+            _isLoading = false;
+            _isLoginMode = false; // Automatically toggle to Sign Up mode
+          });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("No account found! Please sign up first."),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+          return; // Stop execution before sending the SMS code
+        } else if (!_isLoginMode && accountExists) {
+          // They tried to sign up, but an account already exists. Bump to Log In.
+          setState(() {
+            _isLoading = false;
+            _isLoginMode = true; // Automatically toggle to Log In mode
+            _nameController
+                .clear(); // Clear the name field since they don't need it
+          });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Account already exists! Please log in."),
+                backgroundColor: Colors.blue,
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+          return; // Stop execution before sending the SMS code
+        }
+      } catch (e) {
+        setState(() => _isLoading = false);
+        debugPrint("Error during pre-flight check: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Network error. Please try again.")),
+          );
+        }
+        return;
+      }
     }
 
     setState(() => _isLoading = true);

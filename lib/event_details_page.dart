@@ -1478,7 +1478,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                 badgeColor = isDark
                                     ? Colors.grey.shade400
                                     : Colors.grey.shade700;
-                                statusText = "is streets behind...";
+                                statusText = "is too cool to respond.";
                             }
 
                             return StreamBuilder<DocumentSnapshot>(
