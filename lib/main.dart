@@ -1336,9 +1336,10 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .tertiaryContainer, // Dynamic Material 3 Pill Color
+                            color: Theme.of(context).colorScheme.tertiary
+                                .withValues(
+                                  alpha: 0.15,
+                                ), // Dynamic Material 3 Pill Color
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: Theme.of(
