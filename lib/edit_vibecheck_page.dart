@@ -649,7 +649,7 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
     final rsvpField = DropdownButtonFormField<int>(
       initialValue: _rsvpDeadlineOffset,
       decoration: _buildInputDecoration(
-        label: "Lock it in automatically...",
+        label: "Voting Deadline",
         prefixIcon: Icon(Icons.auto_awesome, color: primaryColor),
       ),
       dropdownColor: Theme.of(context).cardColor,
@@ -659,7 +659,7 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
         DropdownMenuItem(value: -120, child: Text("2 hours before")),
         DropdownMenuItem(value: -60, child: Text("1 hour before (Default)")),
         DropdownMenuItem(value: -30, child: Text("30 mins before")),
-        DropdownMenuItem(value: 0, child: Text("At event start")),
+        DropdownMenuItem(value: 0, child: Text("At start time")),
       ],
       onChanged: (val) => setState(() => _rsvpDeadlineOffset = val ?? -60),
     );

@@ -321,6 +321,114 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     );
   }
 
+  // NEW: Bottom Sheet to show the full list of who has seen the event
+  void _showSeenByBottomSheet(List<Map<String, dynamic>> seenGuests) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  "Seen By",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 12),
+                Divider(
+                  height: 1,
+                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                ),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: seenGuests.length,
+                    itemBuilder: (context, index) {
+                      final guest = seenGuests[index];
+                      final String name = guest['displayName'];
+                      final String? avatarUrl = guest['avatarUrl'];
+                      final int avatarColor =
+                          guest['avatarColor'] ?? Colors.blue.toARGB32();
+
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 8,
+                        ),
+                        leading: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Color(
+                                  avatarColor,
+                                ).withValues(alpha: 0.4),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 20,
+                            backgroundColor: Color(avatarColor),
+                            backgroundImage: avatarUrl != null
+                                ? CachedNetworkImageProvider(avatarUrl)
+                                : null,
+                            child: avatarUrl == null
+                                ? Text(
+                                    name.isNotEmpty
+                                        ? name[0].toUpperCase()
+                                        : "?",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        ),
+                        title: Text(
+                          name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildFacepile(
     List<Map<String, dynamic>> guests,
     String myUid,
@@ -335,74 +443,93 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     final displayGuests = seenGuests.take(3).toList();
     final int extraCount = seenGuests.length - 3;
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          "Seen by  ",
-          style: TextStyle(
-            fontSize: 12,
-            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+    // FIX: Wrapped in an InkWell and styled as a clickable "Pill"
+    return InkWell(
+      onTap: () => _showSeenByBottomSheet(seenGuests),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
           ),
         ),
-        Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: displayGuests.map((reader) {
-            final String? avatarUrl = reader['avatarUrl'];
-
-            return Align(
-              widthFactor: 0.7,
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Theme.of(context).scaffoldBackgroundColor,
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(
-                        reader['avatarColor'],
-                      ).withValues(alpha: 0.4),
-                      blurRadius: 6,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-                child: CircleAvatar(
-                  radius: 10,
-                  backgroundColor: Color(reader['avatarColor']),
-                  backgroundImage: avatarUrl != null
-                      ? CachedNetworkImageProvider(avatarUrl)
-                      : null,
-                  child: avatarUrl == null
-                      ? Text(
-                          reader['displayName'][0].toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 9,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
-                      : null,
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-        if (extraCount > 0)
-          Padding(
-            padding: const EdgeInsets.only(left: 8.0),
-            child: Text(
-              "+$extraCount",
+          children: [
+            Text(
+              "Seen by  ",
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
                 color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
               ),
             ),
-          ),
-      ],
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: displayGuests.map((reader) {
+                final String? avatarUrl = reader['avatarUrl'];
+
+                return Align(
+                  widthFactor: 0.7,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        // Matches the pill background so they slice through each other cleanly
+                        color: isDark
+                            ? Colors.grey.shade900
+                            : Colors.grey.shade100,
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(
+                            reader['avatarColor'],
+                          ).withValues(alpha: 0.4),
+                          blurRadius: 4,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: CircleAvatar(
+                      radius: 12, // Slightly larger than before
+                      backgroundColor: Color(reader['avatarColor']),
+                      backgroundImage: avatarUrl != null
+                          ? CachedNetworkImageProvider(avatarUrl)
+                          : null,
+                      child: avatarUrl == null
+                          ? Text(
+                              reader['displayName'][0].toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : null,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            if (extraCount > 0)
+              Padding(
+                padding: const EdgeInsets.only(left: 10.0),
+                child: Text(
+                  "+$extraCount",
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
