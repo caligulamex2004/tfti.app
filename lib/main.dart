@@ -489,7 +489,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
 
   // --- NEW: Filter Configuration ---
   final Map<String, Map<String, dynamic>> _filterConfig = {
-    'all': {'name': 'All Ops', 'icon': Icons.all_inbox},
+    'all': {'name': 'All Hangouts', 'icon': Icons.all_inbox},
     'pending': {'name': 'Incoming', 'icon': Icons.mark_email_unread_outlined},
     'soon': {'name': 'Starting Soon', 'icon': Icons.timer_outlined},
     'now': {'name': 'Go Time', 'icon': Icons.local_fire_department_outlined},
@@ -620,7 +620,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       color: primaryColor,
                     ),
                     title: const Text(
-                      "Special Op",
+                      "Hangout",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
