@@ -628,7 +628,7 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        "Guests will vote on these options. The winner gets locked in automatically.",
+                        "Pick some ideas and let the crew decide! You can always update the options later if plans change.",
                         style: TextStyle(
                           color: isDark
                               ? Colors.grey.shade400
@@ -788,7 +788,7 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
                                 ? snapshot.data!.docs
                                 : <DocumentSnapshot>[];
 
-                            String targetPreviewText = "Select guests...";
+                            String targetPreviewText = "Select teams...";
                             if (_inviteAll) {
                               targetPreviewText = "All Friends";
                             } else if (_selectedCircleIds.isNotEmpty) {
