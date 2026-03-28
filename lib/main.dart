@@ -19,6 +19,7 @@ import 'friend_circles_page.dart';
 import 'profile_page.dart';
 import 'firebase_options.dart';
 import 'theme_provider.dart';
+import 'phone_formatter.dart';
 import 'onboarding_tutorial.dart';
 
 void main() async {
@@ -211,7 +212,7 @@ class _MainShellState extends State<MainShell> {
                                   isLabelVisible: showBadge,
                                   backgroundColor: Colors.redAccent,
                                   smallSize: 8,
-                                  child: const Icon(Icons.home),
+                                  child: const Icon(Symbols.cottage),
                                 ),
                                 label: const Text("Home"),
                               ),
@@ -222,11 +223,11 @@ class _MainShellState extends State<MainShell> {
                                 label: Text("Teams"),
                               ),
                               const NavigationRailDestination(
-                                icon: Icon(Icons.people),
+                                icon: Icon(Symbols.group),
                                 label: Text("Squad"),
                               ),
                               const NavigationRailDestination(
-                                icon: Icon(Icons.account_circle),
+                                icon: Icon(Symbols.account_circle),
                                 label: Text("Account"),
                               ),
                             ],
@@ -579,6 +580,104 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
     );
   }
 
+  // --- NEW: Host Profile Bottom Sheet ---
+  void _showHostBottomSheet(
+    BuildContext context,
+    Map<String, dynamic> hostData,
+    bool isDark,
+  ) {
+    final String name = hostData['displayName'] ?? 'Unknown';
+    final String? avatarUrl = hostData['avatarUrl'];
+    final int avatarColor = hostData['avatarColor'] ?? Colors.blue.toARGB32();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "Captain",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 12),
+              Divider(
+                height: 1,
+                color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+              ),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                leading: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(avatarColor).withValues(alpha: 0.4),
+                        blurRadius: 10,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Color(avatarColor),
+                    backgroundImage: avatarUrl != null
+                        ? CachedNetworkImageProvider(avatarUrl)
+                        : null,
+                    child: avatarUrl == null
+                        ? Text(
+                            name.isNotEmpty ? name[0].toUpperCase() : "?",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                          )
+                        : null,
+                  ),
+                ),
+                title: Text(
+                  name,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                // 👇 FIX: Removed the phone number subtitle completely
+                trailing: const Icon(
+                  Symbols.crown,
+                  color: Colors.amber,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildFab(Color primaryColor, bool isDark) {
     return FloatingActionButton(
       backgroundColor: primaryColor,
@@ -691,7 +790,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
           ),
           const SizedBox(height: 16),
           Text(
-            "Select an op to view details",
+            "Tap an i to view details",
             style: TextStyle(
               color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
               fontSize: 18,
@@ -1149,17 +1248,15 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
       statusText = "Starting Soon";
       statusColor = isDark ? Colors.amberAccent : Colors.amber.shade800;
       statusIcon = Icons.directions_run;
-    } else if (isMyEvent) {
-      statusText = "Captain";
-      statusColor = primaryColor;
-      statusIcon = Symbols.crown;
     } else if (isGoing) {
       statusText = "You're going";
       statusColor = isDark ? Colors.greenAccent : Colors.green;
       statusIcon = Icons.check_circle;
     } else {
       statusText = isVibeCheck ? "Vote Pending" : "RSVP Pending";
-      statusColor = isDark ? Colors.purpleAccent : Colors.purple;
+      statusColor = isDark
+          ? const Color(0xFFF1AD5B)
+          : const Color(0xFFD98301); // Custom Gold for better visibility
       statusIcon = isVibeCheck ? Icons.how_to_vote : Symbols.mail;
     }
 
@@ -1434,12 +1531,155 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
 
                       const SizedBox(height: 10),
 
-                      // --- NEW: PILL TAGS ---
+                      // --- NEW: HORIZONTAL DASHBOARD (PILL TAGS) ---
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          // Status Pill
+                          // 1. HOST PILL
+                          if (isMyEvent)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: primaryColor.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: primaryColor.withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Symbols.crown,
+                                    size: 12,
+                                    color: primaryColor,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "Captain",
+                                    style: TextStyle(
+                                      color: primaryColor,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            FutureBuilder<DocumentSnapshot>(
+                              future: FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(data['hostId'])
+                                  .get(),
+                              builder: (context, hostSnap) {
+                                if (!hostSnap.hasData ||
+                                    !hostSnap.data!.exists) {
+                                  return const SizedBox.shrink();
+                                }
+                                final hostData =
+                                    hostSnap.data!.data()
+                                        as Map<String, dynamic>;
+                                final String hostName =
+                                    hostData['displayName'] ?? "Captain";
+                                final int hostColor =
+                                    hostData['avatarColor'] ??
+                                    Colors.blue.toARGB32();
+                                final String? hostAvatarUrl =
+                                    hostData['avatarUrl'];
+
+                                return InkWell(
+                                  onTap: () => _showHostBottomSheet(
+                                    context,
+                                    hostData,
+                                    isDark,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.only(
+                                      left: 4,
+                                      right: 8,
+                                      top: 2,
+                                      bottom: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? Colors.grey.shade900
+                                          : Colors.grey.shade100,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: isDark
+                                            ? Colors.grey.shade800
+                                            : Colors.grey.shade300,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Color(
+                                                  hostColor,
+                                                ).withValues(alpha: 0.4),
+                                                blurRadius: 4,
+                                                spreadRadius: 1,
+                                              ),
+                                            ],
+                                          ),
+                                          child: CircleAvatar(
+                                            radius: 10,
+                                            backgroundColor: Color(hostColor),
+                                            backgroundImage:
+                                                hostAvatarUrl != null
+                                                ? CachedNetworkImageProvider(
+                                                    hostAvatarUrl,
+                                                  )
+                                                : null,
+                                            child: hostAvatarUrl == null
+                                                ? Text(
+                                                    hostName.isNotEmpty
+                                                        ? hostName[0]
+                                                              .toUpperCase()
+                                                        : "?",
+                                                    style: const TextStyle(
+                                                      fontSize: 9,
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  )
+                                                : null,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          "Captain",
+                                          style: TextStyle(
+                                            color: isDark
+                                                ? Colors.grey.shade300
+                                                : Colors.black87,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+
+                          // 2. STATUS PILL
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -1469,7 +1709,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                             ),
                           ),
 
-                          // Important Details Pill
+                          // 3. IMPORTANT DETAILS PILL
                           if (isImportantDetails && !isPast)
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -1601,10 +1841,9 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                                   ),
                                 ),
                                 if (lastMsgTime != null)
-                                  EventReadReceipts(
+                                  LastMessageSenderAvatar(
                                     eventId: eventId,
                                     lastMessageAt: lastMsgTime,
-                                    myUid: myUid ?? '',
                                   ),
                               ],
                             ),
@@ -1622,155 +1861,118 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
   }
 }
 
-class EventReadReceipts extends StatefulWidget {
+// --- NEW: SENDER AVATAR WIDGET ---
+class LastMessageSenderAvatar extends StatefulWidget {
   final String eventId;
-  final Timestamp lastMessageAt;
-  final String myUid;
+  final Timestamp lastMessageAt; // Used to trigger rebuilds on new messages
 
-  const EventReadReceipts({
+  const LastMessageSenderAvatar({
     super.key,
     required this.eventId,
     required this.lastMessageAt,
-    required this.myUid,
   });
 
   @override
-  State<EventReadReceipts> createState() => _EventReadReceiptsState();
+  State<LastMessageSenderAvatar> createState() =>
+      _LastMessageSenderAvatarState();
 }
 
-class _EventReadReceiptsState extends State<EventReadReceipts> {
-  List<Map<String, dynamic>> _readBy = [];
+class _LastMessageSenderAvatarState extends State<LastMessageSenderAvatar> {
+  Map<String, dynamic>? _senderData;
   bool _isLoading = true;
-  StreamSubscription<QuerySnapshot>? _invitesSub;
 
   @override
   void initState() {
     super.initState();
-    _listenToReadReceipts();
+    _fetchSender();
   }
 
   @override
-  void didUpdateWidget(EventReadReceipts oldWidget) {
+  void didUpdateWidget(LastMessageSenderAvatar oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.lastMessageAt != widget.lastMessageAt ||
         oldWidget.eventId != widget.eventId) {
-      _listenToReadReceipts();
+      _fetchSender();
+    }
+  }
+
+  Future<void> _fetchSender() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+
+    try {
+      // Query the messages subcollection safely (allowed by your firestore rules)
+      final msgs = await FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.eventId)
+          .collection('messages')
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
+
+      if (msgs.docs.isNotEmpty) {
+        final senderId = msgs.docs.first.data()['senderId'];
+        if (senderId != null) {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(senderId)
+              .get();
+          if (userDoc.exists && mounted) {
+            setState(() {
+              _senderData = userDoc.data() as Map<String, dynamic>;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching last message sender: $e");
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
-  void dispose() {
-    _invitesSub?.cancel();
-    super.dispose();
-  }
-
-  void _listenToReadReceipts() {
-    _invitesSub?.cancel();
-
-    _invitesSub = FirebaseFirestore.instance
-        .collection('events')
-        .doc(widget.eventId)
-        .collection('invitations')
-        .snapshots()
-        .listen(
-          (invitesSnap) async {
-            if (!mounted) return;
-
-            List<String> readerUids = [];
-            for (var doc in invitesSnap.docs) {
-              if (doc.id == widget.myUid) continue;
-              final data = doc.data();
-              final Timestamp? readTime = data['lastReadChat'];
-
-              if (readTime != null &&
-                  readTime.compareTo(widget.lastMessageAt) >= 0) {
-                readerUids.add(doc.id);
-              }
-            }
-
-            if (readerUids.isEmpty) {
-              if (mounted) {
-                setState(() {
-                  _readBy = [];
-                  _isLoading = false;
-                });
-              }
-              return;
-            }
-
-            readerUids = readerUids.take(3).toList();
-
-            List<Map<String, dynamic>> readers = [];
-            for (var uid in readerUids) {
-              final userDoc = await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(uid)
-                  .get();
-
-              if (userDoc.exists) {
-                readers.add({
-                  'name': userDoc.data()?['displayName'] ?? '?',
-                  'color':
-                      userDoc.data()?['avatarColor'] ?? Colors.blue.toARGB32(),
-                  'avatarUrl': userDoc.data()?['avatarUrl'],
-                });
-              }
-            }
-
-            if (mounted) {
-              setState(() {
-                _readBy = readers;
-                _isLoading = false;
-              });
-            }
-          },
-          onError: (e) {
-            if (mounted) setState(() => _isLoading = false);
-          },
-        );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_isLoading || _readBy.isEmpty) return const SizedBox.shrink();
+    if (_isLoading || _senderData == null) return const SizedBox.shrink();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? Colors.grey.shade900 : Colors.grey.shade100;
+    final int avatarColor =
+        _senderData!['avatarColor'] ?? const Color(0xFF2196F3).toARGB32();
+    final String? avatarUrl = _senderData!['avatarUrl'];
+    final String name = _senderData!['displayName'] ?? '?';
 
     return Padding(
       padding: const EdgeInsets.only(left: 8.0),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: _readBy.map((reader) {
-          final String? avatarUrl = reader['avatarUrl'];
-
-          return Align(
-            widthFactor: 0.7,
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: bgColor, width: 1.5),
-              ),
-              child: CircleAvatar(
-                radius: 10,
-                backgroundColor: Color(reader['color']),
-                backgroundImage: avatarUrl != null
-                    ? CachedNetworkImageProvider(avatarUrl)
-                    : null,
-                child: avatarUrl == null
-                    ? Text(
-                        reader['name'][0].toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 9,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                    : null,
-              ),
+      child: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: bgColor, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Color(avatarColor).withValues(alpha: 0.4),
+              blurRadius: 6,
+              spreadRadius: 1,
             ),
-          );
-        }).toList(),
+          ],
+        ),
+        child: CircleAvatar(
+          radius: 10,
+          backgroundColor: Color(avatarColor),
+          backgroundImage: avatarUrl != null
+              ? CachedNetworkImageProvider(avatarUrl)
+              : null,
+          child: avatarUrl == null
+              ? Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : "?",
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                )
+              : null,
+        ),
       ),
     );
   }
