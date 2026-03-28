@@ -43,20 +43,23 @@ class _FriendsPageState extends State<FriendsPage> {
 
       final myUid = FirebaseAuth.instance.currentUser!.uid;
 
-      // 1. Fetch current friends so we don't prompt to add people already in the squad
+      // FIX 1: Force Source.server to bypass stale cache so recently deleted friends reappear
       final friendsSnap = await FirebaseFirestore.instance
           .collection('users')
           .doc(myUid)
           .collection('friends')
-          .get();
+          .get(const GetOptions(source: Source.server));
+
       final myFriendUids = friendsSnap.docs.map((d) => d.id).toSet();
 
       // 2. Extract and normalize phones from native contacts
       List<String> allPhones = [];
       Map<String, Contact> phoneToContact = {};
+
       for (var c in contacts) {
-        if (c.phones.isNotEmpty) {
-          final raw = c.phones.first.number;
+        // FIX 2: Iterate through ALL phone numbers a contact might have (Mobile, Home, Work, etc.)
+        for (var p in c.phones) {
+          final raw = p.number;
           final norm = ContactHelper.normalizePhone(raw);
           if (norm != null && !allPhones.contains(norm)) {
             allPhones.add(norm);
@@ -75,10 +78,11 @@ class _FriendsPageState extends State<FriendsPage> {
           int end = (i + 30 < allPhones.length) ? i + 30 : allPhones.length;
           List<String> chunk = allPhones.sublist(i, end);
 
+          // FIX 3: Force Source.server here as well to guarantee fresh users
           final snap = await FirebaseFirestore.instance
               .collection('users')
               .where('phoneNumber', whereIn: chunk)
-              .get();
+              .get(const GetOptions(source: Source.server));
 
           for (var doc in snap.docs) {
             final data = doc.data();
