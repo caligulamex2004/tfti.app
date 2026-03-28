@@ -19,7 +19,6 @@ import 'friend_circles_page.dart';
 import 'profile_page.dart';
 import 'firebase_options.dart';
 import 'theme_provider.dart';
-import 'phone_formatter.dart';
 import 'onboarding_tutorial.dart';
 
 void main() async {
