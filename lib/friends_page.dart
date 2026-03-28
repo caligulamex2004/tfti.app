@@ -32,24 +32,115 @@ class _FriendsPageState extends State<FriendsPage> {
 
     try {
       final contacts = await ContactHelper.getContacts();
-      if (!mounted) return;
-      Navigator.pop(context); // Close loading dialog
-
       if (contacts == null) {
+        if (!mounted) return;
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Permission denied for contacts.")),
         );
         return;
       }
 
-      _showContactsSheet(contacts);
+      final myUid = FirebaseAuth.instance.currentUser!.uid;
+
+      // 1. Fetch current friends so we don't prompt to add people already in the squad
+      final friendsSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(myUid)
+          .collection('friends')
+          .get();
+      final myFriendUids = friendsSnap.docs.map((d) => d.id).toSet();
+
+      // 2. Extract and normalize phones from native contacts
+      List<String> allPhones = [];
+      Map<String, Contact> phoneToContact = {};
+      for (var c in contacts) {
+        if (c.phones.isNotEmpty) {
+          final raw = c.phones.first.number;
+          final norm = ContactHelper.normalizePhone(raw);
+          if (norm != null && !allPhones.contains(norm)) {
+            allPhones.add(norm);
+            phoneToContact[norm] = c;
+          }
+        }
+      }
+
+      List<Map<String, dynamic>> onTfti = [];
+      List<Contact> notOnTfti = [];
+      Set<String> allTftiPhones = {};
+
+      // 3. Fast Chunked Query (Firestore allows up to 30 items in a 'whereIn' clause)
+      if (allPhones.isNotEmpty) {
+        for (int i = 0; i < allPhones.length; i += 30) {
+          int end = (i + 30 < allPhones.length) ? i + 30 : allPhones.length;
+          List<String> chunk = allPhones.sublist(i, end);
+
+          final snap = await FirebaseFirestore.instance
+              .collection('users')
+              .where('phoneNumber', whereIn: chunk)
+              .get();
+
+          for (var doc in snap.docs) {
+            final data = doc.data();
+            final uid = doc.id;
+            final phone = data['phoneNumber'] as String;
+
+            allTftiPhones.add(phone);
+
+            // Only queue them if it's not the user, and they aren't already friends!
+            if (uid != myUid && !myFriendUids.contains(uid)) {
+              data['uid'] = uid;
+              onTfti.add(data);
+            }
+          }
+        }
+      }
+
+      // 4. Sort the remaining contacts who are not on the app
+      for (var phone in allPhones) {
+        if (!allTftiPhones.contains(phone)) {
+          notOnTfti.add(phoneToContact[phone]!);
+        }
+      }
+
+      // Sort both lists alphabetically for easy browsing
+      onTfti.sort(
+        (a, b) => (a['displayName'] ?? '').toString().toLowerCase().compareTo(
+          (b['displayName'] ?? '').toString().toLowerCase(),
+        ),
+      );
+      notOnTfti.sort(
+        (a, b) =>
+            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
+      _showStagingSheet(onTfti, notOnTfti, myUid);
     } catch (e) {
       if (mounted) Navigator.pop(context);
       debugPrint("Error fetching contacts: $e");
     }
   }
 
-  void _showContactsSheet(List<Contact> contacts) {
+  // FIX: The brand new persistent staging area!
+  void _showStagingSheet(
+    List<Map<String, dynamic>> onTfti,
+    List<Contact> notOnTfti,
+    String myUid,
+  ) {
+    // Flatten lists for performance so ListView.builder doesn't lag on huge address books
+    List<dynamic> listItems = [];
+    if (onTfti.isNotEmpty) {
+      listItems.add("HEADER_TFTI");
+      listItems.addAll(onTfti);
+    }
+    if (notOnTfti.isNotEmpty) {
+      listItems.add("HEADER_INVITE");
+      listItems.addAll(notOnTfti);
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -61,154 +152,314 @@ class _FriendsPageState extends State<FriendsPage> {
         final primaryColor = Theme.of(context).colorScheme.primary;
         final isDark = Theme.of(context).brightness == Brightness.dark;
 
-        return DraggableScrollableSheet(
-          initialChildSize: 0.9,
-          minChildSize: 0.5,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (context, scrollController) {
-            return Column(
-              children: [
-                const SizedBox(height: 10),
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const Padding(
-                  padding: EdgeInsets.all(20.0),
-                  child: Text(
-                    "Import from Contacts",
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22),
-                  ),
-                ),
-                const Divider(height: 1),
+        // Tracks interactions locally so the sheet doesn't have to close
+        Set<String> addedUids = {};
+        Set<String> invitedPhones = {};
 
-                // NEW: Graceful UI handling if the list actually is empty
-                if (contacts.isEmpty)
-                  Expanded(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.contact_phone_outlined,
-                            size: 64,
-                            color: isDark
-                                ? Colors.grey.shade700
-                                : Colors.grey.shade300,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            "No contacts found on this device.",
-                            style: TextStyle(
-                              color: isDark
-                                  ? Colors.grey.shade500
-                                  : Colors.grey.shade600,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
+        return StatefulBuilder(
+          builder: (ctx, setStateSheet) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.9,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              expand: false,
+              builder: (context, scrollController) {
+                return Column(
+                  children: [
+                    const SizedBox(height: 10),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.grey.shade700
+                            : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                  )
-                else
-                  Expanded(
-                    child: ListView.builder(
-                      controller: scrollController,
-                      itemCount: contacts.length,
-                      itemBuilder: (context, index) {
-                        final contact = contacts[index];
-                        final name = contact.displayName;
-                        final rawPhone = contact.phones.isNotEmpty
-                            ? contact.phones.first.number
-                            : "No Number";
-
-                        if (rawPhone == "No Number") {
-                          return const SizedBox.shrink();
-                        }
-
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 4,
-                          ),
-                          leading: CircleAvatar(
-                            backgroundColor: primaryColor.withValues(
-                              alpha: 0.2,
-                            ),
-                            child: Text(
-                              name.isNotEmpty ? name[0] : "?",
-                              style: TextStyle(
-                                color: primaryColor,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(PhoneFormatter.beautify(rawPhone)),
-                          trailing: ElevatedButton(
-                            onPressed: () =>
-                                _handleImportContact(name, rawPhone),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryColor.withValues(
-                                alpha: 0.1,
-                              ),
-                              foregroundColor: primaryColor,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text(
-                              "Add",
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        );
-                      },
+                    const Padding(
+                      padding: EdgeInsets.all(20.0),
+                      child: Text(
+                        "Import Contacts",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 22,
+                        ),
+                      ),
                     ),
-                  ),
-              ],
+                    const Divider(height: 1),
+
+                    if (listItems.isEmpty)
+                      Expanded(
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.contact_phone_outlined,
+                                size: 64,
+                                color: isDark
+                                    ? Colors.grey.shade700
+                                    : Colors.grey.shade300,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                "No new contacts found.",
+                                style: TextStyle(
+                                  color: isDark
+                                      ? Colors.grey.shade500
+                                      : Colors.grey.shade600,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: ListView.builder(
+                          controller: scrollController,
+                          itemCount: listItems.length,
+                          itemBuilder: (context, index) {
+                            final item = listItems[index];
+
+                            // Render Headers
+                            if (item == "HEADER_TFTI") {
+                              return Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  24,
+                                  20,
+                                  12,
+                                ),
+                                child: Text(
+                                  "Ready to squad up!",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    color: primaryColor,
+                                    fontSize: 13,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                              );
+                            }
+                            if (item == "HEADER_INVITE") {
+                              return Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  24,
+                                  20,
+                                  12,
+                                ),
+                                child: Text(
+                                  "Invite to squad via SMS",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    color: isDark
+                                        ? Colors.grey.shade400
+                                        : Colors.grey.shade600,
+                                    fontSize: 13,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                              );
+                            }
+
+                            // Render TFTI Users
+                            if (item is Map<String, dynamic>) {
+                              final uid = item['uid'];
+                              final name = item['displayName'] ?? "Unknown";
+                              final phone = PhoneFormatter.beautify(
+                                item['phoneNumber'] ?? "",
+                              );
+                              final avatarUrl = item['avatarUrl'];
+                              final avatarColor =
+                                  item['avatarColor'] ?? Colors.blue.toARGB32();
+                              final isAdded = addedUids.contains(uid);
+
+                              return ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 6,
+                                ),
+                                leading: Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Color(
+                                          avatarColor,
+                                        ).withValues(alpha: 0.4),
+                                        blurRadius: 8,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
+                                  ),
+                                  child: CircleAvatar(
+                                    backgroundColor: Color(avatarColor),
+                                    backgroundImage: avatarUrl != null
+                                        ? CachedNetworkImageProvider(avatarUrl)
+                                        : null,
+                                    child: avatarUrl == null
+                                        ? Text(
+                                            name.isNotEmpty
+                                                ? name[0].toUpperCase()
+                                                : "?",
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                                title: Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  phone,
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.grey.shade400
+                                        : Colors.grey.shade600,
+                                  ),
+                                ),
+                                trailing: isAdded
+                                    ? const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green,
+                                        size: 32,
+                                      )
+                                    : ElevatedButton(
+                                        onPressed: () async {
+                                          await FirebaseFirestore.instance
+                                              .collection('users')
+                                              .doc(myUid)
+                                              .collection('friends')
+                                              .doc(uid)
+                                              .set({
+                                                'uid': uid,
+                                                'phoneNumber':
+                                                    item['phoneNumber'],
+                                                'addedAt':
+                                                    FieldValue.serverTimestamp(),
+                                              });
+                                          setStateSheet(
+                                            () => addedUids.add(uid),
+                                          ); // Updates button instantly without closing!
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: primaryColor
+                                              .withValues(alpha: 0.1),
+                                          foregroundColor: primaryColor,
+                                          elevation: 0,
+                                        ),
+                                        child: const Text(
+                                          "Add",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                              );
+                            }
+
+                            // Render Non-TFTI Contacts
+                            if (item is Contact) {
+                              final name = item.displayName;
+                              final rawPhone = item.phones.first.number;
+                              final normPhone =
+                                  ContactHelper.normalizePhone(rawPhone) ??
+                                  rawPhone;
+                              final isInvited = invitedPhones.contains(
+                                normPhone,
+                              );
+
+                              return ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 4,
+                                ),
+                                leading: CircleAvatar(
+                                  backgroundColor: isDark
+                                      ? Colors.grey.shade800
+                                      : Colors.grey.shade200,
+                                  child: Text(
+                                    name.isNotEmpty
+                                        ? name[0].toUpperCase()
+                                        : "?",
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.grey.shade400
+                                          : Colors.grey.shade600,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                title: Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  PhoneFormatter.beautify(normPhone),
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.grey.shade500
+                                        : Colors.grey.shade600,
+                                  ),
+                                ),
+                                trailing: isInvited
+                                    ? const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green,
+                                        size: 32,
+                                      )
+                                    : OutlinedButton(
+                                        onPressed: () {
+                                          _inviteViaSms(normPhone);
+                                          setStateSheet(
+                                            () => invitedPhones.add(normPhone),
+                                          );
+                                        },
+                                        style: OutlinedButton.styleFrom(
+                                          side: BorderSide(
+                                            color: isDark
+                                                ? Colors.grey.shade700
+                                                : Colors.grey.shade300,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          "Invite",
+                                          style: TextStyle(
+                                            color: isDark
+                                                ? Colors.grey.shade300
+                                                : Colors.grey.shade700,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+                      ),
+                  ],
+                );
+              },
             );
           },
         );
       },
     );
-  }
-
-  Future<void> _handleImportContact(String name, String rawPhone) async {
-    final normalized = ContactHelper.normalizePhone(rawPhone);
-
-    if (normalized == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Invalid phone number format.")),
-        );
-      }
-      return;
-    }
-
-    final query = await FirebaseFirestore.instance
-        .collection('users')
-        .where('phoneNumber', isEqualTo: normalized)
-        .limit(1)
-        .get();
-
-    if (query.docs.isNotEmpty) {
-      _completePhoneNumber = normalized;
-      await _addFriend();
-      if (mounted) Navigator.pop(context);
-    } else {
-      if (!mounted) return;
-      _inviteViaSms(normalized);
-    }
   }
 
   Future<void> _inviteViaSms(String phone) async {
@@ -486,7 +737,6 @@ class _FriendsPageState extends State<FriendsPage> {
     return list;
   }
 
-  // NEW: Extracted "Add Squadmate" panel for clean responsive layout
   Widget _buildAddFriendSection(bool isDark, Color primaryColor) {
     return Container(
       padding: const EdgeInsets.all(24.0),
@@ -586,23 +836,27 @@ class _FriendsPageState extends State<FriendsPage> {
             ],
           ),
 
-          if (_statusMessage.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Text(
-                _statusMessage,
-                style: TextStyle(
-                  color:
-                      _statusMessage.contains("Added") ||
-                          _statusMessage.contains("prepared")
-                      ? (isDark ? Colors.greenAccent : Colors.green)
-                      : (isDark ? Colors.redAccent : Colors.red),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+          // FIX: Replaced dynamic Padding with fixed-height SizedBox to prevent UI shift
+          SizedBox(
+            height: 32,
+            child: _statusMessage.isNotEmpty
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      _statusMessage,
+                      style: TextStyle(
+                        color:
+                            _statusMessage.contains("Added") ||
+                                _statusMessage.contains("prepared")
+                            ? (isDark ? Colors.greenAccent : Colors.green)
+                            : (isDark ? Colors.redAccent : Colors.red),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  )
+                : null,
+          ),
 
-          // NEW: Prominent Import Button
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -633,7 +887,6 @@ class _FriendsPageState extends State<FriendsPage> {
     );
   }
 
-  // NEW: Extracted Squad List with modern cards and BoxShadows
   Widget _buildFriendListSection(
     bool isDark,
     Color primaryColor,
@@ -752,7 +1005,6 @@ class _FriendsPageState extends State<FriendsPage> {
                             vertical: 8,
                           ),
                           leading: Container(
-                            // 👇 FIX: Glowing BoxShadow for the Squad List Avatars!
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               boxShadow: [
@@ -803,7 +1055,6 @@ class _FriendsPageState extends State<FriendsPage> {
                               ),
                             ),
                           ),
-                          // 👇 FIX: Consolidated trailing menu to save horizontal space!
                           trailing: PopupMenuButton<String>(
                             icon: Icon(
                               Icons.more_vert,
@@ -884,7 +1135,6 @@ class _FriendsPageState extends State<FriendsPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
 
-    // NEW: Check for landscape orientation
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
@@ -900,9 +1150,7 @@ class _FriendsPageState extends State<FriendsPage> {
         flexibleSpace: Container(
           decoration: BoxDecoration(gradient: themeProvider.appGradient),
         ),
-        // Notice: Import Contacts icon is gone from here! It's moved to the main UI.
       ),
-      // NEW: Landscape Split-View Implementation
       body: isLandscape
           ? Row(
               children: [

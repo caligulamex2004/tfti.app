@@ -612,7 +612,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
               ),
               const SizedBox(height: 16),
               const Text(
-                "Captain",
+                "Invited by",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 12),
