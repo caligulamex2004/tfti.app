@@ -980,7 +980,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
         DropdownMenuItem(value: -120, child: Text("2 hours before")),
         DropdownMenuItem(value: -60, child: Text("1 hour before")),
         DropdownMenuItem(value: -30, child: Text("30 mins before")),
-        DropdownMenuItem(value: 0, child: Text("At op start (Default)")),
+        DropdownMenuItem(value: 0, child: Text("At start time (Default)")),
         DropdownMenuItem(value: 30, child: Text("30 mins after")),
         DropdownMenuItem(value: 60, child: Text("1 hour after")),
         DropdownMenuItem(value: 120, child: Text("2 hours after")),
@@ -1117,7 +1117,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("What's the op?"),
+        title: const Text("Let's do..."),
         centerTitle: true,
         foregroundColor: Colors.white,
         flexibleSpace: Container(
