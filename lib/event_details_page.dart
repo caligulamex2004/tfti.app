@@ -893,9 +893,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                 decoration: BoxDecoration(
                                   color: isDark
                                       ? Colors.grey.shade800
-                                      : Theme.of(
-                                          context,
-                                        ).colorScheme.secondaryContainer,
+                                      : Colors.white,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: isDark
@@ -1033,14 +1031,16 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                     decoration: BoxDecoration(
                                       color: isDark
                                           ? Colors.grey.shade800
-                                          : Colors.grey.shade200,
+                                          : Colors.grey.shade100,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Icon(
                                       Icons.location_on,
                                       color: isDark
                                           ? Colors.white
-                                          : Colors.black87,
+                                          : Theme.of(
+                                              context,
+                                            ).colorScheme.tertiary,
                                       size: 28,
                                     ),
                                   ),
