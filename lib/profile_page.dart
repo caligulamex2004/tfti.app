@@ -344,7 +344,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "TFTI is free to use, but server costs add up! If you love the app, consider dropping a tip to keep the servers running.",
+                  "tfti.app is free to use, but server costs add up! If you love the app, consider dropping a tip to keep the servers running.",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
@@ -742,7 +742,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 16),
 
-          // 👇 NEW: Mood / Status Field
+          // NEW: Mood / Status Field
           TextField(
             controller: _statusController,
             textInputAction: TextInputAction.done,
