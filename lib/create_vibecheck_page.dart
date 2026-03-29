@@ -87,7 +87,6 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
     });
   }
 
-  // --- NEW: SMART LOCATION SEARCH FOR POLL OPTIONS ---
   Future<void> _selectOptionLocation(int index) async {
     final selectedAddress = await Navigator.push(
       context,
@@ -109,7 +108,7 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final cardColor = Theme.of(context).cardColor;
+    final fillColor = isDark ? Colors.grey.shade900 : Colors.grey.shade50;
 
     return InputDecoration(
       labelText: label,
@@ -121,11 +120,11 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
       prefixIcon: prefixIcon,
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: cardColor,
+      fillColor: fillColor,
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(
-          color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05),
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
           width: 1,
         ),
       ),
@@ -257,7 +256,7 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
                     SwitchListTile(
                       activeThumbColor: primaryColor,
                       title: const Text(
-                        "All Friends",
+                        "Entire Squad",
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       value: _inviteAll,
@@ -362,7 +361,7 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
     if (validOptions < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Please fill out at least two Activity Options."),
+          content: Text("Please fill out at least two Vibe Options."),
         ),
       );
       return;
@@ -405,7 +404,7 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text("No friends found in selected circles!"),
+              content: Text("No friends found in selected teams!"),
             ),
           );
           setState(() => _isLoading = false);
@@ -474,29 +473,141 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
     }
   }
 
-  Widget _buildResponsiveRow(bool isLandscape, Widget child1, Widget child2) {
-    if (isLandscape) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 16.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  // --- NEW: CARD WRAPPER UI ---
+  Widget _buildFormCard({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+          width: 1,
+        ),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: primaryColor, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(
+            height: 1,
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+          ),
+          Padding(padding: const EdgeInsets.all(20), child: child),
+        ],
+      ),
+    );
+  }
+
+  // --- NEW: TACTILE CHIP ROW UI ---
+  Widget _buildChipRow({
+    required String label,
+    required IconData icon,
+    required List<Map<String, dynamic>> options,
+    required dynamic selectedValue,
+    required Function(dynamic) onSelected,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Expanded(child: child1),
-            const SizedBox(width: 16),
-            Expanded(child: child2),
+            Icon(icon, size: 16, color: primaryColor),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
+              ),
+            ),
           ],
         ),
-      );
-    } else {
-      return Column(
-        children: [
-          child1,
-          const SizedBox(height: 16),
-          child2,
-          const SizedBox(height: 16),
-        ],
-      );
-    }
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: options.map((opt) {
+              final isSelected = selectedValue == opt['value'];
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: ChoiceChip(
+                  label: Text(opt['label']),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    if (selected) onSelected(opt['value']);
+                  },
+                  selectedColor: primaryColor.withValues(alpha: 0.15),
+                  backgroundColor: isDark
+                      ? Colors.grey.shade900
+                      : Colors.grey.shade50,
+                  labelStyle: TextStyle(
+                    color: isSelected
+                        ? primaryColor
+                        : (isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade700),
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  ),
+                  side: BorderSide(
+                    color: isSelected
+                        ? primaryColor.withValues(alpha: 0.5)
+                        : (isDark
+                              ? Colors.grey.shade800
+                              : Colors.grey.shade300),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  showCheckmark: false,
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -511,6 +622,7 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
         "${_selectedDate.month}/${_selectedDate.day}/${_selectedDate.year}";
     final timeString = _selectedTime.format(context);
 
+    // --- FORM FIELDS ---
     final titleField = TextFormField(
       controller: _titleController,
       textCapitalization: TextCapitalization.sentences,
@@ -519,7 +631,7 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
         label: "What's the vibe?",
         hint: "e.g. Sunday Funday, Post-Work Drinks",
         prefixIcon: Icon(Symbols.campaign, color: primaryColor),
-      ),
+      ).copyWith(counterText: ""),
       validator: (v) => v!.isEmpty ? "Required" : null,
     );
 
@@ -561,24 +673,6 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
       ],
     );
 
-    final rsvpField = DropdownButtonFormField<int>(
-      initialValue: _rsvpDeadlineOffset,
-      decoration: _buildInputDecoration(
-        label: "Voting Deadline",
-        prefixIcon: Icon(Icons.auto_awesome, color: primaryColor),
-      ),
-      dropdownColor: Theme.of(context).cardColor,
-      items: const [
-        DropdownMenuItem(value: -1440, child: Text("24 hours before")),
-        DropdownMenuItem(value: -240, child: Text("4 hours before")),
-        DropdownMenuItem(value: -120, child: Text("2 hours before")),
-        DropdownMenuItem(value: -60, child: Text("1 hour before (Default)")),
-        DropdownMenuItem(value: -30, child: Text("30 mins before")),
-        DropdownMenuItem(value: 0, child: Text("At start time")),
-      ],
-      onChanged: (val) => setState(() => _rsvpDeadlineOffset = val ?? -60),
-    );
-
     final detailsField = TextFormField(
       controller: _detailsController,
       textCapitalization: TextCapitalization.sentences,
@@ -590,14 +684,271 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
           Icons.notes,
           color: isDark ? Colors.grey.shade400 : Colors.grey,
         ),
-      ).copyWith(alignLabelWithHint: true),
+      ).copyWith(alignLabelWithHint: true, counterText: ""),
       maxLines: 2,
+    );
+
+    // --- PRE-BUILD THE CARDS ---
+
+    final vitalsCard = _buildFormCard(
+      title: "The Vitals",
+      icon: Icons.push_pin,
+      child: Column(
+        children: [titleField, const SizedBox(height: 16), dateTimeRow],
+      ),
+    );
+
+    final optionsCard = _buildFormCard(
+      title: "Vibe Options",
+      icon: Icons.format_list_bulleted,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Pick some ideas and let the crew decide! You can always update the options later if plans change.",
+            style: TextStyle(
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _pollOptions.length,
+            itemBuilder: (context, index) {
+              // Internal Card styling designed to nest cleanly inside the FormCard
+              return Card(
+                elevation: 0,
+                color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+                margin: const EdgeInsets.only(bottom: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Option ${index + 1}",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white70 : Colors.black87,
+                            ),
+                          ),
+                          if (index > 1)
+                            IconButton(
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.red,
+                                size: 20,
+                              ),
+                              onPressed: () => _removeOption(index),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _pollOptions[index]['title'],
+                        maxLength: 30,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          hintText: "Vibe (e.g. Disc Golf)",
+                          counterText: "",
+                          filled: true,
+                          fillColor: Theme.of(context).cardColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _pollOptions[index]['location'],
+                        readOnly: true,
+                        onTap: () => _selectOptionLocation(index),
+                        maxLength: 100,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          hintText: "Tap to search address... (Optional)",
+                          counterText: "",
+                          filled: true,
+                          fillColor: Theme.of(context).cardColor,
+                          prefixIcon: const Icon(Icons.location_on, size: 18),
+                          suffixIcon:
+                              _pollOptions[index]['location']!.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.close, size: 18),
+                                  onPressed: () => setState(
+                                    () => _pollOptions[index]['location']!
+                                        .clear(),
+                                  ),
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          if (_pollOptions.length < 5)
+            Center(
+              child: TextButton.icon(
+                onPressed: _addOption,
+                icon: Icon(Icons.add_circle, color: primaryColor),
+                label: Text(
+                  "Add another option",
+                  style: TextStyle(
+                    color: primaryColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    final extrasCard = _buildFormCard(
+      title: "The Extras",
+      icon: Icons.auto_awesome,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildChipRow(
+            label: "Voting Deadline",
+            icon: Icons.timer_off_outlined,
+            selectedValue: _rsvpDeadlineOffset,
+            onSelected: (val) => setState(() => _rsvpDeadlineOffset = val),
+            options: [
+              {'label': 'On time', 'value': 0},
+              {'label': '30 mins before', 'value': -30},
+              {'label': '1 hr before', 'value': -60},
+              {'label': '2 hrs before', 'value': -120},
+              {'label': '4 hrs before', 'value': -240},
+              {'label': '24 hrs before', 'value': -1440},
+            ],
+          ),
+          const SizedBox(height: 24),
+          detailsField,
+        ],
+      ),
+    );
+
+    final crewCard = user == null
+        ? const SizedBox.shrink()
+        : _buildFormCard(
+            title: "The Crew",
+            icon: Icons.group,
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user.uid)
+                  .collection('circles')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                final circles = snapshot.hasData
+                    ? snapshot.data!.docs
+                    : <DocumentSnapshot>[];
+
+                String targetPreviewText = "Select Teams...";
+                if (_inviteAll) {
+                  targetPreviewText = "Entire Squad";
+                } else if (_selectedCircleIds.isNotEmpty) {
+                  final selectedNames = circles
+                      .where((c) => _selectedCircleIds.contains(c.id))
+                      .map(
+                        (c) =>
+                            (c.data() as Map<String, dynamic>)['name'] ??
+                            'Unnamed',
+                      )
+                      .join(', ');
+                  targetPreviewText = selectedNames.isNotEmpty
+                      ? selectedNames
+                      : "Selected Teams";
+                }
+
+                return InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => _showCircleDialog(circles),
+                  child: InputDecorator(
+                    decoration: _buildInputDecoration(
+                      label: "Who's getting the feeler?",
+                      prefixIcon: Icon(
+                        Icons.people,
+                        color: isDark ? Colors.tealAccent : Colors.teal,
+                      ),
+                      suffixIcon: const Icon(Icons.arrow_drop_down),
+                    ),
+                    child: Text(
+                      targetPreviewText,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                );
+              },
+            ),
+          );
+
+    final submitButton = SizedBox(
+      width: double.infinity,
+      height: 60,
+      child: ElevatedButton(
+        onPressed: _saveVibeCheck,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: themeProvider.onPrimaryColor,
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+        child: const Text(
+          "Throw it out there",
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ),
     );
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Vibe Check"),
+        title: const Text(
+          "Vibe Check",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
         foregroundColor: Colors.white,
         flexibleSpace: Container(
@@ -612,252 +963,33 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
                 key: _formKey,
                 child: SingleChildScrollView(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildResponsiveRow(isLandscape, titleField, dateTimeRow),
-                      _buildResponsiveRow(isLandscape, detailsField, rsvpField),
-
-                      const SizedBox(height: 10),
-                      Text(
-                        "Activity Options",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: primaryColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Pick some ideas and let the crew decide! You can always update the options later if plans change.",
-                        style: TextStyle(
-                          color: isDark
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade600,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Dynamic List of Poll Options
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _pollOptions.length,
-                        itemBuilder: (context, index) {
-                          return Card(
-                            elevation: isDark ? 1 : 2,
-                            margin: const EdgeInsets.only(bottom: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              side: isDark
-                                  ? BorderSide(color: Colors.grey.shade800)
-                                  : BorderSide.none,
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
+                      // --- DYNAMIC RESPONSIVE LAYOUT ---
+                      if (isLandscape)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
                               child: Column(
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        "Option ${index + 1}",
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      if (index > 1)
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.close,
-                                            color: Colors.red,
-                                            size: 20,
-                                          ),
-                                          onPressed: () => _removeOption(index),
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                        ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  TextFormField(
-                                    controller: _pollOptions[index]['title'],
-                                    maxLength: 30,
-                                    textCapitalization:
-                                        TextCapitalization.words,
-                                    decoration: InputDecoration(
-                                      hintText: "Activity (e.g. Disc Golf)",
-                                      counterText: "",
-                                      filled: true,
-                                      fillColor: isDark
-                                          ? Colors.grey.shade900
-                                          : Colors.grey.shade100,
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide.none,
-                                      ),
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 12,
-                                          ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  // --- UPDATED LOCATION INPUT ---
-                                  TextFormField(
-                                    controller: _pollOptions[index]['location'],
-                                    readOnly: true,
-                                    onTap: () => _selectOptionLocation(index),
-                                    maxLength: 100,
-                                    textCapitalization:
-                                        TextCapitalization.words,
-                                    decoration: InputDecoration(
-                                      hintText:
-                                          "Tap to search address... (Optional)",
-                                      counterText: "",
-                                      filled: true,
-                                      fillColor: isDark
-                                          ? Colors.grey.shade900
-                                          : Colors.grey.shade100,
-                                      prefixIcon: const Icon(
-                                        Icons.location_on,
-                                        size: 18,
-                                      ),
-                                      suffixIcon:
-                                          _pollOptions[index]['location']!
-                                              .text
-                                              .isNotEmpty
-                                          ? IconButton(
-                                              icon: const Icon(
-                                                Icons.close,
-                                                size: 18,
-                                              ),
-                                              onPressed: () => setState(
-                                                () =>
-                                                    _pollOptions[index]['location']!
-                                                        .clear(),
-                                              ),
-                                            )
-                                          : null,
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide.none,
-                                      ),
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 12,
-                                          ),
-                                    ),
-                                  ),
-                                ],
+                                children: [vitalsCard, extrasCard, crewCard],
                               ),
                             ),
-                          );
-                        },
-                      ),
-
-                      if (_pollOptions.length < 5)
-                        Center(
-                          child: TextButton.icon(
-                            onPressed: _addOption,
-                            icon: Icon(Icons.add_circle, color: primaryColor),
-                            label: Text(
-                              "Add another option",
-                              style: TextStyle(
-                                color: primaryColor,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+                            const SizedBox(width: 24),
+                            Expanded(child: Column(children: [optionsCard])),
+                          ],
+                        )
+                      else
+                        Column(
+                          children: [
+                            vitalsCard,
+                            optionsCard,
+                            extrasCard,
+                            crewCard,
+                          ],
                         ),
 
-                      const SizedBox(height: 24),
-
-                      if (user != null) ...[
-                        StreamBuilder<QuerySnapshot>(
-                          stream: FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(user.uid)
-                              .collection('circles')
-                              .snapshots(),
-                          builder: (context, snapshot) {
-                            final circles = snapshot.hasData
-                                ? snapshot.data!.docs
-                                : <DocumentSnapshot>[];
-
-                            String targetPreviewText = "Select teams...";
-                            if (_inviteAll) {
-                              targetPreviewText = "All Friends";
-                            } else if (_selectedCircleIds.isNotEmpty) {
-                              final selectedNames = circles
-                                  .where(
-                                    (c) => _selectedCircleIds.contains(c.id),
-                                  )
-                                  .map(
-                                    (c) =>
-                                        (c.data()
-                                            as Map<String, dynamic>)['name'] ??
-                                        'Unnamed',
-                                  )
-                                  .join(', ');
-                              targetPreviewText = selectedNames.isNotEmpty
-                                  ? selectedNames
-                                  : "Selected Teams";
-                            }
-
-                            return InkWell(
-                              borderRadius: BorderRadius.circular(16),
-                              onTap: () => _showCircleDialog(circles),
-                              child: InputDecorator(
-                                decoration: _buildInputDecoration(
-                                  label: "Who's getting the feeler?",
-                                  prefixIcon: Icon(
-                                    Icons.people,
-                                    color: isDark
-                                        ? Colors.tealAccent
-                                        : Colors.teal,
-                                  ),
-                                  suffixIcon: const Icon(Icons.arrow_drop_down),
-                                ),
-                                child: Text(
-                                  targetPreviewText,
-                                  style: const TextStyle(fontSize: 16),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-
-                      const SizedBox(height: 30),
-
-                      SizedBox(
-                        width: double.infinity,
-                        height: 55,
-                        child: ElevatedButton(
-                          onPressed: _saveVibeCheck,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
-                            foregroundColor: themeProvider.onPrimaryColor,
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: const Text(
-                            "Throw it out there",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
+                      const SizedBox(height: 12),
+                      submitButton,
                       const SizedBox(height: 40),
                     ],
                   ),
