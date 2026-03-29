@@ -6,20 +6,24 @@ const admin = require("firebase-admin");
 admin.initializeApp();
 const db = admin.firestore();
 
-// --- 1. THE JANITOR: Delete events older than 24 hours ---
+// --- 1. THE JANITOR: Delete events that have expired past their keepAlive limit ---
 exports.dailyCleanup = onSchedule({
-    schedule: "every day 00:00", 
+    schedule: "0 0,12 * * *", // Runs exactly at Midnight and Noon
     timeZone: "America/New_York",
 }, async (event) => {
-    const cutoff = new Date();
-    cutoff.setHours(cutoff.getHours() - 24); 
+    const now = new Date();
+    
+    // The absolute minimum lifespan is 24 hours. 
+    // We use this as our base query to avoid fetching active, brand new events.
+    const baseCutoff = new Date(now.getTime());
+    baseCutoff.setHours(baseCutoff.getHours() - 24); 
 
     const snapshot = await db.collection("events")
-        .where("time", "<", admin.firestore.Timestamp.fromDate(cutoff))
+        .where("time", "<", admin.firestore.Timestamp.fromDate(baseCutoff))
         .get();
 
     if (snapshot.empty) {
-        logger.log("No old events to clean up.");
+        logger.log("No potentially old events to clean up.");
         return;
     } 
 
@@ -28,9 +32,23 @@ exports.dailyCleanup = onSchedule({
     let deleteCount = 0;
 
     for (const doc of snapshot.docs) {
+        const data = doc.data();
+        const keepAliveDays = data.keepAliveDays || 0;
+        const eventTime = data.time.toDate();
+        
+        // Calculate the true expiration date based on the host's keepAlive setting.
+        // Default is 1 day (24 hours). Otherwise, use the keepAliveDays setting.
+        const lifespanDays = keepAliveDays > 0 ? keepAliveDays : 1;
+        const expirationTime = new Date(eventTime.getTime() + (lifespanDays * 24 * 60 * 60 * 1000));
+        
+        // If the event hasn't reached its true expiration time yet, spare it!
+        if (now < expirationTime) {
+            continue;
+        }
+
         const eventId = doc.id;
 
-        // --- NEW: Wipe associated images in Firebase Storage ---
+        // --- Wipe associated images in Firebase Storage ---
         try {
             await bucket.deleteFiles({
                 prefix: `chat_images/${eventId}/`
@@ -49,7 +67,7 @@ exports.dailyCleanup = onSchedule({
         const invitations = await doc.ref.collection("invitations").get();
         invitations.forEach(invite => batch.delete(invite.ref));
 
-        // --- NEW: Wipe Squad Needs / Roles ---
+        // --- Wipe Squad Needs / Roles ---
         const roles = await doc.ref.collection("roles").get();
         roles.forEach(role => batch.delete(role.ref));
 
@@ -58,8 +76,12 @@ exports.dailyCleanup = onSchedule({
         deleteCount++;
     }
 
-    await batch.commit();
-    logger.log(`Cleanup complete: Deleted ${deleteCount} old events.`);
+    if (deleteCount > 0) {
+        await batch.commit();
+        logger.log(`Cleanup complete: Deleted ${deleteCount} expired events.`);
+    } else {
+        logger.log("Cleanup complete: Checked events, but none have reached their extended keepAlive expiration yet.");
+    }
 });
 
 // --- 2. THE BOUNCER: Reactive Ban Check ---
