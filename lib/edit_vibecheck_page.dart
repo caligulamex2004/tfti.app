@@ -694,31 +694,6 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
     );
   }
 
-  Widget _buildResponsiveRow(bool isLandscape, Widget child1, Widget child2) {
-    if (isLandscape) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 16.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: child1),
-            const SizedBox(width: 16),
-            Expanded(child: child2),
-          ],
-        ),
-      );
-    } else {
-      return Column(
-        children: [
-          child1,
-          const SizedBox(height: 16),
-          child2,
-          const SizedBox(height: 16),
-        ],
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
