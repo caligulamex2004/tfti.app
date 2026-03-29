@@ -891,6 +891,177 @@ class _FriendsPageState extends State<FriendsPage> {
     );
   }
 
+  void _showFriendProfileBottomSheet(
+    BuildContext context,
+    Map<String, dynamic> userData,
+    bool isDark,
+    Color primaryColor,
+  ) {
+    final displayName = userData['displayName'] ?? "No Name";
+    final rawPhone = userData['phoneNumber'] ?? "";
+    final bool showPhone = userData['showPhoneNumber'] == true;
+    final String statusText = userData['statusText'] ?? "";
+    final displayPhone = showPhone ? PhoneFormatter.beautify(rawPhone) : "";
+
+    final String? avatarUrl = userData['avatarUrl'];
+    Color avatarColor = Colors.blue.shade100;
+    if (userData['avatarColor'] is int) {
+      avatarColor = Color(userData['avatarColor']);
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled:
+          true, // 👇 Allows the sheet to handle scrolling properly
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 24.0),
+            child: SizedBox(
+              width: double
+                  .infinity, // 👇 FIX 1: Forces the bottom sheet to always be full width
+              child: SingleChildScrollView(
+                // 👇 FIX 2: Prevents overflow by allowing scrolling on short screens!
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 10),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.grey.shade700
+                            : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // --- AVATAR ---
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: avatarColor.withValues(alpha: 0.4),
+                            blurRadius: 20,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: CircleAvatar(
+                        radius: 56,
+                        backgroundColor: avatarColor,
+                        backgroundImage: avatarUrl != null
+                            ? CachedNetworkImageProvider(avatarUrl)
+                            : null,
+                        child: avatarUrl == null
+                            ? Text(
+                                displayName.isNotEmpty
+                                    ? displayName[0].toUpperCase()
+                                    : "?",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 40,
+                                ),
+                              )
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // --- NAME ---
+                    Text(
+                      displayName,
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                        color: isDark ? Colors.white : Colors.black87,
+                        letterSpacing: -0.5,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    // --- MOOD / STATUS PILL ---
+                    if (statusText.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(
+                          top: 16,
+                          left: 32,
+                          right: 32,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: primaryColor.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          statusText,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+
+                    // --- PHONE NUMBER ---
+                    if (showPhone && displayPhone.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 24),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.phone_iphone,
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              displayPhone,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.5,
+                                color: isDark
+                                    ? Colors.grey.shade300
+                                    : Colors.grey.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildFriendListSection(
     bool isDark,
     Color primaryColor,
@@ -1012,6 +1183,13 @@ class _FriendsPageState extends State<FriendsPage> {
                           ],
                         ),
                         child: ListTile(
+                          // NEW: Triggers the mini-profile when the card is tapped!
+                          onTap: () => _showFriendProfileBottomSheet(
+                            context,
+                            userData,
+                            isDark,
+                            primaryColor,
+                          ),
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 8,
