@@ -565,6 +565,17 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         final Timestamp ts = data['time'];
         final DateTime dt = ts.toDate();
         final int rsvpDeadline = data['rsvpDeadline'] ?? 0;
+        final int keepAliveDays = data['keepAliveDays'] ?? 0;
+
+        // --- FORMAT THE KEEP ALIVE LABEL ---
+        String keepAliveLabel = "";
+        if (keepAliveDays == 1) {
+          keepAliveLabel = "1 Day";
+        } else if (keepAliveDays == 7) {
+          keepAliveLabel = "1 Week";
+        } else if (keepAliveDays > 0) {
+          keepAliveLabel = "$keepAliveDays Days";
+        }
 
         // --- MODERN DATE/TIME PARSING ---
         final List<String> shortMonths = [
@@ -940,15 +951,56 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      fullWeekDay,
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark
-                                            ? Colors.white
-                                            : Colors.black87,
-                                      ),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          fullWeekDay,
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark
+                                                ? Colors.white
+                                                : Colors.black87,
+                                          ),
+                                        ),
+                                        // MOVED: The Keep Alive Pill is now next to the Day!
+                                        if (keepAliveDays > 0) ...[
+                                          const SizedBox(width: 10),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .tertiary
+                                                  .withValues(alpha: 0.15),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .tertiary
+                                                    .withValues(alpha: 0.3),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              keepAliveLabel,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 0.5,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.tertiary,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
