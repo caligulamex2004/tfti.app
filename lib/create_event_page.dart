@@ -29,7 +29,10 @@ class _CreateEventPageState extends State<CreateEventPage> {
   bool _isLoading = false;
 
   bool _isImportantDetails = false;
+
+  // State for the new tactile Chip Rows
   int _rsvpDeadlineOffset = 0;
+  int _keepAliveDays = 0; // 0 = default 4 hours. 1-10 = multi-day event
 
   final List<String> _roles = [];
   final _roleInputController = TextEditingController();
@@ -185,6 +188,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
     }
   }
 
+  // --- MODERNIZED INPUT DECORATION ---
   InputDecoration _buildInputDecoration({
     required String label,
     String? hint,
@@ -193,7 +197,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final cardColor = Theme.of(context).cardColor;
+    // Input fields now sit on top of the card color, so we tint them slightly darker/lighter
+    final fillColor = isDark ? Colors.grey.shade900 : Colors.grey.shade50;
 
     return InputDecoration(
       labelText: label,
@@ -204,11 +209,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
       prefixIcon: prefixIcon,
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: cardColor,
+      fillColor: fillColor,
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(
-          color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05),
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
           width: 1,
         ),
       ),
@@ -459,7 +464,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
       isScrollControlled: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
         return StatefulBuilder(
@@ -474,13 +479,30 @@ class _CreateEventPageState extends State<CreateEventPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.grey.shade700
+                          : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   const Text(
-                    "Squad Needs (Optional)",
+                    "Squad Needs",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    "Add things you need the squad to bring or do (e.g. Bring ice, Drive 1st half)",
+                  Text(
+                    "Add things you need the crew to bring or do (e.g. Bring ice, Drive 1st half)",
+                    style: TextStyle(
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
                   Flexible(
@@ -489,7 +511,10 @@ class _CreateEventPageState extends State<CreateEventPage> {
                       itemCount: _roles.length,
                       itemBuilder: (context, index) {
                         return ListTile(
-                          title: Text(_roles[index]),
+                          title: Text(
+                            _roles[index],
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           trailing: IconButton(
                             icon: const Icon(
                               Icons.remove_circle,
@@ -541,7 +566,10 @@ class _CreateEventPageState extends State<CreateEventPage> {
                           backgroundColor: primaryColor,
                           foregroundColor: themeProvider.onPrimaryColor,
                         ),
-                        child: const Text("Add"),
+                        child: const Text(
+                          "Add",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ],
                   ),
@@ -619,7 +647,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
       context: context,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
         return SafeArea(
@@ -648,7 +676,10 @@ class _CreateEventPageState extends State<CreateEventPage> {
                   leading: const Icon(Icons.person_remove, color: Colors.red),
                   title: const Text(
                     "Remove Co-Captain",
-                    style: TextStyle(color: Colors.red),
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   onTap: () {
                     setState(() {
@@ -686,22 +717,34 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         }
 
                         return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: avatarColor,
-                            backgroundImage: avatarUrl != null
-                                ? CachedNetworkImageProvider(avatarUrl)
-                                : null,
-                            child: avatarUrl == null
-                                ? Text(
-                                    name.isNotEmpty
-                                        ? name[0].toUpperCase()
-                                        : "?",
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  )
-                                : null,
+                          leading: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: avatarColor.withValues(alpha: 0.4),
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: CircleAvatar(
+                              backgroundColor: avatarColor,
+                              backgroundImage: avatarUrl != null
+                                  ? CachedNetworkImageProvider(avatarUrl)
+                                  : null,
+                              child: avatarUrl == null
+                                  ? Text(
+                                      name.isNotEmpty
+                                          ? name[0].toUpperCase()
+                                          : "?",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    )
+                                  : null,
+                            ),
                           ),
                           title: Text(
                             name,
@@ -790,6 +833,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
               'invitedCircles': _selectedCircleIds,
               'isImportantDetails': _isImportantDetails,
               'rsvpDeadline': _rsvpDeadlineOffset,
+              'keepAliveDays': _keepAliveDays, // NEW: Field added to database
             });
 
         final batch = FirebaseFirestore.instance.batch();
@@ -849,29 +893,141 @@ class _CreateEventPageState extends State<CreateEventPage> {
     }
   }
 
-  Widget _buildResponsiveRow(bool isLandscape, Widget child1, Widget child2) {
-    if (isLandscape) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 16.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  // --- NEW: CARD WRAPPER UI ---
+  Widget _buildFormCard({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+          width: 1,
+        ),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: primaryColor, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(
+            height: 1,
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+          ),
+          Padding(padding: const EdgeInsets.all(20), child: child),
+        ],
+      ),
+    );
+  }
+
+  // --- NEW: TACTILE CHIP ROW UI ---
+  Widget _buildChipRow({
+    required String label,
+    required IconData icon,
+    required List<Map<String, dynamic>> options,
+    required dynamic selectedValue,
+    required Function(dynamic) onSelected,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Expanded(child: child1),
-            const SizedBox(width: 16),
-            Expanded(child: child2),
+            Icon(icon, size: 16, color: primaryColor),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
+              ),
+            ),
           ],
         ),
-      );
-    } else {
-      return Column(
-        children: [
-          child1,
-          const SizedBox(height: 16),
-          child2,
-          const SizedBox(height: 16),
-        ],
-      );
-    }
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: options.map((opt) {
+              final isSelected = selectedValue == opt['value'];
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: ChoiceChip(
+                  label: Text(opt['label']),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    if (selected) onSelected(opt['value']);
+                  },
+                  selectedColor: primaryColor.withValues(alpha: 0.15),
+                  backgroundColor: isDark
+                      ? Colors.grey.shade900
+                      : Colors.grey.shade50,
+                  labelStyle: TextStyle(
+                    color: isSelected
+                        ? primaryColor
+                        : (isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade700),
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  ),
+                  side: BorderSide(
+                    color: isSelected
+                        ? primaryColor.withValues(alpha: 0.5)
+                        : (isDark
+                              ? Colors.grey.shade800
+                              : Colors.grey.shade300),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  showCheckmark: false,
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -886,6 +1042,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
         "${_selectedDate.month}/${_selectedDate.day}/${_selectedDate.year}";
     final timeString = _selectedTime.format(context);
 
+    // --- FORM FIELDS ---
     final titleField = TextFormField(
       controller: _titleController,
       textCapitalization: TextCapitalization.sentences,
@@ -967,28 +1124,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
       ],
     );
 
-    final rsvpField = DropdownButtonFormField<int>(
-      initialValue: _rsvpDeadlineOffset,
-      decoration: _buildInputDecoration(
-        label: "RSVP Deadline",
-        prefixIcon: Icon(Icons.timer_off_outlined, color: primaryColor),
-      ),
-      dropdownColor: Theme.of(context).cardColor,
-      icon: const Icon(Icons.arrow_drop_down),
-      items: const [
-        DropdownMenuItem(value: -240, child: Text("4 hours before")),
-        DropdownMenuItem(value: -120, child: Text("2 hours before")),
-        DropdownMenuItem(value: -60, child: Text("1 hour before")),
-        DropdownMenuItem(value: -30, child: Text("30 mins before")),
-        DropdownMenuItem(value: 0, child: Text("At start time (Default)")),
-        DropdownMenuItem(value: 30, child: Text("30 mins after")),
-        DropdownMenuItem(value: 60, child: Text("1 hour after")),
-        DropdownMenuItem(value: 120, child: Text("2 hours after")),
-        DropdownMenuItem(value: 240, child: Text("4 hours after")),
-      ],
-      onChanged: (val) => setState(() => _rsvpDeadlineOffset = val ?? 0),
-    );
-
     final detailsField = TextFormField(
       controller: _detailsController,
       textCapitalization: TextCapitalization.sentences,
@@ -1005,6 +1140,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
       keyboardType: TextInputType.multiline,
     );
 
+    // --- TACTILE ACTIONS FOR "THE VIBE" CARD ---
     final togglesRow = Row(
       children: [
         Expanded(
@@ -1014,14 +1150,12 @@ class _CreateEventPageState extends State<CreateEventPage> {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
               decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
+                color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: _roles.isNotEmpty
                       ? primaryColor
-                      : (isDark
-                            ? Colors.white12
-                            : Colors.black.withValues(alpha: 0.05)),
+                      : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
                   width: _roles.isNotEmpty ? 2 : 1,
                 ),
               ),
@@ -1066,14 +1200,12 @@ class _CreateEventPageState extends State<CreateEventPage> {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
               decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
+                color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: _isImportantDetails
                       ? Colors.red
-                      : (isDark
-                            ? Colors.white12
-                            : Colors.black.withValues(alpha: 0.05)),
+                      : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
                   width: _isImportantDetails ? 2 : 1,
                 ),
               ),
@@ -1114,10 +1246,204 @@ class _CreateEventPageState extends State<CreateEventPage> {
       ],
     );
 
+    // --- PRE-BUILD THE CARDS ---
+
+    final vitalsCard = _buildFormCard(
+      title: "The Vitals",
+      icon: Icons.push_pin,
+      child: Column(
+        children: [
+          titleField,
+          const SizedBox(height: 16),
+          locationField,
+          const SizedBox(height: 16),
+          dateTimeRow,
+        ],
+      ),
+    );
+
+    final extrasCard = _buildFormCard(
+      title: "The Extras",
+      icon: Icons.auto_awesome,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildChipRow(
+            label: "Keep it going on for...",
+            icon: Icons.calendar_month,
+            selectedValue: _keepAliveDays,
+            onSelected: (val) => setState(() => _keepAliveDays = val),
+            options: [
+              {'label': 'A few hours', 'value': 0},
+              {'label': '1 Day', 'value': 1},
+              {'label': '2 Days', 'value': 2},
+              {'label': '3 Days', 'value': 3},
+              {'label': '4 Days', 'value': 4},
+              {'label': '5 Days', 'value': 5},
+              {'label': '1 Week', 'value': 7},
+              {'label': '10 Days', 'value': 10},
+            ],
+          ),
+          const SizedBox(height: 24),
+          _buildChipRow(
+            label: "RSVP Deadline",
+            icon: Icons.timer_off_outlined,
+            selectedValue: _rsvpDeadlineOffset,
+            onSelected: (val) => setState(() => _rsvpDeadlineOffset = val),
+            options: [
+              {'label': 'On time', 'value': 0},
+              {'label': '30 mins before', 'value': -30},
+              {'label': '1 hr before', 'value': -60},
+              {'label': '2 hrs before', 'value': -120},
+              {'label': '4 hrs before', 'value': -240},
+              {'label': '6 hrs before', 'value': -360},
+              {'label': '24 hrs before', 'value': -1440},
+            ],
+          ),
+          const SizedBox(height: 24),
+          detailsField,
+          const SizedBox(height: 16),
+          togglesRow,
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+
+    final crewCard = user == null
+        ? const SizedBox.shrink()
+        : _buildFormCard(
+            title: "The Crew",
+            icon: Icons.group,
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user.uid)
+                  .collection('circles')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                final circles = snapshot.hasData
+                    ? snapshot.data!.docs
+                    : <DocumentSnapshot>[];
+
+                String targetPreviewText = "Select Teams...";
+                if (_inviteAll) {
+                  targetPreviewText = "Entire Squad";
+                } else if (_selectedCircleIds.isNotEmpty) {
+                  final selectedNames = circles
+                      .where((c) => _selectedCircleIds.contains(c.id))
+                      .map(
+                        (c) =>
+                            (c.data() as Map<String, dynamic>)['name'] ??
+                            'Unnamed',
+                      )
+                      .join(', ');
+                  targetPreviewText = selectedNames.isNotEmpty
+                      ? selectedNames
+                      : "Selected Teams";
+                }
+
+                final circlesField = InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => _showCircleDialog(circles),
+                  child: InputDecorator(
+                    decoration: _buildInputDecoration(
+                      label: "Who's getting the i?",
+                      prefixIcon: Icon(
+                        Icons.people,
+                        color: isDark ? Colors.tealAccent : Colors.teal,
+                      ),
+                      suffixIcon: const Icon(Icons.arrow_drop_down),
+                    ),
+                    child: Text(
+                      targetPreviewText,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                );
+
+                final coHostField = InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: _showCoHostDialog,
+                  child: InputDecorator(
+                    decoration: _buildInputDecoration(
+                      label: "Add Co-Captain (optional)",
+                      prefixIcon: Icon(
+                        Icons.person_add_alt_1,
+                        color: isDark
+                            ? Colors.amberAccent
+                            : Colors.amber.shade700,
+                      ),
+                      suffixIcon: _selectedCoHostId != null
+                          ? IconButton(
+                              icon: const Icon(Icons.close, size: 20),
+                              onPressed: () => setState(() {
+                                _selectedCoHostId = null;
+                                _selectedCoHostName = null;
+                              }),
+                            )
+                          : const Icon(Icons.arrow_drop_down),
+                    ),
+                    child: Text(
+                      _selectedCoHostName ?? "Select a squadmate...",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: _selectedCoHostId != null
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                );
+
+                return Column(
+                  children: [
+                    circlesField,
+                    const SizedBox(height: 16),
+                    coHostField,
+                  ],
+                );
+              },
+            ),
+          );
+
+    final submitButton = SizedBox(
+      width: double.infinity,
+      height: 60,
+      child: ElevatedButton(
+        onPressed: _saveEvent,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: themeProvider.onPrimaryColor,
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+        child: const Text(
+          "send out the i's",
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ),
+    );
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Let's do..."),
+        title: const Text(
+          "Let's do...",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
         foregroundColor: Colors.white,
         flexibleSpace: Container(
@@ -1133,140 +1459,24 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      _buildResponsiveRow(
-                        isLandscape,
-                        titleField,
-                        locationField,
-                      ),
-                      _buildResponsiveRow(isLandscape, dateTimeRow, rsvpField),
-                      _buildResponsiveRow(
-                        isLandscape,
-                        detailsField,
-                        togglesRow,
-                      ),
-
-                      if (user != null) ...[
-                        StreamBuilder<QuerySnapshot>(
-                          stream: FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(user.uid)
-                              .collection('circles')
-                              .snapshots(),
-                          builder: (context, snapshot) {
-                            final circles = snapshot.hasData
-                                ? snapshot.data!.docs
-                                : <DocumentSnapshot>[];
-
-                            String targetPreviewText = "Select Teams...";
-                            if (_inviteAll) {
-                              targetPreviewText = "Entire Squad";
-                            } else if (_selectedCircleIds.isNotEmpty) {
-                              final selectedNames = circles
-                                  .where(
-                                    (c) => _selectedCircleIds.contains(c.id),
-                                  )
-                                  .map(
-                                    (c) =>
-                                        (c.data()
-                                            as Map<String, dynamic>)['name'] ??
-                                        'Unnamed',
-                                  )
-                                  .join(', ');
-                              targetPreviewText = selectedNames.isNotEmpty
-                                  ? selectedNames
-                                  : "Selected Teams";
-                            }
-
-                            final circlesField = InkWell(
-                              borderRadius: BorderRadius.circular(16),
-                              onTap: () => _showCircleDialog(circles),
-                              child: InputDecorator(
-                                decoration: _buildInputDecoration(
-                                  label: "Who's getting the i?",
-                                  prefixIcon: Icon(
-                                    Icons.people,
-                                    color: isDark
-                                        ? Colors.tealAccent
-                                        : Colors.teal,
-                                  ),
-                                  suffixIcon: const Icon(Icons.arrow_drop_down),
-                                ),
-                                child: Text(
-                                  targetPreviewText,
-                                  style: const TextStyle(fontSize: 16),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            );
-
-                            final coHostField = InkWell(
-                              borderRadius: BorderRadius.circular(16),
-                              onTap: _showCoHostDialog,
-                              child: InputDecorator(
-                                decoration: _buildInputDecoration(
-                                  label: "Add Co-Captain (optional)",
-                                  prefixIcon: Icon(
-                                    Icons.person_add_alt_1,
-                                    color: isDark
-                                        ? Colors.amberAccent
-                                        : Colors.amber.shade700,
-                                  ),
-                                  suffixIcon: _selectedCoHostId != null
-                                      ? IconButton(
-                                          icon: const Icon(
-                                            Icons.close,
-                                            size: 20,
-                                          ),
-                                          onPressed: () => setState(() {
-                                            _selectedCoHostId = null;
-                                            _selectedCoHostName = null;
-                                          }),
-                                        )
-                                      : const Icon(Icons.arrow_drop_down),
-                                ),
-                                child: Text(
-                                  _selectedCoHostName ??
-                                      "Select a squadmate...",
-                                  style: const TextStyle(fontSize: 16),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            );
-
-                            return _buildResponsiveRow(
-                              isLandscape,
-                              circlesField,
-                              coHostField,
-                            );
-                          },
-                        ),
-                      ],
-                      const SizedBox(height: 24),
-
-                      SizedBox(
-                        width: double.infinity,
-                        height: 55,
-                        child: ElevatedButton(
-                          onPressed: _saveEvent,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
-                            foregroundColor: themeProvider.onPrimaryColor,
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                      // --- DYNAMIC RESPONSIVE LAYOUT ---
+                      if (isLandscape)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(children: [vitalsCard, crewCard]),
                             ),
-                          ),
-                          child: const Text(
-                            "send out the i's",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
+                            const SizedBox(width: 24),
+                            Expanded(child: Column(children: [extrasCard])),
+                          ],
+                        )
+                      else
+                        Column(children: [vitalsCard, extrasCard, crewCard]),
+
+                      const SizedBox(height: 12),
+                      submitButton,
+                      const SizedBox(height: 40),
                     ],
                   ),
                 ),
