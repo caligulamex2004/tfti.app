@@ -36,7 +36,10 @@ class _EditEventPageState extends State<EditEventPage> {
   bool _isLoading = false;
 
   bool _isImportantDetails = false;
+
+  // Tactile Chip State
   int _rsvpDeadlineOffset = 0;
+  int _keepAliveDays = 0;
 
   bool _isLocFavorite = false;
   String? _favoriteDocId;
@@ -73,6 +76,7 @@ class _EditEventPageState extends State<EditEventPage> {
 
     _isImportantDetails = widget.eventData['isImportantDetails'] ?? false;
     _rsvpDeadlineOffset = widget.eventData['rsvpDeadline'] ?? 0;
+    _keepAliveDays = widget.eventData['keepAliveDays'] ?? 0;
 
     if (_isCoHost && !_isMainHost) {
       _inviteAll = widget.eventData['coHostInviteAll'] ?? false;
@@ -230,14 +234,7 @@ class _EditEventPageState extends State<EditEventPage> {
     }
   }
 
-  String _formatDate(DateTime dt) {
-    return "${dt.month}/${dt.day}/${dt.year}";
-  }
-
-  String _formatTime(TimeOfDay t) {
-    return t.format(context);
-  }
-
+  // --- MODERNIZED INPUT DECORATION ---
   InputDecoration _buildInputDecoration({
     required String label,
     String? hint,
@@ -246,7 +243,7 @@ class _EditEventPageState extends State<EditEventPage> {
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final cardColor = Theme.of(context).cardColor;
+    final fillColor = isDark ? Colors.grey.shade900 : Colors.grey.shade50;
 
     return InputDecoration(
       labelText: label,
@@ -257,11 +254,11 @@ class _EditEventPageState extends State<EditEventPage> {
       prefixIcon: prefixIcon,
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: cardColor,
+      fillColor: fillColor,
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(
-          color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05),
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
           width: 1,
         ),
       ),
@@ -301,7 +298,7 @@ class _EditEventPageState extends State<EditEventPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("New Friend Circle"),
+        title: const Text("New Team"),
         content: TextField(
           controller: nameController,
           autofocus: true,
@@ -393,7 +390,7 @@ class _EditEventPageState extends State<EditEventPage> {
                     SwitchListTile(
                       activeThumbColor: primaryColor,
                       title: const Text(
-                        "All Friends",
+                        "Entire Squad",
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       value: _inviteAll,
@@ -460,7 +457,7 @@ class _EditEventPageState extends State<EditEventPage> {
                         color: primaryColor,
                       ),
                       title: Text(
-                        "Create New Circle",
+                        "New Team",
                         style: TextStyle(
                           color: primaryColor,
                           fontWeight: FontWeight.bold,
@@ -538,7 +535,7 @@ class _EditEventPageState extends State<EditEventPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            "Select \"Who's getting the i?\" first to pick a co-host!",
+            "Select \"Who's getting the i?\" first to pick a co-captain!",
           ),
         ),
       );
@@ -551,7 +548,7 @@ class _EditEventPageState extends State<EditEventPage> {
       context: context,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
         return SafeArea(
@@ -580,7 +577,10 @@ class _EditEventPageState extends State<EditEventPage> {
                   leading: const Icon(Icons.person_remove, color: Colors.red),
                   title: const Text(
                     "Remove Co-Captain",
-                    style: TextStyle(color: Colors.red),
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   onTap: () {
                     setState(() {
@@ -618,22 +618,34 @@ class _EditEventPageState extends State<EditEventPage> {
                         }
 
                         return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: avatarColor,
-                            backgroundImage: avatarUrl != null
-                                ? CachedNetworkImageProvider(avatarUrl)
-                                : null,
-                            child: avatarUrl == null
-                                ? Text(
-                                    name.isNotEmpty
-                                        ? name[0].toUpperCase()
-                                        : "?",
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  )
-                                : null,
+                          leading: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: avatarColor.withValues(alpha: 0.4),
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: CircleAvatar(
+                              backgroundColor: avatarColor,
+                              backgroundImage: avatarUrl != null
+                                  ? CachedNetworkImageProvider(avatarUrl)
+                                  : null,
+                              child: avatarUrl == null
+                                  ? Text(
+                                      name.isNotEmpty
+                                          ? name[0].toUpperCase()
+                                          : "?",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    )
+                                  : null,
+                            ),
                           ),
                           title: Text(
                             name,
@@ -756,14 +768,14 @@ class _EditEventPageState extends State<EditEventPage> {
           };
         } else if (newDateTime != oldDateTime) {
           final oldDateStr =
-              "${_formatDate(oldDateTime)} @ ${_formatTime(TimeOfDay.fromDateTime(oldDateTime))}";
+              "${newDateTime.month}/${newDateTime.day}/${newDateTime.year} @ ${_selectedTime!.format(context)}";
           final newDateStr =
-              "${_formatDate(newDateTime)} @ ${_formatTime(TimeOfDay.fromDateTime(newDateTime))}";
+              "${oldDateTime.month}/${oldDateTime.day}/${oldDateTime.year} @ ${TimeOfDay.fromDateTime(oldDateTime).format(context)}";
 
           updateData['latestCriticalChange'] = {
             'field': 'Time/Date',
-            'original': oldDateStr,
-            'new': newDateStr,
+            'original': oldDateStr, // Show them what it used to be
+            'new': newDateStr, // Show them what it is now
             'timestamp': FieldValue.serverTimestamp(),
           };
         }
@@ -774,6 +786,7 @@ class _EditEventPageState extends State<EditEventPage> {
         updateData['time'] = Timestamp.fromDate(newDateTime);
         updateData['isImportantDetails'] = _isImportantDetails;
         updateData['rsvpDeadline'] = _rsvpDeadlineOffset;
+        updateData['keepAliveDays'] = _keepAliveDays; // Saves updated duration
         updateData['inviteAll'] = _inviteAll;
         updateData['invitedCircles'] = _selectedCircleIds;
         updateData['coHostId'] = _selectedCoHostId;
@@ -820,9 +833,6 @@ class _EditEventPageState extends State<EditEventPage> {
       Set<String> toRemove = oldIntendedIds.difference(newIntendedIds);
 
       toRemove.remove(widget.eventData['hostId']);
-      if (widget.eventData['coHostId'] != null) {
-        toRemove.remove(widget.eventData['coHostId']);
-      }
 
       final batch = FirebaseFirestore.instance.batch();
       final eventRef = FirebaseFirestore.instance
@@ -896,6 +906,143 @@ class _EditEventPageState extends State<EditEventPage> {
     if (picked != null) setState(() => _selectedTime = picked);
   }
 
+  // --- NEW: CARD WRAPPER UI ---
+  Widget _buildFormCard({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+          width: 1,
+        ),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: primaryColor, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(
+            height: 1,
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+          ),
+          Padding(padding: const EdgeInsets.all(20), child: child),
+        ],
+      ),
+    );
+  }
+
+  // --- NEW: TACTILE CHIP ROW UI ---
+  Widget _buildChipRow({
+    required String label,
+    required IconData icon,
+    required List<Map<String, dynamic>> options,
+    required dynamic selectedValue,
+    required Function(dynamic) onSelected,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 16, color: primaryColor),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: options.map((opt) {
+              final isSelected = selectedValue == opt['value'];
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: ChoiceChip(
+                  label: Text(opt['label']),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    if (selected) onSelected(opt['value']);
+                  },
+                  selectedColor: primaryColor.withValues(alpha: 0.15),
+                  backgroundColor: isDark
+                      ? Colors.grey.shade900
+                      : Colors.grey.shade50,
+                  labelStyle: TextStyle(
+                    color: isSelected
+                        ? primaryColor
+                        : (isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade700),
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  ),
+                  side: BorderSide(
+                    color: isSelected
+                        ? primaryColor.withValues(alpha: 0.5)
+                        : (isDark
+                              ? Colors.grey.shade800
+                              : Colors.grey.shade300),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  showCheckmark: false,
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildResponsiveRow(bool isLandscape, Widget child1, Widget child2) {
     if (isLandscape) {
       return Padding(
@@ -922,155 +1069,190 @@ class _EditEventPageState extends State<EditEventPage> {
   }
 
   Widget _buildCoHostView(bool isDark, Color primaryColor, User user) {
+    final circlesField = StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('circles')
+          .snapshots(),
+      builder: (context, snapshot) {
+        final circles = snapshot.hasData
+            ? snapshot.data!.docs
+            : <DocumentSnapshot>[];
+
+        String targetPreviewText = "Select Teams...";
+        if (_inviteAll) {
+          targetPreviewText = "Entire Squad";
+        } else if (_selectedCircleIds.isNotEmpty) {
+          final selectedNames = circles
+              .where((c) => _selectedCircleIds.contains(c.id))
+              .map(
+                (c) => (c.data() as Map<String, dynamic>)['name'] ?? 'Unnamed',
+              )
+              .join(', ');
+          targetPreviewText = selectedNames.isNotEmpty
+              ? selectedNames
+              : "Selected Teams";
+        }
+
+        return InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _showCircleDialog(circles),
+          child: InputDecorator(
+            decoration: _buildInputDecoration(
+              label: "Update Crew List",
+              prefixIcon: Icon(
+                Icons.people,
+                color: isDark ? Colors.tealAccent : Colors.teal,
+              ),
+              suffixIcon: const Icon(Icons.arrow_drop_down),
+            ),
+            child: Text(
+              targetPreviewText,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        );
+      },
+    );
+
     return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? Colors.teal.withValues(alpha: 0.2)
-                    : Colors.teal.shade50,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.teal),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Symbols.military_tech,
-                    color: Colors.teal,
-                    size: 28,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      "You are the Co-Captain! You can manage your own squad list and add Squad Needs.",
-                      style: TextStyle(
-                        color: isDark
-                            ? Colors.tealAccent
-                            : Colors.teal.shade900,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user.uid)
-                  .collection('circles')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                final circles = snapshot.hasData
-                    ? snapshot.data!.docs
-                    : <DocumentSnapshot>[];
-
-                String targetPreviewText = "Select Teams...";
-                if (_inviteAll) {
-                  targetPreviewText = "Entire Squad";
-                } else if (_selectedCircleIds.isNotEmpty) {
-                  final selectedNames = circles
-                      .where((c) => _selectedCircleIds.contains(c.id))
-                      .map(
-                        (c) =>
-                            (c.data() as Map<String, dynamic>)['name'] ??
-                            'Unnamed',
-                      )
-                      .join(', ');
-                  targetPreviewText = selectedNames.isNotEmpty
-                      ? selectedNames
-                      : "Selected Teams";
-                }
-
-                return InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () => _showCircleDialog(circles),
-                  child: InputDecorator(
-                    decoration: _buildInputDecoration(
-                      label: "Update Crew List",
-                      prefixIcon: Icon(
-                        Icons.people,
-                        color: isDark ? Colors.tealAccent : Colors.teal,
-                      ),
-                      suffixIcon: const Icon(Icons.arrow_drop_down),
-                    ),
-                    child: Text(
-                      targetPreviewText,
-                      style: const TextStyle(fontSize: 16),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-
-            Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isDark
-                      ? Colors.white12
-                      : Colors.black.withValues(alpha: 0.05),
-                  width: 1,
-                ),
-              ),
-              child: ListTile(
-                leading: Icon(Icons.check_box_outlined, color: primaryColor),
-                title: const Text(
-                  "Manage Squad Needs",
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-                ),
-                subtitle: const Text(
-                  "View, add, or delete your roles",
-                  style: TextStyle(fontSize: 12),
-                ),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          EventRolesPage(eventId: widget.eventId, isHost: true),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 40),
-
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton(
-                onPressed: _updateEvent,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  foregroundColor: themeProvider.onPrimaryColor,
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        children: [
+          _buildFormCard(
+            title: "Co-Captain Dashboard",
+            icon: Symbols.military_tech,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.teal.withValues(alpha: 0.1)
+                        : Colors.teal.shade50,
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.teal.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Symbols.military_tech,
+                        color: Colors.teal,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          "You are the Co-Captain! You can manage your own crew and add Squad Needs.",
+                          style: TextStyle(
+                            color: isDark
+                                ? Colors.tealAccent
+                                : Colors.teal.shade900,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: const Text(
-                  "Save Changes",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                const SizedBox(height: 24),
+                circlesField,
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EventRolesPage(
+                          eventId: widget.eventId,
+                          isHost: true,
+                        ),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                      horizontal: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.grey.shade900
+                          : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark
+                            ? Colors.grey.shade800
+                            : Colors.grey.shade200,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_box_outlined, color: primaryColor),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Manage Squad Needs",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryColor,
+                                ),
+                              ),
+                              Text(
+                                "View, add, or delete your roles",
+                                style: TextStyle(
+                                  color: isDark
+                                      ? Colors.grey.shade400
+                                      : Colors.grey.shade600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 16,
+                          color: primaryColor,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 60,
+            child: ElevatedButton(
+              onPressed: _updateEvent,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: themeProvider.onPrimaryColor,
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
                 ),
               ),
+              child: const Text(
+                "Save Changes",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1172,28 +1354,6 @@ class _EditEventPageState extends State<EditEventPage> {
       ],
     );
 
-    final rsvpField = DropdownButtonFormField<int>(
-      initialValue: _rsvpDeadlineOffset,
-      decoration: _buildInputDecoration(
-        label: "RSVP Deadline",
-        prefixIcon: Icon(Icons.timer_off_outlined, color: primaryColor),
-      ),
-      dropdownColor: Theme.of(context).cardColor,
-      icon: const Icon(Icons.arrow_drop_down),
-      items: const [
-        DropdownMenuItem(value: -240, child: Text("4 hours before")),
-        DropdownMenuItem(value: -120, child: Text("2 hours before")),
-        DropdownMenuItem(value: -60, child: Text("1 hour before")),
-        DropdownMenuItem(value: -30, child: Text("30 mins before")),
-        DropdownMenuItem(value: 0, child: Text("At start time (Default)")),
-        DropdownMenuItem(value: 30, child: Text("30 mins after")),
-        DropdownMenuItem(value: 60, child: Text("1 hour after")),
-        DropdownMenuItem(value: 120, child: Text("2 hours after")),
-        DropdownMenuItem(value: 240, child: Text("4 hours after")),
-      ],
-      onChanged: (val) => setState(() => _rsvpDeadlineOffset = val ?? 0),
-    );
-
     final detailsField = TextFormField(
       controller: _detailsController,
       maxLength: 500,
@@ -1224,12 +1384,10 @@ class _EditEventPageState extends State<EditEventPage> {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
               decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
+                color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: isDark
-                      ? Colors.white12
-                      : Colors.black.withValues(alpha: 0.05),
+                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                   width: 1,
                 ),
               ),
@@ -1263,14 +1421,12 @@ class _EditEventPageState extends State<EditEventPage> {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
               decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
+                color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: _isImportantDetails
                       ? Colors.red
-                      : (isDark
-                            ? Colors.white12
-                            : Colors.black.withValues(alpha: 0.05)),
+                      : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
                   width: _isImportantDetails ? 2 : 1,
                 ),
               ),
@@ -1311,10 +1467,238 @@ class _EditEventPageState extends State<EditEventPage> {
       ],
     );
 
+    // --- CARDS ---
+
+    final vitalsCard = _buildFormCard(
+      title: "The Vitals",
+      icon: Icons.push_pin,
+      child: Column(
+        children: [
+          _buildResponsiveRow(isLandscape, titleField, locationField),
+          dateTimeRow,
+        ],
+      ),
+    );
+
+    final extrasCard = _buildFormCard(
+      title: "The Extras",
+      icon: Icons.auto_awesome,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          detailsField,
+          const SizedBox(height: 16),
+          togglesRow,
+          const SizedBox(height: 24),
+
+          _buildChipRow(
+            label: "RSVP Deadline",
+            icon: Icons.timer_off_outlined,
+            selectedValue: _rsvpDeadlineOffset,
+            onSelected: (val) => setState(() => _rsvpDeadlineOffset = val),
+            options: [
+              {'label': 'At start time', 'value': 0},
+              {'label': '30 mins before', 'value': -30},
+              {'label': '1 hr before', 'value': -60},
+              {'label': '2 hrs before', 'value': -120},
+              {'label': '4 hrs before', 'value': -240},
+              {'label': '24 hrs before', 'value': -1440},
+              {'label': '1 hr after', 'value': 60},
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          _buildChipRow(
+            label: "Keep it going on for...",
+            icon: Icons.calendar_month,
+            selectedValue: _keepAliveDays,
+            onSelected: (val) => setState(() => _keepAliveDays = val),
+            options: [
+              {'label': 'Standard (A few hours)', 'value': 0},
+              {'label': '1 Day', 'value': 1},
+              {'label': '2 Days', 'value': 2},
+              {'label': '3 Days', 'value': 3},
+              {'label': '4 Days', 'value': 4},
+              {'label': '5 Days', 'value': 5},
+              {'label': '1 Week', 'value': 7},
+              {'label': '10 Days', 'value': 10},
+            ],
+          ),
+        ],
+      ),
+    );
+
+    final crewCard = user == null
+        ? const SizedBox.shrink()
+        : _buildFormCard(
+            title: "The Crew",
+            icon: Icons.group,
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user.uid)
+                  .collection('circles')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                final circles = snapshot.hasData
+                    ? snapshot.data!.docs
+                    : <DocumentSnapshot>[];
+
+                String targetPreviewText = "Select Squads...";
+                if (_inviteAll) {
+                  targetPreviewText = "Entire Squad";
+                } else if (_selectedCircleIds.isNotEmpty) {
+                  final selectedNames = circles
+                      .where((c) => _selectedCircleIds.contains(c.id))
+                      .map(
+                        (c) =>
+                            (c.data() as Map<String, dynamic>)['name'] ??
+                            'Unnamed',
+                      )
+                      .join(', ');
+                  targetPreviewText = selectedNames.isNotEmpty
+                      ? selectedNames
+                      : "Selected Teams";
+                }
+
+                final circlesField = InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => _showCircleDialog(circles),
+                  child: InputDecorator(
+                    decoration: _buildInputDecoration(
+                      label: "Update Squad List",
+                      prefixIcon: Icon(
+                        Icons.people,
+                        color: isDark ? Colors.tealAccent : Colors.teal,
+                      ),
+                      suffixIcon: const Icon(Icons.arrow_drop_down),
+                    ),
+                    child: Text(
+                      targetPreviewText,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                );
+
+                final coHostField = InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: _showCoHostDialog,
+                  child: InputDecorator(
+                    decoration: _buildInputDecoration(
+                      label: "Change Co-Captain (optional)",
+                      prefixIcon: Icon(
+                        Icons.person_add_alt_1,
+                        color: isDark
+                            ? Colors.amberAccent
+                            : Colors.amber.shade700,
+                      ),
+                      suffixIcon: _selectedCoHostId != null
+                          ? IconButton(
+                              icon: const Icon(Icons.close, size: 20),
+                              onPressed: () => setState(() {
+                                _selectedCoHostId = null;
+                                _selectedCoHostName = null;
+                              }),
+                            )
+                          : const Icon(Icons.arrow_drop_down),
+                    ),
+                    child: Text(
+                      _selectedCoHostName ?? "Select a squadmate...",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: _selectedCoHostId != null
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                );
+
+                return _buildResponsiveRow(
+                  isLandscape,
+                  circlesField,
+                  coHostField,
+                );
+              },
+            ),
+          );
+
+    final actionButtons = Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 60,
+          child: ElevatedButton(
+            onPressed: _updateEvent,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: themeProvider.onPrimaryColor,
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            child: const Text(
+              "Save Changes",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        SizedBox(
+          width: double.infinity,
+          height: 55,
+          child: OutlinedButton.icon(
+            onPressed: _deleteEvent,
+            icon: Icon(
+              Icons.delete,
+              color: isDark ? Colors.redAccent : Colors.red,
+            ),
+            label: Text(
+              "Delete Operation",
+              style: TextStyle(
+                color: isDark ? Colors.redAccent : Colors.red,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(
+                color: isDark
+                    ? Colors.redAccent.withValues(alpha: 0.5)
+                    : Colors.red.withValues(alpha: 0.5),
+                width: 1.5,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(_isMainHost ? "Change of Plans" : "Manage Hangout"),
+        title: Text(
+          _isMainHost ? "Change of Plans" : "Manage Hangout",
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
         foregroundColor: Colors.white,
         flexibleSpace: Container(
@@ -1325,165 +1709,40 @@ class _EditEventPageState extends State<EditEventPage> {
           ? const Center(child: CircularProgressIndicator())
           : (_isCoHost && !_isMainHost)
           ? _buildCoHostView(isDark, primaryColor, user!)
-          : SingleChildScrollView(
+          : Padding(
               padding: const EdgeInsets.all(20.0),
               child: Form(
                 key: _formKey,
-                child: Column(
-                  children: [
-                    _buildResponsiveRow(isLandscape, titleField, locationField),
-                    _buildResponsiveRow(isLandscape, dateTimeRow, rsvpField),
-                    _buildResponsiveRow(isLandscape, detailsField, togglesRow),
-
-                    if (user != null) ...[
-                      StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(user.uid)
-                            .collection('circles')
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          final circles = snapshot.hasData
-                              ? snapshot.data!.docs
-                              : <DocumentSnapshot>[];
-
-                          String targetPreviewText = "Select Squads...";
-                          if (_inviteAll) {
-                            targetPreviewText = "Entire Squad";
-                          } else if (_selectedCircleIds.isNotEmpty) {
-                            final selectedNames = circles
-                                .where((c) => _selectedCircleIds.contains(c.id))
-                                .map(
-                                  (c) =>
-                                      (c.data()
-                                          as Map<String, dynamic>)['name'] ??
-                                      'Unnamed',
-                                )
-                                .join(', ');
-                            targetPreviewText = selectedNames.isNotEmpty
-                                ? selectedNames
-                                : "Selected Teams";
-                          }
-
-                          final circlesField = InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: () => _showCircleDialog(circles),
-                            child: InputDecorator(
-                              decoration: _buildInputDecoration(
-                                label: "Update Squad List",
-                                prefixIcon: Icon(
-                                  Icons.people,
-                                  color: isDark
-                                      ? Colors.tealAccent
-                                      : Colors.teal,
-                                ),
-                                suffixIcon: const Icon(Icons.arrow_drop_down),
-                              ),
-                              child: Text(
-                                targetPreviewText,
-                                style: const TextStyle(fontSize: 16),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // --- DYNAMIC RESPONSIVE LAYOUT ---
+                      if (isLandscape)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                children: [vitalsCard, crewCard, actionButtons],
                               ),
                             ),
-                          );
-
-                          final coHostField = InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: _showCoHostDialog,
-                            child: InputDecorator(
-                              decoration: _buildInputDecoration(
-                                label: "Change Co-Captain (optional)",
-                                prefixIcon: Icon(
-                                  Icons.person_add_alt_1,
-                                  color: isDark
-                                      ? Colors.amberAccent
-                                      : Colors.amber.shade700,
-                                ),
-                                suffixIcon: _selectedCoHostId != null
-                                    ? IconButton(
-                                        icon: const Icon(Icons.close, size: 20),
-                                        onPressed: () => setState(() {
-                                          _selectedCoHostId = null;
-                                          _selectedCoHostName = null;
-                                        }),
-                                      )
-                                    : const Icon(Icons.arrow_drop_down),
-                              ),
-                              child: Text(
-                                _selectedCoHostName ?? "Select a squadmate...",
-                                style: const TextStyle(fontSize: 16),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          );
-
-                          return _buildResponsiveRow(
-                            isLandscape,
-                            circlesField,
-                            coHostField,
-                          );
-                        },
-                      ),
+                            const SizedBox(width: 24),
+                            Expanded(child: Column(children: [extrasCard])),
+                          ],
+                        )
+                      else
+                        Column(
+                          children: [
+                            vitalsCard,
+                            extrasCard,
+                            crewCard,
+                            const SizedBox(height: 12),
+                            actionButtons,
+                          ],
+                        ),
+                      const SizedBox(height: 40),
                     ],
-
-                    const SizedBox(height: 24),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 55,
-                      child: ElevatedButton(
-                        onPressed: _updateEvent,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryColor,
-                          foregroundColor: themeProvider.onPrimaryColor,
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: const Text(
-                          "Save Changes",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 55,
-                      child: OutlinedButton.icon(
-                        onPressed: _deleteEvent,
-                        icon: Icon(
-                          Icons.delete,
-                          color: isDark ? Colors.redAccent : Colors.red,
-                        ),
-                        label: Text(
-                          "Delete Operation",
-                          style: TextStyle(
-                            color: isDark ? Colors.redAccent : Colors.red,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: isDark ? Colors.redAccent : Colors.red,
-                            width: 1.5,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
