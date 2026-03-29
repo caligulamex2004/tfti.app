@@ -31,6 +31,8 @@ class EventChatPage extends StatefulWidget {
 class _EventChatPageState extends State<EventChatPage> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  final FocusNode _focusNode =
+      FocusNode(); // NEW: To control keyboard focus from Quick Actions
 
   String? _mentionQuery;
   List<Map<String, dynamic>> _eventGuests = [];
@@ -56,6 +58,7 @@ class _EventChatPageState extends State<EventChatPage> {
     _messageController.removeListener(_onTextChanged);
     _messageController.dispose();
     _scrollController.dispose();
+    _focusNode.dispose();
     _invitationsSub?.cancel();
     _messagesSub?.cancel();
     super.dispose();
@@ -180,6 +183,7 @@ class _EventChatPageState extends State<EventChatPage> {
     );
 
     setState(() => _mentionQuery = null);
+    _focusNode.requestFocus();
   }
 
   Future<void> _markAsRead() async {
@@ -298,7 +302,6 @@ class _EventChatPageState extends State<EventChatPage> {
                     ),
 
                     if (!showFullPicker) ...[
-                      // --- STANDARD QUICK REACTION ROW ---
                       Padding(
                         padding: const EdgeInsets.symmetric(
                           vertical: 20.0,
@@ -338,8 +341,6 @@ class _EventChatPageState extends State<EventChatPage> {
                                 ),
                               );
                             }),
-
-                            // The "+" Button
                             GestureDetector(
                               onTap: () {
                                 setSheetState(() => showFullPicker = true);
@@ -362,9 +363,7 @@ class _EventChatPageState extends State<EventChatPage> {
                           ],
                         ),
                       ),
-
                       const Divider(height: 1),
-
                       if (!isMe)
                         ListTile(
                           leading: const Icon(Icons.flag, color: Colors.red),
@@ -418,7 +417,6 @@ class _EventChatPageState extends State<EventChatPage> {
                           },
                         ),
                     ] else ...[
-                      // --- FULL EMOJI PICKER UI ---
                       Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16.0,
@@ -442,10 +440,8 @@ class _EventChatPageState extends State<EventChatPage> {
                           ],
                         ),
                       ),
-
                       SizedBox(
-                        height:
-                            300, // Explicit height constraint for the picker
+                        height: 300,
                         child: EmojiPicker(
                           onEmojiSelected: (category, emoji) {
                             Navigator.pop(ctx);
@@ -878,6 +874,483 @@ class _EventChatPageState extends State<EventChatPage> {
     });
   }
 
+  void _showDibsOptions() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "Unclaimed Squad Needs",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Divider(height: 1),
+
+              // Safe constraints for the bottom sheet list
+              Flexible(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('events')
+                      .doc(widget.eventId)
+                      .collection('roles')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+                    }
+
+                    final docs = snapshot.data!.docs;
+                    if (docs.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: Text(
+                          "No Squad Needs were added for this event.",
+                        ),
+                      );
+                    }
+
+                    // Filter out items that are already claimed
+                    final unclaimedDocs = docs
+                        .where(
+                          (d) =>
+                              (d.data()
+                                  as Map<String, dynamic>)['claimedByUid'] ==
+                              null,
+                        )
+                        .toList();
+
+                    if (unclaimedDocs.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.all(32.0),
+                        child: Text(
+                          "Everything has been claimed! 🎉",
+                          style: TextStyle(
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemCount: unclaimedDocs.length,
+                      itemBuilder: (context, index) {
+                        final doc = unclaimedDocs[index];
+                        final data = doc.data() as Map<String, dynamic>;
+                        final title = data['title'] ?? 'Something';
+
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: primaryColor.withValues(
+                              alpha: 0.15,
+                            ),
+                            child: Icon(
+                              Icons.pan_tool,
+                              color: primaryColor,
+                              size: 20,
+                            ),
+                          ),
+                          title: Text(
+                            title,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            "Tap to claim this item",
+                            style: TextStyle(
+                              color: isDark
+                                  ? Colors.grey.shade500
+                                  : Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _claimRoleAndAnnounce(doc.id, title, user);
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _claimRoleAndAnnounce(
+    String roleId,
+    String roleTitle,
+    User user,
+  ) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final displayName = userDoc.data()?['displayName'] ?? "Someone";
+
+      // 1. Lock the role in the database
+      await FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.eventId)
+          .collection('roles')
+          .doc(roleId)
+          .update({'claimedByUid': user.uid, 'claimedByName': displayName});
+
+      // 2. Draft the announcement message and fire it off
+      _messageController.text = "I got dibs on $roleTitle! ✋";
+      await _sendMessage();
+    } catch (e) {
+      debugPrint("Error claiming role: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Failed to claim that item. Someone might have beat you to it!",
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  // --- NEW: THE PINNED CONTEXT CARD ---
+  Widget _buildPinnedContextCard(
+    Map<String, dynamic> data,
+    bool isDark,
+    Color primaryColor,
+  ) {
+    final Timestamp ts = data['time'];
+    final DateTime dt = ts.toDate();
+    final int keepAliveDays = data['keepAliveDays'] ?? 0;
+
+    final List<String> shortMonths = [
+      'JAN',
+      'FEB',
+      'MAR',
+      'APR',
+      'MAY',
+      'JUN',
+      'JUL',
+      'AUG',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DEC',
+    ];
+    final String shortMonth = shortMonths[dt.month - 1];
+    final String day = dt.day.toString();
+
+    int hour = dt.hour;
+    final String period = hour >= 12 ? "PM" : "AM";
+    hour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+    final String minute = dt.minute.toString().padLeft(2, '0');
+    final String timeString = "$hour:$minute $period";
+
+    String keepAliveLabel = "";
+    if (keepAliveDays == 1) {
+      keepAliveLabel = "1 Day";
+    } else if (keepAliveDays == 7) {
+      keepAliveLabel = "1 Week";
+    } else if (keepAliveDays > 0) {
+      keepAliveLabel = "$keepAliveDays Days";
+    }
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            width: 1,
+          ),
+        ),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          // Date Block
+          Container(
+            width: 45,
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.grey.shade800
+                  : Theme.of(context).colorScheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isDark ? Colors.grey.shade700 : Colors.grey.shade200,
+                width: 1,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(6),
+                    ),
+                  ),
+                  child: Text(
+                    shortMonth,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text(
+                    day,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Details Stack
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      timeString,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isDark
+                            ? Colors.grey.shade300
+                            : Colors.grey.shade800,
+                      ),
+                    ),
+                    if (keepAliveDays > 0) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.tertiary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.tertiary.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          keepAliveLabel,
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                            color: Theme.of(context).colorScheme.tertiary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.location_on,
+                      size: 12,
+                      color: isDark
+                          ? Colors.grey.shade500
+                          : Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        data['location'] ?? 'TBD',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- NEW: THE TACTILE QUICK ACTION CHIPS ---
+  Widget _buildQuickActions(bool isDark, Color primaryColor) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          ActionChip(
+            avatar: Icon(Icons.alternate_email, size: 16, color: primaryColor),
+            label: Text(
+              "Mention",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: primaryColor,
+              ),
+            ),
+            backgroundColor: primaryColor.withValues(alpha: 0.1),
+            side: BorderSide(color: primaryColor.withValues(alpha: 0.3)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            onPressed: () {
+              _messageController.text += "@";
+              _focusNode.requestFocus();
+              _onTextChanged();
+            },
+          ),
+          const SizedBox(width: 8),
+          ActionChip(
+            avatar: Icon(
+              Icons.camera_alt,
+              size: 16,
+              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+            ),
+            label: Text(
+              "Photo",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+              ),
+            ),
+            backgroundColor: isDark
+                ? Colors.grey.shade800
+                : Colors.grey.shade200,
+            side: BorderSide.none,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            onPressed: _showAttachmentOptions,
+          ),
+          const SizedBox(width: 8),
+          ActionChip(
+            avatar: Icon(
+              Icons.directions_car,
+              size: 16,
+              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+            ),
+            label: Text(
+              "On my way",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+              ),
+            ),
+            backgroundColor: isDark
+                ? Colors.grey.shade800
+                : Colors.grey.shade200,
+            side: BorderSide.none,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            onPressed: () {
+              _messageController.text = "On my way! 🚗";
+              _focusNode.requestFocus();
+            },
+          ),
+          const SizedBox(width: 8),
+          ActionChip(
+            avatar: Icon(
+              Icons.pan_tool,
+              size: 16,
+              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+            ),
+            label: Text(
+              "I got dibs on...",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+              ),
+            ),
+            backgroundColor: isDark
+                ? Colors.grey.shade800
+                : Colors.grey.shade200,
+            side: BorderSide.none,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            onPressed:
+                _showDibsOptions, // 👇 FIX: Now launches the database selection sheet!
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMessageText(
     String text,
     List<dynamic> mentionedUids,
@@ -1156,6 +1629,21 @@ class _EventChatPageState extends State<EventChatPage> {
       ),
       body: Column(
         children: [
+          // --- NEW: THE PINNED CONTEXT CARD ---
+          StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('events')
+                .doc(widget.eventId)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || !snapshot.data!.exists) {
+                return const SizedBox.shrink();
+              }
+              final eventData = snapshot.data!.data() as Map<String, dynamic>;
+              return _buildPinnedContextCard(eventData, isDark, primaryColor);
+            },
+          ),
+
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -1219,13 +1707,12 @@ class _EventChatPageState extends State<EventChatPage> {
             ),
           ),
 
-          if (_mentionQuery != null) _buildMentionList(),
+          if (_mentionQuery != null) Flexible(child: _buildMentionList()),
 
           SafeArea(
             bottom: true,
             top: false,
             child: Container(
-              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
                 boxShadow: [
@@ -1237,81 +1724,106 @@ class _EventChatPageState extends State<EventChatPage> {
                     ),
                 ],
               ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (_isUploadingImage)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 14.0,
-                        vertical: 14.0,
-                      ),
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  else
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 2.0),
-                      child: IconButton(
-                        icon: Icon(
-                          Icons.add_photo_alternate,
-                          color: primaryColor,
-                        ),
-                        onPressed: _showAttachmentOptions,
-                      ),
-                    ),
+                  // --- NEW: QUICK ACTIONS ROW ---
+                  _buildQuickActions(isDark, primaryColor),
 
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      textCapitalization: TextCapitalization.sentences,
-                      minLines: 1,
-                      maxLines: 5,
-                      maxLength: 1000,
-                      keyboardType: TextInputType.multiline,
-                      style: TextStyle(
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: "Say something...",
-                        counterText: "",
-                        hintStyle: TextStyle(
-                          color: isDark
-                              ? Colors.grey.shade500
-                              : Colors.grey.shade600,
-                        ),
-                        filled: true,
-                        fillColor: isDark
-                            ? Colors.grey.shade800
-                            : Colors.grey.shade100,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(25),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
+                  // --- MODERNIZED INPUT ROW ---
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 2.0),
-                    child: CircleAvatar(
-                      backgroundColor: primaryColor,
-                      radius: 24,
-                      child: IconButton(
-                        icon: Icon(
-                          Icons.send,
-                          color: themeProvider.onPrimaryColor,
-                          size: 20,
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (_isUploadingImage)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 14.0,
+                              vertical: 14.0,
+                            ),
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        else
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 2.0),
+                            child: IconButton(
+                              icon: Icon(
+                                Icons.add_photo_alternate,
+                                color: primaryColor,
+                              ),
+                              onPressed: _showAttachmentOptions,
+                            ),
+                          ),
+
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            focusNode: _focusNode,
+                            textCapitalization: TextCapitalization.sentences,
+                            minLines: 1,
+                            maxLines: 5,
+                            maxLength: 1000,
+                            keyboardType: TextInputType.multiline,
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: "Say something...",
+                              counterText: "",
+                              hintStyle: TextStyle(
+                                color: isDark
+                                    ? Colors.grey.shade500
+                                    : Colors.grey.shade600,
+                              ),
+                              filled: true,
+                              fillColor: isDark
+                                  ? Colors.grey.shade800
+                                  : Colors.grey.shade50,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 10,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(25),
+                                borderSide: BorderSide(
+                                  color: isDark
+                                      ? Colors.grey.shade700
+                                      : Colors.grey.shade200,
+                                  width: 1,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(25),
+                                borderSide: BorderSide(
+                                  color: primaryColor.withValues(alpha: 0.6),
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                        onPressed: _sendMessage,
-                      ),
+                        const SizedBox(width: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 2.0),
+                          child: CircleAvatar(
+                            backgroundColor: primaryColor,
+                            radius: 24,
+                            child: IconButton(
+                              icon: Icon(
+                                Icons.send,
+                                color: themeProvider.onPrimaryColor,
+                                size: 20,
+                              ),
+                              onPressed: _sendMessage,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
