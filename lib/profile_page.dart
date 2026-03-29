@@ -25,16 +25,19 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final _nameController = TextEditingController();
+  final _statusController = TextEditingController(); // NEW: Status Controller
   String _phoneNumber = '';
 
   int _selectedColorValue = Colors.blue.toARGB32();
   bool _isLoading = false;
+  bool _showPhoneNumber = false; // NEW: Privacy Toggle State
 
   String? _avatarUrl;
   bool _isUploadingAvatar = false;
 
   StreamSubscription<DocumentSnapshot>? _userSub;
-  bool _hasLoadedInitialName = false;
+  bool _hasLoadedInitialData =
+      false; // UPDATED: Renamed from _hasLoadedInitialName
 
   // NEW: Added White to the color palette!
   final List<Color> _colors = [
@@ -60,6 +63,7 @@ class _ProfilePageState extends State<ProfilePage> {
     _autoSaveIdentity();
     _userSub?.cancel();
     _nameController.dispose();
+    _statusController.dispose(); //NEW: Dispose status controller
     super.dispose();
   }
 
@@ -78,10 +82,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 final data = doc.data()!;
 
                 setState(() {
-                  if (!_hasLoadedInitialName &&
-                      data.containsKey('displayName')) {
-                    _nameController.text = data['displayName'] ?? '';
-                    _hasLoadedInitialName = true;
+                  // Load text fields only once to prevent cursor jumping while typing
+                  if (!_hasLoadedInitialData) {
+                    if (data.containsKey('displayName')) {
+                      _nameController.text = data['displayName'] ?? '';
+                    }
+                    if (data.containsKey('statusText')) {
+                      _statusController.text = data['statusText'] ?? '';
+                    }
+                    _hasLoadedInitialData = true;
                   }
 
                   if (data.containsKey('phoneNumber')) {
@@ -105,6 +114,11 @@ class _ProfilePageState extends State<ProfilePage> {
                   } else {
                     _avatarUrl = null;
                   }
+
+                  // Load Privacy Toggle
+                  if (data.containsKey('showPhoneNumber')) {
+                    _showPhoneNumber = data['showPhoneNumber'] ?? false;
+                  }
                 });
               }
             },
@@ -117,6 +131,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   void _autoSaveIdentity() {
     final newName = _nameController.text.trim();
+    final newStatus = _statusController.text.trim(); // Get status text
     if (newName.isEmpty) return;
 
     final user = FirebaseAuth.instance.currentUser;
@@ -128,7 +143,12 @@ class _ProfilePageState extends State<ProfilePage> {
       FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
-          .update({'displayName': newName, 'avatarColor': _selectedColorValue})
+          .update({
+            'displayName': newName,
+            'statusText': newStatus, // Save status text
+            'avatarColor': _selectedColorValue,
+            'showPhoneNumber': _showPhoneNumber, // Save privacy preference
+          })
           .catchError((e) => debugPrint("Auto-save error: $e"));
     }
   }
@@ -722,8 +742,52 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 16),
 
+          // 👇 NEW: Mood / Status Field
+          TextField(
+            controller: _statusController,
+            textInputAction: TextInputAction.done,
+            maxLength: 35, // Reasonable limit for a pill
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 15,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+            decoration: InputDecoration(
+              labelText: "I'm feeling like...",
+              labelStyle: TextStyle(
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              ),
+              prefixIcon: Icon(Symbols.mood, color: primaryColor),
+              filled: true,
+              fillColor: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: primaryColor.withValues(alpha: 0.5),
+                  width: 2,
+                ),
+              ),
+              counterText: "",
+            ),
+            onChanged: (val) => setState(() {}),
+            onTapOutside: (event) {
+              FocusManager.instance.primaryFocus?.unfocus();
+              _autoSaveIdentity();
+            },
+            onEditingComplete: () {
+              FocusManager.instance.primaryFocus?.unfocus();
+              _autoSaveIdentity();
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // 👇 UPDATED: Phone Number Container with Privacy Toggle
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
               borderRadius: BorderRadius.circular(16),
@@ -732,14 +796,43 @@ class _ProfilePageState extends State<ProfilePage> {
               children: [
                 Icon(Icons.phone_iphone, size: 20, color: primaryColor),
                 const SizedBox(width: 12),
-                Text(
-                  _phoneNumber.isNotEmpty ? _phoneNumber : "No phone number",
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                    color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _phoneNumber.isNotEmpty
+                            ? _phoneNumber
+                            : "No phone number",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                          color: isDark
+                              ? Colors.grey.shade300
+                              : Colors.grey.shade800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        "Show to Squad",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark
+                              ? Colors.grey.shade500
+                              : Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
                   ),
+                ),
+                Switch(
+                  value: _showPhoneNumber,
+                  activeThumbColor: primaryColor,
+                  onChanged: (val) {
+                    setState(() => _showPhoneNumber = val);
+                    _autoSaveIdentity(); // Instantly save preference
+                  },
                 ),
               ],
             ),

@@ -971,7 +971,15 @@ class _FriendsPageState extends State<FriendsPage> {
 
                     final displayName = userData['displayName'] ?? "No Name";
                     final rawPhone = userData['phoneNumber'] ?? "";
-                    final displayPhone = PhoneFormatter.beautify(rawPhone);
+                    // NEW: Extract Privacy and Status variables
+                    final bool showPhone = userData['showPhoneNumber'] == true;
+                    final String statusText = userData['statusText'] ?? "";
+
+                    // Respect the privacy toggle!
+                    final displayPhone = showPhone
+                        ? PhoneFormatter.beautify(rawPhone)
+                        : ""; // show nothing if they chose to hide it
+
                     final String? avatarUrl = userData['avatarUrl'];
 
                     Color avatarColor = Colors.blue.shade100;
@@ -1039,6 +1047,7 @@ class _FriendsPageState extends State<FriendsPage> {
                                   : null,
                             ),
                           ),
+                          // UPDATED: Title Row with the Status Pill
                           title: Text(
                             displayName,
                             style: TextStyle(
@@ -1046,19 +1055,79 @@ class _FriendsPageState extends State<FriendsPage> {
                               fontSize: 16,
                               color: isDark ? Colors.white : Colors.black87,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 4.0),
-                            child: Text(
-                              displayPhone,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: isDark
-                                    ? Colors.grey.shade400
-                                    : Colors.grey.shade600,
-                              ),
-                            ),
-                          ),
+                          // UPDATED: Subtitle displaying "Hidden" or the Phone
+                          subtitle: (!showPhone && statusText.isEmpty)
+                              ? null // Completely collapses the row and centers the Name if both are hidden!
+                              : Padding(
+                                  padding: const EdgeInsets.only(top: 6.0),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      if (showPhone) ...[
+                                        Text(
+                                          displayPhone,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: isDark
+                                                ? Colors.grey.shade400
+                                                : Colors.grey.shade600,
+                                          ),
+                                        ),
+                                        // Add a bullet point separator if they have BOTH a phone and a status
+                                        if (statusText.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8.0,
+                                            ),
+                                            child: Text(
+                                              "•",
+                                              style: TextStyle(
+                                                color: isDark
+                                                    ? Colors.grey.shade600
+                                                    : Colors.grey.shade400,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                      if (statusText.isNotEmpty)
+                                        Flexible(
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: primaryColor.withValues(
+                                                alpha: 0.1,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color: primaryColor.withValues(
+                                                  alpha: 0.3,
+                                                ),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              statusText,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                color: primaryColor,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                          // RESTORED: The 3-dot menu for assigning to circles and removing friends
                           trailing: PopupMenuButton<String>(
                             icon: Icon(
                               Icons.more_vert,

@@ -882,12 +882,14 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                 decoration: BoxDecoration(
                                   color: isDark
                                       ? Colors.grey.shade800
-                                      : Colors.red.shade50,
+                                      : Theme.of(
+                                          context,
+                                        ).colorScheme.secondaryContainer,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: isDark
                                         ? Colors.grey.shade700
-                                        : Colors.red.shade100,
+                                        : Colors.grey.shade200,
                                     width: 1.5,
                                   ),
                                 ),

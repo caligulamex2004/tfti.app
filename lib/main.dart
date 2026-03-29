@@ -1352,30 +1352,30 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- NEW: THE CALENDAR LEFT COLUMN ---
+                // --- NEW: THE TEAR-OFF CALENDAR "ICON" ---
                 Column(
                   children: [
+                    // DAY BLOCK
                     Container(
                       width: 52,
                       decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.grey.shade800
-                            : Colors.red.shade50,
+                        color: isDark ? Colors.grey.shade800 : Colors.white,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: isDark
                               ? Colors.grey.shade700
-                              : Colors.red.shade100,
+                              : Colors.grey.shade200,
                           width: 1.5,
                         ),
                       ),
                       child: Column(
                         children: [
+                          // MONTH BAR
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(vertical: 3),
                             decoration: BoxDecoration(
-                              color: isPast ? Colors.grey : Colors.redAccent,
+                              color: isPast ? Colors.grey : Colors.red,
                               borderRadius: const BorderRadius.vertical(
                                 top: Radius.circular(8),
                               ),
