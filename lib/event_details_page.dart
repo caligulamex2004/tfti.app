@@ -561,7 +561,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                     ),
                   ),
                 ),
-                if (trailing != null) trailing,
+                ?trailing,
               ],
             ),
           ),
@@ -904,8 +904,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
               .limit(1)
               .snapshots(),
           builder: (context, roleSnap) {
-            if (!roleSnap.hasData || roleSnap.data!.docs.isEmpty)
+            if (!roleSnap.hasData || roleSnap.data!.docs.isEmpty) {
               return const SizedBox.shrink();
+            }
 
             return _buildInfoCard(
               title: "Squad Needs",
@@ -1046,8 +1047,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
               .collection('invitations')
               .snapshots(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData)
+            if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
+            }
 
             final inviteDocs = snapshot.data!.docs;
             if (inviteDocs.isEmpty) {
@@ -1060,8 +1062,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
             return FutureBuilder<List<Map<String, dynamic>>>(
               future: _fetchAndSortGuests(inviteDocs, dt, rsvpDeadline),
               builder: (context, sortedSnap) {
-                if (!sortedSnap.hasData)
+                if (!sortedSnap.hasData) {
                   return const Center(child: CircularProgressIndicator());
+                }
 
                 final guests = sortedSnap.data!;
 
@@ -1641,7 +1644,7 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
                 Icon(Icons.check_circle, color: Colors.green, size: 28),
                 SizedBox(width: 12),
                 Text(
-                  "You're in! 🎉",
+                  "You're in! 🤗",
                   style: TextStyle(
                     color: Colors.green,
                     fontWeight: FontWeight.bold,

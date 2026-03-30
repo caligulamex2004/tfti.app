@@ -1116,9 +1116,7 @@ class _EventChatPageState extends State<EventChatPage> {
           Container(
             width: 45,
             decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.grey.shade800
-                  : Theme.of(context).colorScheme.secondaryContainer,
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: isDark ? Colors.grey.shade700 : Colors.grey.shade200,
