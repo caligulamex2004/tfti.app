@@ -759,23 +759,40 @@ class _EditEventPageState extends State<EditEventPage> {
             .toString()
             .trim();
 
+        final int oldKeepAliveDays = widget.eventData['keepAliveDays'] ?? 0;
+
         if (newLocation != oldLocation) {
           updateData['latestCriticalChange'] = {
             'field': 'Location',
-            'original': oldLocation,
-            'new': newLocation,
+            'original': oldLocation.isEmpty ? 'TBD' : oldLocation,
+            'new': newLocation.isEmpty ? 'TBD' : newLocation,
             'timestamp': FieldValue.serverTimestamp(),
           };
         } else if (newDateTime != oldDateTime) {
           final oldDateStr =
-              "${newDateTime.month}/${newDateTime.day}/${newDateTime.year} @ ${_selectedTime!.format(context)}";
-          final newDateStr =
               "${oldDateTime.month}/${oldDateTime.day}/${oldDateTime.year} @ ${TimeOfDay.fromDateTime(oldDateTime).format(context)}";
+          final newDateStr =
+              "${newDateTime.month}/${newDateTime.day}/${newDateTime.year} @ ${_selectedTime!.format(context)}";
 
           updateData['latestCriticalChange'] = {
             'field': 'Time/Date',
-            'original': oldDateStr, // Show them what it used to be
-            'new': newDateStr, // Show them what it is now
+            'original': oldDateStr,
+            'new': newDateStr,
+            'timestamp': FieldValue.serverTimestamp(),
+          };
+        } else if (_keepAliveDays != oldKeepAliveDays) {
+          // NEW: Duration/Keep Alive tracker
+          String formatDuration(int val) {
+            if (val == 0) return 'A few hours';
+            if (val == 1) return '1 Day';
+            if (val == 7) return '1 Week';
+            return '$val Days';
+          }
+
+          updateData['latestCriticalChange'] = {
+            'field': 'Duration',
+            'original': formatDuration(oldKeepAliveDays),
+            'new': formatDuration(_keepAliveDays),
             'timestamp': FieldValue.serverTimestamp(),
           };
         }
