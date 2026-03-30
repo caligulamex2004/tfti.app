@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import 'login_page.dart';
+import 'event_chat_page.dart';
 import 'create_event_page.dart';
 import 'create_vibecheck_page.dart';
 import 'event_details_page.dart';
@@ -20,6 +21,11 @@ import 'profile_page.dart';
 import 'firebase_options.dart';
 import 'theme_provider.dart';
 import 'onboarding_tutorial.dart';
+
+final GlobalKey<NavigatorState> navigatorKey =
+    GlobalKey<
+      NavigatorState
+    >(); // Global navigator key for showing dialogs/snackbars from anywhere
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,6 +50,20 @@ void main() async {
     debugPrint("RevenueCat Init Error (ignore if no API keys yet): $e");
   }
 
+  // Scenario 1: The app is completely closed / terminated
+  FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
+    if (message != null && message.data.isNotEmpty) {
+      handleNotificationRouting(message.data);
+    }
+  });
+
+  // Scenario 2: The app is running in the background
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    if (message.data.isNotEmpty) {
+      handleNotificationRouting(message.data);
+    }
+  });
+
   runApp(const MyApp());
 }
 
@@ -56,6 +76,7 @@ class MyApp extends StatelessWidget {
       listenable: themeProvider,
       builder: (context, child) {
         return MaterialApp(
+          navigatorKey: navigatorKey, // Attach global navigator key
           title: 'TFTI',
           theme: themeProvider.themeData,
           debugShowCheckedModeBanner: false,
@@ -662,7 +683,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                     color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
-                // 👇 FIX: Removed the phone number subtitle completely
                 trailing: const Icon(
                   Symbols.crown,
                   color: Colors.amber,
@@ -817,7 +837,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              // FIX: Wrap in Expanded + FittedBox to gracefully scale down text in landscape
               Expanded(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
@@ -833,7 +852,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                   ),
                 ),
               ),
-              const SizedBox(width: 12), // Buffer to ensure they never touch
+              const SizedBox(width: 12),
               Material(
                 color: Colors.transparent,
                 child: InkWell(
@@ -940,7 +959,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                     );
                     final bool isPastDeadline = now.isAfter(deadlineTime);
 
-                    // --- LAZY EVALUATION TRIGGER ---
                     if (eventData['type'] == 'vibe_check' &&
                         eventData['lockedOptionId'] == null) {
                       if (isPastDeadline &&
@@ -1046,9 +1064,12 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
 
                   return ListView.builder(
                     key: const PageStorageKey<String>('home_feed_list'),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                    // 👇 FIX 1: Added large bottom padding so the last card clears the FAB!
+                    padding: const EdgeInsets.only(
+                      left: 12,
+                      right: 12,
+                      top: 8,
+                      bottom: 100,
                     ),
                     itemCount: displayEvents.length,
                     itemBuilder: (context, index) {
@@ -1196,7 +1217,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
     Color cardBgColor = Theme.of(context).cardColor;
     double cardElevation = isDark ? 1 : 2;
 
-    // --- NEW: DATE/TIME PARSING ---
     final DateTime dt = item['time'] as DateTime;
     final List<String> shortMonths = [
       'JAN',
@@ -1253,9 +1273,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
       statusIcon = Icons.check_circle;
     } else {
       statusText = isVibeCheck ? "Vote Pending" : "RSVP Pending";
-      statusColor = isDark
-          ? const Color(0xFFF1AD5B)
-          : const Color(0xFFD98301); // Custom Gold for better visibility
+      statusColor = isDark ? const Color(0xFFF1AD5B) : const Color(0xFFD98301);
       statusIcon = isVibeCheck ? Icons.how_to_vote : Symbols.mail;
     }
 
@@ -1352,10 +1370,8 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- NEW: THE TEAR-OFF CALENDAR "ICON" ---
                 Column(
                   children: [
-                    // DAY BLOCK
                     Container(
                       width: 52,
                       decoration: BoxDecoration(
@@ -1370,7 +1386,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       ),
                       child: Column(
                         children: [
-                          // MONTH BAR
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(vertical: 3),
@@ -1419,7 +1434,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
 
                 const SizedBox(width: 16),
 
-                // --- NEW: THE CONTENT RIGHT COLUMN ---
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1432,10 +1446,9 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.tertiary
-                                .withValues(
-                                  alpha: 0.15,
-                                ), // Dynamic Material 3 Pill Color
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.tertiary.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: Theme.of(
@@ -1449,18 +1462,23 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                               Icon(
                                 Symbols.earthquake,
                                 size: 12,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .tertiary, // Dynamic Material 3 Accent
+                                color: Theme.of(context).colorScheme.tertiary,
                               ),
                               const SizedBox(width: 4),
-                              Text(
-                                "VIBE CHECK",
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.2,
-                                  color: Theme.of(context).colorScheme.tertiary,
+                              // 👇 FIX 2: Wrapped text in Flexible to prevent overflow
+                              Flexible(
+                                child: Text(
+                                  "VIBE CHECK",
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.2,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.tertiary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -1496,7 +1514,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
 
                       const SizedBox(height: 6),
 
-                      // Location Row
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1530,7 +1547,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
 
                       const SizedBox(height: 10),
 
-                      // --- NEW: HORIZONTAL DASHBOARD (PILL TAGS) ---
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -1559,12 +1575,17 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                                     color: primaryColor,
                                   ),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    "Captain",
-                                    style: TextStyle(
-                                      color: primaryColor,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
+                                  // 👇 FIX 2: Wrapped text in Flexible to prevent overflow
+                                  Flexible(
+                                    child: Text(
+                                      "Captain",
+                                      style: TextStyle(
+                                        color: primaryColor,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],
@@ -1659,17 +1680,20 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                                           ),
                                         ),
                                         const SizedBox(width: 6),
-                                        Text(
-                                          "Captain",
-                                          style: TextStyle(
-                                            color: isDark
-                                                ? Colors.grey.shade300
-                                                : Colors.black87,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
+                                        // 👇 FIX 2: Wrapped text in Flexible to prevent overflow
+                                        Flexible(
+                                          child: Text(
+                                            "Captain",
+                                            style: TextStyle(
+                                              color: isDark
+                                                  ? Colors.grey.shade300
+                                                  : Colors.black87,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ],
                                     ),
@@ -1696,12 +1720,17 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                               children: [
                                 Icon(statusIcon, size: 12, color: statusColor),
                                 const SizedBox(width: 4),
-                                Text(
-                                  statusText,
-                                  style: TextStyle(
-                                    color: statusColor,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
+                                // 👇 FIX 2: Wrapped text in Flexible to prevent overflow
+                                Flexible(
+                                  child: Text(
+                                    statusText,
+                                    style: TextStyle(
+                                      color: statusColor,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ],
@@ -1731,12 +1760,17 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                                     color: primaryColor,
                                   ),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    "PLEASE READ",
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: primaryColor,
+                                  // 👇 FIX 2: Wrapped text in Flexible to prevent overflow
+                                  Flexible(
+                                    child: Text(
+                                      "PLEASE READ",
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: primaryColor,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],
@@ -1745,7 +1779,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                         ],
                       ),
 
-                      // --- REFINED CHAT SNIPPET ---
                       if (lastMessageSnippet != null &&
                           lastMessageSnippet.isNotEmpty)
                         Padding(
@@ -1860,10 +1893,9 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
   }
 }
 
-// --- NEW: SENDER AVATAR WIDGET ---
 class LastMessageSenderAvatar extends StatefulWidget {
   final String eventId;
-  final Timestamp lastMessageAt; // Used to trigger rebuilds on new messages
+  final Timestamp lastMessageAt;
 
   const LastMessageSenderAvatar({
     super.key,
@@ -1900,7 +1932,6 @@ class _LastMessageSenderAvatarState extends State<LastMessageSenderAvatar> {
     setState(() => _isLoading = true);
 
     try {
-      // Query the messages subcollection safely (allowed by your firestore rules)
       final msgs = await FirebaseFirestore.instance
           .collection('events')
           .doc(widget.eventId)
@@ -1974,5 +2005,47 @@ class _LastMessageSenderAvatarState extends State<LastMessageSenderAvatar> {
         ),
       ),
     );
+  }
+}
+
+Future<void> handleNotificationRouting(Map<String, dynamic> data) async {
+  final eventId = data['eventId'];
+  final type = data['type'];
+
+  if (eventId == null) return;
+
+  try {
+    final doc = await FirebaseFirestore.instance
+        .collection('events')
+        .doc(eventId)
+        .get();
+
+    if (!doc.exists) {
+      debugPrint("Event no longer exists.");
+      return;
+    }
+
+    final eventData = doc.data() as Map<String, dynamic>;
+    final eventTitle = eventData['title'] ?? 'Event';
+
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    if (type == 'chat' || type == 'chat_mention') {
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder: (_) =>
+              EventChatPage(eventId: eventId, eventTitle: eventTitle),
+        ),
+      );
+    } else {
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder: (_) =>
+              EventDetailsPage(eventId: eventId, eventData: eventData),
+        ),
+      );
+    }
+  } catch (e) {
+    debugPrint("Failed to route from notification: $e");
   }
 }

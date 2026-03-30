@@ -911,8 +911,7 @@ class _FriendsPageState extends State<FriendsPage> {
 
     showModalBottomSheet(
       context: context,
-      isScrollControlled:
-          true, // 👇 Allows the sheet to handle scrolling properly
+      isScrollControlled: true, // Allows the sheet to handle scrolling properly
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -1182,190 +1181,235 @@ class _FriendsPageState extends State<FriendsPage> {
                               ),
                           ],
                         ),
-                        child: ListTile(
-                          // NEW: Triggers the mini-profile when the card is tapped!
+                        // FIX: Replaced ListTile with InkWell & Row to prevent rotation crash!
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          // If you have the profile sheet onTap, you can drop it right here:
                           onTap: () => _showFriendProfileBottomSheet(
                             context,
                             userData,
                             isDark,
                             primaryColor,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          leading: Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: avatarColor.withValues(alpha: 0.4),
-                                  blurRadius: 10,
-                                  spreadRadius: 2,
-                                ),
-                              ],
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical:
+                                  12, // Adjusted to match ListTile padding
                             ),
-                            child: CircleAvatar(
-                              radius: 24,
-                              backgroundColor: avatarColor,
-                              backgroundImage: avatarUrl != null
-                                  ? CachedNetworkImageProvider(avatarUrl)
-                                  : null,
-                              child: avatarUrl == null
-                                  ? Text(
-                                      displayName.isNotEmpty
-                                          ? displayName[0].toUpperCase()
-                                          : "?",
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
-                                      ),
-                                    )
-                                  : null,
-                            ),
-                          ),
-                          // UPDATED: Title Row with the Status Pill
-                          title: Text(
-                            displayName,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: isDark ? Colors.white : Colors.black87,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          // UPDATED: Subtitle displaying "Hidden" or the Phone
-                          subtitle: (!showPhone && statusText.isEmpty)
-                              ? null // Completely collapses the row and centers the Name if both are hidden!
-                              : Padding(
-                                  padding: const EdgeInsets.only(top: 6.0),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      if (showPhone) ...[
-                                        Text(
-                                          displayPhone,
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: isDark
-                                                ? Colors.grey.shade400
-                                                : Colors.grey.shade600,
-                                          ),
+                            child: Row(
+                              children: [
+                                // --- LEADING: Avatar Stack ---
+                                Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: avatarColor.withValues(
+                                          alpha: 0.4,
                                         ),
-                                        // Add a bullet point separator if they have BOTH a phone and a status
-                                        if (statusText.isNotEmpty)
-                                          Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8.0,
+                                        blurRadius: 10,
+                                        spreadRadius: 2,
+                                      ),
+                                    ],
+                                  ),
+                                  child: CircleAvatar(
+                                    radius: 24,
+                                    backgroundColor: avatarColor,
+                                    backgroundImage: avatarUrl != null
+                                        ? CachedNetworkImageProvider(avatarUrl)
+                                        : null,
+                                    child: avatarUrl == null
+                                        ? Text(
+                                            displayName.isNotEmpty
+                                                ? displayName[0].toUpperCase()
+                                                : "?",
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 18,
                                             ),
-                                            child: Text(
-                                              "•",
-                                              style: TextStyle(
-                                                color: isDark
-                                                    ? Colors.grey.shade600
-                                                    : Colors.grey.shade400,
-                                              ),
-                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+
+                                // --- TITLE & SUBTITLE ---
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        displayName,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: isDark
+                                              ? Colors.white
+                                              : Colors.black87,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (showPhone || statusText.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 6.0,
                                           ),
-                                      ],
-                                      if (statusText.isNotEmpty)
-                                        Flexible(
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: primaryColor.withValues(
-                                                alpha: 0.1,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              border: Border.all(
-                                                color: primaryColor.withValues(
-                                                  alpha: 0.3,
+                                          child: Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.center,
+                                            children: [
+                                              if (showPhone) ...[
+                                                Flexible(
+                                                  child: Text(
+                                                    displayPhone,
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      color: isDark
+                                                          ? Colors.grey.shade400
+                                                          : Colors
+                                                                .grey
+                                                                .shade600,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
                                                 ),
-                                              ),
-                                            ),
-                                            child: Text(
-                                              statusText,
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.bold,
-                                                color: primaryColor,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
+                                                if (statusText.isNotEmpty)
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 8.0,
+                                                        ),
+                                                    child: Text(
+                                                      "•",
+                                                      style: TextStyle(
+                                                        color: isDark
+                                                            ? Colors
+                                                                  .grey
+                                                                  .shade600
+                                                            : Colors
+                                                                  .grey
+                                                                  .shade400,
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                              if (statusText.isNotEmpty)
+                                                Flexible(
+                                                  child: Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 4,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: primaryColor
+                                                          .withValues(
+                                                            alpha: 0.1,
+                                                          ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                      border: Border.all(
+                                                        color: primaryColor
+                                                            .withValues(
+                                                              alpha: 0.3,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                    child: Text(
+                                                      statusText,
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: primaryColor,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
                                           ),
                                         ),
                                     ],
                                   ),
                                 ),
-                          // RESTORED: The 3-dot menu for assigning to circles and removing friends
-                          trailing: PopupMenuButton<String>(
-                            icon: Icon(
-                              Icons.more_vert,
-                              color: isDark
-                                  ? Colors.grey.shade400
-                                  : Colors.grey.shade600,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            color: Theme.of(context).scaffoldBackgroundColor,
-                            onSelected: (value) {
-                              if (value == 'circle') {
-                                _editFriendCircles(uid, displayName);
-                              }
-                              if (value == 'remove') {
-                                _removeFriend(uid, displayName);
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              PopupMenuItem(
-                                value: 'circle',
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Symbols.circles,
-                                      color: primaryColor,
-                                      size: 20,
+
+                                // --- TRAILING: 3-Dot Menu ---
+                                PopupMenuButton<String>(
+                                  icon: Icon(
+                                    Icons.more_vert,
+                                    color: isDark
+                                        ? Colors.grey.shade400
+                                        : Colors.grey.shade600,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  color: Theme.of(
+                                    context,
+                                  ).scaffoldBackgroundColor,
+                                  onSelected: (value) {
+                                    if (value == 'circle') {
+                                      _editFriendCircles(uid, displayName);
+                                    }
+                                    if (value == 'remove') {
+                                      _removeFriend(uid, displayName);
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    PopupMenuItem(
+                                      value: 'circle',
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Symbols.circles,
+                                            color: primaryColor,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          const Text(
+                                            "Assign to Team",
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                    const SizedBox(width: 12),
-                                    const Text(
-                                      "Assign to Team",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
+                                    PopupMenuItem(
+                                      value: 'remove',
+                                      child: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.person_remove,
+                                            color: Colors.red,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          const Text(
+                                            "Remove Squadmate",
+                                            style: TextStyle(
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
-                              PopupMenuItem(
-                                value: 'remove',
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.person_remove,
-                                      color: Colors.red,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    const Text(
-                                      "Remove Squadmate",
-                                      style: TextStyle(
-                                        color: Colors.red,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
