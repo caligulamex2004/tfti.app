@@ -241,10 +241,10 @@ class ThemeProvider extends ChangeNotifier {
           cardColor: const Color(0xFF000000), // Pure black card
           appBarTheme: const AppBarTheme(foregroundColor: Colors.white),
           colorScheme: const ColorScheme.dark(
-            primary: Color(0xFF5500FF),
+            primary: Color(0xFF7637F3),
             secondary: Colors.grey,
             tertiary: Colors.white,
-            secondaryContainer: Color(0xFF000000), // Pill Color
+            secondaryContainer: Color(0xFF121212), // Pill Color
           ),
           useMaterial3: true,
         );

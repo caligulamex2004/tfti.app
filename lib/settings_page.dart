@@ -63,7 +63,7 @@ class _SettingsPageState extends State<SettingsPage> {
     {
       'name': 'Midnight Sky',
       'theme': AppTheme.dark,
-      'color': Colors.deepPurple,
+      'color': const Color(0xFF7637F3),
       'isDark': true,
     },
     {
