@@ -193,6 +193,59 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     return results;
   }
 
+  // --- CRITICAL CHANGE ALERT BANNER ---
+  Widget _buildAlertBanner(BuildContext context, Map<String, dynamic> data) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final change = data['latestCriticalChange'] as Map<String, dynamic>?;
+
+    if (change == null) return const SizedBox.shrink();
+
+    final field = change['field'] ?? 'Details';
+    final original = change['original'] ?? '';
+    final newValue = change['new'] ?? '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "HEADS UP: $field Changed!",
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Was: $original\nNow: $newValue",
+                  style: TextStyle(
+                    color: isDark ? Colors.red.shade200 : Colors.red.shade900,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showFullDetails(BuildContext context, String details) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
@@ -454,7 +507,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     );
   }
 
-  // --- NEW: TACTILE CARD WRAPPER ---
+  // --- TACTILE CARD WRAPPER ---
   Widget _buildInfoCard({
     required String title,
     required IconData icon,
@@ -522,59 +575,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     );
   }
 
-  // --- NEW: CRITICAL CHANGE ALERT BANNER ---
-  Widget _buildAlertBanner(BuildContext context, Map<String, dynamic> data) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final change = data['latestCriticalChange'] as Map<String, dynamic>?;
-
-    if (change == null) return const SizedBox.shrink();
-
-    final field = change['field'] ?? 'Details';
-    final original = change['original'] ?? '';
-    final newValue = change['new'] ?? '';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "HEADS UP: $field Changed!",
-                  style: const TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "Was: $original\nNow: $newValue",
-                  style: TextStyle(
-                    color: isDark ? Colors.red.shade200 : Colors.red.shade900,
-                    fontSize: 13,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -582,6 +582,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
+
+    // The Threshold check to trigger our 2-column layout safely
+    final isLandscape = MediaQuery.of(context).size.width > 600;
 
     final Color appBarIconColor = isDark
         ? Colors.white
@@ -655,6 +658,612 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         final bool hasDetails = details != null && details.isNotEmpty;
         final String location = data['location'] ?? "TBD";
         final String hostId = data['hostId'];
+
+        // --- WIDGET 1: VITALS CARD ---
+        final vitalsCardWidget = _buildInfoCard(
+          title: "The Vitals",
+          icon: Icons.push_pin,
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 55,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isDark
+                            ? Colors.grey.shade700
+                            : Colors.grey.shade200,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(10),
+                            ),
+                          ),
+                          child: Text(
+                            shortMonth,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Text(
+                            day,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(
+                              fullWeekDay,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            if (keepAliveDays > 0) ...[
+                              const SizedBox(width: 10),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.tertiary
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .tertiary
+                                        .withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                child: Text(
+                                  keepAliveLabel,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.tertiary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          timeString,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (!isVibeCheck) ...[
+                const SizedBox(height: 24),
+                InkWell(
+                  onTap: () => _openMap(location),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 55,
+                        height: 55,
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.grey.shade800
+                              : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.grey.shade700
+                                : Colors.grey.shade200,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.location_on,
+                          color: isDark
+                              ? Colors.white
+                              : Theme.of(context).colorScheme.tertiary,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              location,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "Tap for directions",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: primaryColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+
+        // --- WIDGET 2: DETAILS CARD ---
+        Widget detailsCardWidget = const SizedBox.shrink();
+        if (hasDetails || data.containsKey('latestCriticalChange')) {
+          detailsCardWidget = _buildInfoCard(
+            title: "The Details",
+            icon: Icons.notes,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (data.containsKey('latestCriticalChange')) ...[
+                  _buildAlertBanner(context, data),
+                  const SizedBox(height: 8),
+                ],
+                if (hasDetails)
+                  GestureDetector(
+                    onTap: () => _showFullDetails(context, details),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          details,
+                          style: TextStyle(
+                            fontSize: 15,
+                            height: 1.5,
+                            color: isDark
+                                ? Colors.grey.shade300
+                                : Colors.grey.shade800,
+                          ),
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (details.length > 150 || details.contains('\n'))
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              "Read more",
+                              style: TextStyle(
+                                color: primaryColor,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }
+
+        // --- WIDGET 3: SQUAD NEEDS CARD ---
+        final squadNeedsCardWidget = StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('events')
+              .doc(widget.eventId)
+              .collection('roles')
+              .limit(1)
+              .snapshots(),
+          builder: (context, roleSnap) {
+            if (!roleSnap.hasData || roleSnap.data!.docs.isEmpty)
+              return const SizedBox.shrink();
+
+            return _buildInfoCard(
+              title: "Squad Needs",
+              icon: Icons.check_box_outlined,
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EventRolesPage(
+                        eventId: widget.eventId,
+                        isHost: canEdit,
+                      ),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: primaryColor.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.pan_tool, color: primaryColor, size: 24),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          canEdit
+                              ? "Manage items you need help with"
+                              : "See what the captain needs!",
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: primaryColor,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+
+        // --- WIDGET 4: RSVP / VIBE CHECK CARD ---
+        final rsvpCardWidget = StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('events')
+              .doc(widget.eventId)
+              .collection('invitations')
+              .doc(currentUser.uid)
+              .snapshots(),
+          builder: (context, inviteSnap) {
+            Map<String, dynamic> myInviteData = {};
+            String myStatus = 'pending';
+            if (inviteSnap.hasData && inviteSnap.data!.exists) {
+              myInviteData = inviteSnap.data!.data() as Map<String, dynamic>;
+              myStatus = myInviteData['status'] ?? 'pending';
+            }
+
+            if (isVibeCheck) {
+              final isGoing = myStatus == 'going';
+              return _buildInfoCard(
+                title: "Cast Your Vote",
+                icon: Icons.how_to_vote,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!isGoing && !isMainHost)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.orange.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.orange,
+                              size: 20,
+                            ),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                "Swipe 'LET'S GO' below to cast your vote!",
+                                style: TextStyle(
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    VibeCheckPollUI(
+                      eventId: widget.eventId,
+                      eventData: data,
+                      myInviteData: myInviteData,
+                      myUid: currentUser.uid,
+                      isHost: isMainHost,
+                    ),
+                    const SizedBox(height: 24),
+                    SwipeRsvpWidget(currentStatus: myStatus, onRsvp: _rsvp),
+                  ],
+                ),
+              );
+            }
+
+            return _buildInfoCard(
+              title: "In or Out?",
+              icon: Icons.thumbs_up_down,
+              child: SwipeRsvpWidget(currentStatus: myStatus, onRsvp: _rsvp),
+            );
+          },
+        );
+
+        // --- WIDGET 5: THE CREW CARD ---
+        final crewCardWidget = StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('events')
+              .doc(widget.eventId)
+              .collection('invitations')
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData)
+              return const Center(child: CircularProgressIndicator());
+
+            final inviteDocs = snapshot.data!.docs;
+            if (inviteDocs.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Text("No invitations found."),
+              );
+            }
+
+            return FutureBuilder<List<Map<String, dynamic>>>(
+              future: _fetchAndSortGuests(inviteDocs, dt, rsvpDeadline),
+              builder: (context, sortedSnap) {
+                if (!sortedSnap.hasData)
+                  return const Center(child: CircularProgressIndicator());
+
+                final guests = sortedSnap.data!;
+
+                return _buildInfoCard(
+                  title: "The Crew",
+                  icon: Icons.group,
+                  trailing: _buildFacepile(guests, currentUser.uid, isDark),
+                  child: ListView.builder(
+                    padding:
+                        EdgeInsets.zero, // Clears the invisible status bar gap!
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: guests.length,
+                    itemBuilder: (context, index) {
+                      final guest = guests[index];
+                      final String status = guest['status'];
+                      final String guestUid = guest['uid'];
+                      final String name = guest['displayName'];
+                      final String phone = guest['phone'];
+                      final int avatarColor = guest['avatarColor'];
+                      final String? avatarUrl = guest['avatarUrl'];
+
+                      final bool isEventMainHost = guestUid == data['hostId'];
+                      final bool isEventCoHost = guestUid == data['coHostId'];
+
+                      IconData badgeIcon;
+                      Color badgeColor;
+                      String statusText;
+
+                      switch (status) {
+                        case 'going':
+                          badgeIcon = Icons.check_circle;
+                          badgeColor = Colors.green;
+                          statusText = "is in for the win!";
+                          break;
+                        case 'declined':
+                          badgeIcon = Icons.cancel;
+                          badgeColor = Colors.red;
+                          statusText = "is sitting this one out.";
+                          break;
+                        default:
+                          badgeIcon = Icons.hourglass_empty;
+                          badgeColor = isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade700;
+                          statusText = "is too cool to respond.";
+                      }
+
+                      return StreamBuilder<DocumentSnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(currentUser.uid)
+                            .collection('friends')
+                            .doc(guestUid)
+                            .snapshots(),
+                        builder: (context, friendSnap) {
+                          bool isMe = (guestUid == currentUser.uid);
+                          bool isFriend = false;
+
+                          if (friendSnap.hasData && friendSnap.data!.exists) {
+                            isFriend = true;
+                          }
+
+                          bool showAddButton = !isMe && !isFriend;
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12.0),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 0,
+                              ),
+                              leading: SizedBox(
+                                width: 50,
+                                height: 50,
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Center(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Color(
+                                                avatarColor,
+                                              ).withValues(alpha: 0.4),
+                                              blurRadius: 12,
+                                              spreadRadius: 2,
+                                            ),
+                                          ],
+                                        ),
+                                        child: CircleAvatar(
+                                          backgroundColor: Color(avatarColor),
+                                          radius: 20,
+                                          backgroundImage: avatarUrl != null
+                                              ? CachedNetworkImageProvider(
+                                                  avatarUrl,
+                                                )
+                                              : null,
+                                          child: avatarUrl == null
+                                              ? Text(
+                                                  name.isNotEmpty
+                                                      ? name[0].toUpperCase()
+                                                      : "?",
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                )
+                                              : null,
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: -4,
+                                      left: -6,
+                                      child: Stack(
+                                        alignment: Alignment.center,
+                                        children: [
+                                          Icon(
+                                            badgeIcon,
+                                            size: 24,
+                                            color: Theme.of(context).cardColor,
+                                          ),
+                                          Icon(
+                                            badgeIcon,
+                                            size: 20,
+                                            color: badgeColor,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              title: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (isEventMainHost) ...[
+                                    const SizedBox(width: 6),
+                                    const Icon(
+                                      Symbols.crown,
+                                      size: 18,
+                                      color: Colors.amber,
+                                    ),
+                                  ] else if (isEventCoHost) ...[
+                                    const SizedBox(width: 6),
+                                    Icon(
+                                      Symbols.military_tech,
+                                      size: 16,
+                                      color: primaryColor,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              subtitle: Text(
+                                statusText,
+                                style: TextStyle(
+                                  color: badgeColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  fontStyle: status == 'pending'
+                                      ? FontStyle.italic
+                                      : FontStyle.normal,
+                                ),
+                              ),
+                              trailing: showAddButton
+                                  ? IconButton(
+                                      icon: Icon(
+                                        Icons.person_add_alt_1,
+                                        color: primaryColor,
+                                      ),
+                                      tooltip: "Add Friend",
+                                      onPressed: () => _addFriend(
+                                        context,
+                                        guestUid,
+                                        phone,
+                                        name,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                );
+              },
+            );
+          },
+        );
 
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -730,6 +1339,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           body: CustomScrollView(
             controller: _scrollController,
             slivers: [
+              // HERO HEADER
               SliverAppBar(
                 expandedHeight: 220,
                 pinned: true,
@@ -908,697 +1518,41 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                 ),
               ),
 
+              // THE RESPONSIVE CONTENT AREA
               SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 24),
-
-                    // --- CARD 1: THE VITALS ---
-                    _buildInfoCard(
-                      title: "The Vitals",
-                      icon: Icons.push_pin,
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 55,
-                                decoration: BoxDecoration(
-                                  color: isDark
-                                      ? Colors.grey.shade800
-                                      : Colors.grey.shade50,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: isDark
-                                        ? Colors.grey.shade700
-                                        : Colors.grey.shade200,
-                                    width: 1.5,
-                                  ),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 2,
-                                      ),
-                                      decoration: const BoxDecoration(
-                                        color: Colors.red,
-                                        borderRadius: BorderRadius.vertical(
-                                          top: Radius.circular(10),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        shortMonth,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: 1,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 4,
-                                      ),
-                                      child: Text(
-                                        day,
-                                        style: TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark
-                                              ? Colors.white
-                                              : Colors.black87,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          fullWeekDay,
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: isDark
-                                                ? Colors.white
-                                                : Colors.black87,
-                                          ),
-                                        ),
-                                        if (keepAliveDays > 0) ...[
-                                          const SizedBox(width: 10),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .tertiary
-                                                  .withValues(alpha: 0.15),
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              border: Border.all(
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .tertiary
-                                                    .withValues(alpha: 0.3),
-                                              ),
-                                            ),
-                                            child: Text(
-                                              keepAliveLabel,
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.bold,
-                                                letterSpacing: 0.5,
-                                                color: Theme.of(
-                                                  context,
-                                                ).colorScheme.tertiary,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      timeString,
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        color: isDark
-                                            ? Colors.grey.shade400
-                                            : Colors.grey.shade700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          if (!isVibeCheck) ...[
-                            const SizedBox(height: 24),
-                            InkWell(
-                              onTap: () => _openMap(location),
-                              borderRadius: BorderRadius.circular(12),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 55,
-                                    height: 55,
-                                    decoration: BoxDecoration(
-                                      color: isDark
-                                          ? Colors.grey.shade800
-                                          : Colors.grey.shade50,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: isDark
-                                            ? Colors.grey.shade700
-                                            : Colors.grey.shade200,
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                    child: Icon(
-                                      Icons.location_on,
-                                      color: isDark
-                                          ? Colors.white
-                                          : Theme.of(
-                                              context,
-                                            ).colorScheme.tertiary,
-                                      size: 28,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          location,
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: isDark
-                                                ? Colors.white
-                                                : Colors.black87,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          "Tap for directions",
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: primaryColor,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-
-                    // --- CARD 2: THE DETAILS ---
-                    if (hasDetails || data.containsKey('latestCriticalChange'))
-                      _buildInfoCard(
-                        title: "The Details",
-                        icon: Icons.notes,
-                        child: Column(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 24, bottom: 100),
+                  child: isLandscape
+                      ? Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (data.containsKey('latestCriticalChange')) ...[
-                              _buildAlertBanner(context, data),
-                              const SizedBox(height: 8),
-                            ],
-                            if (hasDetails)
-                              GestureDetector(
-                                onTap: () => _showFullDetails(context, details),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      details,
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        height: 1.5,
-                                        color: isDark
-                                            ? Colors.grey.shade300
-                                            : Colors.grey.shade800,
-                                      ),
-                                      maxLines: 4,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    if (details.length > 150 ||
-                                        details.contains('\n'))
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          top: 8.0,
-                                        ),
-                                        child: Text(
-                                          "Read more",
-                                          style: TextStyle(
-                                            color: primaryColor,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
+                            // LEFT COLUMN: Reference
+                            Expanded(
+                              child: Column(
+                                children: [vitalsCardWidget, crewCardWidget],
                               ),
-                          ],
-                        ),
-                      ),
-
-                    // --- CARD 3: SQUAD NEEDS ---
-                    StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('events')
-                          .doc(widget.eventId)
-                          .collection('roles')
-                          .limit(1)
-                          .snapshots(),
-                      builder: (context, roleSnap) {
-                        final bool hasRoles =
-                            roleSnap.hasData && roleSnap.data!.docs.isNotEmpty;
-
-                        if (!hasRoles) return const SizedBox.shrink();
-
-                        return _buildInfoCard(
-                          title: "Squad Needs",
-                          icon: Icons.check_box_outlined,
-                          child: InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => EventRolesPage(
-                                    eventId: widget.eventId,
-                                    isHost: canEdit,
-                                  ),
-                                ),
-                              );
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: primaryColor.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: primaryColor.withValues(alpha: 0.3),
-                                ),
-                              ),
-                              child: Row(
+                            ),
+                            // RIGHT COLUMN: Context & Action
+                            Expanded(
+                              child: Column(
                                 children: [
-                                  Icon(
-                                    Icons.pan_tool,
-                                    color: primaryColor,
-                                    size: 24,
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          canEdit
-                                              ? "Manage items you need help with"
-                                              : "See what the captain needs!",
-                                          style: TextStyle(
-                                            color: isDark
-                                                ? Colors.white
-                                                : Colors.black87,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.arrow_forward_ios,
-                                    size: 16,
-                                    color: primaryColor,
-                                  ),
+                                  detailsCardWidget,
+                                  squadNeedsCardWidget,
+                                  rsvpCardWidget,
                                 ],
                               ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
-
-                    // --- CARD 4: RSVP / VIBE CHECK ---
-                    StreamBuilder<DocumentSnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('events')
-                          .doc(widget.eventId)
-                          .collection('invitations')
-                          .doc(currentUser.uid)
-                          .snapshots(),
-                      builder: (context, inviteSnap) {
-                        Map<String, dynamic> myInviteData = {};
-                        String myStatus = 'pending';
-                        if (inviteSnap.hasData && inviteSnap.data!.exists) {
-                          myInviteData =
-                              inviteSnap.data!.data() as Map<String, dynamic>;
-                          myStatus = myInviteData['status'] ?? 'pending';
-                        }
-
-                        if (isVibeCheck) {
-                          final isGoing = myStatus == 'going';
-                          return _buildInfoCard(
-                            title: "Cast Your Vote",
-                            icon: Icons.how_to_vote,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (!isGoing && !isMainHost)
-                                  Container(
-                                    margin: const EdgeInsets.only(bottom: 16),
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.withValues(
-                                        alpha: 0.1,
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: Colors.orange.withValues(
-                                          alpha: 0.5,
-                                        ),
-                                      ),
-                                    ),
-                                    child: const Row(
-                                      children: [
-                                        Icon(
-                                          Icons.info_outline,
-                                          color: Colors.orange,
-                                          size: 20,
-                                        ),
-                                        SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            "Swipe 'LET'S GO' below to cast your vote!",
-                                            style: TextStyle(
-                                              color: Colors.orange,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                VibeCheckPollUI(
-                                  eventId: widget.eventId,
-                                  eventData: data,
-                                  myInviteData: myInviteData,
-                                  myUid: currentUser.uid,
-                                  isHost: isMainHost,
-                                ),
-                                // Give Vibe checks the swipeable widget as well to confirm attendance
-                                const SizedBox(height: 24),
-                                SwipeRsvpWidget(
-                                  currentStatus: myStatus,
-                                  onRsvp: _rsvp,
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-
-                        return _buildInfoCard(
-                          title: "In or Out?",
-                          icon: Icons.thumbs_up_down,
-                          child: SwipeRsvpWidget(
-                            currentStatus: myStatus,
-                            onRsvp: _rsvp,
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              // --- CARD 5: THE CREW (Unified Container) ---
-              SliverToBoxAdapter(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('events')
-                      .doc(widget.eventId)
-                      .collection('invitations')
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    final inviteDocs = snapshot.data!.docs;
-
-                    if (inviteDocs.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20),
-                        child: Text("No invitations found."),
-                      );
-                    }
-
-                    return FutureBuilder<List<Map<String, dynamic>>>(
-                      future: _fetchAndSortGuests(inviteDocs, dt, rsvpDeadline),
-                      builder: (context, sortedSnap) {
-                        if (!sortedSnap.hasData) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        }
-
-                        final guests = sortedSnap.data!;
-
-                        return Padding(
-                          padding: const EdgeInsets.only(
-                            bottom: 100,
-                          ), // FAB clearance
-                          child: _buildInfoCard(
-                            title: "The Crew",
-                            icon: Icons.group,
-                            trailing: _buildFacepile(
-                              guests,
-                              currentUser.uid,
-                              isDark,
-                            ),
-                            child: ListView.builder(
-                              padding: EdgeInsets.zero,
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: guests.length,
-                              itemBuilder: (context, index) {
-                                final guest = guests[index];
-                                final String status = guest['status'];
-                                final String guestUid = guest['uid'];
-                                final String name = guest['displayName'];
-                                final String phone = guest['phone'];
-                                final int avatarColor = guest['avatarColor'];
-                                final String? avatarUrl = guest['avatarUrl'];
-
-                                final bool isEventMainHost =
-                                    guestUid == data['hostId'];
-                                final bool isEventCoHost =
-                                    guestUid == data['coHostId'];
-
-                                IconData badgeIcon;
-                                Color badgeColor;
-                                String statusText;
-
-                                switch (status) {
-                                  case 'going':
-                                    badgeIcon = Icons.check_circle;
-                                    badgeColor = Colors.green;
-                                    statusText = "is in for the win!";
-                                    break;
-                                  case 'declined':
-                                    badgeIcon = Icons.cancel;
-                                    badgeColor = Colors.red;
-                                    statusText = "is sitting this one out.";
-                                    break;
-                                  default:
-                                    badgeIcon = Icons.hourglass_empty;
-                                    badgeColor = isDark
-                                        ? Colors.grey.shade400
-                                        : Colors.grey.shade700;
-                                    statusText = "is too cool to respond.";
-                                }
-
-                                return StreamBuilder<DocumentSnapshot>(
-                                  stream: FirebaseFirestore.instance
-                                      .collection('users')
-                                      .doc(currentUser.uid)
-                                      .collection('friends')
-                                      .doc(guestUid)
-                                      .snapshots(),
-                                  builder: (context, friendSnap) {
-                                    bool isMe = (guestUid == currentUser.uid);
-                                    bool isFriend = false;
-
-                                    if (friendSnap.hasData &&
-                                        friendSnap.data!.exists) {
-                                      isFriend = true;
-                                    }
-
-                                    bool showAddButton = !isMe && !isFriend;
-
-                                    return Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 12.0,
-                                      ),
-                                      child: ListTile(
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              horizontal: 4,
-                                              vertical: 0,
-                                            ),
-                                        leading: SizedBox(
-                                          width: 50,
-                                          height: 50,
-                                          child: Stack(
-                                            clipBehavior: Clip.none,
-                                            children: [
-                                              Center(
-                                                child: Container(
-                                                  decoration: BoxDecoration(
-                                                    shape: BoxShape.circle,
-                                                    boxShadow: [
-                                                      BoxShadow(
-                                                        color:
-                                                            Color(
-                                                              avatarColor,
-                                                            ).withValues(
-                                                              alpha: 0.4,
-                                                            ),
-                                                        blurRadius: 12,
-                                                        spreadRadius: 2,
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  child: CircleAvatar(
-                                                    backgroundColor: Color(
-                                                      avatarColor,
-                                                    ),
-                                                    radius: 20,
-                                                    backgroundImage:
-                                                        avatarUrl != null
-                                                        ? CachedNetworkImageProvider(
-                                                            avatarUrl,
-                                                          )
-                                                        : null,
-                                                    child: avatarUrl == null
-                                                        ? Text(
-                                                            name.isNotEmpty
-                                                                ? name[0]
-                                                                      .toUpperCase()
-                                                                : "?",
-                                                            style:
-                                                                const TextStyle(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                ),
-                                                          )
-                                                        : null,
-                                                  ),
-                                                ),
-                                              ),
-                                              Positioned(
-                                                top: -4,
-                                                left: -6,
-                                                child: Stack(
-                                                  alignment: Alignment.center,
-                                                  children: [
-                                                    Icon(
-                                                      badgeIcon,
-                                                      size: 24,
-                                                      color: Theme.of(
-                                                        context,
-                                                      ).cardColor,
-                                                    ),
-                                                    Icon(
-                                                      badgeIcon,
-                                                      size: 20,
-                                                      color: badgeColor,
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        title: Row(
-                                          children: [
-                                            Flexible(
-                                              child: Text(
-                                                name,
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 16,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            if (isEventMainHost) ...[
-                                              const SizedBox(width: 6),
-                                              const Icon(
-                                                Symbols.crown,
-                                                size: 18,
-                                                color: Colors.amber,
-                                              ),
-                                            ] else if (isEventCoHost) ...[
-                                              const SizedBox(width: 6),
-                                              Icon(
-                                                Symbols.military_tech,
-                                                size: 16,
-                                                color: primaryColor,
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                        subtitle: Text(
-                                          statusText,
-                                          style: TextStyle(
-                                            color: badgeColor,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
-                                            fontStyle: status == 'pending'
-                                                ? FontStyle.italic
-                                                : FontStyle.normal,
-                                          ),
-                                        ),
-                                        trailing: showAddButton
-                                            ? IconButton(
-                                                icon: Icon(
-                                                  Icons.person_add_alt_1,
-                                                  color: primaryColor,
-                                                ),
-                                                tooltip: "Add Friend",
-                                                onPressed: () => _addFriend(
-                                                  context,
-                                                  guestUid,
-                                                  phone,
-                                                  name,
-                                                ),
-                                              )
-                                            : null,
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
+                          ],
+                        )
+                      : Column(
+                          children: [
+                            vitalsCardWidget,
+                            detailsCardWidget,
+                            squadNeedsCardWidget,
+                            rsvpCardWidget,
+                            crewCardWidget,
+                          ],
+                        ),
                 ),
               ),
             ],
@@ -1609,7 +1563,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
   }
 }
 
-// --- NEW: SWIPE-TO-RSVP WIDGET ---
+// --- SWIPE-TO-RSVP WIDGET ---
 class SwipeRsvpWidget extends StatefulWidget {
   final String currentStatus;
   final Function(String) onRsvp;
@@ -1633,7 +1587,6 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
       _isDragging = true;
       _dragPosition += details.delta.dx;
 
-      // Clamp the drag so the thumb doesn't leave the track
       if (_dragPosition > maxDrag) _dragPosition = maxDrag;
       if (_dragPosition < -maxDrag) _dragPosition = -maxDrag;
     });
@@ -1644,17 +1597,13 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
       _isDragging = false;
     });
 
-    // If they swiped more than 70% of the way to a side, trigger the action
     if (_dragPosition > maxDrag * 0.7) {
       widget.onRsvp('going');
-      // Snap to end before parent rebuilds
       setState(() => _dragPosition = maxDrag);
     } else if (_dragPosition < -maxDrag * 0.7) {
       widget.onRsvp('declined');
-      // Snap to end before parent rebuilds
       setState(() => _dragPosition = -maxDrag);
     } else {
-      // Snap back to center
       setState(() => _dragPosition = 0.0);
     }
   }
@@ -1662,7 +1611,6 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
   @override
   void didUpdateWidget(covariant SwipeRsvpWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Reset drag position if status changes externally
     if (widget.currentStatus != oldWidget.currentStatus) {
       _dragPosition = 0.0;
     }
@@ -1693,7 +1641,7 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
                 Icon(Icons.check_circle, color: Colors.green, size: 28),
                 SizedBox(width: 12),
                 Text(
-                  "You're in!",
+                  "You're in! 🎉",
                   style: TextStyle(
                     color: Colors.green,
                     fontWeight: FontWeight.bold,
@@ -1703,8 +1651,7 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
               ],
             ),
             TextButton(
-              onPressed: () =>
-                  widget.onRsvp('pending'), // Puts them back to slider state
+              onPressed: () => widget.onRsvp('pending'),
               child: const Text(
                 "Change",
                 style: TextStyle(
@@ -1763,7 +1710,7 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
       );
     }
 
-    // Status 3: PENDING (The Interactive Slider)
+    // Status 3: PENDING (Interactive Slider)
     return LayoutBuilder(
       builder: (context, constraints) {
         final double trackWidth = constraints.maxWidth;
@@ -1784,7 +1731,6 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Track Text - Left
               Positioned(
                 left: 24,
                 child: Text(
@@ -1796,7 +1742,6 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
                   ),
                 ),
               ),
-              // Track Text - Right
               Positioned(
                 right: 24,
                 child: Text(
@@ -1809,7 +1754,6 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
                 ),
               ),
 
-              // The Draggable Thumb
               AnimatedPositioned(
                 duration: _isDragging
                     ? Duration.zero
