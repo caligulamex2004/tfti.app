@@ -745,7 +745,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 8,
-                                      vertical: 4,
+                                      vertical: 6,
                                     ),
                                     decoration: BoxDecoration(
                                       color: Theme.of(context)

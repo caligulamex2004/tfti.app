@@ -1308,10 +1308,9 @@ class _FriendsPageState extends State<FriendsPage> {
                                                           vertical: 4,
                                                         ),
                                                     decoration: BoxDecoration(
-                                                      color: primaryColor
-                                                          .withValues(
-                                                            alpha: 0.1,
-                                                          ),
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .secondaryContainer,
                                                       borderRadius:
                                                           BorderRadius.circular(
                                                             12,
@@ -1319,7 +1318,7 @@ class _FriendsPageState extends State<FriendsPage> {
                                                       border: Border.all(
                                                         color: primaryColor
                                                             .withValues(
-                                                              alpha: 0.3,
+                                                              alpha: 0.5,
                                                             ),
                                                       ),
                                                     ),

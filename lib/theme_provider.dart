@@ -238,13 +238,13 @@ class ThemeProvider extends ChangeNotifier {
         return ThemeData(
           brightness: Brightness.dark,
           scaffoldBackgroundColor: const Color(0xFF121212),
-          cardColor: const Color(0xFF1E1E1E), // Elevated from pure black
+          cardColor: const Color(0xFF000000), // Pure black card
           appBarTheme: const AppBarTheme(foregroundColor: Colors.white),
           colorScheme: const ColorScheme.dark(
-            primary: Color(0xFF4A00E0),
+            primary: Color(0xFF5500FF),
             secondary: Colors.grey,
             tertiary: Colors.white,
-            secondaryContainer: Color(0xFF2C2C2C), // Pill Color
+            secondaryContainer: Color(0xFF000000), // Pill Color
           ),
           useMaterial3: true,
         );

@@ -864,10 +864,10 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: primaryColor.withValues(alpha: 0.1),
+                      color: Theme.of(context).colorScheme.secondaryContainer,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: primaryColor.withValues(alpha: 0.3),
+                        color: primaryColor.withValues(alpha: 0.5),
                       ),
                     ),
                     child: Row(
@@ -1212,6 +1212,16 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
     final bool isMyEvent = data['hostId'] == myUid;
     final bool isImportantDetails = data['isImportantDetails'] == true;
 
+    final int keepAliveDays = data['keepAliveDays'] ?? 0;
+    String keepAliveLabel = "";
+    if (keepAliveDays == 1) {
+      keepAliveLabel = "1 Day";
+    } else if (keepAliveDays == 7) {
+      keepAliveLabel = "1 Week";
+    } else if (keepAliveDays > 0) {
+      keepAliveLabel = "$keepAliveDays Days";
+    }
+
     final String? lastMessageSnippet = data['lastMessageSnippet'];
 
     Color cardBgColor = Theme.of(context).cardColor;
@@ -1429,6 +1439,35 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                         color: isPast ? Colors.grey : primaryColor,
                       ),
                     ),
+                    if (keepAliveDays > 0) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.tertiary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.tertiary.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          keepAliveLabel,
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.tertiary,
+                          ),
+                          maxLines: 1,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
 
@@ -1465,7 +1504,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                                 color: Theme.of(context).colorScheme.tertiary,
                               ),
                               const SizedBox(width: 4),
-                              // 👇 FIX 2: Wrapped text in Flexible to prevent overflow
+                              // FIX 2: Wrapped text in Flexible to prevent overflow
                               Flexible(
                                 child: Text(
                                   "VIBE CHECK",
