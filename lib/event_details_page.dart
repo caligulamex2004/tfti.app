@@ -27,7 +27,6 @@ class EventDetailsPage extends StatefulWidget {
 }
 
 class _EventDetailsPageState extends State<EventDetailsPage> {
-  // Track scroll position for dynamic app bar colors
   final ScrollController _scrollController = ScrollController();
   bool _isAppBarCollapsed = false;
 
@@ -36,10 +35,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     super.initState();
     _markDetailsAsViewed();
 
-    // Listen to scroll changes
     _scrollController.addListener(() {
       if (_scrollController.hasClients) {
-        // 140 is the sweet spot before the 220 height fully collapses
         bool isCollapsed = _scrollController.offset > 140;
         if (isCollapsed != _isAppBarCollapsed) {
           setState(() {
@@ -50,7 +47,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     });
   }
 
-  // Prevent memory leaks
   @override
   void dispose() {
     _scrollController.dispose();
@@ -197,78 +193,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     return results;
   }
 
-  Widget _buildAlertBanner(BuildContext context, Map<String, dynamic> data) {
-    if (!data.containsKey('latestCriticalChange')) {
-      return const SizedBox.shrink();
-    }
-
-    final changeMap = data['latestCriticalChange'] as Map<String, dynamic>;
-    final Timestamp? ts = changeMap['timestamp'];
-
-    if (ts == null) return const SizedBox.shrink();
-    final diff = DateTime.now().difference(ts.toDate());
-    if (diff.inHours > 48) return const SizedBox.shrink();
-
-    final String field = changeMap['field'] ?? 'Details';
-    final String original = changeMap['original'] ?? 'Unknown';
-    final String newValue = changeMap['new'] ?? 'Unknown';
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 20, left: 16, right: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark
-            ? Colors.amber.withValues(alpha: 0.1)
-            : Colors.amber.shade100,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark
-              ? Colors.amber.withValues(alpha: 0.5)
-              : Colors.amber.shade300,
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.info_outline,
-            color: isDark ? Colors.amber.shade400 : Colors.amber.shade900,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Update: $field Changed",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: isDark
-                        ? Colors.amber.shade400
-                        : Colors.amber.shade900,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "Was: $original\nNow: $newValue",
-                  style: TextStyle(
-                    color: isDark
-                        ? Colors.amber.shade200
-                        : Colors.amber.shade900,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showFullDetails(BuildContext context, String details) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
@@ -321,7 +245,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     );
   }
 
-  // NEW: Bottom Sheet to show the full list of who has seen the event
   void _showSeenByBottomSheet(List<Map<String, dynamic>> seenGuests) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -443,7 +366,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     final displayGuests = seenGuests.take(3).toList();
     final int extraCount = seenGuests.length - 3;
 
-    // FIX: Wrapped in an InkWell and styled as a clickable "Pill"
     return InkWell(
       onTap: () => _showSeenByBottomSheet(seenGuests),
       borderRadius: BorderRadius.circular(20),
@@ -478,7 +400,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        // Matches the pill background so they slice through each other cleanly
                         color: isDark
                             ? Colors.grey.shade900
                             : Colors.grey.shade100,
@@ -495,7 +416,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                       ],
                     ),
                     child: CircleAvatar(
-                      radius: 12, // Slightly larger than before
+                      radius: 12,
                       backgroundColor: Color(reader['avatarColor']),
                       backgroundImage: avatarUrl != null
                           ? CachedNetworkImageProvider(avatarUrl)
@@ -533,6 +454,127 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     );
   }
 
+  // --- NEW: TACTILE CARD WRAPPER ---
+  Widget _buildInfoCard({
+    required String title,
+    required IconData icon,
+    required Widget child,
+    Widget? trailing,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24, left: 20, right: 20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+          width: 1,
+        ),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: primaryColor, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ),
+                if (trailing != null) trailing,
+              ],
+            ),
+          ),
+          Divider(
+            height: 1,
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+          ),
+          Padding(padding: const EdgeInsets.all(20), child: child),
+        ],
+      ),
+    );
+  }
+
+  // --- NEW: CRITICAL CHANGE ALERT BANNER ---
+  Widget _buildAlertBanner(BuildContext context, Map<String, dynamic> data) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final change = data['latestCriticalChange'] as Map<String, dynamic>?;
+
+    if (change == null) return const SizedBox.shrink();
+
+    final field = change['field'] ?? 'Details';
+    final original = change['original'] ?? '';
+    final newValue = change['new'] ?? '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "HEADS UP: $field Changed!",
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Was: $original\nNow: $newValue",
+                  style: TextStyle(
+                    color: isDark ? Colors.red.shade200 : Colors.red.shade900,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -557,7 +599,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         }
 
         final bool isVibeCheck = data['type'] == 'vibe_check';
-
         final bool isMainHost = data['hostId'] == currentUser.uid;
         final bool isCoHost = data['coHostId'] == currentUser.uid;
         final bool canEdit = isMainHost || isCoHost;
@@ -567,7 +608,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         final int rsvpDeadline = data['rsvpDeadline'] ?? 0;
         final int keepAliveDays = data['keepAliveDays'] ?? 0;
 
-        // --- FORMAT THE KEEP ALIVE LABEL ---
         String keepAliveLabel = "";
         if (keepAliveDays == 1) {
           keepAliveLabel = "1 Day";
@@ -577,7 +617,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           keepAliveLabel = "$keepAliveDays Days";
         }
 
-        // --- MODERN DATE/TIME PARSING ---
         final List<String> shortMonths = [
           'JAN',
           'FEB',
@@ -620,7 +659,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
 
-          // FLOATING CHAT BUTTON UNCHANGED
           floatingActionButton: StreamBuilder<DocumentSnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('events')
@@ -692,7 +730,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           body: CustomScrollView(
             controller: _scrollController,
             slivers: [
-              // NEW: HERO HEADER (Modern Cover Photo Style)
               SliverAppBar(
                 expandedHeight: 220,
                 pinned: true,
@@ -791,7 +828,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 12),
-                            // Host Attribution Row
                             FutureBuilder<DocumentSnapshot>(
                               future: FirebaseFirestore.instance
                                   .collection('users')
@@ -878,14 +914,12 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                   children: [
                     const SizedBox(height: 24),
 
-                    _buildAlertBanner(context, data),
-
-                    // NEW: THE "CALENDAR TEAR-OFF" & LOCATION BLOCK
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                    // --- CARD 1: THE VITALS ---
+                    _buildInfoCard(
+                      title: "The Vitals",
+                      icon: Icons.push_pin,
                       child: Column(
                         children: [
-                          // Distinct Date Row
                           Row(
                             children: [
                               Container(
@@ -893,7 +927,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                 decoration: BoxDecoration(
                                   color: isDark
                                       ? Colors.grey.shade800
-                                      : Colors.white,
+                                      : Colors.grey.shade50,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: isDark
@@ -963,7 +997,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                                 : Colors.black87,
                                           ),
                                         ),
-                                        // MOVED: The Keep Alive Pill is now next to the Day!
                                         if (keepAliveDays > 0) ...[
                                           const SizedBox(width: 10),
                                           Container(
@@ -1016,10 +1049,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                             ],
                           ),
 
-                          const SizedBox(height: 24),
-
-                          // Distinct Location Row
-                          if (!isVibeCheck)
+                          if (!isVibeCheck) ...[
+                            const SizedBox(height: 24),
                             InkWell(
                               onTap: () => _openMap(location),
                               borderRadius: BorderRadius.circular(12),
@@ -1031,8 +1062,14 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                     decoration: BoxDecoration(
                                       color: isDark
                                           ? Colors.grey.shade800
-                                          : Colors.grey.shade100,
+                                          : Colors.grey.shade50,
                                       borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: isDark
+                                            ? Colors.grey.shade700
+                                            : Colors.grey.shade200,
+                                        width: 1.5,
+                                      ),
                                     ),
                                     child: Icon(
                                       Icons.location_on,
@@ -1075,73 +1112,64 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                 ],
                               ),
                             ),
+                          ],
                         ],
                       ),
                     ),
 
-                    const SizedBox(height: 24),
-                    Divider(
-                      color: isDark
-                          ? Colors.grey.shade800
-                          : Colors.grey.shade300,
-                      thickness: 1,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // NEW: STREAMLINED DETAILS ROW
-                    if (hasDetails)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                    // --- CARD 2: THE DETAILS ---
+                    if (hasDetails || data.containsKey('latestCriticalChange'))
+                      _buildInfoCard(
+                        title: "The Details",
+                        icon: Icons.notes,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              "About",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            GestureDetector(
-                              onTap: () => _showFullDetails(context, details),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    details,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      height: 1.5,
-                                      color: isDark
-                                          ? Colors.grey.shade300
-                                          : Colors.grey.shade800,
+                            if (data.containsKey('latestCriticalChange')) ...[
+                              _buildAlertBanner(context, data),
+                              const SizedBox(height: 8),
+                            ],
+                            if (hasDetails)
+                              GestureDetector(
+                                onTap: () => _showFullDetails(context, details),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      details,
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        height: 1.5,
+                                        color: isDark
+                                            ? Colors.grey.shade300
+                                            : Colors.grey.shade800,
+                                      ),
+                                      maxLines: 4,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    maxLines: 4,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  if (details.length > 150 ||
-                                      details.contains('\n'))
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 8.0),
-                                      child: Text(
-                                        "Read more",
-                                        style: TextStyle(
-                                          color: primaryColor,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
+                                    if (details.length > 150 ||
+                                        details.contains('\n'))
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          top: 8.0,
+                                        ),
+                                        child: Text(
+                                          "Read more",
+                                          style: TextStyle(
+                                            color: primaryColor,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 20),
                           ],
                         ),
                       ),
 
-                    // NEW: STREAMLINED SQUAD NEEDS (DIBS)
+                    // --- CARD 3: SQUAD NEEDS ---
                     StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
                           .collection('events')
@@ -1155,11 +1183,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
                         if (!hasRoles) return const SizedBox.shrink();
 
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 8,
-                          ),
+                        return _buildInfoCard(
+                          title: "Squad Needs",
+                          icon: Icons.check_box_outlined,
                           child: InkWell(
                             onTap: () {
                               Navigator.push(
@@ -1184,18 +1210,10 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                               ),
                               child: Row(
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: primaryColor.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      Icons.check_box_outlined,
-                                      color: primaryColor,
-                                    ),
+                                  Icon(
+                                    Icons.pan_tool,
+                                    color: primaryColor,
+                                    size: 24,
                                   ),
                                   const SizedBox(width: 16),
                                   Expanded(
@@ -1204,25 +1222,15 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          "Squad Needs",
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                            color: isDark
-                                                ? Colors.white
-                                                : Colors.black87,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
                                           canEdit
                                               ? "Manage items you need help with"
                                               : "See what the captain needs!",
                                           style: TextStyle(
                                             color: isDark
-                                                ? Colors.grey.shade400
-                                                : Colors.grey.shade700,
-                                            fontSize: 13,
+                                                ? Colors.white
+                                                : Colors.black87,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ],
@@ -1241,9 +1249,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                       },
                     ),
 
-                    const SizedBox(height: 16),
-
-                    // NEW: PUNCHY RSVP & VIBE CHECK SECTION
+                    // --- CARD 4: RSVP / VIBE CHECK ---
                     StreamBuilder<DocumentSnapshot>(
                       stream: FirebaseFirestore.instance
                           .collection('events')
@@ -1260,23 +1266,14 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                           myStatus = myInviteData['status'] ?? 'pending';
                         }
 
-                        final isGoing = myStatus == 'going';
-                        final isDeclined = myStatus == 'declined';
-
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (isVibeCheck) ...[
-                                const Text(
-                                  "Activity Options",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
+                        if (isVibeCheck) {
+                          final isGoing = myStatus == 'going';
+                          return _buildInfoCard(
+                            title: "Cast Your Vote",
+                            icon: Icons.how_to_vote,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                                 if (!isGoing && !isMainHost)
                                   Container(
                                     margin: const EdgeInsets.only(bottom: 16),
@@ -1302,7 +1299,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                         SizedBox(width: 10),
                                         Expanded(
                                           child: Text(
-                                            "RSVP 'LET'S GO' below to cast your vote!",
+                                            "Swipe 'LET'S GO' below to cast your vote!",
                                             style: TextStyle(
                                               color: Colors.orange,
                                               fontWeight: FontWeight.bold,
@@ -1319,125 +1316,34 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                   myUid: currentUser.uid,
                                   isHost: isMainHost,
                                 ),
+                                // Give Vibe checks the swipeable widget as well to confirm attendance
                                 const SizedBox(height: 24),
-                              ],
-
-                              if (!isVibeCheck)
-                                const Text(
-                                  "In or Out?",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                  ),
+                                SwipeRsvpWidget(
+                                  currentStatus: myStatus,
+                                  onRsvp: _rsvp,
                                 ),
-                              const SizedBox(height: 12),
+                              ],
+                            ),
+                          );
+                        }
 
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: ElevatedButton(
-                                      onPressed: () => _rsvp('going'),
-                                      style: ElevatedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 16,
-                                        ),
-                                        backgroundColor: isGoing
-                                            ? Colors.green
-                                            : (isDark
-                                                  ? Colors.grey.shade900
-                                                  : Colors.grey.shade100),
-                                        foregroundColor: isGoing
-                                            ? Colors.white
-                                            : Colors.green,
-                                        elevation: 0,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
-                                          side: BorderSide(
-                                            color: isGoing
-                                                ? Colors.transparent
-                                                : Colors.green.withValues(
-                                                    alpha: 0.5,
-                                                  ),
-                                            width: 1.5,
-                                          ),
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        "LET'S GO",
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          letterSpacing: 1,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: ElevatedButton(
-                                      onPressed: () => _rsvp('declined'),
-                                      style: ElevatedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 16,
-                                        ),
-                                        backgroundColor: isDeclined
-                                            ? Colors.red
-                                            : (isDark
-                                                  ? Colors.grey.shade900
-                                                  : Colors.grey.shade100),
-                                        foregroundColor: isDeclined
-                                            ? Colors.white
-                                            : Colors.red,
-                                        elevation: 0,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
-                                          side: BorderSide(
-                                            color: isDeclined
-                                                ? Colors.transparent
-                                                : Colors.red.withValues(
-                                                    alpha: 0.5,
-                                                  ),
-                                            width: 1.5,
-                                          ),
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        "I'M OUT",
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          letterSpacing: 1,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                        return _buildInfoCard(
+                          title: "In or Out?",
+                          icon: Icons.thumbs_up_down,
+                          child: SwipeRsvpWidget(
+                            currentStatus: myStatus,
+                            onRsvp: _rsvp,
                           ),
                         );
                       },
-                    ),
-
-                    const SizedBox(height: 24),
-                    Divider(
-                      color: isDark
-                          ? Colors.grey.shade800
-                          : Colors.grey.shade300,
-                      thickness: 1,
                     ),
                   ],
                 ),
               ),
 
-              // SQUAD LIST REMAINS LARGELY UNTOUCHED, JUST ADDED TITLE STYLING
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
-                sliver: StreamBuilder<QuerySnapshot>(
+              // --- CARD 5: THE CREW (Unified Container) ---
+              SliverToBoxAdapter(
+                child: StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('events')
                       .doc(widget.eventId)
@@ -1445,15 +1351,14 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                       .snapshots(),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) {
-                      return const SliverToBoxAdapter(
-                        child: Center(child: CircularProgressIndicator()),
-                      );
+                      return const Center(child: CircularProgressIndicator());
                     }
 
                     final inviteDocs = snapshot.data!.docs;
 
                     if (inviteDocs.isEmpty) {
-                      return const SliverToBoxAdapter(
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20),
                         child: Text("No invitations found."),
                       );
                     }
@@ -1462,239 +1367,499 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                       future: _fetchAndSortGuests(inviteDocs, dt, rsvpDeadline),
                       builder: (context, sortedSnap) {
                         if (!sortedSnap.hasData) {
-                          return const SliverToBoxAdapter(
-                            child: Center(child: CircularProgressIndicator()),
+                          return const Center(
+                            child: CircularProgressIndicator(),
                           );
                         }
 
                         final guests = sortedSnap.data!;
 
-                        return SliverList(
-                          delegate: SliverChildBuilderDelegate((
-                            context,
-                            index,
-                          ) {
-                            if (index == 0) {
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 16),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    const Text(
-                                      "The Crew",
-                                      style: TextStyle(
-                                        fontSize: 22, // Slightly larger
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    _buildFacepile(
-                                      guests,
-                                      currentUser.uid,
-                                      isDark,
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
+                        return Padding(
+                          padding: const EdgeInsets.only(
+                            bottom: 100,
+                          ), // FAB clearance
+                          child: _buildInfoCard(
+                            title: "The Crew",
+                            icon: Icons.group,
+                            trailing: _buildFacepile(
+                              guests,
+                              currentUser.uid,
+                              isDark,
+                            ),
+                            child: ListView.builder(
+                              padding: EdgeInsets.zero,
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: guests.length,
+                              itemBuilder: (context, index) {
+                                final guest = guests[index];
+                                final String status = guest['status'];
+                                final String guestUid = guest['uid'];
+                                final String name = guest['displayName'];
+                                final String phone = guest['phone'];
+                                final int avatarColor = guest['avatarColor'];
+                                final String? avatarUrl = guest['avatarUrl'];
 
-                            final guest = guests[index - 1];
-                            final String status = guest['status'];
-                            final String guestUid = guest['uid'];
-                            final String name = guest['displayName'];
-                            final String phone = guest['phone'];
-                            final int avatarColor = guest['avatarColor'];
-                            final String? avatarUrl = guest['avatarUrl'];
+                                final bool isEventMainHost =
+                                    guestUid == data['hostId'];
+                                final bool isEventCoHost =
+                                    guestUid == data['coHostId'];
 
-                            final bool isEventMainHost =
-                                guestUid == data['hostId'];
-                            final bool isEventCoHost =
-                                guestUid == data['coHostId'];
+                                IconData badgeIcon;
+                                Color badgeColor;
+                                String statusText;
 
-                            IconData badgeIcon;
-                            Color badgeColor;
-                            String statusText;
-
-                            switch (status) {
-                              case 'going':
-                                badgeIcon = Icons.check_circle;
-                                badgeColor = Colors.green;
-                                statusText = "is in for the win!";
-                                break;
-                              case 'declined':
-                                badgeIcon = Icons.cancel;
-                                badgeColor = Colors.red;
-                                statusText = "is sitting this one out.";
-                                break;
-                              default:
-                                badgeIcon = Icons.hourglass_empty;
-                                badgeColor = isDark
-                                    ? Colors.grey.shade400
-                                    : Colors.grey.shade700;
-                                statusText = "is too cool to respond.";
-                            }
-
-                            return StreamBuilder<DocumentSnapshot>(
-                              stream: FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(currentUser.uid)
-                                  .collection('friends')
-                                  .doc(guestUid)
-                                  .snapshots(),
-                              builder: (context, friendSnap) {
-                                bool isMe = (guestUid == currentUser.uid);
-                                bool isFriend = false;
-
-                                if (friendSnap.hasData &&
-                                    friendSnap.data!.exists) {
-                                  isFriend = true;
+                                switch (status) {
+                                  case 'going':
+                                    badgeIcon = Icons.check_circle;
+                                    badgeColor = Colors.green;
+                                    statusText = "is in for the win!";
+                                    break;
+                                  case 'declined':
+                                    badgeIcon = Icons.cancel;
+                                    badgeColor = Colors.red;
+                                    statusText = "is sitting this one out.";
+                                    break;
+                                  default:
+                                    badgeIcon = Icons.hourglass_empty;
+                                    badgeColor = isDark
+                                        ? Colors.grey.shade400
+                                        : Colors.grey.shade700;
+                                    statusText = "is too cool to respond.";
                                 }
 
-                                bool showAddButton = !isMe && !isFriend;
+                                return StreamBuilder<DocumentSnapshot>(
+                                  stream: FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(currentUser.uid)
+                                      .collection('friends')
+                                      .doc(guestUid)
+                                      .snapshots(),
+                                  builder: (context, friendSnap) {
+                                    bool isMe = (guestUid == currentUser.uid);
+                                    bool isFriend = false;
 
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 12.0),
-                                  child: ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                      vertical: 0,
-                                    ),
-                                    leading: SizedBox(
-                                      width: 50,
-                                      height: 50,
-                                      child: Stack(
-                                        clipBehavior: Clip.none,
-                                        children: [
-                                          Center(
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: Color(
-                                                      avatarColor,
-                                                    ).withValues(alpha: 0.4),
-                                                    blurRadius: 12,
-                                                    spreadRadius: 2,
-                                                  ),
-                                                ],
-                                              ),
-                                              child: CircleAvatar(
-                                                backgroundColor: Color(
-                                                  avatarColor,
-                                                ),
-                                                radius: 20,
-                                                backgroundImage:
-                                                    avatarUrl != null
-                                                    ? CachedNetworkImageProvider(
-                                                        avatarUrl,
-                                                      )
-                                                    : null,
-                                                child: avatarUrl == null
-                                                    ? Text(
-                                                        name.isNotEmpty
-                                                            ? name[0]
-                                                                  .toUpperCase()
-                                                            : "?",
-                                                        style: const TextStyle(
-                                                          color: Colors.white,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      )
-                                                    : null,
-                                              ),
-                                            ),
-                                          ),
-                                          Positioned(
-                                            top: -4,
-                                            left: -6,
-                                            child: Stack(
-                                              alignment: Alignment.center,
-                                              children: [
-                                                Icon(
-                                                  badgeIcon,
-                                                  size: 24,
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).scaffoldBackgroundColor,
-                                                ),
-                                                Icon(
-                                                  badgeIcon,
-                                                  size: 20,
-                                                  color: badgeColor,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
+                                    if (friendSnap.hasData &&
+                                        friendSnap.data!.exists) {
+                                      isFriend = true;
+                                    }
+
+                                    bool showAddButton = !isMe && !isFriend;
+
+                                    return Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 12.0,
                                       ),
-                                    ),
-                                    title: Row(
-                                      children: [
-                                        Flexible(
-                                          child: Text(
-                                            name,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
+                                      child: ListTile(
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 4,
+                                              vertical: 0,
                                             ),
-                                            overflow: TextOverflow.ellipsis,
+                                        leading: SizedBox(
+                                          width: 50,
+                                          height: 50,
+                                          child: Stack(
+                                            clipBehavior: Clip.none,
+                                            children: [
+                                              Center(
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color:
+                                                            Color(
+                                                              avatarColor,
+                                                            ).withValues(
+                                                              alpha: 0.4,
+                                                            ),
+                                                        blurRadius: 12,
+                                                        spreadRadius: 2,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: CircleAvatar(
+                                                    backgroundColor: Color(
+                                                      avatarColor,
+                                                    ),
+                                                    radius: 20,
+                                                    backgroundImage:
+                                                        avatarUrl != null
+                                                        ? CachedNetworkImageProvider(
+                                                            avatarUrl,
+                                                          )
+                                                        : null,
+                                                    child: avatarUrl == null
+                                                        ? Text(
+                                                            name.isNotEmpty
+                                                                ? name[0]
+                                                                      .toUpperCase()
+                                                                : "?",
+                                                            style:
+                                                                const TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                ),
+                                                          )
+                                                        : null,
+                                                  ),
+                                                ),
+                                              ),
+                                              Positioned(
+                                                top: -4,
+                                                left: -6,
+                                                child: Stack(
+                                                  alignment: Alignment.center,
+                                                  children: [
+                                                    Icon(
+                                                      badgeIcon,
+                                                      size: 24,
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).cardColor,
+                                                    ),
+                                                    Icon(
+                                                      badgeIcon,
+                                                      size: 20,
+                                                      color: badgeColor,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                        if (isEventMainHost) ...[
-                                          const SizedBox(width: 6),
-                                          const Icon(
-                                            Symbols.crown,
-                                            size: 18,
-                                            color: Colors.amber,
+                                        title: Row(
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                name,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            if (isEventMainHost) ...[
+                                              const SizedBox(width: 6),
+                                              const Icon(
+                                                Symbols.crown,
+                                                size: 18,
+                                                color: Colors.amber,
+                                              ),
+                                            ] else if (isEventCoHost) ...[
+                                              const SizedBox(width: 6),
+                                              Icon(
+                                                Symbols.military_tech,
+                                                size: 16,
+                                                color: primaryColor,
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                        subtitle: Text(
+                                          statusText,
+                                          style: TextStyle(
+                                            color: badgeColor,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            fontStyle: status == 'pending'
+                                                ? FontStyle.italic
+                                                : FontStyle.normal,
                                           ),
-                                        ] else if (isEventCoHost) ...[
-                                          const SizedBox(width: 6),
-                                          Icon(
-                                            Symbols.military_tech,
-                                            size: 16,
-                                            color: primaryColor,
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                    subtitle: Text(
-                                      statusText,
-                                      style: TextStyle(
-                                        color: badgeColor,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                        fontStyle: status == 'pending'
-                                            ? FontStyle.italic
-                                            : FontStyle.normal,
+                                        ),
+                                        trailing: showAddButton
+                                            ? IconButton(
+                                                icon: Icon(
+                                                  Icons.person_add_alt_1,
+                                                  color: primaryColor,
+                                                ),
+                                                tooltip: "Add Friend",
+                                                onPressed: () => _addFriend(
+                                                  context,
+                                                  guestUid,
+                                                  phone,
+                                                  name,
+                                                ),
+                                              )
+                                            : null,
                                       ),
-                                    ),
-                                    trailing: showAddButton
-                                        ? IconButton(
-                                            icon: Icon(
-                                              Icons.person_add_alt_1,
-                                              color: primaryColor,
-                                            ),
-                                            tooltip: "Add Friend",
-                                            onPressed: () => _addFriend(
-                                              context,
-                                              guestUid,
-                                              phone,
-                                              name,
-                                            ),
-                                          )
-                                        : null,
-                                  ),
+                                    );
+                                  },
                                 );
                               },
-                            );
-                          }, childCount: guests.length + 1),
+                            ),
+                          ),
                         );
                       },
                     );
                   },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// --- NEW: SWIPE-TO-RSVP WIDGET ---
+class SwipeRsvpWidget extends StatefulWidget {
+  final String currentStatus;
+  final Function(String) onRsvp;
+
+  const SwipeRsvpWidget({
+    super.key,
+    required this.currentStatus,
+    required this.onRsvp,
+  });
+
+  @override
+  State<SwipeRsvpWidget> createState() => _SwipeRsvpWidgetState();
+}
+
+class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
+  double _dragPosition = 0.0;
+  bool _isDragging = false;
+
+  void _handleDragUpdate(DragUpdateDetails details, double maxDrag) {
+    setState(() {
+      _isDragging = true;
+      _dragPosition += details.delta.dx;
+
+      // Clamp the drag so the thumb doesn't leave the track
+      if (_dragPosition > maxDrag) _dragPosition = maxDrag;
+      if (_dragPosition < -maxDrag) _dragPosition = -maxDrag;
+    });
+  }
+
+  void _handleDragEnd(double maxDrag) {
+    setState(() {
+      _isDragging = false;
+    });
+
+    // If they swiped more than 70% of the way to a side, trigger the action
+    if (_dragPosition > maxDrag * 0.7) {
+      widget.onRsvp('going');
+      // Snap to end before parent rebuilds
+      setState(() => _dragPosition = maxDrag);
+    } else if (_dragPosition < -maxDrag * 0.7) {
+      widget.onRsvp('declined');
+      // Snap to end before parent rebuilds
+      setState(() => _dragPosition = -maxDrag);
+    } else {
+      // Snap back to center
+      setState(() => _dragPosition = 0.0);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant SwipeRsvpWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reset drag position if status changes externally
+    if (widget.currentStatus != oldWidget.currentStatus) {
+      _dragPosition = 0.0;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Status 1: ACCEPTED
+    if (widget.currentStatus == 'going') {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.green.withValues(alpha: 0.5),
+            width: 2,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 28),
+                SizedBox(width: 12),
+                Text(
+                  "You're in!",
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+              ],
+            ),
+            TextButton(
+              onPressed: () =>
+                  widget.onRsvp('pending'), // Puts them back to slider state
+              child: const Text(
+                "Change",
+                style: TextStyle(
+                  color: Colors.green,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Status 2: DECLINED
+    if (widget.currentStatus == 'declined') {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.red.withValues(alpha: 0.5),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.cancel, color: Colors.red, size: 28),
+                SizedBox(width: 12),
+                Text(
+                  "You're sitting this out.",
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+            TextButton(
+              onPressed: () => widget.onRsvp('pending'),
+              child: const Text(
+                "Change",
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Status 3: PENDING (The Interactive Slider)
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double trackWidth = constraints.maxWidth;
+        const double thumbWidth = 100.0;
+        final double maxDrag = (trackWidth - thumbWidth) / 2;
+
+        return Container(
+          width: trackWidth,
+          height: 65,
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(35),
+            border: Border.all(
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+              width: 1.5,
+            ),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Track Text - Left
+              Positioned(
+                left: 24,
+                child: Text(
+                  "« I'M OUT",
+                  style: TextStyle(
+                    color: Colors.red.withValues(alpha: 0.6),
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+              // Track Text - Right
+              Positioned(
+                right: 24,
+                child: Text(
+                  "LET'S GO »",
+                  style: TextStyle(
+                    color: Colors.green.withValues(alpha: 0.6),
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+
+              // The Draggable Thumb
+              AnimatedPositioned(
+                duration: _isDragging
+                    ? Duration.zero
+                    : const Duration(milliseconds: 300),
+                curve: Curves.easeOutBack,
+                left: (trackWidth / 2) - (thumbWidth / 2) + _dragPosition,
+                child: GestureDetector(
+                  onHorizontalDragUpdate: (details) =>
+                      _handleDragUpdate(details, maxDrag),
+                  onHorizontalDragEnd: (details) => _handleDragEnd(maxDrag),
+                  child: Container(
+                    width: thumbWidth,
+                    height: 55,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.chevron_left,
+                          color: Colors.grey.shade400,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          "SWIPE",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.chevron_right,
+                          color: Colors.grey.shade400,
+                          size: 20,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -1895,7 +2060,7 @@ class VibeCheckPollUI extends StatelessWidget {
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
+                    color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: iVoted ? primaryColor : Colors.transparent,
@@ -1913,7 +2078,7 @@ class VibeCheckPollUI extends StatelessWidget {
                             child: Container(
                               decoration: BoxDecoration(
                                 color: primaryColor.withValues(
-                                  alpha: isDark ? 0.3 : 0.2,
+                                  alpha: isDark ? 0.3 : 0.15,
                                 ),
                                 borderRadius: BorderRadius.circular(14),
                               ),
