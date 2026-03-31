@@ -675,9 +675,9 @@ class _EditEventPageState extends State<EditEventPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Operation?'),
+        title: const Text('Delete Hangout?'),
         content: const Text(
-          'This will permanently delete the operation, the squad list, and the chat history.',
+          'This will permanently delete the hangout, the squad list, and the chat history.',
         ),
         actions: [
           TextButton(
@@ -1293,7 +1293,7 @@ class _EditEventPageState extends State<EditEventPage> {
       controller: _titleController,
       maxLength: 50,
       decoration: _buildInputDecoration(
-        label: 'Operation Name',
+        label: 'Hangout Title',
         prefixIcon: Icon(Symbols.campaign, color: primaryColor),
       ).copyWith(counterText: ""),
       validator: (val) => val == null || val.isEmpty ? 'Required' : null,
@@ -1693,7 +1693,7 @@ class _EditEventPageState extends State<EditEventPage> {
               color: isDark ? Colors.redAccent : Colors.red,
             ),
             label: Text(
-              "Delete Operation",
+              "Delete Hangout",
               style: TextStyle(
                 color: isDark ? Colors.redAccent : Colors.red,
                 fontSize: 16,
