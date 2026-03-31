@@ -7,7 +7,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'theme_provider.dart';
 
 class LocationSearchPage extends StatefulWidget {
-  const LocationSearchPage({super.key});
+  // NEW: Controls whether to show the favorites list below the search bar
+  final bool showFavorites;
+
+  // Defaults to true so it doesn't break the Create Event page!
+  const LocationSearchPage({super.key, this.showFavorites = true});
 
   @override
   State<LocationSearchPage> createState() => _LocationSearchPageState();
@@ -83,15 +87,7 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Text(
-              "Search for an address above to get started.",
-              style: TextStyle(
-                color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
-                fontSize: 16,
-              ),
-            ),
-          );
+          return _buildEmptySearchPrompt(isDark);
         }
 
         final places = snapshot.data!.docs;
@@ -123,6 +119,18 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildEmptySearchPrompt(bool isDark) {
+    return Center(
+      child: Text(
+        "Search for an address above.",
+        style: TextStyle(
+          color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
+          fontSize: 16,
+        ),
+      ),
     );
   }
 
@@ -169,7 +177,7 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Where we doing this?"),
+        title: const Text("Search Places"),
         centerTitle: true,
         foregroundColor: themeProvider.onPrimaryColor,
         flexibleSpace: Container(
@@ -214,10 +222,12 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
             color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
           ),
 
-          // --- THE MAGIC TOGGLE ---
           Expanded(
             child: _controller.text.isEmpty
-                ? _buildFavoritesList(isDark)
+                // NEW: Check the flag to determine what to show when search is empty
+                ? (widget.showFavorites
+                      ? _buildFavoritesList(isDark)
+                      : _buildEmptySearchPrompt(isDark))
                 : _buildPredictionsList(isDark),
           ),
         ],
