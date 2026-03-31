@@ -544,6 +544,13 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
       }
 
       batch.update(eventRef, updateData);
+
+      // FIX: Automatically mark the event as "viewed" for the person making the edits!
+      // This prevents the Icons.info badge from showing up on their own home feed.
+      batch.set(eventRef.collection('invitations').doc(user.uid), {
+        'lastViewedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
       await batch.commit();
 
       if (mounted) Navigator.pop(context);
