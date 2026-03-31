@@ -30,9 +30,43 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
   final ScrollController _scrollController = ScrollController();
   bool _isAppBarCollapsed = false;
 
+  // FIX: Declare persistent stream variables
+  late Stream<DocumentSnapshot> _eventStream;
+  late Stream<QuerySnapshot> _rolesStream;
+  late Stream<DocumentSnapshot> _myInviteStream;
+  late Stream<QuerySnapshot> _crewStream;
+
   @override
   void initState() {
     super.initState();
+
+    // FIX: Initialize them ONCE when the page loads
+    final user = FirebaseAuth.instance.currentUser;
+    _eventStream = FirebaseFirestore.instance
+        .collection('events')
+        .doc(widget.eventId)
+        .snapshots();
+    _rolesStream = FirebaseFirestore.instance
+        .collection('events')
+        .doc(widget.eventId)
+        .collection('roles')
+        .limit(1)
+        .snapshots();
+    _crewStream = FirebaseFirestore.instance
+        .collection('events')
+        .doc(widget.eventId)
+        .collection('invitations')
+        .snapshots();
+
+    if (user != null) {
+      _myInviteStream = FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.eventId)
+          .collection('invitations')
+          .doc(user.uid)
+          .snapshots();
+    }
+
     _markDetailsAsViewed();
 
     _scrollController.addListener(() {
@@ -90,23 +124,22 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         .collection('events')
         .doc(widget.eventId);
     final inviteRef = eventRef.collection('invitations').doc(user.uid);
-    final batch = FirebaseFirestore.instance.batch();
 
-    batch.set(inviteRef, {
+    // FIX 1: Direct set() triggers instant, stable local UI updates (bypassing batch delay)
+    await inviteRef.set({
       'status': status,
       'respondedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
+    // Handle tie-breaker independently after the RSVP is securely saved
     final evSnap = await eventRef.get();
     if (evSnap.exists) {
       final evData = evSnap.data() as Map<String, dynamic>;
       if (evData['type'] == 'vibe_check' &&
           evData['isTieBreakerNeeded'] == true) {
-        batch.update(eventRef, {'isTieBreakerNeeded': false});
+        await eventRef.update({'isTieBreakerNeeded': false});
       }
     }
-
-    await batch.commit();
   }
 
   Future<void> _addFriend(
@@ -596,10 +629,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
             : (_isAppBarCollapsed ? Colors.grey.shade700 : Colors.white);
 
         return StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('events')
-              .doc(widget.eventId)
-              .snapshots(),
+          stream: _eventStream, // Replaced inline query
           builder: (context, snapshot) {
             var data = widget.eventData;
             if (snapshot.hasData && snapshot.data!.data() != null) {
@@ -908,12 +938,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
             // --- WIDGET 3: SQUAD NEEDS CARD ---
             final squadNeedsCardWidget = StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('events')
-                  .doc(widget.eventId)
-                  .collection('roles')
-                  .limit(1)
-                  .snapshots(),
+              stream: _rolesStream, // Replaced inline query
               builder: (context, roleSnap) {
                 if (!roleSnap.hasData || roleSnap.data!.docs.isEmpty) {
                   return const SizedBox.shrink();
@@ -975,12 +1000,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
             // --- WIDGET 4: RSVP / VIBE CHECK CARD ---
             final rsvpCardWidget = StreamBuilder<DocumentSnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('events')
-                  .doc(widget.eventId)
-                  .collection('invitations')
-                  .doc(currentUser.uid)
-                  .snapshots(),
+              stream: _myInviteStream, // Replaced inline query
               builder: (context, inviteSnap) {
                 Map<String, dynamic> myInviteData = {};
                 String myStatus = 'pending';
@@ -1037,7 +1057,13 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                           isHost: isMainHost,
                         ),
                         const SizedBox(height: 24),
-                        SwipeRsvpWidget(currentStatus: myStatus, onRsvp: _rsvp),
+                        SwipeRsvpWidget(
+                          key: ValueKey(
+                            myStatus,
+                          ), // FIX 2: Purges phantom state
+                          currentStatus: myStatus,
+                          onRsvp: _rsvp,
+                        ),
                       ],
                     ),
                   );
@@ -1047,6 +1073,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                   title: "In or Out?",
                   icon: Icons.thumbs_up_down,
                   child: SwipeRsvpWidget(
+                    key: ValueKey(myStatus), // FIX 2: Purges phantom state
                     currentStatus: myStatus,
                     onRsvp: _rsvp,
                   ),
@@ -1056,11 +1083,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
             // --- WIDGET 5: THE CREW CARD ---
             final crewCardWidget = StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('events')
-                  .doc(widget.eventId)
-                  .collection('invitations')
-                  .snapshots(),
+              stream: _crewStream, // Replaced inline query
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
@@ -1314,12 +1337,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
               backgroundColor: Theme.of(context).scaffoldBackgroundColor,
 
               floatingActionButton: StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('events')
-                    .doc(widget.eventId)
-                    .collection('invitations')
-                    .doc(currentUser.uid)
-                    .snapshots(),
+                stream: _myInviteStream, // Reused our persistent invite stream!
                 builder: (context, inviteSnap) {
                   Timestamp? lastReadTime;
                   if (inviteSnap.hasData && inviteSnap.data!.exists) {

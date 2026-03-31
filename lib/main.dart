@@ -973,13 +973,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       status = 'declined';
                       if (inviteData.isNotEmpty &&
                           inviteData['status'] == 'pending') {
-                        FirebaseFirestore.instance
-                            .collection('events')
-                            .doc(eventId)
-                            .collection('invitations')
-                            .doc(user?.uid)
-                            .update({'status': 'declined'})
-                            .catchError((_) {});
+                        status = 'declined';
                       }
                     }
 
@@ -1719,7 +1713,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                                           ),
                                         ),
                                         const SizedBox(width: 6),
-                                        // 👇 FIX 2: Wrapped text in Flexible to prevent overflow
+                                        // FIX 2: Wrapped text in Flexible to prevent overflow
                                         Flexible(
                                           child: Text(
                                             "Captain",
@@ -1799,7 +1793,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                                     color: primaryColor,
                                   ),
                                   const SizedBox(width: 4),
-                                  // 👇 FIX 2: Wrapped text in Flexible to prevent overflow
+                                  // FIX 2: Wrapped text in Flexible to prevent overflow
                                   Flexible(
                                     child: Text(
                                       "PLEASE READ",
