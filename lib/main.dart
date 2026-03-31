@@ -1608,7 +1608,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                                     color: primaryColor,
                                   ),
                                   const SizedBox(width: 4),
-                                  // 👇 FIX 2: Wrapped text in Flexible to prevent overflow
+                                  // FIX 2: Wrapped text in Flexible to prevent overflow
                                   Flexible(
                                     child: Text(
                                       "Captain",
