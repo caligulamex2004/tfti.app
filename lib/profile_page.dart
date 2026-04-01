@@ -721,6 +721,16 @@ class _ProfilePageState extends State<ProfilePage> {
         await doc.reference.delete();
       }
 
+      // THE MISSING FIX: Hunt down and delete this user from everyone's friends list
+      final friendsGlobalSnap = await FirebaseFirestore.instance
+          .collectionGroup('friends')
+          .where('uid', isEqualTo: user.uid)
+          .get();
+
+      for (var doc in friendsGlobalSnap.docs) {
+        await doc.reference.delete();
+      }
+
       // 6. Delete User Doc & Firebase Auth Account
       await userDocRef.delete();
       await user.delete();

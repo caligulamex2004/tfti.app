@@ -1330,186 +1330,188 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
             .where('circles', arrayContains: widget.circleId)
             .snapshots(),
         builder: (context, snapshot) {
-          int memberCount = 0;
-          List<DocumentSnapshot> friendDocs = [];
-
-          if (snapshot.hasData) {
-            friendDocs = snapshot.data!.docs;
-            memberCount = friendDocs.length;
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
           }
 
-          return CustomScrollView(
-            slivers: [
-              SliverAppBar(
-                expandedHeight: 200,
-                pinned: true,
-                stretch: true,
-                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                foregroundColor: Colors.white,
-                flexibleSpace: FlexibleSpaceBar(
-                  stretchModes: const [StretchMode.zoomBackground],
-                  background: Container(
-                    decoration: BoxDecoration(
-                      gradient: themeProvider.appGradient,
-                    ),
-                    child: SafeArea(
-                      child: Padding(
-                        padding: const EdgeInsets.only(
-                          left: 20,
-                          right: 20,
-                          bottom: 20,
-                          top: 40,
+          final friendDocs = snapshot.data!.docs;
+
+          // 👇 FIX: Lifted FutureBuilder to wrap the whole ScrollView
+          return FutureBuilder<List<Map<String, dynamic>>>(
+            future: _fetchAndSortMembers(friendDocs),
+            builder: (context, profileSnap) {
+              if (!profileSnap.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final profiles = profileSnap.data!;
+              final int memberCount =
+                  profiles.length; // 👈 Perfectly synced count!
+
+              return CustomScrollView(
+                slivers: [
+                  SliverAppBar(
+                    expandedHeight: 200,
+                    pinned: true,
+                    stretch: true,
+                    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                    foregroundColor: Colors.white,
+                    flexibleSpace: FlexibleSpaceBar(
+                      stretchModes: const [StretchMode.zoomBackground],
+                      background: Container(
+                        decoration: BoxDecoration(
+                          gradient: themeProvider.appGradient,
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.circleName,
-                              style: const TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                height: 1.1,
-                                letterSpacing: -0.5,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                        child: SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.only(
+                              left: 20,
+                              right: 20,
+                              bottom: 20,
+                              top: 40,
                             ),
-                            const SizedBox(height: 12),
-                            Row(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(
-                                  Icons.people,
-                                  color: Colors.white.withValues(alpha: 0.8),
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 6),
                                 Text(
-                                  "$memberCount Members",
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
+                                  widget.circleName,
+                                  style: const TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    height: 1.1,
+                                    letterSpacing: -0.5,
                                   ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                const Spacer(),
-                                InkWell(
-                                  onTap: _showAddMembersBottomSheet,
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.people,
                                       color: Colors.white.withValues(
-                                        alpha: 0.2,
+                                        alpha: 0.8,
                                       ),
-                                      borderRadius: BorderRadius.circular(12),
+                                      size: 16,
                                     ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.person_add,
-                                          color: Colors.white,
-                                          size: 16,
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      "$memberCount Members", // Now uses the filtered count
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.9,
                                         ),
-                                        SizedBox(width: 6),
-                                        Text(
-                                          "Add",
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    InkWell(
+                                      onTap: _showAddMembersBottomSheet,
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.2,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
                                           ),
                                         ),
-                                      ],
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.person_add,
+                                              color: Colors.white,
+                                              size: 16,
+                                            ),
+                                            SizedBox(width: 6),
+                                            Text(
+                                              "Add",
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 ),
                               ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  if (profiles.isEmpty)
+                    SliverFillRemaining(
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 60),
+                            Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? Colors.grey.shade900
+                                    : Colors.grey.shade100,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.group_off,
+                                size: 64,
+                                color: isDark
+                                    ? Colors.grey.shade700
+                                    : Colors.grey.shade400,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              "This team is empty.",
+                              style: TextStyle(
+                                color: isDark
+                                    ? Colors.grey.shade400
+                                    : Colors.grey.shade700,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              "Tap 'Add' to recruit some squadmates!",
+                              style: TextStyle(
+                                color: isDark
+                                    ? Colors.grey.shade500
+                                    : Colors.grey.shade600,
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                  ),
-                ),
-              ),
 
-              if (friendDocs.isEmpty &&
-                  snapshot.connectionState == ConnectionState.active)
-                SliverFillRemaining(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 60),
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? Colors.grey.shade900
-                                : Colors.grey.shade100,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.group_off,
-                            size: 64,
-                            color: isDark
-                                ? Colors.grey.shade700
-                                : Colors.grey.shade400,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          "This team is empty.",
-                          style: TextStyle(
-                            color: isDark
-                                ? Colors.grey.shade400
-                                : Colors.grey.shade700,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          "Tap 'Add' to recruit some squadmates!",
-                          style: TextStyle(
-                            color: isDark
-                                ? Colors.grey.shade500
-                                : Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-              if (friendDocs.isNotEmpty)
-                SliverPadding(
-                  padding: const EdgeInsets.all(16.0),
-                  sliver: FutureBuilder<List<Map<String, dynamic>>>(
-                    future: _fetchAndSortMembers(friendDocs),
-                    builder: (context, profileSnap) {
-                      if (!profileSnap.hasData) {
-                        return const SliverFillRemaining(
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-
-                      final profiles = profileSnap.data!;
-
-                      return SliverList(
+                  if (profiles.isNotEmpty)
+                    SliverPadding(
+                      padding: const EdgeInsets.all(16.0),
+                      sliver: SliverList(
                         delegate: SliverChildBuilderDelegate((context, index) {
                           final profile = profiles[index];
                           final displayName =
                               profile['displayName'] ?? "Unknown";
-
                           final String username = profile['username'] ?? "";
                           final String statusText = profile['statusText'] ?? "";
-
                           final String? avatarUrl = profile['avatarUrl'];
 
                           Color avatarColor = Colors.blue;
@@ -1540,7 +1542,6 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                     ),
                                 ],
                               ),
-                              // FIXED: Syncing to InkWell/Row to prevent rotation crashes!
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(16),
                                 onTap: () => _showFriendProfileBottomSheet(
@@ -1556,7 +1557,6 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                   ),
                                   child: Row(
                                     children: [
-                                      // --- LEADING: Avatar ---
                                       Container(
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
@@ -1594,8 +1594,6 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                         ),
                                       ),
                                       const SizedBox(width: 16),
-
-                                      // --- TEXT COLUMN ---
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
@@ -1711,8 +1709,6 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                           ],
                                         ),
                                       ),
-
-                                      // --- TRAILING ICON ---
                                       IconButton(
                                         icon: Icon(
                                           Icons.remove_circle_outline,
@@ -1730,11 +1726,11 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                             ),
                           );
                         }, childCount: profiles.length),
-                      );
-                    },
-                  ),
-                ),
-            ],
+                      ),
+                    ),
+                ],
+              );
+            },
           );
         },
       ),
