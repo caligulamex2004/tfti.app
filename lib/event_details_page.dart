@@ -127,6 +127,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
     // FIX 1: Direct set() triggers instant, stable local UI updates (bypassing batch delay)
     await inviteRef.set({
+      'uid': user.uid,
       'status': status,
       'respondedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -1941,7 +1942,10 @@ class VibeCheckPollUI extends StatelessWidget {
     final inviteRef = eventRef.collection('invitations').doc(myUid);
     final batch = FirebaseFirestore.instance.batch();
 
-    batch.set(inviteRef, {'votes': currentVotes}, SetOptions(merge: true));
+    batch.set(inviteRef, {
+      'uid': myUid,
+      'votes': currentVotes,
+    }, SetOptions(merge: true));
 
     final evSnap = await eventRef.get();
     if (evSnap.exists) {

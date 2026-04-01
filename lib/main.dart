@@ -352,6 +352,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
         .collection('invitations')
         .doc(user.uid)
         .set({
+          'uid': user.uid,
           'status': status,
           'respondedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
@@ -404,7 +405,10 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
           .doc(eventId)
           .collection('invitations')
           .doc(user.uid)
-          .set({'isHidden': !currentlyHidden}, SetOptions(merge: true));
+          .set({
+            'uid': user.uid,
+            'isHidden': !currentlyHidden,
+          }, SetOptions(merge: true));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

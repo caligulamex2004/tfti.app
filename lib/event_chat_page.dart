@@ -196,7 +196,10 @@ class _EventChatPageState extends State<EventChatPage> {
           .doc(widget.eventId)
           .collection('invitations')
           .doc(user.uid)
-          .update({'lastReadChat': FieldValue.serverTimestamp()});
+          .set({
+            'uid': user.uid,
+            'lastReadChat': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
     } catch (e) {
       debugPrint("Error marking read: $e");
     }
