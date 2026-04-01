@@ -1208,10 +1208,11 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                           crewCardWidget = FutureBuilder<List<Map<String, dynamic>>>(
                             future: _cachedCrewFuture,
                             builder: (context, sortedSnap) {
-                              if (!sortedSnap.hasData)
+                              if (!sortedSnap.hasData) {
                                 return const Center(
                                   child: CircularProgressIndicator(),
                                 );
+                              }
                               final guests = sortedSnap.data!;
 
                               return _buildInfoCard(
@@ -1424,8 +1425,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                             hasUnread = true;
                             if ((data['lastMessageMentions'] ?? []).contains(
                               currentUser.uid,
-                            ))
+                            )) {
                               wasMentioned = true;
+                            }
                           }
                         }
 
@@ -1580,8 +1582,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                                   .get(),
                                               builder: (context, hostSnap) {
                                                 if (!hostSnap.hasData ||
-                                                    !hostSnap.data!.exists)
+                                                    !hostSnap.data!.exists) {
                                                   return const SizedBox.shrink();
+                                                }
                                                 final hostData =
                                                     hostSnap.data!.data()
                                                         as Map<String, dynamic>;
