@@ -20,8 +20,27 @@ class FriendsPage extends StatefulWidget {
 
 class _FriendsPageState extends State<FriendsPage> {
   final _phoneController = TextEditingController();
+  final _usernameController =
+      TextEditingController(); // NEW: Username controller
+
+  bool _isAddingByUsername = true; // NEW: Toggle state
   String _completePhoneNumber = "";
   String _statusMessage = "";
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _usernameController.dispose();
+    super.dispose();
+  }
+
+  void _clearStatusAfterDelay() {
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() => _statusMessage = "");
+      }
+    });
+  }
 
   Future<void> _importContacts() async {
     showDialog(
@@ -43,7 +62,6 @@ class _FriendsPageState extends State<FriendsPage> {
 
       final myUid = FirebaseAuth.instance.currentUser!.uid;
 
-      // FIX 1: Force Source.server to bypass stale cache so recently deleted friends reappear
       final friendsSnap = await FirebaseFirestore.instance
           .collection('users')
           .doc(myUid)
@@ -52,12 +70,10 @@ class _FriendsPageState extends State<FriendsPage> {
 
       final myFriendUids = friendsSnap.docs.map((d) => d.id).toSet();
 
-      // 2. Extract and normalize phones from native contacts
       List<String> allPhones = [];
       Map<String, Contact> phoneToContact = {};
 
       for (var c in contacts) {
-        // FIX 2: Iterate through ALL phone numbers a contact might have (Mobile, Home, Work, etc.)
         for (var p in c.phones) {
           final raw = p.number;
           final norm = ContactHelper.normalizePhone(raw);
@@ -72,13 +88,11 @@ class _FriendsPageState extends State<FriendsPage> {
       List<Contact> notOnTfti = [];
       Set<String> allTftiPhones = {};
 
-      // 3. Fast Chunked Query (Firestore allows up to 30 items in a 'whereIn' clause)
       if (allPhones.isNotEmpty) {
         for (int i = 0; i < allPhones.length; i += 30) {
           int end = (i + 30 < allPhones.length) ? i + 30 : allPhones.length;
           List<String> chunk = allPhones.sublist(i, end);
 
-          // FIX 3: Force Source.server here as well to guarantee fresh users
           final snap = await FirebaseFirestore.instance
               .collection('users')
               .where('phoneNumber', whereIn: chunk)
@@ -91,7 +105,6 @@ class _FriendsPageState extends State<FriendsPage> {
 
             allTftiPhones.add(phone);
 
-            // Only queue them if it's not the user, and they aren't already friends!
             if (uid != myUid && !myFriendUids.contains(uid)) {
               data['uid'] = uid;
               onTfti.add(data);
@@ -100,14 +113,12 @@ class _FriendsPageState extends State<FriendsPage> {
         }
       }
 
-      // 4. Sort the remaining contacts who are not on the app
       for (var phone in allPhones) {
         if (!allTftiPhones.contains(phone)) {
           notOnTfti.add(phoneToContact[phone]!);
         }
       }
 
-      // Sort both lists alphabetically for easy browsing
       onTfti.sort(
         (a, b) => (a['displayName'] ?? '').toString().toLowerCase().compareTo(
           (b['displayName'] ?? '').toString().toLowerCase(),
@@ -119,7 +130,7 @@ class _FriendsPageState extends State<FriendsPage> {
       );
 
       if (!mounted) return;
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context);
 
       _showStagingSheet(onTfti, notOnTfti, myUid);
     } catch (e) {
@@ -128,13 +139,11 @@ class _FriendsPageState extends State<FriendsPage> {
     }
   }
 
-  // FIX: The brand new persistent staging area!
   void _showStagingSheet(
     List<Map<String, dynamic>> onTfti,
     List<Contact> notOnTfti,
     String myUid,
   ) {
-    // Flatten lists for performance so ListView.builder doesn't lag on huge address books
     List<dynamic> listItems = [];
     if (onTfti.isNotEmpty) {
       listItems.add("HEADER_TFTI");
@@ -156,7 +165,6 @@ class _FriendsPageState extends State<FriendsPage> {
         final primaryColor = Theme.of(context).colorScheme.primary;
         final isDark = Theme.of(context).brightness == Brightness.dark;
 
-        // Tracks interactions locally so the sheet doesn't have to close
         Set<String> addedUids = {};
         Set<String> invitedPhones = {};
 
@@ -228,7 +236,6 @@ class _FriendsPageState extends State<FriendsPage> {
                           itemBuilder: (context, index) {
                             final item = listItems[index];
 
-                            // Render Headers
                             if (item == "HEADER_TFTI") {
                               return Padding(
                                 padding: const EdgeInsets.fromLTRB(
@@ -270,7 +277,6 @@ class _FriendsPageState extends State<FriendsPage> {
                               );
                             }
 
-                            // Render TFTI Users
                             if (item is Map<String, dynamic>) {
                               final uid = item['uid'];
                               final name = item['displayName'] ?? "Unknown";
@@ -352,10 +358,10 @@ class _FriendsPageState extends State<FriendsPage> {
                                                     item['phoneNumber'],
                                                 'addedAt':
                                                     FieldValue.serverTimestamp(),
-                                              });
+                                              }, SetOptions(merge: true));
                                           setStateSheet(
                                             () => addedUids.add(uid),
-                                          ); // Updates button instantly without closing!
+                                          );
                                         },
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: primaryColor
@@ -373,7 +379,6 @@ class _FriendsPageState extends State<FriendsPage> {
                               );
                             }
 
-                            // Render Non-TFTI Contacts
                             if (item is Contact) {
                               final name = item.displayName;
                               final rawPhone = item.phones.first.number;
@@ -490,99 +495,147 @@ class _FriendsPageState extends State<FriendsPage> {
     }
   }
 
+  // --- NEW: UPDATED ADD FRIEND LOGIC ---
   Future<void> _addFriend() async {
     final myUid = FirebaseAuth.instance.currentUser!.uid;
-    String phoneToAdd = _completePhoneNumber;
+    FocusManager.instance.primaryFocus?.unfocus(); // Dismiss keyboard
 
-    if (phoneToAdd.isEmpty) {
-      return;
-    }
+    if (_isAddingByUsername) {
+      String input = _usernameController.text.trim().toLowerCase();
+      if (input.startsWith('@')) input = input.substring(1);
 
-    final query = await FirebaseFirestore.instance
-        .collection('users')
-        .where('phoneNumber', isEqualTo: phoneToAdd)
-        .limit(1)
-        .get();
+      if (input.isEmpty) return;
 
-    if (query.docs.isEmpty) {
-      setState(() => _statusMessage = "User not found on tfti.app.");
+      // 1. Query the Usernames Registry
+      final usernameDoc = await FirebaseFirestore.instance
+          .collection('usernames')
+          .doc(input)
+          .get();
 
-      if (!mounted) return;
-      final primaryColor = Theme.of(context).colorScheme.primary;
+      if (!usernameDoc.exists) {
+        setState(() => _statusMessage = "Username @$input not found.");
+        _clearStatusAfterDelay();
+        return;
+      }
 
-      final invite = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text("Not on tfti.app Yet"),
-          content: Text(
-            "Would you like to invite ${PhoneFormatter.beautify(phoneToAdd)} to join tfti.app via SMS?",
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text("Cancel"),
+      final targetUid = usernameDoc.data()?['uid'];
+
+      if (targetUid == myUid) {
+        setState(() => _statusMessage = "You can't add yourself!");
+        _clearStatusAfterDelay();
+        return;
+      }
+
+      // 2. Fetch the target user's actual phone number to save in the friend link
+      final targetUserDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(targetUid)
+          .get();
+      final targetPhone = targetUserDoc.exists
+          ? (targetUserDoc.data()?['phoneNumber'] ??
+                targetUserDoc.data()?['phone'] ??
+                '')
+          : '';
+
+      // 3. Add to Friends Subcollection
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(myUid)
+          .collection('friends')
+          .doc(targetUid)
+          .set({
+            'uid': targetUid,
+            'phoneNumber': targetPhone,
+            'addedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+
+      setState(() {
+        _statusMessage = "Added @$input to the squad!";
+        _usernameController.clear();
+      });
+      _clearStatusAfterDelay();
+    } else {
+      // --- EXISTING PHONE LOGIC ---
+      String phoneToAdd = _completePhoneNumber;
+      if (phoneToAdd.isEmpty) return;
+
+      final query = await FirebaseFirestore.instance
+          .collection('users')
+          .where('phoneNumber', isEqualTo: phoneToAdd)
+          .limit(1)
+          .get();
+
+      if (query.docs.isEmpty) {
+        setState(() => _statusMessage = "User not found on tfti.app.");
+
+        if (!mounted) return;
+        final primaryColor = Theme.of(context).colorScheme.primary;
+
+        final invite = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text("Not on tfti.app Yet"),
+            content: Text(
+              "Would you like to invite ${PhoneFormatter.beautify(phoneToAdd)} to join tfti.app via SMS?",
             ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: TextButton.styleFrom(foregroundColor: primaryColor),
-              child: const Text(
-                "Send Invite",
-                style: TextStyle(fontWeight: FontWeight.bold),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text("Cancel"),
               ),
-            ),
-          ],
-        ),
-      );
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: TextButton.styleFrom(foregroundColor: primaryColor),
+                child: const Text(
+                  "Send Invite",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        );
 
-      if (invite == true && mounted) {
-        await _inviteViaSms(phoneToAdd);
-        setState(() {
-          _statusMessage = "Invite text prepared!";
-          _phoneController.clear();
-          _completePhoneNumber = "";
-        });
-
-        Future.delayed(const Duration(seconds: 3), () {
-          if (mounted) {
-            setState(() => _statusMessage = "");
-          }
-        });
+        if (invite == true && mounted) {
+          await _inviteViaSms(phoneToAdd);
+          setState(() {
+            _statusMessage = "Invite text prepared!";
+            _phoneController.clear();
+            _completePhoneNumber = "";
+          });
+          _clearStatusAfterDelay();
+        }
+        return;
       }
-      return;
-    }
 
-    final friendDoc = query.docs.first;
-    final friendUid = friendDoc.id;
+      final friendDoc = query.docs.first;
+      final friendUid = friendDoc.id;
 
-    if (friendUid == myUid) {
-      setState(() => _statusMessage = "You can't add yourself!");
-      return;
-    }
-
-    final friendData = friendDoc.data();
-
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(myUid)
-        .collection('friends')
-        .doc(friendUid)
-        .set({
-          'uid': friendUid,
-          'phoneNumber': friendData['phoneNumber'] ?? phoneToAdd,
-          'addedAt': FieldValue.serverTimestamp(),
-        });
-
-    setState(() {
-      _statusMessage = "Added ${PhoneFormatter.beautify(phoneToAdd)}!";
-      _phoneController.clear();
-      _completePhoneNumber = "";
-    });
-
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        setState(() => _statusMessage = "");
+      if (friendUid == myUid) {
+        setState(() => _statusMessage = "You can't add yourself!");
+        _clearStatusAfterDelay();
+        return;
       }
-    });
+
+      final friendData = friendDoc.data();
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(myUid)
+          .collection('friends')
+          .doc(friendUid)
+          .set({
+            'uid': friendUid,
+            'phoneNumber': friendData['phoneNumber'] ?? phoneToAdd,
+            'addedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+
+      setState(() {
+        _statusMessage = "Added ${PhoneFormatter.beautify(phoneToAdd)}!";
+        _phoneController.clear();
+        _completePhoneNumber = "";
+      });
+      _clearStatusAfterDelay();
+    }
   }
 
   Future<void> _removeFriend(String friendUid, String friendName) async {
@@ -769,78 +822,137 @@ class _FriendsPageState extends State<FriendsPage> {
           ),
           const SizedBox(height: 6),
           Text(
-            "Add friends by phone number, or import directly from your contacts.",
+            "Add friends by username, phone number, or import from contacts.",
             style: TextStyle(
               color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
               fontSize: 14,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
+
+          // --- NEW: TOGGLE BUTTONS ---
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: true, label: Text("Username")),
+                ButtonSegment(value: false, label: Text("Phone Number")),
+              ],
+              selected: {_isAddingByUsername},
+              onSelectionChanged: (newSelection) {
+                setState(() => _isAddingByUsername = newSelection.first);
+              },
+              showSelectedIcon: false,
+              style: SegmentedButton.styleFrom(
+                selectedBackgroundColor: primaryColor.withValues(alpha: 0.15),
+                selectedForegroundColor: primaryColor,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // --- DYNAMIC INPUT FIELD ---
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: IntlPhoneField(
-                  controller: _phoneController,
-                  initialCountryCode: 'US',
-                  dropdownIconPosition: IconPosition.trailing,
-                  dropdownIcon: Icon(
-                    Icons.arrow_drop_down,
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                  ),
-                  style: TextStyle(
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: "Phone Number",
-                    hintStyle: TextStyle(
-                      color: isDark
-                          ? Colors.grey.shade500
-                          : Colors.grey.shade400,
-                    ),
-                    filled: true,
-                    fillColor: isDark
-                        ? Colors.grey.shade800
-                        : Colors.grey.shade50,
-                    counterText: "",
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 16,
-                    ),
-                  ),
-                  onChanged: (phone) {
-                    _completePhoneNumber = phone.completeNumber;
-                  },
-                ),
+                child: _isAddingByUsername
+                    ? TextField(
+                        controller: _usernameController,
+                        style: TextStyle(
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: "username",
+                          hintStyle: TextStyle(
+                            color: isDark
+                                ? Colors.grey.shade500
+                                : Colors.grey.shade400,
+                          ),
+                          prefixText: "@ ",
+                          prefixStyle: TextStyle(
+                            color: primaryColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                          filled: true,
+                          fillColor: isDark
+                              ? Colors.grey.shade800
+                              : Colors.grey.shade50,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 16,
+                            horizontal: 16,
+                          ),
+                        ),
+                        onSubmitted: (_) => _addFriend(),
+                      )
+                    : IntlPhoneField(
+                        controller: _phoneController,
+                        initialCountryCode: 'US',
+                        dropdownIconPosition: IconPosition.trailing,
+                        dropdownIcon: Icon(
+                          Icons.arrow_drop_down,
+                          color: isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600,
+                        ),
+                        style: TextStyle(
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: "Phone Number",
+                          hintStyle: TextStyle(
+                            color: isDark
+                                ? Colors.grey.shade500
+                                : Colors.grey.shade400,
+                          ),
+                          filled: true,
+                          fillColor: isDark
+                              ? Colors.grey.shade800
+                              : Colors.grey.shade50,
+                          counterText: "",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 16,
+                            horizontal: 16,
+                          ),
+                        ),
+                        onChanged: (phone) {
+                          _completePhoneNumber = phone.completeNumber;
+                        },
+                        onSubmitted: (_) => _addFriend(),
+                      ),
               ),
               const SizedBox(width: 12),
-              ElevatedButton(
-                onPressed: _addFriend,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  foregroundColor: themeProvider.onPrimaryColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+              SizedBox(
+                height: 52, // Forces button to match field height
+                child: ElevatedButton(
+                  onPressed: _addFriend,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    foregroundColor: themeProvider.onPrimaryColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    elevation: 2,
                   ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 16,
+                  child: const Text(
+                    "Add",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
-                  elevation: 2,
-                ),
-                child: const Text(
-                  "Add",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ),
             ],
           ),
 
-          // FIX: Replaced dynamic Padding with fixed-height SizedBox to prevent UI shift
           SizedBox(
             height: 32,
             child: _statusMessage.isNotEmpty
@@ -891,6 +1003,7 @@ class _FriendsPageState extends State<FriendsPage> {
     );
   }
 
+  // --- NEW: UPDATED MINI PROFILE SHEET ---
   void _showFriendProfileBottomSheet(
     BuildContext context,
     Map<String, dynamic> userData,
@@ -898,6 +1011,7 @@ class _FriendsPageState extends State<FriendsPage> {
     Color primaryColor,
   ) {
     final displayName = userData['displayName'] ?? "No Name";
+    final username = userData['username'] ?? ""; // NEW
     final rawPhone = userData['phoneNumber'] ?? "";
     final bool showPhone = userData['showPhoneNumber'] == true;
     final String statusText = userData['statusText'] ?? "";
@@ -911,7 +1025,7 @@ class _FriendsPageState extends State<FriendsPage> {
 
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Allows the sheet to handle scrolling properly
+      isScrollControlled: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -921,10 +1035,8 @@ class _FriendsPageState extends State<FriendsPage> {
           child: Padding(
             padding: const EdgeInsets.only(bottom: 24.0),
             child: SizedBox(
-              width: double
-                  .infinity, // 👇 FIX 1: Forces the bottom sheet to always be full width
+              width: double.infinity,
               child: SingleChildScrollView(
-                // 👇 FIX 2: Prevents overflow by allowing scrolling on short screens!
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -941,7 +1053,6 @@ class _FriendsPageState extends State<FriendsPage> {
                     ),
                     const SizedBox(height: 32),
 
-                    // --- AVATAR ---
                     Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
@@ -975,7 +1086,6 @@ class _FriendsPageState extends State<FriendsPage> {
                     ),
                     const SizedBox(height: 24),
 
-                    // --- NAME ---
                     Text(
                       displayName,
                       style: TextStyle(
@@ -989,7 +1099,19 @@ class _FriendsPageState extends State<FriendsPage> {
                       overflow: TextOverflow.ellipsis,
                     ),
 
-                    // --- MOOD / STATUS PILL ---
+                    if (username.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Text(
+                          "@$username",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
+                          ),
+                        ),
+                      ),
+
                     if (statusText.isNotEmpty)
                       Container(
                         margin: const EdgeInsets.only(
@@ -1022,7 +1144,6 @@ class _FriendsPageState extends State<FriendsPage> {
                         ),
                       ),
 
-                    // --- PHONE NUMBER ---
                     if (showPhone && displayPhone.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 24),
@@ -1110,7 +1231,7 @@ class _FriendsPageState extends State<FriendsPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "Add friends by phone number or import them!",
+                      "Add friends by username or phone number!",
                       style: TextStyle(
                         color: isDark ? Colors.grey.shade500 : Colors.black87,
                       ),
@@ -1140,16 +1261,8 @@ class _FriendsPageState extends State<FriendsPage> {
                     }
 
                     final displayName = userData['displayName'] ?? "No Name";
-                    final rawPhone = userData['phoneNumber'] ?? "";
-                    // NEW: Extract Privacy and Status variables
-                    final bool showPhone = userData['showPhoneNumber'] == true;
+                    final username = userData['username'] ?? ""; // NEW
                     final String statusText = userData['statusText'] ?? "";
-
-                    // Respect the privacy toggle!
-                    final displayPhone = showPhone
-                        ? PhoneFormatter.beautify(rawPhone)
-                        : ""; // show nothing if they chose to hide it
-
                     final String? avatarUrl = userData['avatarUrl'];
 
                     Color avatarColor = Colors.blue.shade100;
@@ -1181,10 +1294,8 @@ class _FriendsPageState extends State<FriendsPage> {
                               ),
                           ],
                         ),
-                        // FIX: Replaced ListTile with InkWell & Row to prevent rotation crash!
                         child: InkWell(
                           borderRadius: BorderRadius.circular(16),
-                          // If you have the profile sheet onTap, you can drop it right here:
                           onTap: () => _showFriendProfileBottomSheet(
                             context,
                             userData,
@@ -1194,12 +1305,11 @@ class _FriendsPageState extends State<FriendsPage> {
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
-                              vertical:
-                                  12, // Adjusted to match ListTile padding
+                              vertical: 12,
                             ),
                             child: Row(
                               children: [
-                                // --- LEADING: Avatar Stack ---
+                                // --- LEADING: Avatar ---
                                 Container(
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
@@ -1253,21 +1363,24 @@ class _FriendsPageState extends State<FriendsPage> {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
-                                      if (showPhone || statusText.isNotEmpty)
+                                      if (username.isNotEmpty ||
+                                          statusText.isNotEmpty)
                                         Padding(
                                           padding: const EdgeInsets.only(
-                                            top: 6.0,
+                                            top: 4.0,
                                           ),
                                           child: Row(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.center,
                                             children: [
-                                              if (showPhone) ...[
+                                              if (username.isNotEmpty) ...[
                                                 Flexible(
                                                   child: Text(
-                                                    displayPhone,
+                                                    "@$username",
                                                     style: TextStyle(
                                                       fontSize: 13,
+                                                      fontWeight:
+                                                          FontWeight.w600,
                                                       color: isDark
                                                           ? Colors.grey.shade400
                                                           : Colors
@@ -1283,7 +1396,7 @@ class _FriendsPageState extends State<FriendsPage> {
                                                   Padding(
                                                     padding:
                                                         const EdgeInsets.symmetric(
-                                                          horizontal: 8.0,
+                                                          horizontal: 6.0,
                                                         ),
                                                     child: Text(
                                                       "•",
@@ -1304,8 +1417,8 @@ class _FriendsPageState extends State<FriendsPage> {
                                                   child: Container(
                                                     padding:
                                                         const EdgeInsets.symmetric(
-                                                          horizontal: 8,
-                                                          vertical: 4,
+                                                          horizontal: 6,
+                                                          vertical: 2,
                                                         ),
                                                     decoration: BoxDecoration(
                                                       color: Theme.of(context)
@@ -1313,12 +1426,12 @@ class _FriendsPageState extends State<FriendsPage> {
                                                           .secondaryContainer,
                                                       borderRadius:
                                                           BorderRadius.circular(
-                                                            12,
+                                                            8,
                                                           ),
                                                       border: Border.all(
                                                         color: primaryColor
                                                             .withValues(
-                                                              alpha: 0.5,
+                                                              alpha: 0.3,
                                                             ),
                                                       ),
                                                     ),

@@ -25,21 +25,26 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final _nameController = TextEditingController();
-  final _statusController = TextEditingController(); // NEW: Status Controller
+  final _statusController = TextEditingController();
+  final _usernameController = TextEditingController(); // NEW: Username
+
   String _phoneNumber = '';
+  String? _currentUsername; // Tracks the currently saved username
+
+  String _usernameFeedback = '';
+  Color _usernameFeedbackColor = Colors.grey;
+  bool _isCheckingUsername = false;
 
   int _selectedColorValue = Colors.blue.toARGB32();
   bool _isLoading = false;
-  bool _showPhoneNumber = false; // NEW: Privacy Toggle State
+  bool _showPhoneNumber = false;
 
   String? _avatarUrl;
   bool _isUploadingAvatar = false;
 
   StreamSubscription<DocumentSnapshot>? _userSub;
-  bool _hasLoadedInitialData =
-      false; // UPDATED: Renamed from _hasLoadedInitialName
+  bool _hasLoadedInitialData = false;
 
-  // NEW: Added White to the color palette!
   final List<Color> _colors = [
     Colors.blue,
     const Color(0xFFEE0909), // Beyond Dark
@@ -63,7 +68,8 @@ class _ProfilePageState extends State<ProfilePage> {
     _autoSaveIdentity();
     _userSub?.cancel();
     _nameController.dispose();
-    _statusController.dispose(); //NEW: Dispose status controller
+    _statusController.dispose();
+    _usernameController.dispose(); // Dispose new controller
     super.dispose();
   }
 
@@ -82,13 +88,16 @@ class _ProfilePageState extends State<ProfilePage> {
                 final data = doc.data()!;
 
                 setState(() {
-                  // Load text fields only once to prevent cursor jumping while typing
                   if (!_hasLoadedInitialData) {
                     if (data.containsKey('displayName')) {
                       _nameController.text = data['displayName'] ?? '';
                     }
                     if (data.containsKey('statusText')) {
                       _statusController.text = data['statusText'] ?? '';
+                    }
+                    if (data.containsKey('username')) {
+                      _currentUsername = data['username'];
+                      _usernameController.text = _currentUsername ?? '';
                     }
                     _hasLoadedInitialData = true;
                   }
@@ -115,7 +124,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     _avatarUrl = null;
                   }
 
-                  // Load Privacy Toggle
                   if (data.containsKey('showPhoneNumber')) {
                     _showPhoneNumber = data['showPhoneNumber'] ?? false;
                   }
@@ -131,7 +139,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   void _autoSaveIdentity() {
     final newName = _nameController.text.trim();
-    final newStatus = _statusController.text.trim(); // Get status text
+    final newStatus = _statusController.text.trim();
     if (newName.isEmpty) return;
 
     final user = FirebaseAuth.instance.currentUser;
@@ -145,11 +153,105 @@ class _ProfilePageState extends State<ProfilePage> {
           .doc(user.uid)
           .update({
             'displayName': newName,
-            'statusText': newStatus, // Save status text
+            'statusText': newStatus,
             'avatarColor': _selectedColorValue,
-            'showPhoneNumber': _showPhoneNumber, // Save privacy preference
+            'showPhoneNumber': _showPhoneNumber,
           })
           .catchError((e) => debugPrint("Auto-save error: $e"));
+    }
+  }
+
+  // --- NEW: Username Transaction Logic ---
+  Future<void> _updateUsername() async {
+    final desiredName = _usernameController.text.trim().toLowerCase();
+    if (desiredName == _currentUsername) {
+      setState(() => _usernameFeedback = ''); // No change made
+      return;
+    }
+
+    String cleanName = desiredName;
+    if (cleanName.startsWith('@')) {
+      cleanName = cleanName.substring(1);
+    }
+
+    if (cleanName.isEmpty) {
+      setState(() {
+        _usernameFeedback = "Username cannot be empty.";
+        _usernameFeedbackColor = Colors.red;
+      });
+      return;
+    }
+
+    // Local Regex Check
+    final regex = RegExp(r'^[a-z0-9.\-_]{3,20}$');
+    if (!regex.hasMatch(cleanName)) {
+      setState(() {
+        _usernameFeedback =
+            "3-20 chars: letters, numbers, periods, dashes, or underscores.";
+        _usernameFeedbackColor = Colors.red;
+      });
+      return;
+    }
+
+    setState(() {
+      _isCheckingUsername = true;
+      _usernameFeedback = "Checking availability...";
+      _usernameFeedbackColor = Colors.orange;
+    });
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final newNameRef = FirebaseFirestore.instance
+            .collection('usernames')
+            .doc(cleanName);
+        final userRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid);
+
+        // Read desired username
+        final newNameDoc = await transaction.get(newNameRef);
+        if (newNameDoc.exists) {
+          throw Exception("Username is already taken.");
+        }
+
+        // Claim new username
+        transaction.set(newNameRef, {'uid': user.uid});
+        // Update profile
+        transaction.update(userRef, {'username': cleanName});
+
+        // Release old username if they had one
+        if (_currentUsername != null && _currentUsername!.isNotEmpty) {
+          final oldNameRef = FirebaseFirestore.instance
+              .collection('usernames')
+              .doc(_currentUsername);
+          transaction.delete(oldNameRef);
+        }
+      });
+
+      setState(() {
+        _currentUsername = cleanName;
+        _usernameController.text =
+            cleanName; // Cleans up the @ if they typed it
+        _usernameFeedback = "Username updated!";
+        _usernameFeedbackColor = Colors.green;
+      });
+
+      // Clear success message after a few seconds
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) setState(() => _usernameFeedback = '');
+      });
+    } catch (e) {
+      setState(() {
+        _usernameFeedback = e.toString().replaceAll("Exception: ", "");
+        _usernameFeedbackColor = Colors.red;
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isCheckingUsername = false);
+      }
     }
   }
 
@@ -552,6 +654,7 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isLoading = true);
 
     try {
+      // 1. Delete avatar from Storage
       try {
         final Reference ref = FirebaseStorage.instance.ref().child(
           'profile_images/${user.uid}/avatar.jpg',
@@ -566,6 +669,11 @@ class _ProfilePageState extends State<ProfilePage> {
           .collection('users')
           .doc(user.uid);
 
+      // 2. Fetch current username before wiping user doc
+      final userDoc = await userDocRef.get();
+      final String? usernameToFree = userDoc.data()?['username'];
+
+      // 3. Clear subcollections
       final friendsSnap = await userDocRef.collection('friends').get();
       for (var doc in friendsSnap.docs) {
         await doc.reference.delete();
@@ -581,6 +689,15 @@ class _ProfilePageState extends State<ProfilePage> {
         await doc.reference.delete();
       }
 
+      // 4. Free up the username in the registry
+      if (usernameToFree != null && usernameToFree.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('usernames')
+            .doc(usernameToFree)
+            .delete();
+      }
+
+      // 5. Delete User Doc & Firebase Auth Account
       await userDocRef.delete();
       await user.delete();
     } on FirebaseAuthException catch (e) {
@@ -613,7 +730,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // NEW: Extracted Profile Identity Section
+  // --- UPDATED PROFILE IDENTITY UI ---
   Widget _buildProfileIdentityCard(bool isDark, Color primaryColor) {
     return Container(
       padding: const EdgeInsets.all(24.0),
@@ -634,6 +751,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       child: Column(
         children: [
+          // 1. AVATAR
           GestureDetector(
             onTap: _showAvatarOptions,
             child: Stack(
@@ -667,7 +785,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                       : "?",
                                   style: TextStyle(
                                     fontSize: 44,
-                                    // If background is white, text is dark grey, otherwise white
                                     color:
                                         _selectedColorValue ==
                                             Colors.white.toARGB32()
@@ -700,9 +817,10 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 32),
 
+          // 2. DISPLAY NAME
           TextField(
             controller: _nameController,
-            textInputAction: TextInputAction.done,
+            textInputAction: TextInputAction.next,
             maxLength: 50,
             style: TextStyle(
               fontWeight: FontWeight.bold,
@@ -730,8 +848,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               counterText: "",
             ),
-            onChanged: (val) => setState(() {}),
-            onTapOutside: (event) {
+            onTapOutside: (_) {
               FocusManager.instance.primaryFocus?.unfocus();
               _autoSaveIdentity();
             },
@@ -742,11 +859,82 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 16),
 
-          // NEW: Mood / Status Field
+          // 3. USERNAME
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _usernameController,
+                textInputAction: TextInputAction.next,
+                maxLength: 20,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+                decoration: InputDecoration(
+                  labelText: "Username",
+                  labelStyle: TextStyle(
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                  prefixIcon: Icon(Icons.alternate_email, color: primaryColor),
+                  suffixIcon: _isCheckingUsername
+                      ? const Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: isDark
+                      ? Colors.grey.shade900
+                      : Colors.grey.shade50,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: primaryColor.withValues(alpha: 0.5),
+                      width: 2,
+                    ),
+                  ),
+                  counterText: "",
+                ),
+                onTapOutside: (_) {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                  _updateUsername();
+                },
+                onEditingComplete: () {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                  _updateUsername();
+                },
+              ),
+              if (_usernameFeedback.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, left: 16),
+                  child: Text(
+                    _usernameFeedback,
+                    style: TextStyle(
+                      color: _usernameFeedbackColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // 4. MOOD / STATUS
           TextField(
             controller: _statusController,
             textInputAction: TextInputAction.done,
-            maxLength: 35, // Reasonable limit for a pill
+            maxLength: 35,
             style: TextStyle(
               fontWeight: FontWeight.w500,
               fontSize: 15,
@@ -773,8 +961,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               counterText: "",
             ),
-            onChanged: (val) => setState(() {}),
-            onTapOutside: (event) {
+            onTapOutside: (_) {
               FocusManager.instance.primaryFocus?.unfocus();
               _autoSaveIdentity();
             },
@@ -785,7 +972,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 16),
 
-          // 👇 UPDATED: Phone Number Container with Privacy Toggle
+          // 5. PHONE NUMBER & PRIVACY TOGGLE
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
@@ -831,7 +1018,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   activeThumbColor: primaryColor,
                   onChanged: (val) {
                     setState(() => _showPhoneNumber = val);
-                    _autoSaveIdentity(); // Instantly save preference
+                    _autoSaveIdentity();
                   },
                 ),
               ],
@@ -840,6 +1027,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
           const SizedBox(height: 32),
 
+          // 6. SIGNATURE COLOR
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
@@ -874,7 +1062,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     color: color,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      // White border for selection, unless it's the white circle in light mode (then use grey)
                       color: isSelected
                           ? (isWhite && !isDark
                                 ? Colors.grey.shade400
@@ -909,7 +1096,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // NEW: Extracted Settings & Legal Section
   Widget _buildSettingsCard(bool isDark) {
     return Container(
       decoration: BoxDecoration(
@@ -1036,7 +1222,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // NEW: Extracted Danger Zone Section
   Widget _buildDangerCard(bool isDark) {
     return Container(
       decoration: BoxDecoration(
@@ -1114,7 +1299,6 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          // 👇 NEW: Landscape Split-View Implementation
           : isLandscape
           ? Row(
               crossAxisAlignment: CrossAxisAlignment.start,
