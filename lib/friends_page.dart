@@ -20,10 +20,9 @@ class FriendsPage extends StatefulWidget {
 
 class _FriendsPageState extends State<FriendsPage> {
   final _phoneController = TextEditingController();
-  final _usernameController =
-      TextEditingController(); // NEW: Username controller
+  final _usernameController = TextEditingController();
 
-  bool _isAddingByUsername = true; // NEW: Toggle state
+  bool _isAddingByUsername = true;
   String _completePhoneNumber = "";
   String _statusMessage = "";
 
@@ -495,10 +494,9 @@ class _FriendsPageState extends State<FriendsPage> {
     }
   }
 
-  // --- NEW: UPDATED ADD FRIEND LOGIC ---
   Future<void> _addFriend() async {
     final myUid = FirebaseAuth.instance.currentUser!.uid;
-    FocusManager.instance.primaryFocus?.unfocus(); // Dismiss keyboard
+    FocusManager.instance.primaryFocus?.unfocus();
 
     if (_isAddingByUsername) {
       String input = _usernameController.text.trim().toLowerCase();
@@ -506,7 +504,6 @@ class _FriendsPageState extends State<FriendsPage> {
 
       if (input.isEmpty) return;
 
-      // 1. Query the Usernames Registry
       final usernameDoc = await FirebaseFirestore.instance
           .collection('usernames')
           .doc(input)
@@ -526,7 +523,6 @@ class _FriendsPageState extends State<FriendsPage> {
         return;
       }
 
-      // 2. Fetch the target user's actual phone number to save in the friend link
       final targetUserDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(targetUid)
@@ -537,7 +533,6 @@ class _FriendsPageState extends State<FriendsPage> {
                 '')
           : '';
 
-      // 3. Add to Friends Subcollection
       await FirebaseFirestore.instance
           .collection('users')
           .doc(myUid)
@@ -555,7 +550,6 @@ class _FriendsPageState extends State<FriendsPage> {
       });
       _clearStatusAfterDelay();
     } else {
-      // --- EXISTING PHONE LOGIC ---
       String phoneToAdd = _completePhoneNumber;
       if (phoneToAdd.isEmpty) return;
 
@@ -822,7 +816,7 @@ class _FriendsPageState extends State<FriendsPage> {
           ),
           const SizedBox(height: 6),
           Text(
-            "Add friends by username, phone number, or import from contacts.",
+            "Add friends by username or phone number.",
             style: TextStyle(
               color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
               fontSize: 14,
@@ -830,7 +824,6 @@ class _FriendsPageState extends State<FriendsPage> {
           ),
           const SizedBox(height: 20),
 
-          // --- NEW: TOGGLE BUTTONS ---
           SizedBox(
             width: double.infinity,
             child: SegmentedButton<bool>(
@@ -851,7 +844,6 @@ class _FriendsPageState extends State<FriendsPage> {
           ),
           const SizedBox(height: 16),
 
-          // --- DYNAMIC INPUT FIELD ---
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -932,7 +924,7 @@ class _FriendsPageState extends State<FriendsPage> {
               ),
               const SizedBox(width: 12),
               SizedBox(
-                height: 52, // Forces button to match field height
+                height: 52,
                 child: ElevatedButton(
                   onPressed: _addFriend,
                   style: ElevatedButton.styleFrom(
@@ -953,6 +945,7 @@ class _FriendsPageState extends State<FriendsPage> {
             ],
           ),
 
+          // Replaced empty padding with fixed height to prevent UI shifting
           SizedBox(
             height: 32,
             child: _statusMessage.isNotEmpty
@@ -972,38 +965,11 @@ class _FriendsPageState extends State<FriendsPage> {
                   )
                 : null,
           ),
-
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              icon: Icon(Icons.import_contacts, color: primaryColor),
-              label: Text(
-                "Import from Contacts",
-                style: TextStyle(
-                  color: primaryColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              onPressed: _importContacts,
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                side: BorderSide(
-                  color: primaryColor.withValues(alpha: 0.5),
-                  width: 1.5,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 
-  // --- NEW: UPDATED MINI PROFILE SHEET ---
   void _showFriendProfileBottomSheet(
     BuildContext context,
     Map<String, dynamic> userData,
@@ -1011,7 +977,7 @@ class _FriendsPageState extends State<FriendsPage> {
     Color primaryColor,
   ) {
     final displayName = userData['displayName'] ?? "No Name";
-    final username = userData['username'] ?? ""; // NEW
+    final username = userData['username'] ?? "";
     final rawPhone = userData['phoneNumber'] ?? "";
     final bool showPhone = userData['showPhoneNumber'] == true;
     final String statusText = userData['statusText'] ?? "";
@@ -1261,7 +1227,7 @@ class _FriendsPageState extends State<FriendsPage> {
                     }
 
                     final displayName = userData['displayName'] ?? "No Name";
-                    final username = userData['username'] ?? ""; // NEW
+                    final username = userData['username'] ?? "";
                     final String statusText = userData['statusText'] ?? "";
                     final String? avatarUrl = userData['avatarUrl'];
 
@@ -1557,6 +1523,15 @@ class _FriendsPageState extends State<FriendsPage> {
         flexibleSpace: Container(
           decoration: BoxDecoration(gradient: themeProvider.appGradient),
         ),
+        // FIX: Moved the Import button here to save space!
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.import_contacts),
+            tooltip: "Import Contacts",
+            onPressed: _importContacts,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: isLandscape
           ? Row(
