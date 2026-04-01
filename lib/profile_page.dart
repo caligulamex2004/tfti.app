@@ -688,51 +688,79 @@ class _ProfilePageState extends State<ProfilePage> {
       final String? usernameToFree = userDoc.data()?['username'];
 
       // 3. Clear subcollections
-      final friendsSnap = await userDocRef.collection('friends').get();
-      for (var doc in friendsSnap.docs) {
-        await doc.reference.delete();
+      try {
+        final friendsSnap = await userDocRef.collection('friends').get();
+        for (var doc in friendsSnap.docs) {
+          await doc.reference.delete();
+        }
+      } catch (e) {
+        debugPrint("Cleanup Error (friends): $e");
       }
 
-      final circlesSnap = await userDocRef.collection('circles').get();
-      for (var doc in circlesSnap.docs) {
-        await doc.reference.delete();
+      try {
+        final circlesSnap = await userDocRef.collection('circles').get();
+        for (var doc in circlesSnap.docs) {
+          await doc.reference.delete();
+        }
+      } catch (e) {
+        debugPrint("Cleanup Error (circles): $e");
       }
 
-      final placesSnap = await userDocRef.collection('favorite_places').get();
-      for (var doc in placesSnap.docs) {
-        await doc.reference.delete();
+      try {
+        final placesSnap = await userDocRef.collection('favorite_places').get();
+        for (var doc in placesSnap.docs) {
+          await doc.reference.delete();
+        }
+      } catch (e) {
+        debugPrint("Cleanup Error (places): $e");
       }
 
       // 4. Free up the username in the registry
-      if (usernameToFree != null && usernameToFree.isNotEmpty) {
-        await FirebaseFirestore.instance
-            .collection('usernames')
-            .doc(usernameToFree)
-            .delete();
+      try {
+        if (usernameToFree != null && usernameToFree.isNotEmpty) {
+          await FirebaseFirestore.instance
+              .collection('usernames')
+              .doc(usernameToFree)
+              .delete();
+        }
+      } catch (e) {
+        debugPrint("Cleanup Error (username): $e");
       }
 
-      // 5. Hunt down and delete all event invitations globally
-      final invitesSnap = await FirebaseFirestore.instance
-          .collectionGroup('invitations')
-          .where('uid', isEqualTo: user.uid)
-          .get();
-
-      for (var doc in invitesSnap.docs) {
-        await doc.reference.delete();
+      // 5: Hunt down and delete all event invitations globally
+      try {
+        final invitesSnap = await FirebaseFirestore.instance
+            .collectionGroup('invitations')
+            .where('uid', isEqualTo: user.uid)
+            .get();
+        for (var doc in invitesSnap.docs) {
+          await doc.reference.delete();
+        }
+      } catch (e) {
+        debugPrint("Cleanup Error (global invites): $e");
       }
 
-      // THE MISSING FIX: Hunt down and delete this user from everyone's friends list
-      final friendsGlobalSnap = await FirebaseFirestore.instance
-          .collectionGroup('friends')
-          .where('uid', isEqualTo: user.uid)
-          .get();
-
-      for (var doc in friendsGlobalSnap.docs) {
-        await doc.reference.delete();
+      // 6. Hunt down and delete this user from everyone's friends list
+      try {
+        final friendsGlobalSnap = await FirebaseFirestore.instance
+            .collectionGroup('friends')
+            .where('uid', isEqualTo: user.uid)
+            .get();
+        for (var doc in friendsGlobalSnap.docs) {
+          await doc.reference.delete();
+        }
+      } catch (e) {
+        debugPrint("Cleanup Error (global friends): $e");
       }
 
-      // 6. Delete User Doc & Firebase Auth Account
-      await userDocRef.delete();
+      // 7. Delete User Doc
+      try {
+        await userDocRef.delete();
+      } catch (e) {
+        debugPrint("Cleanup Error (user doc): $e");
+      }
+
+      // 8. Delete Firebase Auth Account
       await user.delete();
     } on FirebaseAuthException catch (e) {
       if (e.code == 'requires-recent-login') {
@@ -754,6 +782,7 @@ class _ProfilePageState extends State<ProfilePage> {
         }
       }
     } catch (e) {
+      debugPrint("❌ Fatal Account Deletion Error: $e");
       if (mounted) {
         ScaffoldMessenger.of(
           context,
