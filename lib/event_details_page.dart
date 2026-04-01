@@ -200,9 +200,11 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           .doc(uid)
           .get();
 
-      final userData = userSnap.exists
-          ? (userSnap.data() as Map<String, dynamic>)
-          : <String, dynamic>{};
+      if (!userSnap.exists) {
+        return null;
+      }
+
+      final userData = userSnap.data() as Map<String, dynamic>;
 
       return {
         'uid': uid,
@@ -218,13 +220,18 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
     final results = await Future.wait(futures);
 
-    results.sort((a, b) {
+    final validGuests = results
+        .where((guest) => guest != null)
+        .cast<Map<String, dynamic>>()
+        .toList();
+
+    validGuests.sort((a, b) {
       final nameA = (a['displayName'] as String).toLowerCase();
       final nameB = (b['displayName'] as String).toLowerCase();
       return nameA.compareTo(nameB);
     });
 
-    return results;
+    return validGuests;
   }
 
   // --- CRITICAL CHANGE ALERT BANNER ---

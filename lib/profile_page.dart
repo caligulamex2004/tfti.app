@@ -710,7 +710,17 @@ class _ProfilePageState extends State<ProfilePage> {
             .delete();
       }
 
-      // 5. Delete User Doc & Firebase Auth Account
+      // 5: Hunt down and delete all event invitations globally
+      final invitesSnap = await FirebaseFirestore.instance
+          .collectionGroup('invitations')
+          .where('uid', isEqualTo: user.uid)
+          .get();
+
+      for (var doc in invitesSnap.docs) {
+        await doc.reference.delete();
+      }
+
+      // 6. Delete User Doc & Firebase Auth Account
       await userDocRef.delete();
       await user.delete();
     } on FirebaseAuthException catch (e) {
