@@ -6,6 +6,7 @@ import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:mobile_scanner/mobile_scanner.dart'; // NEW: Scanner Import
 
 import 'contact_service.dart';
 import 'theme_provider.dart';
@@ -39,6 +40,32 @@ class _FriendsPageState extends State<FriendsPage> {
         setState(() => _statusMessage = "");
       }
     });
+  }
+
+  // --- NEW: QR SCANNER LOGIC ---
+  Future<void> _openScanner() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const QRScannerPage()),
+    );
+
+    if (result != null && result is String && mounted) {
+      if (result.startsWith('tfti://add/@')) {
+        final scannedUsername = result.replaceFirst('tfti://add/@', '');
+
+        setState(() {
+          _isAddingByUsername = true;
+          _usernameController.text = scannedUsername;
+        });
+
+        // Instantly trigger the add logic!
+        _addFriend(overrideUsername: scannedUsername);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Invalid or unrecognized QR Code.")),
+        );
+      }
+    }
   }
 
   Future<void> _importContacts() async {
@@ -494,12 +521,14 @@ class _FriendsPageState extends State<FriendsPage> {
     }
   }
 
-  Future<void> _addFriend() async {
+  // --- UPDATED: Accepts overrideUsername from the Scanner ---
+  Future<void> _addFriend({String? overrideUsername}) async {
     final myUid = FirebaseAuth.instance.currentUser!.uid;
     FocusManager.instance.primaryFocus?.unfocus();
 
-    if (_isAddingByUsername) {
-      String input = _usernameController.text.trim().toLowerCase();
+    if (_isAddingByUsername || overrideUsername != null) {
+      String input =
+          overrideUsername ?? _usernameController.text.trim().toLowerCase();
       if (input.startsWith('@')) input = input.substring(1);
 
       if (input.isEmpty) return;
@@ -788,13 +817,14 @@ class _FriendsPageState extends State<FriendsPage> {
     return list;
   }
 
+  // --- UPDATED: Ultra Tight Add Friend UI ---
   Widget _buildAddFriendSection(bool isDark, Color primaryColor) {
     return Container(
       padding: const EdgeInsets.only(
-        left: 24.0,
-        top: 24.0,
-        right: 24.0,
-        bottom: 8.0,
+        left: 20.0,
+        top: 20.0,
+        right: 20.0,
+        bottom: 4.0, // Reduced bottom padding significantly
       ),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
@@ -819,22 +849,27 @@ class _FriendsPageState extends State<FriendsPage> {
               color: isDark ? Colors.white : Colors.black87,
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            "Add friends by username or phone number.",
-            style: TextStyle(
-              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 20),
-
+          const SizedBox(height: 12), // Tighter gap
+          // --- TIGHTER TOGGLE ---
           SizedBox(
+            height: 36, // Force the button to be compact
             width: double.infinity,
             child: SegmentedButton<bool>(
               segments: const [
-                ButtonSegment(value: true, label: Text("Username")),
-                ButtonSegment(value: false, label: Text("Phone Number")),
+                ButtonSegment(
+                  value: true,
+                  label: Text(
+                    "Username",
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                ButtonSegment(
+                  value: false,
+                  label: Text(
+                    "Phone Number",
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                ),
               ],
               selected: {_isAddingByUsername},
               onSelectionChanged: (newSelection) {
@@ -842,12 +877,14 @@ class _FriendsPageState extends State<FriendsPage> {
               },
               showSelectedIcon: false,
               style: SegmentedButton.styleFrom(
+                visualDensity:
+                    VisualDensity.compact, // Natively shrinks internal padding
                 selectedBackgroundColor: primaryColor.withValues(alpha: 0.15),
                 selectedForegroundColor: primaryColor,
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12), // Tighter gap
 
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -931,7 +968,8 @@ class _FriendsPageState extends State<FriendsPage> {
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: _addFriend,
+                  onPressed: () =>
+                      _addFriend(), // Pass empty so it reads the text fields
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryColor,
                     foregroundColor: themeProvider.onPrimaryColor,
@@ -950,9 +988,8 @@ class _FriendsPageState extends State<FriendsPage> {
             ],
           ),
 
-          // Replaced empty padding with fixed height to prevent UI shifting
           SizedBox(
-            height: 32,
+            height: 28, // Shrunk to save more space
             child: _statusMessage.isNotEmpty
                 ? Padding(
                     padding: const EdgeInsets.only(top: 8.0),
@@ -975,6 +1012,7 @@ class _FriendsPageState extends State<FriendsPage> {
     );
   }
 
+  // ... (All Bottom sheet / Friend List builder logic remains exactly the same) ...
   void _showFriendProfileBottomSheet(
     BuildContext context,
     Map<String, dynamic> userData,
@@ -1280,7 +1318,6 @@ class _FriendsPageState extends State<FriendsPage> {
                             ),
                             child: Row(
                               children: [
-                                // --- LEADING: Avatar ---
                                 Container(
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
@@ -1315,8 +1352,6 @@ class _FriendsPageState extends State<FriendsPage> {
                                   ),
                                 ),
                                 const SizedBox(width: 16),
-
-                                // --- TITLE & SUBTITLE ---
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -1426,8 +1461,6 @@ class _FriendsPageState extends State<FriendsPage> {
                                     ],
                                   ),
                                 ),
-
-                                // --- TRAILING: 3-Dot Menu ---
                                 PopupMenuButton<String>(
                                   icon: Icon(
                                     Icons.more_vert,
@@ -1528,8 +1561,13 @@ class _FriendsPageState extends State<FriendsPage> {
         flexibleSpace: Container(
           decoration: BoxDecoration(gradient: themeProvider.appGradient),
         ),
-        // FIX: Moved the Import button here to save space!
         actions: [
+          // NEW: Camera Scanner Button!
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: "Scan QR",
+            onPressed: _openScanner,
+          ),
           IconButton(
             icon: const Icon(Icons.import_contacts),
             tooltip: "Import Contacts",
@@ -1566,6 +1604,94 @@ class _FriendsPageState extends State<FriendsPage> {
                 ),
               ],
             ),
+    );
+  }
+}
+
+// --- NEW: THE FULL SCREEN CAMERA SCANNER ---
+class QRScannerPage extends StatefulWidget {
+  const QRScannerPage({super.key});
+
+  @override
+  State<QRScannerPage> createState() => _QRScannerPageState();
+}
+
+class _QRScannerPageState extends State<QRScannerPage> {
+  bool _hasScanned = false; // Prevents double-popping
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          "Scan to Add",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.black.withValues(alpha: 0.5),
+        elevation: 0,
+        foregroundColor: Colors.white,
+      ),
+      extendBodyBehindAppBar: true,
+      body: Stack(
+        children: [
+          MobileScanner(
+            // Uses the updated v7.2.0 BarcodeCapture API
+            onDetect: (BarcodeCapture capture) {
+              if (_hasScanned) return;
+
+              final List<Barcode> barcodes = capture.barcodes;
+              for (final barcode in barcodes) {
+                if (barcode.rawValue != null) {
+                  _hasScanned = true;
+                  Navigator.pop(
+                    context,
+                    barcode.rawValue,
+                  ); // Return the raw text back to FriendsPage
+                  break;
+                }
+              }
+            },
+          ),
+
+          // A cool visual overlay for the scanner
+          Center(
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  width: 4,
+                ),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    spreadRadius: 50,
+                    blurRadius: 100,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const Positioned(
+            bottom: 120,
+            left: 0,
+            right: 0,
+            child: Text(
+              "Center the QR code in the box",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                shadows: [Shadow(color: Colors.black, blurRadius: 8)],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

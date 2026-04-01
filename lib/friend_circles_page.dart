@@ -375,6 +375,39 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
     );
   }
 
+  // --- NEW: Helper to securely fetch valid members for the face pile ---
+  Future<List<Map<String, dynamic>>> _getValidFacepileMembers(
+    List<QueryDocumentSnapshot> docs,
+  ) async {
+    List<Map<String, dynamic>> validProfiles = [];
+    for (var doc in docs) {
+      final userSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(doc.id)
+          .get();
+      if (userSnap.exists) {
+        final data = userSnap.data() as Map<String, dynamic>;
+        data['uid'] = doc.id;
+        validProfiles.add(data);
+      }
+      // We only need up to 4 for the UI (3 visible faces + the "+X" indicator)
+      if (validProfiles.length >= 4) break;
+    }
+    return validProfiles;
+  }
+
+  Widget _buildEmptyIcon(Color primaryColor) {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: primaryColor.withValues(alpha: 0.15),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(Symbols.circles, color: primaryColor, size: 24),
+    );
+  }
+
   Widget _buildiMessageStyleGroupIcon(
     String myUid,
     String circleId,
@@ -387,52 +420,41 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
           .doc(myUid)
           .collection('friends')
           .where('circles', arrayContains: circleId)
-          .limit(4)
+          .limit(
+            10,
+          ) // Fetch extra to account for potential deleted ghosts in the stream
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: primaryColor.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Symbols.circles, color: primaryColor, size: 24),
-          );
+          return _buildEmptyIcon(primaryColor);
         }
 
-        final docs = snapshot.data!.docs;
-        final int count = docs.length;
-        final displayDocs = docs.take(3).toList();
-        final bool hasMore = count > 3;
+        // --- FIX: Wrap the stack in a FutureBuilder to pre-validate the documents ---
+        return FutureBuilder<List<Map<String, dynamic>>>(
+          future: _getValidFacepileMembers(snapshot.data!.docs),
+          builder: (context, validSnap) {
+            if (!validSnap.hasData) return _buildEmptyIcon(primaryColor);
 
-        return SizedBox(
-          width: 48,
-          height: 48,
-          child: Stack(
-            children: [
-              ...displayDocs.asMap().entries.map((entry) {
-                final index = entry.key;
-                final doc = entry.value;
+            final validDocs = validSnap.data!;
+            if (validDocs.isEmpty) return _buildEmptyIcon(primaryColor);
 
-                return FutureBuilder<DocumentSnapshot>(
-                  future: FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(doc.id)
-                      .get(),
-                  builder: (context, userSnap) {
-                    String name = "Unknown";
-                    String? avatarUrl;
-                    int avatarColor = Colors.blue.toARGB32();
+            final int count = validDocs.length;
+            final displayDocs = validDocs.take(3).toList();
+            final bool hasMore = count > 3;
 
-                    if (userSnap.hasData && userSnap.data!.exists) {
-                      final uData =
-                          userSnap.data!.data() as Map<String, dynamic>;
-                      name = uData['displayName'] ?? name;
-                      avatarUrl = uData['avatarUrl'];
-                      avatarColor = uData['avatarColor'] ?? avatarColor;
-                    }
+            return SizedBox(
+              width: 48,
+              height: 48,
+              child: Stack(
+                children: [
+                  ...displayDocs.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final uData = entry.value;
+
+                    String name = uData['displayName'] ?? "Unknown";
+                    String? avatarUrl = uData['avatarUrl'];
+                    int avatarColor =
+                        uData['avatarColor'] ?? Colors.blue.toARGB32();
 
                     Widget avatar = Container(
                       decoration: BoxDecoration(
@@ -507,38 +529,38 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
                         );
                       }
                     }
-                  },
-                );
-              }),
+                  }),
 
-              if (hasMore)
-                Positioned(
-                  bottom: -2,
-                  right: -2,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 4,
+                  if (hasMore)
+                    Positioned(
+                      bottom: -2,
+                      right: -2,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardColor,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 4,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Text(
-                      "+",
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
+                        child: Text(
+                          "+",
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-            ],
-          ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -1013,7 +1035,6 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                 fontSize: 16,
                               ),
                             ),
-                            // ADDED: @username to help identify friends
                             subtitle: username.isNotEmpty
                                 ? Text(
                                     "@$username",
@@ -1122,7 +1143,7 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
     Color primaryColor,
   ) {
     final displayName = userData['displayName'] ?? "No Name";
-    final username = userData['username'] ?? ""; // NEW
+    final username = userData['username'] ?? "";
     final rawPhone = userData['phoneNumber'] ?? "";
     final bool showPhone = userData['showPhoneNumber'] == true;
     final String statusText = userData['statusText'] ?? "";
