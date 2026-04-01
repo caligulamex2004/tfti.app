@@ -790,7 +790,12 @@ class _FriendsPageState extends State<FriendsPage> {
 
   Widget _buildAddFriendSection(bool isDark, Color primaryColor) {
     return Container(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.only(
+        left: 24.0,
+        top: 24.0,
+        right: 24.0,
+        bottom: 8.0,
+      ),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         boxShadow: [
