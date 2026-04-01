@@ -375,7 +375,6 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
     );
   }
 
-  // --- NEW: iMESSAGE-STYLE GROUP AVATAR ---
   Widget _buildiMessageStyleGroupIcon(
     String myUid,
     String circleId,
@@ -388,11 +387,10 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
           .doc(myUid)
           .collection('friends')
           .where('circles', arrayContains: circleId)
-          .limit(4) // Get up to 4 to see if we need a "+X" badge
+          .limit(4)
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          // Fallback if the team is completely empty
           return Container(
             width: 48,
             height: 48,
@@ -436,7 +434,6 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
                       avatarColor = uData['avatarColor'] ?? avatarColor;
                     }
 
-                    // Base Avatar Widget with cutout border
                     Widget avatar = Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
@@ -463,7 +460,6 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
                       ),
                     );
 
-                    // Positioning logic based on member count
                     if (count == 1) {
                       return Positioned.fill(child: avatar);
                     } else if (count == 2) {
@@ -485,7 +481,6 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
                         );
                       }
                     } else {
-                      // 3 or more members
                       if (index == 0) {
                         return Positioned(
                           top: 0,
@@ -516,7 +511,6 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
                 );
               }),
 
-              // The tiny '+' badge for overflowing members
               if (hasMore)
                 Positioned(
                   bottom: -2,
@@ -702,7 +696,6 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
                   ),
                   child: Row(
                     children: [
-                      // 👇 UPDATED: The new iMessage Style Facepile!
                       _buildiMessageStyleGroupIcon(
                         user.uid,
                         circleId,
@@ -889,7 +882,6 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
-    // Fetch ALL friends
     final allFriendsSnapshot = await FirebaseFirestore.instance
         .collection('users')
         .doc(user!.uid)
@@ -971,6 +963,7 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                           final isSelected = selectedIds.contains(uid);
                           final String name =
                               profile['displayName'] ?? "Unknown";
+                          final String username = profile['username'] ?? "";
                           final String? avatarUrl = profile['avatarUrl'];
 
                           Color avatarColor = Colors.grey;
@@ -1020,6 +1013,17 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                 fontSize: 16,
                               ),
                             ),
+                            // ADDED: @username to help identify friends
+                            subtitle: username.isNotEmpty
+                                ? Text(
+                                    "@$username",
+                                    style: TextStyle(
+                                      color: primaryColor,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  )
+                                : null,
                             trailing: isSelected
                                 ? Icon(
                                     Icons.check_circle,
@@ -1118,6 +1122,7 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
     Color primaryColor,
   ) {
     final displayName = userData['displayName'] ?? "No Name";
+    final username = userData['username'] ?? ""; // NEW
     final rawPhone = userData['phoneNumber'] ?? "";
     final bool showPhone = userData['showPhoneNumber'] == true;
     final String statusText = userData['statusText'] ?? "";
@@ -1204,6 +1209,19 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+
+                    if (username.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Text(
+                          "@$username",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
+                          ),
+                        ),
+                      ),
 
                     if (statusText.isNotEmpty)
                       Container(
@@ -1355,7 +1373,6 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                   ),
                                 ),
                                 const Spacer(),
-                                // 👇 FIXED: Custom InkWell container instead of ActionChip to prevent the white box bug!
                                 InkWell(
                                   onTap: _showAddMembersBottomSheet,
                                   borderRadius: BorderRadius.circular(12),
@@ -1469,15 +1486,8 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                           final displayName =
                               profile['displayName'] ?? "Unknown";
 
-                          final rawPhone =
-                              profile['phoneNumber'] ?? profile['phone'] ?? "";
-                          final bool showPhone =
-                              profile['showPhoneNumber'] == true;
+                          final String username = profile['username'] ?? "";
                           final String statusText = profile['statusText'] ?? "";
-
-                          final displayPhone = showPhone
-                              ? PhoneFormatter.beautify(rawPhone)
-                              : "";
 
                           final String? avatarUrl = profile['avatarUrl'];
 
@@ -1509,149 +1519,191 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                     ),
                                 ],
                               ),
-                              child: ListTile(
+                              // FIXED: Syncing to InkWell/Row to prevent rotation crashes!
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
                                 onTap: () => _showFriendProfileBottomSheet(
                                   context,
                                   profile,
                                   isDark,
                                   primaryColor,
                                 ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                leading: Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: avatarColor.withValues(
-                                          alpha: 0.4,
-                                        ),
-                                        blurRadius: 10,
-                                        spreadRadius: 2,
-                                      ),
-                                    ],
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
                                   ),
-                                  child: CircleAvatar(
-                                    backgroundColor: avatarColor,
-                                    radius: 24,
-                                    backgroundImage: avatarUrl != null
-                                        ? CachedNetworkImageProvider(avatarUrl)
-                                        : null,
-                                    child: avatarUrl == null
-                                        ? Text(
-                                            displayName.isNotEmpty
-                                                ? displayName[0].toUpperCase()
-                                                : "?",
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 18,
-                                            ),
-                                          )
-                                        : null,
-                                  ),
-                                ),
-                                title: Text(
-                                  displayName,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: isDark
-                                        ? Colors.white
-                                        : Colors.black87,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                subtitle: (!showPhone && statusText.isEmpty)
-                                    ? null
-                                    : Padding(
-                                        padding: const EdgeInsets.only(
-                                          top: 6.0,
-                                        ),
-                                        child: Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.center,
-                                          children: [
-                                            if (showPhone) ...[
-                                              Text(
-                                                displayPhone,
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  color: isDark
-                                                      ? Colors.grey.shade400
-                                                      : Colors.grey.shade600,
-                                                ),
+                                  child: Row(
+                                    children: [
+                                      // --- LEADING: Avatar ---
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: avatarColor.withValues(
+                                                alpha: 0.4,
                                               ),
-                                              if (statusText.isNotEmpty)
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 8.0,
-                                                      ),
-                                                  child: Text(
-                                                    "•",
-                                                    style: TextStyle(
-                                                      color: isDark
-                                                          ? Colors.grey.shade600
-                                                          : Colors
-                                                                .grey
-                                                                .shade400,
-                                                    ),
+                                              blurRadius: 10,
+                                              spreadRadius: 2,
+                                            ),
+                                          ],
+                                        ),
+                                        child: CircleAvatar(
+                                          backgroundColor: avatarColor,
+                                          radius: 24,
+                                          backgroundImage: avatarUrl != null
+                                              ? CachedNetworkImageProvider(
+                                                  avatarUrl,
+                                                )
+                                              : null,
+                                          child: avatarUrl == null
+                                              ? Text(
+                                                  displayName.isNotEmpty
+                                                      ? displayName[0]
+                                                            .toUpperCase()
+                                                      : "?",
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 18,
                                                   ),
+                                                )
+                                              : null,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+
+                                      // --- TEXT COLUMN ---
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              displayName,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                color: isDark
+                                                    ? Colors.white
+                                                    : Colors.black87,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            if (username.isNotEmpty ||
+                                                statusText.isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  top: 4.0,
                                                 ),
-                                            ],
-                                            if (statusText.isNotEmpty)
-                                              Flexible(
-                                                child: Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 4,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .secondaryContainer,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          12,
-                                                        ),
-                                                    border: Border.all(
-                                                      color: primaryColor
-                                                          .withValues(
-                                                            alpha: 0.5,
+                                                child: Row(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.center,
+                                                  children: [
+                                                    if (username
+                                                        .isNotEmpty) ...[
+                                                      Flexible(
+                                                        child: Text(
+                                                          "@$username",
+                                                          style: TextStyle(
+                                                            fontSize: 13,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color: isDark
+                                                                ? Colors
+                                                                      .grey
+                                                                      .shade400
+                                                                : Colors
+                                                                      .grey
+                                                                      .shade600,
                                                           ),
-                                                    ),
-                                                  ),
-                                                  child: Text(
-                                                    statusText,
-                                                    style: TextStyle(
-                                                      fontSize: 10,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: primaryColor,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                      if (statusText.isNotEmpty)
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 6.0,
+                                                              ),
+                                                          child: Text(
+                                                            "•",
+                                                            style: TextStyle(
+                                                              color: isDark
+                                                                  ? Colors
+                                                                        .grey
+                                                                        .shade600
+                                                                  : Colors
+                                                                        .grey
+                                                                        .shade400,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                    ],
+                                                    if (statusText.isNotEmpty)
+                                                      Flexible(
+                                                        child: Container(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 6,
+                                                                vertical: 2,
+                                                              ),
+                                                          decoration: BoxDecoration(
+                                                            color: Theme.of(context)
+                                                                .colorScheme
+                                                                .secondaryContainer,
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  8,
+                                                                ),
+                                                            border: Border.all(
+                                                              color: primaryColor
+                                                                  .withValues(
+                                                                    alpha: 0.3,
+                                                                  ),
+                                                            ),
+                                                          ),
+                                                          child: Text(
+                                                            statusText,
+                                                            style: TextStyle(
+                                                              fontSize: 10,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              color:
+                                                                  primaryColor,
+                                                            ),
+                                                            maxLines: 1,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  ],
                                                 ),
                                               ),
                                           ],
                                         ),
                                       ),
-                                trailing: IconButton(
-                                  icon: Icon(
-                                    Icons.remove_circle_outline,
-                                    color: isDark
-                                        ? Colors.redAccent
-                                        : Colors.red,
+
+                                      // --- TRAILING ICON ---
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.remove_circle_outline,
+                                          color: isDark
+                                              ? Colors.redAccent
+                                              : Colors.red,
+                                        ),
+                                        onPressed: () =>
+                                            _removeMember(profile['uid']),
+                                      ),
+                                    ],
                                   ),
-                                  onPressed: () =>
-                                      _removeMember(profile['uid']),
                                 ),
                               ),
                             ),
