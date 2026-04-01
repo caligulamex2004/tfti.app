@@ -16,6 +16,8 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _nameController = TextEditingController();
+  final _usernameController =
+      TextEditingController(); // NEW: Username controller
   final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
 
@@ -25,7 +27,6 @@ class _LoginPageState extends State<LoginPage> {
   bool _codeSent = false;
   bool _isLoading = false;
 
-  // --- NEW: Flow State Variables ---
   bool _isLoginMode = true;
   bool _agreedToToS = false;
   bool _agreedToPrivacy = false;
@@ -38,6 +39,7 @@ class _LoginPageState extends State<LoginPage> {
   void dispose() {
     _timer?.cancel();
     _nameController.dispose();
+    _usernameController.dispose(); // Dispose new controller
     _phoneController.dispose();
     _otpController.dispose();
     super.dispose();
@@ -80,7 +82,12 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  Future<void> _ensureUserDocExists(User user, String enteredName) async {
+  // UPDATED: Now uses a transaction to claim the username
+  Future<void> _ensureUserDocExists(
+    User user,
+    String enteredName,
+    String enteredUsername,
+  ) async {
     final userDoc = FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid);
@@ -91,37 +98,61 @@ class _LoginPageState extends State<LoginPage> {
       finalName = user.phoneNumber ?? "Unknown User";
     }
 
-    bool needsProfileUpdate = false;
     if (!docSnapshot.exists) {
-      needsProfileUpdate = true;
+      // BRAND NEW USER: Run a transaction to safely claim username and create profile
+      String cleanUsername = enteredUsername.trim().toLowerCase();
+      if (cleanUsername.startsWith('@'))
+        cleanUsername = cleanUsername.substring(1);
+
+      try {
+        await FirebaseFirestore.instance.runTransaction((transaction) async {
+          final usernameRef = FirebaseFirestore.instance
+              .collection('usernames')
+              .doc(cleanUsername);
+          final nameDoc = await transaction.get(usernameRef);
+
+          // Failsafe: If the username was snatched between the pre-flight check and SMS entry
+          if (nameDoc.exists) {
+            cleanUsername =
+                "${cleanUsername}_${DateTime.now().millisecondsSinceEpoch.toString().substring(9)}";
+            final fallbackRef = FirebaseFirestore.instance
+                .collection('usernames')
+                .doc(cleanUsername);
+            transaction.set(fallbackRef, {'uid': user.uid});
+          } else {
+            transaction.set(usernameRef, {'uid': user.uid});
+          }
+
+          transaction.set(userDoc, {
+            'uid': user.uid,
+            'phoneNumber': user.phoneNumber,
+            'displayName': finalName,
+            'username': cleanUsername,
+            'avatarColor': Colors.blue.toARGB32(),
+            'createdAt': FieldValue.serverTimestamp(),
+            'agreedToToS': _agreedToToS,
+            'agreedToPrivacy': _agreedToPrivacy,
+          }, SetOptions(merge: true));
+        });
+
+        await user.updateDisplayName(finalName);
+      } catch (e) {
+        debugPrint("Error creating user and claiming username: $e");
+      }
     } else {
+      // EXISTING USER LOGGING IN: Just ensure phone number is patched
       final data = docSnapshot.data();
       if (data == null ||
           (!data.containsKey('phone') && !data.containsKey('phoneNumber'))) {
-        needsProfileUpdate = true;
+        await userDoc.set({
+          'phoneNumber': user.phoneNumber,
+        }, SetOptions(merge: true));
       }
-    }
-
-    if (needsProfileUpdate) {
-      await userDoc.set({
-        'uid': user.uid,
-        'phoneNumber': user.phoneNumber,
-        'displayName': finalName,
-        'avatarColor': Colors.blue.toARGB32(),
-        if (!docSnapshot.exists) ...{
-          'createdAt': FieldValue.serverTimestamp(),
-          // Track that they agreed during signup
-          'agreedToToS': _agreedToToS,
-          'agreedToPrivacy': _agreedToPrivacy,
-        },
-      }, SetOptions(merge: true));
-
-      await user.updateDisplayName(finalName);
     }
   }
 
   Future<void> _verifyPhone({bool isResend = false}) async {
-    // Validation for Sign Up mode
+    // 1. Validation for Sign Up mode
     if (!_isLoginMode && !isResend) {
       if (_nameController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -129,6 +160,29 @@ class _LoginPageState extends State<LoginPage> {
         );
         return;
       }
+
+      if (_usernameController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please pick a username.")),
+        );
+        return;
+      }
+
+      String cleanName = _usernameController.text.trim().toLowerCase();
+      if (cleanName.startsWith('@')) cleanName = cleanName.substring(1);
+
+      final regex = RegExp(r'^[a-z0-9.\-_]{3,20}$');
+      if (!regex.hasMatch(cleanName)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Username must be 3-20 characters: letters, numbers, periods, dashes, or underscores.",
+            ),
+          ),
+        );
+        return;
+      }
+
       if (!_agreedToToS || !_agreedToPrivacy) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -141,6 +195,7 @@ class _LoginPageState extends State<LoginPage> {
       }
     }
 
+    // 2. Phone validation and Pre-flight DB checks
     if (!isResend) {
       if (_completePhoneNumber.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -149,11 +204,9 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // NEW: Pre-Flight Database Check
       setState(() => _isLoading = true);
 
       try {
-        // Query Firestore to see if this phone number is already registered
         final query = await FirebaseFirestore.instance
             .collection('users')
             .where('phoneNumber', isEqualTo: _completePhoneNumber)
@@ -166,7 +219,7 @@ class _LoginPageState extends State<LoginPage> {
           // They tried to log in, but no account exists. Bump to Sign Up.
           setState(() {
             _isLoading = false;
-            _isLoginMode = false; // Automatically toggle to Sign Up mode
+            _isLoginMode = false;
           });
 
           if (mounted) {
@@ -178,14 +231,14 @@ class _LoginPageState extends State<LoginPage> {
               ),
             );
           }
-          return; // Stop execution before sending the SMS code
+          return;
         } else if (!_isLoginMode && accountExists) {
           // They tried to sign up, but an account already exists. Bump to Log In.
           setState(() {
             _isLoading = false;
-            _isLoginMode = true; // Automatically toggle to Log In mode
-            _nameController
-                .clear(); // Clear the name field since they don't need it
+            _isLoginMode = true;
+            _nameController.clear();
+            _usernameController.clear();
           });
 
           if (mounted) {
@@ -197,7 +250,28 @@ class _LoginPageState extends State<LoginPage> {
               ),
             );
           }
-          return; // Stop execution before sending the SMS code
+          return;
+        } else if (!_isLoginMode && !accountExists) {
+          // Perfect sign up attempt! Let's do a fast pre-flight check on the username
+          String cleanName = _usernameController.text.trim().toLowerCase();
+          if (cleanName.startsWith('@')) cleanName = cleanName.substring(1);
+
+          final usernameDoc = await FirebaseFirestore.instance
+              .collection('usernames')
+              .doc(cleanName)
+              .get();
+          if (usernameDoc.exists) {
+            setState(() => _isLoading = false);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("That username is already taken!"),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return;
+          }
         }
       } catch (e) {
         setState(() => _isLoading = false);
@@ -219,13 +293,14 @@ class _LoginPageState extends State<LoginPage> {
 
       verificationCompleted: (PhoneAuthCredential credential) async {
         final currentName = _nameController.text.trim();
+        final currentUsername = _usernameController.text.trim(); // NEW
 
         try {
           final userCredential = await FirebaseAuth.instance
               .signInWithCredential(credential);
           final user = userCredential.user;
           if (user != null) {
-            await _ensureUserDocExists(user, currentName);
+            await _ensureUserDocExists(user, currentName, currentUsername);
             await _saveDeviceToken(user);
           }
         } catch (e) {
@@ -281,6 +356,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     final currentName = _nameController.text.trim();
+    final currentUsername = _usernameController.text.trim(); // NEW
 
     try {
       final credential = PhoneAuthProvider.credential(
@@ -294,7 +370,7 @@ class _LoginPageState extends State<LoginPage> {
       final user = userCredential.user;
 
       if (user != null) {
-        await _ensureUserDocExists(user, currentName);
+        await _ensureUserDocExists(user, currentName, currentUsername);
         await _saveDeviceToken(user);
       }
     } catch (e) {
@@ -425,8 +501,18 @@ class _LoginPageState extends State<LoginPage> {
                             if (!_isLoginMode) ...[
                               _buildTextField(
                                 controller: _nameController,
-                                label: "What do you want to be called?",
+                                label: "Pick a display name",
                                 icon: Icons.person_outline,
+                                maxLength: 50,
+                              ),
+                              const SizedBox(height: 16),
+                              // NEW: Username Field
+                              _buildTextField(
+                                controller: _usernameController,
+                                label: "Pick a username",
+                                icon: Icons.alternate_email,
+                                prefixText: "@ ",
+                                maxLength: 20,
                               ),
                               const SizedBox(height: 16),
                             ],
@@ -496,7 +582,6 @@ class _LoginPageState extends State<LoginPage> {
                               text: _isLoginMode
                                   ? "Get Login Code"
                                   : "Sign Up & Get Login Code",
-                              // Disable button visually in sign up mode if checkboxes aren't ticked
                               onPressed:
                                   (!_isLoginMode &&
                                       (!_agreedToToS || !_agreedToPrivacy))
@@ -590,11 +675,14 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  // UPDATED: Now supports prefix text and max lengths cleanly
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     bool isNumber = false,
+    String? prefixText,
+    int? maxLength,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
@@ -603,12 +691,19 @@ class _LoginPageState extends State<LoginPage> {
       controller: controller,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+      maxLength: maxLength,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(
           color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
         ),
         prefixIcon: Icon(icon, color: primaryColor),
+        prefixText: prefixText,
+        prefixStyle: TextStyle(
+          color: primaryColor,
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+        ),
         filled: true,
         fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
         border: OutlineInputBorder(
@@ -616,6 +711,7 @@ class _LoginPageState extends State<LoginPage> {
           borderSide: BorderSide.none,
         ),
         contentPadding: const EdgeInsets.symmetric(vertical: 16),
+        counterText: "", // Hides the max length counter natively
       ),
     );
   }
