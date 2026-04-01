@@ -174,21 +174,34 @@ class _ProfilePageState extends State<ProfilePage> {
       cleanName = cleanName.substring(1);
     }
 
+    // 1. EMPTY CHECK WITH AUTO-REVERT
     if (cleanName.isEmpty) {
       setState(() {
         _usernameFeedback = "Username cannot be empty.";
         _usernameFeedbackColor = Colors.red;
+        _usernameController.text =
+            _currentUsername ?? ''; // Snap back to safe name
+      });
+
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) setState(() => _usernameFeedback = '');
       });
       return;
     }
 
-    // Local Regex Check
+    // 2. REGEX CHECK WITH AUTO-REVERT
     final regex = RegExp(r'^[a-z0-9.\-_]{3,20}$');
     if (!regex.hasMatch(cleanName)) {
       setState(() {
         _usernameFeedback =
             "3-20 chars: letters, numbers, periods, dashes, or underscores.";
         _usernameFeedbackColor = Colors.red;
+        _usernameController.text =
+            _currentUsername ?? ''; // Snap back to safe name
+      });
+
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) setState(() => _usernameFeedback = '');
       });
       return;
     }
