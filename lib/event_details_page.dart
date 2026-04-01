@@ -212,6 +212,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         'phone': userData['phoneNumber'] ?? userData['phone'] ?? '',
         'avatarColor': userData['avatarColor'] ?? 0xFF9E9E9E,
         'avatarUrl': userData['avatarUrl'],
+        'username': userData['username'] ?? '',
       };
     });
 
@@ -333,6 +334,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
   void _showSeenByBottomSheet(List<Map<String, dynamic>> seenGuests) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(
+      context,
+    ).colorScheme.primary; // Added to color the username
 
     showModalBottomSheet(
       context: context,
@@ -376,6 +380,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                     itemBuilder: (context, index) {
                       final guest = seenGuests[index];
                       final String name = guest['displayName'];
+                      final String username =
+                          guest['username'] ?? ""; // NEW: Extract username
                       final String? avatarUrl = guest['avatarUrl'];
                       final int avatarColor =
                           guest['avatarColor'] ?? Colors.blue.toARGB32();
@@ -426,6 +432,20 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                             color: isDark ? Colors.white : Colors.black87,
                           ),
                         ),
+                        // 👇 NEW: Display @username as subtitle if they have one
+                        subtitle: username.isNotEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.only(top: 2.0),
+                                child: Text(
+                                  "@$username",
+                                  style: TextStyle(
+                                    color: primaryColor,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              )
+                            : null,
                       );
                     },
                   ),
@@ -1121,6 +1141,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                           final String guestUid = guest['uid'];
                           final String name = guest['displayName'];
                           final String phone = guest['phone'];
+                          final String username = guest['username'] ?? "";
                           final int avatarColor = guest['avatarColor'];
                           final String? avatarUrl = guest['avatarUrl'];
 
@@ -1131,25 +1152,21 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
                           IconData badgeIcon;
                           Color badgeColor;
-                          String statusText;
 
                           switch (status) {
                             case 'going':
                               badgeIcon = Icons.check_circle;
                               badgeColor = Colors.green;
-                              statusText = "is in for the win!";
                               break;
                             case 'declined':
                               badgeIcon = Icons.cancel;
                               badgeColor = Colors.red;
-                              statusText = "is sitting this one out.";
                               break;
                             default:
                               badgeIcon = Icons.hourglass_empty;
                               badgeColor = isDark
                                   ? Colors.grey.shade400
                                   : Colors.grey.shade700;
-                              statusText = "is too cool to respond.";
                           }
 
                           return StreamBuilder<DocumentSnapshot>(
@@ -1175,89 +1192,82 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 4,
-                                    vertical: 8,
+                                    vertical: 4, // Tighter vertical padding
                                   ),
                                   child: Row(
                                     children: [
-                                      SizedBox(
-                                        width: 50,
-                                        height: 50,
-                                        child: Stack(
-                                          clipBehavior: Clip.none,
-                                          children: [
-                                            Center(
-                                              child: Container(
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: Color(
-                                                        avatarColor,
-                                                      ).withValues(alpha: 0.4),
-                                                      blurRadius: 12,
-                                                      spreadRadius: 2,
-                                                    ),
-                                                  ],
-                                                ),
-                                                child: CircleAvatar(
-                                                  backgroundColor: Color(
+                                      // UPDATED: Tighter Stack hugging the avatar with Top-Right badge
+                                      Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Color(
                                                     avatarColor,
-                                                  ),
-                                                  radius: 20,
-                                                  backgroundImage:
-                                                      avatarUrl != null
-                                                      ? CachedNetworkImageProvider(
-                                                          avatarUrl,
-                                                        )
-                                                      : null,
-                                                  child: avatarUrl == null
-                                                      ? Text(
-                                                          name.isNotEmpty
-                                                              ? name[0]
-                                                                    .toUpperCase()
-                                                              : "?",
-                                                          style:
-                                                              const TextStyle(
-                                                                color: Colors
-                                                                    .white,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                              ),
-                                                        )
-                                                      : null,
+                                                  ).withValues(alpha: 0.4),
+                                                  blurRadius: 10,
+                                                  spreadRadius: 1,
                                                 ),
+                                              ],
+                                            ),
+                                            child: CircleAvatar(
+                                              backgroundColor: Color(
+                                                avatarColor,
+                                              ),
+                                              radius: 22,
+                                              backgroundImage: avatarUrl != null
+                                                  ? CachedNetworkImageProvider(
+                                                      avatarUrl,
+                                                    )
+                                                  : null,
+                                              child: avatarUrl == null
+                                                  ? Text(
+                                                      name.isNotEmpty
+                                                          ? name[0]
+                                                                .toUpperCase()
+                                                          : "?",
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    )
+                                                  : null,
+                                            ),
+                                          ),
+                                          // TOP-RIGHT RSVP BADGE
+                                          Positioned(
+                                            top: -5,
+                                            right: -10,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(
+                                                2,
+                                              ), // Creates the cutout border
+                                              decoration: BoxDecoration(
+                                                color: Theme.of(
+                                                  context,
+                                                ).cardColor,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Icon(
+                                                badgeIcon,
+                                                size: 18,
+                                                color: badgeColor,
                                               ),
                                             ),
-                                            Positioned(
-                                              top: -4,
-                                              left: -6,
-                                              child: Stack(
-                                                alignment: Alignment.center,
-                                                children: [
-                                                  Icon(
-                                                    badgeIcon,
-                                                    size: 24,
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).cardColor,
-                                                  ),
-                                                  Icon(
-                                                    badgeIcon,
-                                                    size: 20,
-                                                    color: badgeColor,
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                          ),
+                                        ],
                                       ),
                                       const SizedBox(width: 16),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
                                             Row(
                                               children: [
@@ -1290,18 +1300,20 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                                 ],
                                               ],
                                             ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              statusText,
-                                              style: TextStyle(
-                                                color: badgeColor,
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w500,
-                                                fontStyle: status == 'pending'
-                                                    ? FontStyle.italic
-                                                    : FontStyle.normal,
+                                            if (username.isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  top: 2.0,
+                                                ),
+                                                child: Text(
+                                                  "@$username",
+                                                  style: TextStyle(
+                                                    color: primaryColor,
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
                                               ),
-                                            ),
                                           ],
                                         ),
                                       ),
