@@ -88,7 +88,7 @@
 		<key>NSContactsUsageDescription</key>
 		<string>TFTI needs access to your contacts so you can easily find and invite your friends to events.</string>
 		<key>NSCameraUsageDescription</key>
-		<string>TFTI requires camera access so you can take and share photos in the event chat.</string>
+		<string>TFTI requires camera access so you can take and share photos in the event chat and scan friends' QR codes.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>TFTI requires photo library access so you can upload and share photos in the event chat.</string>
 	</dict>
