@@ -665,6 +665,41 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (confirm != true) return;
 
+    // --- NEW: PRE-EMPTIVE SESSION CHECK ---
+    // Prevents "Zombie Accounts" by ensuring the session is fresh BEFORE wiping data.
+    try {
+      final idTokenResult = await user.getIdTokenResult();
+      final authTime = idTokenResult.authTime;
+      if (authTime != null) {
+        final diff = DateTime.now().difference(authTime);
+        if (diff.inMinutes > 5) {
+          if (mounted) {
+            await showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text("Session Expired"),
+                content: const Text(
+                  "For your security, Firebase requires a recent login to delete an account. Please log out, log back in, and try again.",
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _logout();
+                    },
+                    child: const Text("Log Out Now"),
+                  ),
+                ],
+              ),
+            );
+          }
+          return; // HALT: Do not touch the database!
+        }
+      }
+    } catch (e) {
+      debugPrint("Error checking token age: $e");
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -676,22 +711,21 @@ class _ProfilePageState extends State<ProfilePage> {
         await ref.delete();
         debugPrint("✅ Profile image deleted from Storage.");
       } catch (e) {
-        debugPrint("Notice: No profile image found to delete, or error: $e");
+        debugPrint("Notice: No profile image found to delete: $e");
       }
 
       final userDocRef = FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid);
-
-      // 2. Fetch current username before wiping user doc
       final userDoc = await userDocRef.get();
       final String? usernameToFree = userDoc.data()?['username'];
 
-      // 3. Clear subcollections
+      // 2. Clear subcollections (Friends, Circles, Places)
       try {
         final friendsSnap = await userDocRef.collection('friends').get();
         for (var doc in friendsSnap.docs) {
           await doc.reference.delete();
+          debugPrint("✅ Friends subcollection cleaned up.");
         }
       } catch (e) {
         debugPrint("Cleanup Error (friends): $e");
@@ -701,6 +735,7 @@ class _ProfilePageState extends State<ProfilePage> {
         final circlesSnap = await userDocRef.collection('circles').get();
         for (var doc in circlesSnap.docs) {
           await doc.reference.delete();
+          debugPrint("✅ Circles subcollection cleaned up.");
         }
       } catch (e) {
         debugPrint("Cleanup Error (circles): $e");
@@ -710,12 +745,13 @@ class _ProfilePageState extends State<ProfilePage> {
         final placesSnap = await userDocRef.collection('favorite_places').get();
         for (var doc in placesSnap.docs) {
           await doc.reference.delete();
+          debugPrint("✅ Favorite places subcollection cleaned up.");
         }
       } catch (e) {
         debugPrint("Cleanup Error (places): $e");
       }
 
-      // 4. Free up the username in the registry
+      // 3. Free up the username in the registry
       try {
         if (usernameToFree != null && usernameToFree.isNotEmpty) {
           await FirebaseFirestore.instance
@@ -723,24 +759,69 @@ class _ProfilePageState extends State<ProfilePage> {
               .doc(usernameToFree)
               .delete();
         }
+        debugPrint("✅ Username freed up.");
       } catch (e) {
         debugPrint("Cleanup Error (username): $e");
       }
 
-      // 5: Hunt down and delete all event invitations globally
+      // --- THE NO-INDEX BYPASS FOR SQUAD NEEDS ---
+      List<String> userEventIds = [];
+
+      // 4. Delete global invites AND collect the Event IDs
       try {
         final invitesSnap = await FirebaseFirestore.instance
             .collectionGroup('invitations')
             .where('uid', isEqualTo: user.uid)
             .get();
+
         for (var doc in invitesSnap.docs) {
+          final parentEventId = doc.reference.parent.parent?.id;
+          if (parentEventId != null && !userEventIds.contains(parentEventId)) {
+            userEventIds.add(parentEventId);
+          }
           await doc.reference.delete();
+          debugPrint("✅ Global invite deleted.");
         }
       } catch (e) {
         debugPrint("Cleanup Error (global invites): $e");
       }
 
-      // 6. Hunt down and delete this user from everyone's friends list
+      // 5. Also grab any events they hosted directly
+      try {
+        final hostedEventsSnap = await FirebaseFirestore.instance
+            .collection('events')
+            .where('hostId', isEqualTo: user.uid)
+            .get();
+        for (var doc in hostedEventsSnap.docs) {
+          if (!userEventIds.contains(doc.id)) userEventIds.add(doc.id);
+        }
+      } catch (e) {
+        debugPrint("Cleanup Error (fetching hosted events): $e");
+      }
+
+      // 6. Un-claim Squad Needs (Roles) using collected Event IDs (NO INDEX REQUIRED!)
+      try {
+        for (String eventId in userEventIds) {
+          final rolesSnap = await FirebaseFirestore.instance
+              .collection('events')
+              .doc(eventId)
+              .collection('roles')
+              .where('claimedByUid', isEqualTo: user.uid)
+              .get();
+
+          for (var doc in rolesSnap.docs) {
+            await doc.reference.update({
+              'claimedByUid': FieldValue.delete(),
+              'claimedByName': FieldValue.delete(),
+            });
+            debugPrint("✅ Released Squad Need: ${doc.id}");
+          }
+        }
+      } catch (e) {
+        debugPrint("Cleanup Error (roles): $e");
+      }
+
+      // 7. Delete from everyone's friends list
       try {
         final friendsGlobalSnap = await FirebaseFirestore.instance
             .collectionGroup('friends')
@@ -748,39 +829,23 @@ class _ProfilePageState extends State<ProfilePage> {
             .get();
         for (var doc in friendsGlobalSnap.docs) {
           await doc.reference.delete();
+          debugPrint("✅ Removed from a friend's list: ${doc.id}");
         }
       } catch (e) {
         debugPrint("Cleanup Error (global friends): $e");
       }
 
-      // 7. Delete User Doc
+      // 8. Delete User Doc
       try {
         await userDocRef.delete();
+        debugPrint("✅ User document deleted.");
       } catch (e) {
         debugPrint("Cleanup Error (user doc): $e");
       }
 
-      // 8. Delete Firebase Auth Account
+      // 9. Delete Firebase Auth Account
       await user.delete();
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'requires-recent-login') {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Security: Please Log Out and Log In again to delete account.',
-              ),
-              duration: Duration(seconds: 5),
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("Error: ${e.message}")));
-        }
-      }
+      debugPrint("✅ Firebase Auth account deleted.");
     } catch (e) {
       debugPrint("❌ Fatal Account Deletion Error: $e");
       if (mounted) {
