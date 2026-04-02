@@ -402,7 +402,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                       return ListTile(
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 24,
-                          vertical: 8,
+                          vertical: 4,
                         ),
                         leading: Container(
                           decoration: BoxDecoration(
@@ -445,7 +445,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                             color: isDark ? Colors.white : Colors.black87,
                           ),
                         ),
-                        // 👇 NEW: Display @username as subtitle if they have one
+                        // Display @username as subtitle if they have one
                         subtitle: username.isNotEmpty
                             ? Padding(
                                 padding: const EdgeInsets.only(top: 2.0),
@@ -1267,34 +1267,47 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                               Stack(
                                                 clipBehavior: Clip.none,
                                                 children: [
-                                                  CircleAvatar(
-                                                    backgroundColor: Color(
-                                                      guest['avatarColor'],
+                                                  Container(
+                                                    decoration: BoxDecoration(
+                                                      shape: BoxShape.circle,
+                                                      boxShadow: [
+                                                        BoxShadow(
+                                                          color: Color(
+                                                            guest['avatarColor'],
+                                                          ).withValues(alpha: 0.4),
+                                                          blurRadius: 8,
+                                                          spreadRadius: 1,
+                                                        ),
+                                                      ],
                                                     ),
-                                                    radius: 22,
-                                                    backgroundImage:
-                                                        guest['avatarUrl'] !=
-                                                            null
-                                                        ? CachedNetworkImageProvider(
-                                                            guest['avatarUrl'],
-                                                          )
-                                                        : null,
-                                                    child:
-                                                        guest['avatarUrl'] ==
-                                                            null
-                                                        ? Text(
-                                                            guest['displayName'][0]
-                                                                .toUpperCase(),
-                                                            style:
-                                                                const TextStyle(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                ),
-                                                          )
-                                                        : null,
+                                                    child: CircleAvatar(
+                                                      backgroundColor: Color(
+                                                        guest['avatarColor'],
+                                                      ),
+                                                      radius: 22,
+                                                      backgroundImage:
+                                                          guest['avatarUrl'] !=
+                                                              null
+                                                          ? CachedNetworkImageProvider(
+                                                              guest['avatarUrl'],
+                                                            )
+                                                          : null,
+                                                      child:
+                                                          guest['avatarUrl'] ==
+                                                              null
+                                                          ? Text(
+                                                              guest['displayName'][0]
+                                                                  .toUpperCase(),
+                                                              style: const TextStyle(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
+                                                            )
+                                                          : null,
+                                                    ),
                                                   ),
                                                   Positioned(
                                                     top: -5,
