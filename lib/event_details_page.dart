@@ -188,40 +188,46 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     final deadlineTime = eventTime.add(Duration(minutes: deadlineOffset));
 
     final futures = inviteDocs.map((doc) async {
-      final inviteData = doc.data() as Map<String, dynamic>;
-      final uid = inviteData['uid'] ?? doc.id;
+      // Wrap individual fetches in a try/catch
+      try {
+        final inviteData = doc.data() as Map<String, dynamic>;
+        final uid = inviteData['uid'] ?? doc.id;
 
-      String status = inviteData['status'] ?? 'pending';
+        String status = inviteData['status'] ?? 'pending';
 
-      if (status == 'pending' && now.isAfter(deadlineTime)) {
-        status = 'declined';
+        if (status == 'pending' && now.isAfter(deadlineTime)) {
+          status = 'declined';
+        }
+
+        final bool hasSeen =
+            inviteData['lastViewedAt'] != null ||
+            inviteData['respondedAt'] != null;
+
+        final userSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .get();
+
+        if (!userSnap.exists) {
+          return null;
+        }
+
+        final userData = userSnap.data() as Map<String, dynamic>;
+
+        return {
+          'uid': uid,
+          'status': status,
+          'hasSeen': hasSeen,
+          'displayName': userData['displayName'] ?? 'Unknown',
+          'phone': userData['phoneNumber'] ?? userData['phone'] ?? '',
+          'avatarColor': userData['avatarColor'] ?? 0xFF9E9E9E,
+          'avatarUrl': userData['avatarUrl'],
+          'username': userData['username'] ?? '',
+        };
+      } catch (e) {
+        debugPrint("Guest fetch failed, skipping... $e");
+        return null; // Fails gracefully!
       }
-
-      final bool hasSeen =
-          inviteData['lastViewedAt'] != null ||
-          inviteData['respondedAt'] != null;
-
-      final userSnap = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
-
-      if (!userSnap.exists) {
-        return null;
-      }
-
-      final userData = userSnap.data() as Map<String, dynamic>;
-
-      return {
-        'uid': uid,
-        'status': status,
-        'hasSeen': hasSeen,
-        'displayName': userData['displayName'] ?? 'Unknown',
-        'phone': userData['phoneNumber'] ?? userData['phone'] ?? '',
-        'avatarColor': userData['avatarColor'] ?? 0xFF9E9E9E,
-        'avatarUrl': userData['avatarUrl'],
-        'username': userData['username'] ?? '',
-      };
     });
 
     final results = await Future.wait(futures);
@@ -723,7 +729,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                       currentHash ^=
                           doc.id.hashCode ^
                           (d['status']?.hashCode ?? 0) ^
-                          (d['respondedAt']?.hashCode ?? 0);
+                          (d['respondedAt']?.hashCode ?? 0) ^
+                          (d['lastViewedAt']?.hashCode ?? 0);
                     }
 
                     // Only re-fetch profiles if the hash changes!
@@ -1208,6 +1215,18 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                           crewCardWidget = FutureBuilder<List<Map<String, dynamic>>>(
                             future: _cachedCrewFuture,
                             builder: (context, sortedSnap) {
+                              if (sortedSnap.hasError) {
+                                return const Padding(
+                                  padding: EdgeInsets.all(20),
+                                  child: Center(
+                                    child: Text(
+                                      "Connection lost. Please reopen the event.",
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                                );
+                              }
+
                               if (!sortedSnap.hasData) {
                                 return const Center(
                                   child: CircularProgressIndicator(),
