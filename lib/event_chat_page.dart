@@ -1247,6 +1247,109 @@ class _EventChatPageState extends State<EventChatPage> {
     );
   }
 
+  // NEW: Pitch-In Feature
+  Future<void> _showBringItemDialog() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final TextEditingController itemController = TextEditingController();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          "I'm bringing...",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: TextField(
+          controller: itemController,
+          maxLength: 30, // Strict 30 char limit applied here!
+          textCapitalization: TextCapitalization.words,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: "e.g. Sweet Potato Casserole",
+            filled: true,
+            fillColor: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: primaryColor.withValues(alpha: 0.5),
+                width: 2,
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (itemController.text.trim().isNotEmpty) {
+                Navigator.pop(ctx, true);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: themeProvider.onPrimaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              "Add & Claim",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && itemController.text.trim().isNotEmpty) {
+      final itemTitle = itemController.text.trim();
+      try {
+        // Fetch display name to stamp on the claim
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        final displayName = userDoc.data()?['displayName'] ?? "Someone";
+
+        // 1. Write the new item to Squad Needs (already claimed)
+        await FirebaseFirestore.instance
+            .collection('events')
+            .doc(widget.eventId)
+            .collection('roles')
+            .add({
+              'title': itemTitle,
+              'claimedByUid': user.uid,
+              'claimedByName': displayName,
+              'addedByUid':
+                  user.uid, // Crucial for allowing them to delete it later
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+
+        // 2. Announce it in the chat!
+        _messageController.text = "I'm bringing $itemTitle! 🥘";
+        await _sendMessage();
+      } catch (e) {
+        debugPrint("Error adding custom role: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text("Failed to add item.")));
+        }
+      }
+    }
+  }
+
   // --- NEW: THE TACTILE QUICK ACTION CHIPS ---
   Widget _buildQuickActions(bool isDark, Color primaryColor) {
     return SingleChildScrollView(
@@ -1345,7 +1448,28 @@ class _EventChatPageState extends State<EventChatPage> {
               borderRadius: BorderRadius.circular(12),
             ),
             onPressed:
-                _showDibsOptions, // 👇 FIX: Now launches the database selection sheet!
+                _showDibsOptions, // FIX: Now launches the database selection sheet!
+          ),
+          const SizedBox(width: 8),
+          ActionChip(
+            avatar: Icon(
+              Icons.volunteer_activism, // Perfect icon for pitching in
+              size: 16,
+              color: primaryColor,
+            ),
+            label: Text(
+              "I'm bringing...",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: primaryColor,
+              ),
+            ),
+            backgroundColor: primaryColor.withValues(alpha: 0.1),
+            side: BorderSide(color: primaryColor.withValues(alpha: 0.3)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            onPressed: _showBringItemDialog,
           ),
         ],
       ),
