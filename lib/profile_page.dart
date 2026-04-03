@@ -27,14 +27,9 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final _nameController = TextEditingController();
   final _statusController = TextEditingController();
-  final _usernameController = TextEditingController(); // NEW: Username
 
   String _phoneNumber = '';
   String? _currentUsername; // Tracks the currently saved username
-
-  String _usernameFeedback = '';
-  Color _usernameFeedbackColor = Colors.grey;
-  bool _isCheckingUsername = false;
 
   int _selectedColorValue = Colors.blue.toARGB32();
   bool _isLoading = false;
@@ -70,7 +65,6 @@ class _ProfilePageState extends State<ProfilePage> {
     _userSub?.cancel();
     _nameController.dispose();
     _statusController.dispose();
-    _usernameController.dispose(); // Dispose new controller
     super.dispose();
   }
 
@@ -98,7 +92,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     }
                     if (data.containsKey('username')) {
                       _currentUsername = data['username'];
-                      _usernameController.text = _currentUsername ?? '';
                     }
                     _hasLoadedInitialData = true;
                   }
@@ -159,113 +152,6 @@ class _ProfilePageState extends State<ProfilePage> {
             'showPhoneNumber': _showPhoneNumber,
           })
           .catchError((e) => debugPrint("Auto-save error: $e"));
-    }
-  }
-
-  // --- NEW: Username Transaction Logic ---
-  Future<void> _updateUsername() async {
-    final desiredName = _usernameController.text.trim().toLowerCase();
-    if (desiredName == _currentUsername) {
-      setState(() => _usernameFeedback = ''); // No change made
-      return;
-    }
-
-    String cleanName = desiredName;
-    if (cleanName.startsWith('@')) {
-      cleanName = cleanName.substring(1);
-    }
-
-    // 1. EMPTY CHECK WITH AUTO-REVERT
-    if (cleanName.isEmpty) {
-      setState(() {
-        _usernameFeedback = "Username cannot be empty.";
-        _usernameFeedbackColor = Colors.red;
-        _usernameController.text =
-            _currentUsername ?? ''; // Snap back to safe name
-      });
-
-      Future.delayed(const Duration(seconds: 3), () {
-        if (mounted) setState(() => _usernameFeedback = '');
-      });
-      return;
-    }
-
-    // 2. REGEX CHECK WITH AUTO-REVERT
-    final regex = RegExp(r'^[a-z0-9.\-_]{3,20}$');
-    if (!regex.hasMatch(cleanName)) {
-      setState(() {
-        _usernameFeedback =
-            "3-20 chars: letters, numbers, periods, dashes, or underscores.";
-        _usernameFeedbackColor = Colors.red;
-        _usernameController.text =
-            _currentUsername ?? ''; // Snap back to safe name
-      });
-
-      Future.delayed(const Duration(seconds: 4), () {
-        if (mounted) setState(() => _usernameFeedback = '');
-      });
-      return;
-    }
-
-    setState(() {
-      _isCheckingUsername = true;
-      _usernameFeedback = "Checking availability...";
-      _usernameFeedbackColor = Colors.orange;
-    });
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    try {
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final newNameRef = FirebaseFirestore.instance
-            .collection('usernames')
-            .doc(cleanName);
-        final userRef = FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid);
-
-        // Read desired username
-        final newNameDoc = await transaction.get(newNameRef);
-        if (newNameDoc.exists) {
-          throw Exception("Username is already taken.");
-        }
-
-        // Claim new username
-        transaction.set(newNameRef, {'uid': user.uid});
-        // Update profile
-        transaction.update(userRef, {'username': cleanName});
-
-        // Release old username if they had one
-        if (_currentUsername != null && _currentUsername!.isNotEmpty) {
-          final oldNameRef = FirebaseFirestore.instance
-              .collection('usernames')
-              .doc(_currentUsername);
-          transaction.delete(oldNameRef);
-        }
-      });
-
-      setState(() {
-        _currentUsername = cleanName;
-        _usernameController.text =
-            cleanName; // Cleans up the @ if they typed it
-        _usernameFeedback = "Username updated!";
-        _usernameFeedbackColor = Colors.green;
-      });
-
-      // Clear success message after a few seconds
-      Future.delayed(const Duration(seconds: 3), () {
-        if (mounted) setState(() => _usernameFeedback = '');
-      });
-    } catch (e) {
-      setState(() {
-        _usernameFeedback = e.toString().replaceAll("Exception: ", "");
-        _usernameFeedbackColor = Colors.red;
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _isCheckingUsername = false);
-      }
     }
   }
 
@@ -1093,6 +979,19 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
+          // Username permanently displayed under the avatar
+          if (_currentUsername != null && _currentUsername!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              "@$_currentUsername",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+                color: primaryColor, // Uses their signature theme color!
+              ),
+            ),
+          ],
           const SizedBox(height: 32),
 
           // 2. DISPLAY NAME
@@ -1134,77 +1033,6 @@ class _ProfilePageState extends State<ProfilePage> {
               FocusManager.instance.primaryFocus?.unfocus();
               _autoSaveIdentity();
             },
-          ),
-          const SizedBox(height: 16),
-
-          // 3. USERNAME
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: _usernameController,
-                textInputAction: TextInputAction.next,
-                maxLength: 20,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
-                decoration: InputDecoration(
-                  labelText: "Username",
-                  labelStyle: TextStyle(
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                  ),
-                  prefixIcon: Icon(Icons.alternate_email, color: primaryColor),
-                  suffixIcon: _isCheckingUsername
-                      ? const Padding(
-                          padding: EdgeInsets.all(12.0),
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: isDark
-                      ? Colors.grey.shade900
-                      : Colors.grey.shade50,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(
-                      color: primaryColor.withValues(alpha: 0.5),
-                      width: 2,
-                    ),
-                  ),
-                  counterText: "",
-                ),
-                onTapOutside: (_) {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                  _updateUsername();
-                },
-                onEditingComplete: () {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                  _updateUsername();
-                },
-              ),
-              if (_usernameFeedback.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6, left: 16),
-                  child: Text(
-                    _usernameFeedback,
-                    style: TextStyle(
-                      color: _usernameFeedbackColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-            ],
           ),
           const SizedBox(height: 16),
 

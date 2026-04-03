@@ -1296,7 +1296,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                                 friendSnap.data!.exists);
                                         return Padding(
                                           padding: const EdgeInsets.symmetric(
-                                            vertical: 4,
+                                            vertical: 8,
                                           ),
                                           child: Row(
                                             children: [

@@ -123,9 +123,13 @@ class _EventChatPageState extends State<EventChatPage> {
 
         if (userDoc.exists) {
           final name = userDoc.data()?['displayName'] ?? 'User';
-          final tag = name
+
+          // Prioritize actual username, fallback to stripped display name safely
+          final String rawUsername = userDoc.data()?['username'] ?? name;
+          final tag = rawUsername
               .replaceAll(' ', '')
-              .replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '');
+              .replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '')
+              .toLowerCase(); // Lowercase ensures search matching works flawlessly
 
           guests.add({
             'uid': uid,
@@ -1385,12 +1389,17 @@ class _EventChatPageState extends State<EventChatPage> {
       bool isRealMention = false;
       bool isMentioningMe = false;
 
+      String displayText = fullTag;
+
       try {
         final guest = _eventGuests.firstWhere(
           (g) => (g['tag'] as String).toLowerCase() == tagWithoutAt,
         );
         if (mentionedUids.contains(guest['uid'])) {
           isRealMention = true;
+
+          displayText = "@${guest['name']}";
+
           if (guest['uid'] == myUid) {
             isMentioningMe = true;
           }
@@ -1414,7 +1423,7 @@ class _EventChatPageState extends State<EventChatPage> {
                     : null,
               ),
               child: Text(
-                fullTag,
+                displayText, // Render the friendly name instead of the tag
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: isMentioningMe
