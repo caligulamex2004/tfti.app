@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_app_badger/flutter_app_badger.dart';
 
 import 'login_page.dart';
 import 'event_chat_page.dart';
@@ -111,7 +112,7 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _selectedIndex = 0;
   bool _showTutorial = false;
 
@@ -127,8 +128,34 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _clearAppBadge();
     _silentProfileRefresh();
     _checkTutorialStatus();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _clearAppBadge();
+    }
+  }
+
+  Future<void> _clearAppBadge() async {
+    try {
+      bool isSupported = await FlutterAppBadger.isAppBadgeSupported();
+      if (isSupported) {
+        FlutterAppBadger.removeBadge();
+      }
+    } catch (e) {
+      debugPrint("App Badger Error: $e");
+    }
   }
 
   Future<void> _checkTutorialStatus() async {

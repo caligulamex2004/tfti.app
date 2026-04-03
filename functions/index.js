@@ -130,13 +130,24 @@ exports.sendInviteNotification = onDocumentCreated("events/{eventId}/invitations
     const message = {
         token: fcmToken,
         notification: {
-            title: "You're Invited! 🎟️",
+            title: "You're Invited! 📨",
             body: `You have been invited to ${eventTitle}`
         },
         data: { type: "invite", eventId: eventId },
         android: {
             priority: "high", 
-            notification: { channelId: "high_importance_channel" }
+            notification: { 
+                channelId: "high_importance_channel",
+                notificationCount: 1
+            }
+        },
+        apns: {
+            payload: {
+                aps: {
+                    badge: 1, 
+                    sound: "default"
+                }
+            }
         }
     };
 
@@ -212,7 +223,18 @@ exports.notifyEventUpdate = onDocumentUpdated("events/{eventId}", async (event) 
         },
         android: {
             priority: "high",
-            notification: { channelId: "high_importance_channel" }
+            notification: { 
+                channelId: "high_importance_channel",
+                notificationCount: 1
+            }
+        },
+        apns: {
+            payload: {
+                aps: {
+                    badge: 1,
+                    sound: "default"
+                }
+            }
         }
     };
 
