@@ -1035,7 +1035,7 @@ class _EventChatPageState extends State<EventChatPage> {
           .update({'claimedByUid': user.uid, 'claimedByName': displayName});
 
       // 2. Draft the announcement message and fire it off
-      _messageController.text = "I got dibs on $roleTitle! ✋";
+      _messageController.text = "I call dibs on $roleTitle! 🙋";
       await _sendMessage();
     } catch (e) {
       debugPrint("Error claiming role: $e");
@@ -1337,7 +1337,7 @@ class _EventChatPageState extends State<EventChatPage> {
             });
 
         // 2. Announce it in the chat!
-        _messageController.text = "I'm bringing $itemTitle! 🥘";
+        _messageController.text = "I'm bringing $itemTitle! 🛒";
         await _sendMessage();
       } catch (e) {
         debugPrint("Error adding custom role: $e");
@@ -1422,7 +1422,7 @@ class _EventChatPageState extends State<EventChatPage> {
               borderRadius: BorderRadius.circular(12),
             ),
             onPressed: () {
-              _messageController.text = "On my way! 🚗";
+              _messageController.text = "Coming in hot! 🪂";
               _focusNode.requestFocus();
             },
           ),
@@ -1434,7 +1434,7 @@ class _EventChatPageState extends State<EventChatPage> {
               color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
             ),
             label: Text(
-              "I got dibs on...",
+              "I call dibs on...",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
