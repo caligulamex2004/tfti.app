@@ -110,7 +110,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  // NEW: Extracted Modern Card Wrapper
+  // Modern Card Wrapper
   Widget _buildSettingsCard({
     required String title,
     required Widget child,
@@ -157,7 +157,63 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // NEW: Modernized Notifications Section
+  // --- NEW: Automation Section (Calendar Auto-Export) ---
+  Widget _buildAutomationSection(bool isDark, Color primaryColor, User? user) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: user != null
+          ? FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .snapshots()
+          : null,
+      builder: (context, snapshot) {
+        bool autoExportCalendar = false;
+
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final data = snapshot.data!.data() as Map<String, dynamic>;
+          // Safely extracts the setting; defaults to false if it doesn't exist yet
+          autoExportCalendar = data['autoExportCalendar'] ?? false;
+        }
+
+        return _buildSettingsCard(
+          title: "Automation",
+          isDark: isDark,
+          child: Column(
+            children: [
+              _buildModernSwitch(
+                title: "Auto-Export to Calendar",
+                subtitle: "Prompt to save when you RSVP 'LET'S GO'",
+                icon: Icons.calendar_month,
+                iconColor:
+                    primaryColor, // Matches the user's current signature theme
+                value: autoExportCalendar,
+                onChanged: (val) async {
+                  if (user != null) {
+                    try {
+                      // Uses SetOptions(merge: true) to safely add this field without deleting other profile data
+                      await FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(user.uid)
+                          .set({
+                            'autoExportCalendar': val,
+                          }, SetOptions(merge: true));
+                    } catch (e) {
+                      debugPrint("Error saving calendar setting: $e");
+                    }
+                  }
+                },
+                isDark: isDark,
+                primaryColor: primaryColor,
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Modernized Notifications Section
   Widget _buildNotificationsSection(
     bool isDark,
     Color primaryColor,
@@ -298,7 +354,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // NEW: Modernized Theme Selector (Chips instead of Switches)
+  // Modernized Theme Selector
   Widget _buildAppearanceSection(bool isDark, Color primaryColor) {
     return ListenableBuilder(
       listenable: themeProvider,
@@ -414,7 +470,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // NEW: Location Settings Section
+  // Location Settings Section
   Widget _buildLocationSection(bool isDark) {
     return _buildSettingsCard(
       title: "Saved Locations",
@@ -477,10 +533,16 @@ class _SettingsPageState extends State<SettingsPage> {
                   flex: 50,
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(24.0),
-                    child: _buildNotificationsSection(
-                      isDark,
-                      primaryColor,
-                      user,
+                    child: Column(
+                      children: [
+                        _buildAutomationSection(
+                          isDark,
+                          primaryColor,
+                          user,
+                        ), // <-- Added here
+                        const SizedBox(height: 24),
+                        _buildNotificationsSection(isDark, primaryColor, user),
+                      ],
                     ),
                   ),
                 ),
@@ -508,6 +570,12 @@ class _SettingsPageState extends State<SettingsPage> {
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 children: [
+                  _buildAutomationSection(
+                    isDark,
+                    primaryColor,
+                    user,
+                  ), // <-- Added here
+                  const SizedBox(height: 24),
                   _buildNotificationsSection(isDark, primaryColor, user),
                   const SizedBox(height: 24),
                   _buildAppearanceSection(isDark, primaryColor),

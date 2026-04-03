@@ -146,6 +146,23 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         await eventRef.update({'isTieBreakerNeeded': false});
       }
     }
+    // Check prefs before pushing to calendar - only for "going" since "maybe" or "decline" shouldn't trigger it
+    if (status == 'going') {
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        // Defaults to false if the field doesn't exist yet!
+        final bool autoExport = userDoc.data()?['autoExportCalendar'] ?? false;
+
+        if (autoExport) {
+          _pushToCalendar();
+        }
+      } catch (e) {
+        debugPrint("Error checking calendar preference: $e");
+      }
+    }
   }
 
   Future<void> _addFriend(
