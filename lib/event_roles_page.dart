@@ -53,7 +53,8 @@ class _EventRolesPageState extends State<EventRolesPage> {
         .collection('roles')
         .add({
           'title': _roleController.text.trim(),
-          'addedBy': user.uid, // <-- NEW: STAMP OWNERSHIP
+          'addedByUid': user
+              .uid, // UPDATED to match the new chat pitch-in logic perfectly
           'claimedByUid': null,
           'claimedByName': null,
           'createdAt': FieldValue.serverTimestamp(),
@@ -193,7 +194,7 @@ class _EventRolesPageState extends State<EventRolesPage> {
                         Text(
                           widget.isHost
                               ? "Add items you need help with above!"
-                              : "The host hasn't added any roles yet.",
+                              : "The squad hasn't added any needs yet.",
                           style: TextStyle(
                             color: isDark
                                 ? Colors.grey.shade400
@@ -220,16 +221,16 @@ class _EventRolesPageState extends State<EventRolesPage> {
                     final claimedByUid = data['claimedByUid'];
                     final claimedByName = data['claimedByName'];
 
-                    // --- NEW: READ OWNERSHIP ---
-                    final addedBy = data['addedBy'];
+                    // NEW: Check for both new and legacy field names for safety
+                    final addedByUid = data['addedByUid'] ?? data['addedBy'];
 
                     final bool isMine = claimedByUid == myUid;
                     final bool isClaimed = claimedByUid != null;
 
-                    // --- NEW: DELETE PERMISSION ENGINE ---
-                    // The Main Host can delete anything. The Co-Host can only delete what they added!
+                    // --- NEW: EMPOWERED DELETE PERMISSION ENGINE ---
+                    // Main Host deletes anything. Guests/Co-Hosts delete their own additions.
                     final bool isMainHost = _mainHostId == myUid;
-                    final bool canDelete = isMainHost || addedBy == myUid;
+                    final bool canDelete = isMainHost || addedByUid == myUid;
 
                     return Card(
                       elevation: isDark ? 1 : 2,
@@ -284,8 +285,8 @@ class _EventRolesPageState extends State<EventRolesPage> {
                                 : FontWeight.normal,
                           ),
                         ),
-                        // --- NEW: ONLY RENDER TRASHCAN IF AUTHORIZED ---
-                        trailing: (widget.isHost && canDelete)
+                        // REMOVED: widget.isHost requirement. Now anyone can delete their own stuff!
+                        trailing: canDelete
                             ? IconButton(
                                 icon: Icon(
                                   Icons.delete,
