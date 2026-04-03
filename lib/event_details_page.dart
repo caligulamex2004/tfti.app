@@ -1296,7 +1296,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                                 friendSnap.data!.exists);
                                         return Padding(
                                           padding: const EdgeInsets.symmetric(
-                                            vertical: 8,
+                                            vertical: 10,
                                           ),
                                           child: Row(
                                             children: [
@@ -1417,7 +1417,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                                                   .military_tech,
                                                               size: 16,
                                                               color:
-                                                                  primaryColor,
+                                                                  Colors.amber,
                                                             ),
                                                           ),
                                                       ],
