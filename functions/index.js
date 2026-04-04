@@ -475,3 +475,160 @@ exports.notifyHappeningNow = onSchedule({
         }
     }
 });
+
+// --- 8. THE DECIDER: Auto-Resolve Expired Vibe Checks ---
+exports.resolveExpiredVibeChecks = onSchedule({
+    schedule: "every 1 minutes", // Wakes up every 60 seconds to check for expired polls
+    timeZone: "America/New_York",
+}, async (event) => {
+    const now = new Date();
+    
+    // Find all active vibe checks that haven't been resolved or tied yet
+    const snapshot = await db.collection("events")
+        .where("type", "==", "vibe_check")
+        .where("lockedOptionId", "==", null)
+        .where("isTieBreakerNeeded", "==", false)
+        .get();
+
+    if (snapshot.empty) return;
+
+    const batch = db.batch();
+    let resolveCount = 0;
+    const notificationsToSend = []; // NEW: Array to hold our captain notifications
+
+    for (const doc of snapshot.docs) {
+        const eventData = doc.data();
+        const eventId = doc.id;
+        
+        if (!eventData.time) continue;
+        
+        const eventTime = eventData.time.toDate();
+        const rsvpDeadlineOffset = eventData.rsvpDeadline || 0; 
+        const deadlineTime = new Date(eventTime.getTime() + (rsvpDeadlineOffset * 60 * 1000));
+
+        // If the deadline hasn't passed yet, leave it alone!
+        if (now <= deadlineTime) continue;
+
+        // --- It's past the deadline. Time to resolve! ---
+        const invitesSnap = await doc.ref.collection("invitations").get();
+        
+        let voteCounts = {};
+        invitesSnap.docs.forEach(inviteDoc => {
+            const invite = inviteDoc.data();
+            if (invite.status === 'declined') return; 
+            
+            const votes = invite.votes || [];
+            votes.forEach(v => {
+                voteCounts[v] = (voteCounts[v] || 0) + 1;
+            });
+        });
+
+        const pollOptions = eventData.pollOptions || [];
+        if (pollOptions.length === 0) continue;
+
+        let maxVotes = -1;
+        let winningIds = [];
+
+        for (const opt of pollOptions) {
+            const optId = opt.id;
+            const count = voteCounts[optId] || 0;
+            if (count > maxVotes) {
+                maxVotes = count;
+                winningIds = [optId];
+            } else if (count === maxVotes) {
+                winningIds.push(optId);
+            }
+        }
+
+        if (winningIds.length === 1) {
+            // Clear Winner!
+            const winnerId = winningIds[0];
+            const winnerOpt = pollOptions.find(o => o.id === winnerId);
+
+            batch.update(doc.ref, {
+                type: 'event', 
+                lockedOptionId: winnerId,
+                title: winnerOpt.title,
+                location: winnerOpt.location,
+                isTieBreakerNeeded: false,
+                lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            invitesSnap.docs.forEach(inviteDoc => {
+                const invite = inviteDoc.data();
+                if (invite.status === 'declined') return;
+
+                const votes = invite.votes || [];
+                let newStatus = votes.includes(winnerId) ? 'going' : 'pending';
+                
+                if (invite.role === 'host' || invite.role === 'co-host') {
+                    newStatus = 'going';
+                }
+
+                batch.update(inviteDoc.ref, { status: newStatus });
+            });
+            
+            logger.log(`Vibe Check ${eventId} resolved with winner: ${winnerOpt.title}`);
+            resolveCount++;
+
+        } else if (winningIds.length > 1) {
+            // It's a Tie! 
+            batch.update(doc.ref, {
+                isTieBreakerNeeded: true,
+                lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+            
+            logger.log(`Vibe Check ${eventId} ended in a tie.`);
+            resolveCount++;
+
+            // 👇 NEW: Queue up a notification for the Captain
+            if (eventData.hostId) {
+                notificationsToSend.push({
+                    hostId: eventData.hostId,
+                    eventId: eventId,
+                    eventTitle: eventData.title || "your hangout"
+                });
+            }
+        }
+    }
+
+    if (resolveCount > 0) {
+        await batch.commit();
+        logger.log(`Auto-resolved ${resolveCount} expired vibe checks.`);
+
+        // 👇 NEW: Dispatch the tie-breaker push notifications
+        for (const notif of notificationsToSend) {
+            try {
+                const hostDoc = await db.collection("users").doc(notif.hostId).get();
+                const hostData = hostDoc.data();
+                
+                if (hostData && hostData.fcmToken) {
+                    const message = {
+                        token: hostData.fcmToken,
+                        notification: {
+                            title: "Tie Breaker Needed! ⚖️",
+                            body: `The squad is split! Open '${notif.eventTitle}' to lock in the final plan.`
+                        },
+                        data: {
+                            type: "event_update", // Triggers your app to open the Event Details Page
+                            eventId: notif.eventId
+                        },
+                        android: {
+                            priority: "high",
+                            notification: { channelId: "high_importance_channel" }
+                        },
+                        apns: {
+                            payload: {
+                                aps: { badge: 1, sound: "default" }
+                            }
+                        }
+                    };
+                    await admin.messaging().send(message);
+                    logger.log(`Tie-breaker notification sent to host ${notif.hostId} for event ${notif.eventId}`);
+                }
+            } catch (err) {
+                logger.error(`Failed to send tie-breaker notification to ${notif.hostId}:`, err);
+            }
+        }
+    }
+});

@@ -250,6 +250,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           'avatarUrl': userData['avatarUrl'],
           'username': userData['username'] ?? '',
           'statusText': userData['statusText'] ?? '',
+          'votes': inviteData['votes'] ?? [],
         };
       } catch (e) {
         debugPrint("Guest fetch failed, skipping... $e");
@@ -846,12 +847,227 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     );
   }
 
+  void _showVoteTallySheet(
+    BuildContext context,
+    List<dynamic> options,
+    List<Map<String, dynamic>> guests,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.how_to_vote, color: primaryColor),
+                    const SizedBox(width: 8),
+                    const Text(
+                      "Vote Breakdown",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Divider(
+                  height: 1,
+                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                ),
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: options.map((opt) {
+                        final optId = opt['id'];
+                        final title = opt['title'];
+                        final location = opt['location'];
+
+                        // Find everyone who voted for this option (excluding declined guests)
+                        final voters = guests.where((g) {
+                          if (g['status'] == 'declined') return false;
+                          final vList = List<String>.from(g['votes'] ?? []);
+                          return vList.contains(optId);
+                        }).toList();
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          title,
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark
+                                                ? Colors.white
+                                                : Colors.black87,
+                                          ),
+                                        ),
+                                        if (location != null &&
+                                            location != 'TBD')
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 4,
+                                            ),
+                                            child: Text(
+                                              location,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: isDark
+                                                    ? Colors.grey.shade400
+                                                    : Colors.grey.shade600,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: primaryColor.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      "${voters.length} Vote${voters.length == 1 ? '' : 's'}",
+                                      style: TextStyle(
+                                        color: primaryColor,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              if (voters.isEmpty)
+                                Text(
+                                  "No votes yet.",
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.grey.shade500
+                                        : Colors.grey.shade400,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                )
+                              else
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: voters.map((v) {
+                                    final avatarColor = Color(
+                                      v['avatarColor'] ??
+                                          Colors.blue.toARGB32(),
+                                    );
+                                    final avatarUrl = v['avatarUrl'];
+                                    final name = v['displayName'];
+
+                                    return Chip(
+                                      avatar: CircleAvatar(
+                                        backgroundColor: avatarColor,
+                                        backgroundImage: avatarUrl != null
+                                            ? CachedNetworkImageProvider(
+                                                avatarUrl,
+                                              )
+                                            : null,
+                                        child: avatarUrl == null
+                                            ? Text(
+                                                name[0].toUpperCase(),
+                                                style: const TextStyle(
+                                                  fontSize: 10,
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              )
+                                            : null,
+                                      ),
+                                      label: Text(
+                                        name,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark
+                                              ? Colors.grey.shade200
+                                              : Colors.grey.shade800,
+                                        ),
+                                      ),
+                                      backgroundColor: isDark
+                                          ? Colors.grey.shade800
+                                          : Colors.grey.shade100,
+                                      side: BorderSide(
+                                        color: isDark
+                                            ? Colors.grey.shade700
+                                            : Colors.grey.shade200,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   // --- TACTILE CARD WRAPPER ---
   Widget _buildInfoCard({
     required String title,
     required IconData icon,
     required Widget child,
     Widget? trailing,
+    VoidCallback? onIconTap,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
@@ -881,13 +1097,18 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: primaryColor.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
+                // NEW: Beautiful Material Ripple wrapped around the icon
+                Material(
+                  color: primaryColor.withValues(alpha: 0.15),
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    onTap: onIconTap,
+                    customBorder: const CircleBorder(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Icon(icon, color: primaryColor, size: 20),
+                    ),
                   ),
-                  child: Icon(icon, color: primaryColor, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1405,6 +1626,18 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                           rsvpCardWidget = _buildInfoCard(
                             title: "Cast Your Vote",
                             icon: Icons.how_to_vote,
+                            onIconTap: () async {
+                              if (_cachedCrewFuture != null) {
+                                final guests = await _cachedCrewFuture!;
+                                if (context.mounted) {
+                                  _showVoteTallySheet(
+                                    context,
+                                    data['pollOptions'] ?? [],
+                                    guests,
+                                  );
+                                }
+                              }
+                            },
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
