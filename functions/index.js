@@ -596,7 +596,7 @@ exports.resolveExpiredVibeChecks = onSchedule({
         await batch.commit();
         logger.log(`Auto-resolved ${resolveCount} expired vibe checks.`);
 
-        // 👇 NEW: Dispatch the tie-breaker push notifications
+        // Dispatch the tie-breaker push notifications
         for (const notif of notificationsToSend) {
             try {
                 const hostDoc = await db.collection("users").doc(notif.hostId).get();
