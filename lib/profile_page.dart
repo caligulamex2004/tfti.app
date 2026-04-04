@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 import 'phone_formatter.dart';
 import 'settings_page.dart';
@@ -225,16 +226,57 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _uploadAvatar(ImageSource source) async {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: source);
     if (pickedFile == null) return;
 
+    // Now safely launch the cropper
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: pickedFile.path,
+      aspectRatio: const CropAspectRatio(
+        ratioX: 1,
+        ratioY: 1,
+      ), // Force square proportions
+      compressQuality:
+          100, // Keep quality high here, our custom compressor handles it next
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Adjust Profile Photo',
+          toolbarColor:
+              primaryColor, // Uses the color we safely grabbed earlier
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+          hideBottomControls: false,
+          cropStyle: CropStyle.circle,
+        ),
+        IOSUiSettings(
+          title: 'Adjust Profile Photo',
+          cancelButtonTitle: 'Cancel',
+          doneButtonTitle: 'Save',
+          aspectRatioLockEnabled: true,
+          resetAspectRatioEnabled: false,
+          cropStyle: CropStyle.circle,
+        ),
+      ],
+    );
+
+    // If they cancel out of the cropper, gracefully back out
+    if (croppedFile == null) return;
+
+    if (!mounted) return;
     setState(() => _isUploadingAvatar = true);
+
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      setState(() => _isUploadingAvatar = false);
+      return;
+    }
 
     try {
-      final File file = File(pickedFile.path);
+      final File file = File(croppedFile.path);
       final Uint8List bytes = await file.readAsBytes();
 
       final Uint8List compressedBytes =
