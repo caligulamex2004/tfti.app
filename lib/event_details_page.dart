@@ -11,6 +11,7 @@ import 'event_chat_page.dart';
 import 'event_roles_page.dart';
 import 'edit_event_page.dart';
 import 'edit_vibecheck_page.dart';
+import 'phone_formatter.dart';
 import 'theme_provider.dart';
 
 class EventDetailsPage extends StatefulWidget {
@@ -231,12 +232,20 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
         final userData = userSnap.data() as Map<String, dynamic>;
 
+        final bool showPhone = userData['showPhoneNumber'] ?? false;
+        String rawPhone = userData['phoneNumber'] ?? userData['phone'] ?? '';
+        String securePhone = '';
+
+        if (showPhone && rawPhone.isNotEmpty) {
+          securePhone = PhoneFormatter.beautify(rawPhone);
+        }
+
         return {
           'uid': uid,
           'status': status,
           'hasSeen': hasSeen,
           'displayName': userData['displayName'] ?? 'Unknown',
-          'phone': userData['phoneNumber'] ?? userData['phone'] ?? '',
+          'phone': securePhone,
           'avatarColor': userData['avatarColor'] ?? 0xFF9E9E9E,
           'avatarUrl': userData['avatarUrl'],
           'username': userData['username'] ?? '',
@@ -255,6 +264,21 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         .toList();
 
     validGuests.sort((a, b) {
+      final Map<String, int> statusWeight = {
+        'going': 0,
+        'declined': 1,
+        'pending': 2,
+      };
+
+      int weightA = statusWeight[a['status']] ?? 3;
+      int weightB = statusWeight[b['status']] ?? 3;
+
+      // Group by status first
+      if (weightA != weightB) {
+        return weightA.compareTo(weightB);
+      }
+
+      // Then alphabetize within that specific group
       final nameA = (a['displayName'] as String).toLowerCase();
       final nameB = (b['displayName'] as String).toLowerCase();
       return nameA.compareTo(nameB);
@@ -593,6 +617,193 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showGuestProfileSheet(Map<String, dynamic> guest, bool showAddButton) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    final String name = guest['displayName'];
+    final String username = guest['username'] ?? "";
+    final String phone = guest['phone'] ?? "";
+    final String? avatarUrl = guest['avatarUrl'];
+    final int avatarColor = guest['avatarColor'] ?? Colors.blue.toARGB32();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: SizedBox(
+            width: double.infinity,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.grey.shade700
+                          : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Avatar
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(avatarColor).withValues(alpha: 0.4),
+                          blurRadius: 15,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: CircleAvatar(
+                      radius: 40,
+                      backgroundColor: Color(avatarColor),
+                      backgroundImage: avatarUrl != null
+                          ? CachedNetworkImageProvider(avatarUrl)
+                          : null,
+                      child: avatarUrl == null
+                          ? Text(
+                              name.isNotEmpty ? name[0].toUpperCase() : "?",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Name & Username
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  if (username.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        "@$username",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: primaryColor,
+                        ),
+                      ),
+                    ),
+
+                  const SizedBox(height: 24),
+
+                  // Only draw this divider if there is content below it!
+                  if (phone.isNotEmpty || showAddButton)
+                    Divider(
+                      height: 1,
+                      color: isDark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade200,
+                    ),
+
+                  // Phone Number (If visible)
+                  if (phone.isNotEmpty)
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 8,
+                      ),
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.phone_android,
+                          color: Colors.green,
+                        ),
+                      ),
+                      title: const Text(
+                        "Phone Number",
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      subtitle: Text(
+                        phone,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                    ),
+
+                  // Add Friend Button
+                  if (showAddButton) ...[
+                    if (phone.isNotEmpty)
+                      Divider(
+                        height: 1,
+                        color: isDark
+                            ? Colors.grey.shade800
+                            : Colors.grey.shade200,
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _addFriend(context, guest['uid'], phone, name);
+                          },
+                          icon: Icon(
+                            Icons.person_add,
+                            color: themeProvider.onPrimaryColor,
+                          ),
+                          label: Text(
+                            "Add to Squad",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: themeProvider.onPrimaryColor,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  if (!showAddButton && phone.isEmpty)
+                    const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1294,163 +1505,179 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                             (guestUid != currentUser.uid) &&
                                             !(friendSnap.hasData &&
                                                 friendSnap.data!.exists);
-                                        return Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 10,
+                                        return InkWell(
+                                          onTap: () => _showGuestProfileSheet(
+                                            guest,
+                                            showAddButton,
                                           ),
-                                          child: Row(
-                                            children: [
-                                              Stack(
-                                                clipBehavior: Clip.none,
-                                                children: [
-                                                  Container(
-                                                    decoration: BoxDecoration(
-                                                      shape: BoxShape.circle,
-                                                      boxShadow: [
-                                                        BoxShadow(
-                                                          color: Color(
-                                                            guest['avatarColor'],
-                                                          ).withValues(alpha: 0.4),
-                                                          blurRadius: 8,
-                                                          spreadRadius: 1,
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    child: CircleAvatar(
-                                                      backgroundColor: Color(
-                                                        guest['avatarColor'],
-                                                      ),
-                                                      radius: 22,
-                                                      backgroundImage:
-                                                          guest['avatarUrl'] !=
-                                                              null
-                                                          ? CachedNetworkImageProvider(
-                                                              guest['avatarUrl'],
-                                                            )
-                                                          : null,
-                                                      child:
-                                                          guest['avatarUrl'] ==
-                                                              null
-                                                          ? Text(
-                                                              guest['displayName'][0]
-                                                                  .toUpperCase(),
-                                                              style: const TextStyle(
-                                                                color: Colors
-                                                                    .white,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                              ),
-                                                            )
-                                                          : null,
-                                                    ),
-                                                  ),
-                                                  Positioned(
-                                                    top: -5,
-                                                    right: -10,
-                                                    child: Container(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                            2,
-                                                          ),
-                                                      decoration: BoxDecoration(
-                                                        color: Theme.of(
-                                                          context,
-                                                        ).cardColor,
-                                                        shape: BoxShape.circle,
-                                                      ),
-                                                      child: Icon(
-                                                        badgeIcon,
-                                                        size: 18,
-                                                        color: badgeColor,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(width: 16),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 10,
+                                              horizontal:
+                                                  8, // Added a little horizontal padding for the tap highlight
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Stack(
+                                                  clipBehavior: Clip.none,
                                                   children: [
-                                                    Row(
-                                                      children: [
-                                                        Flexible(
-                                                          child: Text(
-                                                            guest['displayName'],
-                                                            style:
-                                                                const TextStyle(
+                                                    Container(
+                                                      decoration: BoxDecoration(
+                                                        shape: BoxShape.circle,
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color:
+                                                                Color(
+                                                                  guest['avatarColor'],
+                                                                ).withValues(
+                                                                  alpha: 0.4,
+                                                                ),
+                                                            blurRadius: 8,
+                                                            spreadRadius: 1,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      child: CircleAvatar(
+                                                        backgroundColor: Color(
+                                                          guest['avatarColor'],
+                                                        ),
+                                                        radius: 22,
+                                                        backgroundImage:
+                                                            guest['avatarUrl'] !=
+                                                                null
+                                                            ? CachedNetworkImageProvider(
+                                                                guest['avatarUrl'],
+                                                              )
+                                                            : null,
+                                                        child:
+                                                            guest['avatarUrl'] ==
+                                                                null
+                                                            ? Text(
+                                                                guest['displayName'][0]
+                                                                    .toUpperCase(),
+                                                                style: const TextStyle(
+                                                                  color: Colors
+                                                                      .white,
                                                                   fontWeight:
                                                                       FontWeight
                                                                           .bold,
-                                                                  fontSize: 16,
                                                                 ),
-                                                            overflow:
-                                                                TextOverflow
-                                                                    .ellipsis,
-                                                          ),
-                                                        ),
-                                                        if (guestUid ==
-                                                            data['hostId'])
-                                                          const Padding(
-                                                            padding:
-                                                                EdgeInsets.only(
-                                                                  left: 6,
-                                                                ),
-                                                            child: Icon(
-                                                              Symbols.crown,
-                                                              size: 18,
-                                                              color:
-                                                                  Colors.amber,
-                                                            ),
-                                                          ),
-                                                        if (guestUid ==
-                                                            data['coHostId'])
-                                                          Padding(
-                                                            padding:
-                                                                const EdgeInsets.only(
-                                                                  left: 6,
-                                                                ),
-                                                            child: Icon(
-                                                              Symbols
-                                                                  .military_tech,
-                                                              size: 16,
-                                                              color:
-                                                                  Colors.amber,
-                                                            ),
-                                                          ),
-                                                      ],
+                                                              )
+                                                            : null,
+                                                      ),
                                                     ),
-                                                    if ((guest['username'] ??
-                                                            "")
-                                                        .isNotEmpty)
-                                                      Text(
-                                                        "@${guest['username']}",
-                                                        style: TextStyle(
-                                                          color: primaryColor,
-                                                          fontSize: 13,
-                                                          fontWeight:
-                                                              FontWeight.w600,
+                                                    Positioned(
+                                                      top: -5,
+                                                      right: -10,
+                                                      child: Container(
+                                                        padding:
+                                                            const EdgeInsets.all(
+                                                              2,
+                                                            ),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                              color: Theme.of(
+                                                                context,
+                                                              ).cardColor,
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                            ),
+                                                        child: Icon(
+                                                          badgeIcon,
+                                                          size: 18,
+                                                          color: badgeColor,
                                                         ),
                                                       ),
+                                                    ),
                                                   ],
                                                 ),
-                                              ),
-                                              if (showAddButton)
-                                                IconButton(
-                                                  icon: Icon(
-                                                    Icons.person_add_alt_1,
-                                                    color: primaryColor,
-                                                  ),
-                                                  onPressed: () => _addFriend(
-                                                    context,
-                                                    guestUid,
-                                                    guest['phone'],
-                                                    guest['displayName'],
+                                                const SizedBox(width: 16),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Row(
+                                                        children: [
+                                                          Flexible(
+                                                            child: Text(
+                                                              guest['displayName'],
+                                                              style: const TextStyle(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                fontSize: 16,
+                                                              ),
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                            ),
+                                                          ),
+                                                          if (guestUid ==
+                                                              data['hostId'])
+                                                            const Padding(
+                                                              padding:
+                                                                  EdgeInsets.only(
+                                                                    left: 6,
+                                                                  ),
+                                                              child: Icon(
+                                                                Symbols.crown,
+                                                                size: 18,
+                                                                color: Colors
+                                                                    .amber,
+                                                              ),
+                                                            ),
+                                                          if (guestUid ==
+                                                              data['coHostId'])
+                                                            Padding(
+                                                              padding:
+                                                                  const EdgeInsets.only(
+                                                                    left: 6,
+                                                                  ),
+                                                              child: Icon(
+                                                                Symbols
+                                                                    .military_tech,
+                                                                size: 16,
+                                                                color: Colors
+                                                                    .amber,
+                                                              ),
+                                                            ),
+                                                        ],
+                                                      ),
+                                                      if ((guest['username'] ??
+                                                              "")
+                                                          .isNotEmpty)
+                                                        Text(
+                                                          "@${guest['username']}",
+                                                          style: TextStyle(
+                                                            color: primaryColor,
+                                                            fontSize: 13,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                          ),
+                                                        ),
+                                                    ],
                                                   ),
                                                 ),
-                                            ],
+                                                if (showAddButton)
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      Icons.person_add_alt_1,
+                                                      color: primaryColor,
+                                                    ),
+                                                    onPressed: () => _addFriend(
+                                                      context,
+                                                      guestUid,
+                                                      guest['phone'],
+                                                      guest['displayName'],
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
                                           ),
                                         );
                                       },
@@ -1520,7 +1747,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                             controller: _scrollController,
                             slivers: [
                               SliverAppBar(
-                                expandedHeight: 220,
+                                expandedHeight:
+                                    280, // 👇 Increased for better image framing
                                 pinned: true,
                                 stretch: true,
                                 backgroundColor: Theme.of(
@@ -1554,144 +1782,188 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                   stretchModes: const [
                                     StretchMode.zoomBackground,
                                   ],
-                                  background: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: themeProvider.appGradient,
-                                    ),
-                                    child: SafeArea(
-                                      child: Padding(
-                                        padding: const EdgeInsets.only(
-                                          left: 20,
-                                          right: 20,
-                                          bottom: 20,
-                                          top: 40,
-                                        ),
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.end,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            if (isVibeCheck)
-                                              Container(
-                                                margin: const EdgeInsets.only(
-                                                  bottom: 8,
-                                                ),
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 10,
-                                                      vertical: 4,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.black
-                                                      .withValues(alpha: 0.3),
-                                                  borderRadius:
-                                                      BorderRadius.circular(20),
-                                                ),
-                                                child: const Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    Icon(
-                                                      Symbols.earthquake,
-                                                      color: Colors.white,
-                                                      size: 14,
-                                                    ),
-                                                    SizedBox(width: 6),
-                                                    Text(
-                                                      "VIBE CHECK",
-                                                      style: TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize: 10,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        letterSpacing: 1.5,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            Text(
-                                              data['title'] ?? "Untitled Event",
-                                              style: const TextStyle(
-                                                fontSize: 32,
-                                                fontWeight: FontWeight.w900,
-                                                color: Colors.white,
-                                                height: 1.1,
-                                                letterSpacing: -0.5,
-                                              ),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            const SizedBox(height: 12),
-                                            FutureBuilder<DocumentSnapshot>(
-                                              future: FirebaseFirestore.instance
-                                                  .collection('users')
-                                                  .doc(data['hostId'])
-                                                  .get(),
-                                              builder: (context, hostSnap) {
-                                                if (!hostSnap.hasData ||
-                                                    !hostSnap.data!.exists) {
-                                                  return const SizedBox.shrink();
-                                                }
-                                                final hostData =
-                                                    hostSnap.data!.data()
-                                                        as Map<String, dynamic>;
-                                                return Row(
-                                                  children: [
-                                                    CircleAvatar(
-                                                      radius: 12,
-                                                      backgroundColor: Color(
-                                                        hostData['avatarColor'] ??
-                                                            Colors.blue
-                                                                .toARGB32(),
-                                                      ),
-                                                      backgroundImage:
-                                                          hostData['avatarUrl'] !=
-                                                              null
-                                                          ? CachedNetworkImageProvider(
-                                                              hostData['avatarUrl'],
-                                                            )
-                                                          : null,
-                                                      child:
-                                                          hostData['avatarUrl'] ==
-                                                              null
-                                                          ? Text(
-                                                              (hostData['displayName'] ??
-                                                                      "S")[0]
-                                                                  .toUpperCase(),
-                                                              style: const TextStyle(
-                                                                fontSize: 10,
-                                                                color: Colors
-                                                                    .white,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                              ),
-                                                            )
-                                                          : null,
-                                                    ),
-                                                    const SizedBox(width: 8),
-                                                    Text(
-                                                      "${hostData['displayName'] ?? 'Someone'} is captain",
-                                                      style: TextStyle(
-                                                        color: Colors.white
-                                                            .withValues(
-                                                              alpha: 0.9,
-                                                            ),
-                                                        fontSize: 14,
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                );
-                                              },
-                                            ),
-                                          ],
+                                  background: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      // 1. Base Gradient (Fallback if no image)
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          gradient: themeProvider.appGradient,
                                         ),
                                       ),
-                                    ),
+
+                                      // 2. Custom Uploaded Banner Image
+                                      if (data['bannerUrl'] != null &&
+                                          data['bannerUrl']
+                                              .toString()
+                                              .isNotEmpty)
+                                        CachedNetworkImage(
+                                          imageUrl: data['bannerUrl'],
+                                          fit: BoxFit.cover,
+                                        ),
+
+                                      // 3. Smooth Fade Overlay (Ensures text is always readable!)
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              Colors.transparent,
+                                              Colors.black.withValues(
+                                                alpha: 0.3,
+                                              ),
+                                              Colors.black.withValues(
+                                                alpha: 0.8,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+
+                                      // 4. The Content (Title, Host, Vibe Check Pill)
+                                      SafeArea(
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(
+                                            left: 20,
+                                            right: 20,
+                                            bottom: 20,
+                                            top: 40,
+                                          ),
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.end,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              if (isVibeCheck)
+                                                Container(
+                                                  margin: const EdgeInsets.only(
+                                                    bottom: 8,
+                                                  ),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 4,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black
+                                                        .withValues(alpha: 0.3),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          20,
+                                                        ),
+                                                  ),
+                                                  child: const Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        Symbols.earthquake,
+                                                        color: Colors.white,
+                                                        size: 14,
+                                                      ),
+                                                      SizedBox(width: 6),
+                                                      Text(
+                                                        "VIBE CHECK",
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 10,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          letterSpacing: 1.5,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              Text(
+                                                data['title'] ??
+                                                    "Untitled Event",
+                                                style: const TextStyle(
+                                                  fontSize: 32,
+                                                  fontWeight: FontWeight.w900,
+                                                  color: Colors.white,
+                                                  height: 1.1,
+                                                  letterSpacing: -0.5,
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 12),
+                                              FutureBuilder<DocumentSnapshot>(
+                                                future: FirebaseFirestore
+                                                    .instance
+                                                    .collection('users')
+                                                    .doc(data['hostId'])
+                                                    .get(),
+                                                builder: (context, hostSnap) {
+                                                  if (!hostSnap.hasData ||
+                                                      !hostSnap.data!.exists) {
+                                                    return const SizedBox.shrink();
+                                                  }
+                                                  final hostData =
+                                                      hostSnap.data!.data()
+                                                          as Map<
+                                                            String,
+                                                            dynamic
+                                                          >;
+                                                  return Row(
+                                                    children: [
+                                                      CircleAvatar(
+                                                        radius: 12,
+                                                        backgroundColor: Color(
+                                                          hostData['avatarColor'] ??
+                                                              Colors.blue
+                                                                  .toARGB32(),
+                                                        ),
+                                                        backgroundImage:
+                                                            hostData['avatarUrl'] !=
+                                                                null
+                                                            ? CachedNetworkImageProvider(
+                                                                hostData['avatarUrl'],
+                                                              )
+                                                            : null,
+                                                        child:
+                                                            hostData['avatarUrl'] ==
+                                                                null
+                                                            ? Text(
+                                                                (hostData['displayName'] ??
+                                                                        "S")[0]
+                                                                    .toUpperCase(),
+                                                                style: const TextStyle(
+                                                                  fontSize: 10,
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                ),
+                                                              )
+                                                            : null,
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        "${hostData['displayName'] ?? 'Someone'} is captain",
+                                                        style: TextStyle(
+                                                          color: Colors.white
+                                                              .withValues(
+                                                                alpha: 0.9,
+                                                              ),
+                                                          fontSize: 14,
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),

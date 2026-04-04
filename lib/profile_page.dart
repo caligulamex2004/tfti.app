@@ -1129,7 +1129,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             child: Row(
               children: [
-                Icon(Icons.phone_iphone, size: 20, color: primaryColor),
+                Icon(Icons.phone_android, size: 20, color: primaryColor),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
