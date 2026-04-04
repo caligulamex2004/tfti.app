@@ -870,6 +870,18 @@ class _EditEventPageState extends State<EditEventPage> {
       Set<String> toRemove = oldIntendedIds.difference(newIntendedIds);
 
       toRemove.remove(widget.eventData['hostId']);
+      if (widget.eventData['coHostId'] != null) {
+        toRemove.remove(widget.eventData['coHostId']);
+      }
+
+      final currentInvitesSnap = await FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.eventId)
+          .collection('invitations')
+          .get();
+      final Set<String> currentlyInvitedIds = currentInvitesSnap.docs
+          .map((d) => d.id)
+          .toSet();
 
       final batch = FirebaseFirestore.instance.batch();
       final eventRef = FirebaseFirestore.instance
@@ -879,12 +891,15 @@ class _EditEventPageState extends State<EditEventPage> {
       if (toAdd.isNotEmpty) {
         updateData['visibleTo'] = FieldValue.arrayUnion(toAdd.toList());
         for (String uid in toAdd) {
-          batch.set(eventRef.collection('invitations').doc(uid), {
-            'uid': uid,
-            'role': uid == _selectedCoHostId ? 'co-host' : 'guest',
-            'status': 'pending',
-            'sentAt': FieldValue.serverTimestamp(),
-          });
+          if (!currentlyInvitedIds.contains(uid)) {
+            batch.set(eventRef.collection('invitations').doc(uid), {
+              'uid': uid,
+              'role':
+                  'guest', // Default to guest, we will promote the co-host safely below
+              'status': 'pending',
+              'sentAt': FieldValue.serverTimestamp(),
+            });
+          }
         }
       }
 
@@ -896,15 +911,17 @@ class _EditEventPageState extends State<EditEventPage> {
       }
 
       if (_isMainHost && oldCoHostId != _selectedCoHostId) {
-        if (oldCoHostId != null && newIntendedIds.contains(oldCoHostId)) {
+        if (oldCoHostId != null && !toRemove.contains(oldCoHostId)) {
           batch.update(eventRef.collection('invitations').doc(oldCoHostId), {
             'role': 'guest',
           });
         }
-        if (_selectedCoHostId != null && !toAdd.contains(_selectedCoHostId)) {
-          batch.update(
+        if (_selectedCoHostId != null) {
+          // merge:true so we only update the role and never wipe their RSVP status!
+          batch.set(
             eventRef.collection('invitations').doc(_selectedCoHostId),
             {'role': 'co-host'},
+            SetOptions(merge: true),
           );
         }
       }

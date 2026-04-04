@@ -518,6 +518,16 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
       // Only protect the host from being removed
       toRemove.remove(widget.eventData['hostId']);
 
+      // Fetch current invites to ensure we NEVER overwrite existing Votes!
+      final currentInvitesSnap = await FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.eventId)
+          .collection('invitations')
+          .get();
+      final Set<String> currentlyInvitedIds = currentInvitesSnap.docs
+          .map((d) => d.id)
+          .toSet();
+
       final batch = FirebaseFirestore.instance.batch();
       final eventRef = FirebaseFirestore.instance
           .collection('events')
@@ -526,13 +536,16 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
       if (toAdd.isNotEmpty) {
         updateData['visibleTo'] = FieldValue.arrayUnion(toAdd.toList());
         for (String uid in toAdd) {
-          batch.set(eventRef.collection('invitations').doc(uid), {
-            'uid': uid,
-            'role': 'guest',
-            'status': 'pending',
-            'votes': [],
-            'sentAt': FieldValue.serverTimestamp(),
-          });
+          // ONLY initialize the document if they aren't already voting!
+          if (!currentlyInvitedIds.contains(uid)) {
+            batch.set(eventRef.collection('invitations').doc(uid), {
+              'uid': uid,
+              'role': 'guest',
+              'status': 'pending',
+              'votes': [],
+              'sentAt': FieldValue.serverTimestamp(),
+            });
+          }
         }
       }
 
