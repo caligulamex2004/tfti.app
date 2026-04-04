@@ -1,3 +1,9 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,6 +13,9 @@ import 'event_roles_page.dart';
 import 'location_search_page.dart';
 import 'theme_provider.dart';
 import 'friend_circles_page.dart';
+
+String? _localBannerPath;
+bool _removeBanner = false;
 
 class EditEventPage extends StatefulWidget {
   final String eventId;
@@ -714,6 +723,17 @@ class _EditEventPageState extends State<EditEventPage> {
           await doc.reference.delete();
         }
 
+        try {
+          final bannerRef = FirebaseStorage.instance.ref().child(
+            'event_banners/${widget.eventId}/banner.jpg',
+          );
+          await bannerRef.delete();
+        } catch (e) {
+          debugPrint(
+            "Notice: No banner found to delete during event deletion.",
+          );
+        }
+
         await eventRef.delete();
 
         if (mounted) {
@@ -886,6 +906,44 @@ class _EditEventPageState extends State<EditEventPage> {
             eventRef.collection('invitations').doc(_selectedCoHostId),
             {'role': 'co-host'},
           );
+        }
+      }
+
+      if (_isMainHost) {
+        if (_removeBanner) {
+          updateData['bannerUrl'] = FieldValue.delete();
+          try {
+            final ref = FirebaseStorage.instance.ref().child(
+              'event_banners/${widget.eventId}/banner.jpg',
+            );
+            await ref.delete();
+          } catch (e) {
+            debugPrint(
+              "Notice: Failed to delete banner from storage (might already be deleted): $e",
+            );
+          }
+        } else if (_localBannerPath != null) {
+          try {
+            final File file = File(_localBannerPath!);
+            final Uint8List bytes = await file.readAsBytes();
+            final Uint8List compressedBytes =
+                await FlutterImageCompress.compressWithList(
+                  bytes,
+                  minWidth: 1280,
+                  minHeight: 720,
+                  quality: 75,
+                );
+            final ref = FirebaseStorage.instance.ref().child(
+              'event_banners/${widget.eventId}/banner.jpg',
+            );
+            await ref.putData(
+              compressedBytes,
+              SettableMetadata(contentType: 'image/jpeg'),
+            );
+            updateData['bannerUrl'] = await ref.getDownloadURL();
+          } catch (e) {
+            debugPrint("Failed to upload new banner: $e");
+          }
         }
       }
 
@@ -1281,10 +1339,200 @@ class _EditEventPageState extends State<EditEventPage> {
     );
   }
 
+  void _showBannerOptions() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hasExistingUrl =
+        widget.eventData['bannerUrl'] != null && !_removeBanner;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text("Choose from Gallery"),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAndCropBanner(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text("Take a Photo"),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAndCropBanner(ImageSource.camera);
+              },
+            ),
+            if (_localBannerPath != null || hasExistingUrl) ...[
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text(
+                  "Remove Banner",
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() {
+                    _localBannerPath = null;
+                    _removeBanner = true;
+                  });
+                },
+              ),
+            ],
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndCropBanner(ImageSource source) async {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: source);
+
+    if (pickedFile == null) return;
+
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: pickedFile.path,
+      aspectRatio: const CropAspectRatio(ratioX: 16, ratioY: 9),
+      compressQuality: 100,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Adjust Banner',
+          toolbarColor: primaryColor,
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.ratio16x9,
+          lockAspectRatio: true,
+          hideBottomControls: false,
+        ),
+        IOSUiSettings(
+          title: 'Adjust Banner',
+          cancelButtonTitle: 'Cancel',
+          doneButtonTitle: 'Save',
+          aspectRatioLockEnabled: true,
+          resetAspectRatioEnabled: false,
+        ),
+      ],
+    );
+
+    if (croppedFile != null) {
+      setState(() {
+        _localBannerPath = croppedFile.path;
+        _removeBanner = false;
+      });
+    }
+  }
+
+  Widget _buildBannerPicker(bool isDark, Color primaryColor) {
+    final hasExistingUrl =
+        widget.eventData['bannerUrl'] != null && !_removeBanner;
+    final hasLocalImage = _localBannerPath != null;
+    final hasImage = hasExistingUrl || hasLocalImage;
+
+    DecorationImage? imageDecoration;
+    if (hasLocalImage) {
+      imageDecoration = DecorationImage(
+        image: FileImage(File(_localBannerPath!)),
+        fit: BoxFit.cover,
+      );
+    } else if (hasExistingUrl) {
+      imageDecoration = DecorationImage(
+        image: CachedNetworkImageProvider(widget.eventData['bannerUrl']),
+        fit: BoxFit.cover,
+      );
+    }
+
+    return GestureDetector(
+      onTap: _showBannerOptions,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 24),
+        width: double.infinity,
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: hasImage
+                    ? primaryColor
+                    : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                width: hasImage ? 2 : 1.5,
+              ),
+              image: imageDecoration,
+            ),
+            child: !hasImage
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 40,
+                        color: isDark
+                            ? Colors.grey.shade500
+                            : Colors.grey.shade400,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Add Event Banner",
+                        style: TextStyle(
+                          color: isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  )
+                : Container(
+                    alignment: Alignment.topRight,
+                    padding: const EdgeInsets.all(12),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.edit,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
+    final bannerPicker = _buildBannerPicker(isDark, primaryColor);
     final user = FirebaseAuth.instance.currentUser;
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
@@ -1747,7 +1995,12 @@ class _EditEventPageState extends State<EditEventPage> {
                           children: [
                             Expanded(
                               child: Column(
-                                children: [vitalsCard, crewCard, actionButtons],
+                                children: [
+                                  bannerPicker,
+                                  vitalsCard,
+                                  crewCard,
+                                  actionButtons,
+                                ],
                               ),
                             ),
                             const SizedBox(width: 24),
@@ -1757,6 +2010,7 @@ class _EditEventPageState extends State<EditEventPage> {
                       else
                         Column(
                           children: [
+                            bannerPicker,
                             vitalsCard,
                             extrasCard,
                             crewCard,
