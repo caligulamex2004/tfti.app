@@ -366,9 +366,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
   String? _selectedEventId;
   Map<String, dynamic>? _selectedEventData;
 
-  // Track auto-resolves to prevent overlapping transaction attempts
-  final Set<String> _resolvingVibeChecks = {};
-
   Future<void> _quickRSVP(String eventId, String status) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -448,94 +445,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
           ),
         );
       }
-    }
-  }
-
-  // --- LAZY EVALUATION FAILSAFE FOR VIBE CHECKS ---
-  Future<void> _runVibeCheckAutoResolve(
-    String eventId,
-    Map<String, dynamic> eventData,
-  ) async {
-    if (_resolvingVibeChecks.contains(eventId)) return;
-    _resolvingVibeChecks.add(eventId);
-
-    try {
-      final invitesSnap = await FirebaseFirestore.instance
-          .collection('events')
-          .doc(eventId)
-          .collection('invitations')
-          .get();
-
-      Map<String, int> voteCounts = {};
-      for (var doc in invitesSnap.docs) {
-        final data = doc.data();
-        if (data['status'] == 'declined') continue;
-
-        final votes = List<String>.from(data['votes'] ?? []);
-        for (String v in votes) {
-          voteCounts[v] = (voteCounts[v] ?? 0) + 1;
-        }
-      }
-
-      final pollOptions = List<dynamic>.from(eventData['pollOptions'] ?? []);
-      if (pollOptions.isEmpty) return;
-
-      int maxVotes = -1;
-      List<String> winningIds = [];
-
-      for (var opt in pollOptions) {
-        final String optId = opt['id'];
-        final int count = voteCounts[optId] ?? 0;
-        if (count > maxVotes) {
-          maxVotes = count;
-          winningIds = [optId];
-        } else if (count == maxVotes) {
-          winningIds.add(optId);
-        }
-      }
-
-      final eventRef = FirebaseFirestore.instance
-          .collection('events')
-          .doc(eventId);
-
-      if (winningIds.length == 1) {
-        // Clear winner -> Convert to Event
-        final winnerId = winningIds.first;
-        final winnerOpt = pollOptions.firstWhere(
-          (opt) => opt['id'] == winnerId,
-        );
-
-        final batch = FirebaseFirestore.instance.batch();
-        batch.update(eventRef, {
-          'type': 'event',
-          'lockedOptionId': winnerId,
-          'title': winnerOpt['title'],
-          'location': winnerOpt['location'],
-          'isTieBreakerNeeded': false,
-        });
-
-        // Resolve Guests statuses based on vote
-        for (var doc in invitesSnap.docs) {
-          final data = doc.data();
-          if (data['status'] == 'declined') continue;
-
-          final votes = List<String>.from(data['votes'] ?? []);
-          String newStatus = votes.contains(winnerId) ? 'going' : 'pending';
-
-          if (data['role'] == 'host' || data['role'] == 'co-host') {
-            newStatus = 'going';
-          }
-
-          batch.update(doc.reference, {'status': newStatus});
-        }
-        await batch.commit();
-      } else {
-        await eventRef.update({'isTieBreakerNeeded': true});
-      }
-    } catch (e) {
-      debugPrint("Auto-Resolve Error: $e");
-    } finally {
-      _resolvingVibeChecks.remove(eventId);
     }
   }
 
@@ -989,14 +898,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       Duration(minutes: deadlineOffset),
                     );
                     final bool isPastDeadline = now.isAfter(deadlineTime);
-
-                    if (eventData['type'] == 'vibe_check' &&
-                        eventData['lockedOptionId'] == null) {
-                      if (isPastDeadline &&
-                          eventData['isTieBreakerNeeded'] != true) {
-                        _runVibeCheckAutoResolve(eventId, eventData);
-                      }
-                    }
 
                     if (status == 'pending' &&
                         isPastDeadline &&
