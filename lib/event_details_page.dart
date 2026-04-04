@@ -249,6 +249,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           'avatarColor': userData['avatarColor'] ?? 0xFF9E9E9E,
           'avatarUrl': userData['avatarUrl'],
           'username': userData['username'] ?? '',
+          'statusText': userData['statusText'] ?? '',
         };
       } catch (e) {
         debugPrint("Guest fetch failed, skipping... $e");
@@ -626,6 +627,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
     final String name = guest['displayName'];
     final String username = guest['username'] ?? "";
+    final String statusText = guest['statusText'] ?? "";
     final String phone = guest['phone'] ?? "";
     final String? avatarUrl = guest['avatarUrl'];
     final int avatarColor = guest['avatarColor'] ?? Colors.blue.toARGB32();
@@ -709,6 +711,43 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                           fontWeight: FontWeight.bold,
                           color: primaryColor,
                         ),
+                      ),
+                    ),
+
+                  if (statusText.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        top: 12.0,
+                        left: 24,
+                        right: 24,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Symbols.mode_comment,
+                            size: 18,
+                            color: isDark
+                                ? Colors.grey.shade500
+                                : Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              statusText,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontStyle: FontStyle.italic,
+                                color: isDark
+                                    ? Colors.grey.shade400
+                                    : Colors.grey.shade700,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
 
