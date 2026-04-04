@@ -153,6 +153,86 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
     );
   }
 
+  void _showNoFriendsDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.group_off_outlined, color: primaryColor, size: 28),
+            const SizedBox(width: 10),
+            const Text(
+              "Empty Squad!",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Text(
+          "Teams are groups made up of people already in your Squad.\n\nHead over to the Squad tab and add some friends first before building a Team!",
+          style: TextStyle(
+            fontSize: 15,
+            height: 1.4,
+            color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
+          ),
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: themeProvider.onPrimaryColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text(
+                "Got it!",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleCreateTeamTap() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      // 1. Check if the user has ANY friends in their Squad
+      // We use limit(1) so the database stops searching the millisecond it finds one friend.
+      // This makes the query virtually instantaneous and very cheap!
+      final friendsSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('friends')
+          .limit(1)
+          .get();
+
+      if (friendsSnap.docs.isEmpty) {
+        // 2. If empty, intercept the action and show the educational dialog
+        if (mounted) _showNoFriendsDialog();
+        return;
+      }
+
+      // 3. If they have friends, proceed to your normal creation flow!
+      _showCreateTeamSheet();
+    } catch (e) {
+      debugPrint("Error checking squad size: $e");
+      // Failsafe: if the network drops, let them try to open the sheet anyway
+      _showCreateTeamSheet();
+    }
+  }
+
   void _showRenameTeamSheet(String circleId, String currentName) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
@@ -780,7 +860,7 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
                     backgroundColor: Colors.transparent,
                     body: listContent,
                     floatingActionButton: FloatingActionButton(
-                      onPressed: _showCreateTeamSheet,
+                      onPressed: _handleCreateTeamTap,
                       backgroundColor: primaryColor,
                       foregroundColor: themeProvider.onPrimaryColor,
                       heroTag: "btn_create_circle",
@@ -811,7 +891,7 @@ class _FriendCirclesPageState extends State<FriendCirclesPage> {
               backgroundColor: Colors.transparent,
               body: listContent,
               floatingActionButton: FloatingActionButton(
-                onPressed: _showCreateTeamSheet,
+                onPressed: _handleCreateTeamTap,
                 backgroundColor: primaryColor,
                 foregroundColor: themeProvider.onPrimaryColor,
                 heroTag: "btn_create_circle",
