@@ -512,13 +512,7 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
         }
       }
 
-      Set<String> toAdd = newIntendedIds.difference(oldIntendedIds);
-      Set<String> toRemove = oldIntendedIds.difference(newIntendedIds);
-
-      // Only protect the host from being removed
-      toRemove.remove(widget.eventData['hostId']);
-
-      // Fetch current invites to ensure we NEVER overwrite existing Votes!
+      // 1. Fetch current invites from the ACTUAL database first!
       final currentInvitesSnap = await FirebaseFirestore.instance
           .collection('events')
           .doc(widget.eventId)
@@ -527,6 +521,15 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
       final Set<String> currentlyInvitedIds = currentInvitesSnap.docs
           .map((d) => d.id)
           .toSet();
+
+      // 2. THE FIX: Compare your new intended list against the ACTUAL list in the database
+      Set<String> toAdd = newIntendedIds.difference(currentlyInvitedIds);
+
+      // 3. Keep the old logic for removals
+      Set<String> toRemove = oldIntendedIds.difference(newIntendedIds);
+
+      // Only protect the host from being removed
+      toRemove.remove(widget.eventData['hostId']);
 
       final batch = FirebaseFirestore.instance.batch();
       final eventRef = FirebaseFirestore.instance

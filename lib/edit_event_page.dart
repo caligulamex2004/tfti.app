@@ -866,14 +866,7 @@ class _EditEventPageState extends State<EditEventPage> {
         }
       }
 
-      Set<String> toAdd = newIntendedIds.difference(oldIntendedIds);
-      Set<String> toRemove = oldIntendedIds.difference(newIntendedIds);
-
-      toRemove.remove(widget.eventData['hostId']);
-      if (widget.eventData['coHostId'] != null) {
-        toRemove.remove(widget.eventData['coHostId']);
-      }
-
+      // 1. Fetch the ACTUAL database of who is currently in the event
       final currentInvitesSnap = await FirebaseFirestore.instance
           .collection('events')
           .doc(widget.eventId)
@@ -882,6 +875,17 @@ class _EditEventPageState extends State<EditEventPage> {
       final Set<String> currentlyInvitedIds = currentInvitesSnap.docs
           .map((d) => d.id)
           .toSet();
+
+      // 2. THE FIX: Compare your intended list against the ACTUAL database, not the theoretical old list!
+      Set<String> toAdd = newIntendedIds.difference(currentlyInvitedIds);
+
+      // 3. Keep the old logic for removals so we don't accidentally kick out people the Co-Captain invited
+      Set<String> toRemove = oldIntendedIds.difference(newIntendedIds);
+
+      toRemove.remove(widget.eventData['hostId']);
+      if (widget.eventData['coHostId'] != null) {
+        toRemove.remove(widget.eventData['coHostId']);
+      }
 
       final batch = FirebaseFirestore.instance.batch();
       final eventRef = FirebaseFirestore.instance
