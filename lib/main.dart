@@ -940,23 +940,47 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       ),
                     ),
                   ),
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) => _buildEventCard(
-                          context,
-                          declinedEvents[index],
-                          isDark,
-                          primaryColor,
-                          user?.uid,
-                          isLandscape,
-                          isHorizontal: false,
+                  if (isLandscape)
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => _buildEventCard(
+                            context,
+                            declinedEvents[index],
+                            isDark,
+                            primaryColor,
+                            user?.uid,
+                            isLandscape,
+                            isHorizontal: false,
+                          ),
+                          childCount: declinedEvents.length,
                         ),
-                        childCount: declinedEvents.length,
+                      ),
+                    )
+                  else
+                    SliverToBoxAdapter(
+                      child: SizedBox(
+                        height: 310,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          itemCount: declinedEvents.length,
+                          itemBuilder: (context, index) {
+                            return _buildEventCard(
+                              context,
+                              declinedEvents[index],
+                              isDark,
+                              primaryColor,
+                              user?.uid,
+                              isLandscape,
+                              isHorizontal: true,
+                            );
+                          },
+                        ),
                       ),
                     ),
-                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
                 ],
 
                 // 5. Past Events
@@ -965,7 +989,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                     child: Padding(
                       padding: const EdgeInsets.only(
                         left: 20,
-                        top: 24,
+                        top: 12,
                         bottom: 12,
                       ),
                       child: Text(
@@ -980,23 +1004,47 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       ),
                     ),
                   ),
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) => _buildEventCard(
-                          context,
-                          pastEvents[index],
-                          isDark,
-                          primaryColor,
-                          user?.uid,
-                          isLandscape,
-                          isHorizontal: false,
+                  if (isLandscape)
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => _buildEventCard(
+                            context,
+                            pastEvents[index],
+                            isDark,
+                            primaryColor,
+                            user?.uid,
+                            isLandscape,
+                            isHorizontal: false,
+                          ),
+                          childCount: pastEvents.length,
                         ),
-                        childCount: pastEvents.length,
+                      ),
+                    )
+                  else
+                    SliverToBoxAdapter(
+                      child: SizedBox(
+                        height: 310,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          itemCount: pastEvents.length,
+                          itemBuilder: (context, index) {
+                            return _buildEventCard(
+                              context,
+                              pastEvents[index],
+                              isDark,
+                              primaryColor,
+                              user?.uid,
+                              isLandscape,
+                              isHorizontal: true,
+                            );
+                          },
+                        ),
                       ),
                     ),
-                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
                 ],
 
                 // 6. Hidden Events Vault
@@ -1024,27 +1072,55 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                     ),
                   ),
                   if (_showHidden)
-                    SliverPadding(
-                      padding: const EdgeInsets.only(
-                        left: 16,
-                        right: 16,
-                        bottom: 100,
-                      ),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) => _buildEventCard(
-                            context,
-                            hiddenEvents[index],
-                            isDark,
-                            primaryColor,
-                            user?.uid,
-                            isLandscape,
-                            isHorizontal: false,
-                          ),
-                          childCount: hiddenEvents.length,
+                    if (isLandscape)
+                      SliverPadding(
+                        padding: const EdgeInsets.only(
+                          left: 16,
+                          right: 16,
+                          bottom: 100,
                         ),
-                      ),
-                    )
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) => _buildEventCard(
+                              context,
+                              hiddenEvents[index],
+                              isDark,
+                              primaryColor,
+                              user?.uid,
+                              isLandscape,
+                              isHorizontal: false,
+                            ),
+                            childCount: hiddenEvents.length,
+                          ),
+                        ),
+                      )
+                    else
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 100),
+                          child: SizedBox(
+                            height: 310,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
+                              itemCount: hiddenEvents.length,
+                              itemBuilder: (context, index) {
+                                return _buildEventCard(
+                                  context,
+                                  hiddenEvents[index],
+                                  isDark,
+                                  primaryColor,
+                                  user?.uid,
+                                  isLandscape,
+                                  isHorizontal: true,
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      )
                   else
                     const SliverToBoxAdapter(child: SizedBox(height: 100)),
                 ] else ...[
