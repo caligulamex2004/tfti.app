@@ -836,27 +836,49 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       ),
                     ),
                   ),
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 310,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        itemCount: actionNeededEvents.length,
-                        itemBuilder: (context, index) {
-                          return _buildEventCard(
+
+                  // If Landscape, merge into the vertical scroll. If portrait, keep the horizontal carousel!
+                  if (isLandscape)
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => _buildEventCard(
                             context,
                             actionNeededEvents[index],
                             isDark,
                             primaryColor,
                             user?.uid,
                             isLandscape,
-                            isHorizontal: true,
-                          );
-                        },
+                            isHorizontal: false,
+                          ),
+                          childCount: actionNeededEvents.length,
+                        ),
+                      ),
+                    )
+                  else
+                    SliverToBoxAdapter(
+                      child: SizedBox(
+                        height: 310,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          itemCount: actionNeededEvents.length,
+                          itemBuilder: (context, index) {
+                            return _buildEventCard(
+                              context,
+                              actionNeededEvents[index],
+                              isDark,
+                              primaryColor,
+                              user?.uid,
+                              isLandscape,
+                              isHorizontal: true,
+                            );
+                          },
+                        ),
                       ),
                     ),
-                  ),
+
                   const SliverToBoxAdapter(child: SizedBox(height: 24)),
                 ],
 
@@ -1712,7 +1734,212 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
       ),
     );
 
-    if (isHorizontal) return heroCard;
+    // The Compact Landscape Card
+    Widget cardToRender;
+
+    if (isLandscape && !isHorizontal) {
+      final bool isSelected = _selectedEventId == eventId;
+      cardToRender = Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? primaryColor
+                : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: [
+            if (!isDark && !isSelected)
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 6,
+                offset: const Offset(0, 3),
+              ),
+          ],
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            setState(() {
+              _selectedEventId = eventId;
+              _selectedEventData = data;
+            });
+          },
+          onLongPress: () {
+            HapticFeedback.heavyImpact();
+            _toggleHideStatus(eventId, isHidden);
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    // Tiny Square Thumbnail
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: isDark
+                            ? Colors.grey.shade800
+                            : Colors.grey.shade200,
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: (bannerUrl != null && bannerUrl.isNotEmpty)
+                          ? CachedNetworkImage(
+                              imageUrl: bannerUrl,
+                              fit: BoxFit.cover,
+                            )
+                          : Container(
+                              decoration: BoxDecoration(
+                                gradient: themeProvider.appGradient,
+                              ),
+                            ),
+                    ),
+                    const SizedBox(width: 16),
+                    // Stacked Clean Info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(statusIcon, color: statusColor, size: 12),
+                              const SizedBox(width: 4),
+                              Text(
+                                statusText,
+                                style: TextStyle(
+                                  color: statusColor,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (hasUnreadChat) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: primaryColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            data['title'] ?? "Untitled Event",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            "$month $day • $timeString",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Keep the quick-actions accessible directly from the compact card!
+                if (isPending) ...[
+                  const SizedBox(height: 12),
+                  if (isVibeCheck)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => setState(() {
+                          _selectedEventId = eventId;
+                          _selectedEventData = data;
+                        }),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          foregroundColor: themeProvider.onPrimaryColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        child: const Text(
+                          "Vote Now",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => _quickRSVP(eventId, 'declined'),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: Colors.red.withValues(alpha: 0.5),
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            child: const Text(
+                              "Decline",
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              HapticFeedback.mediumImpact();
+                              _quickRSVP(eventId, 'going');
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryColor,
+                              foregroundColor: themeProvider.onPrimaryColor,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            child: const Text(
+                              "I'm In!",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    } else {
+      cardToRender = heroCard;
+    }
+
+    if (isHorizontal) return cardToRender;
 
     return Dismissible(
       key: Key(eventId),
@@ -1746,7 +1973,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
         }
         return false;
       },
-      child: heroCard,
+      child: cardToRender,
     );
   }
 }

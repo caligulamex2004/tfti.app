@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:add_2_calendar/add_2_calendar.dart';
@@ -517,108 +518,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildFacepile(
-    List<Map<String, dynamic>> guests,
-    String myUid,
-    bool isDark,
-  ) {
-    final seenGuests = guests
-        .where((g) => g['hasSeen'] == true && g['uid'] != myUid)
-        .toList();
-
-    if (seenGuests.isEmpty) return const SizedBox.shrink();
-
-    final displayGuests = seenGuests.take(3).toList();
-    final int extraCount = seenGuests.length - 3;
-
-    return InkWell(
-      onTap: () => _showSeenByBottomSheet(seenGuests),
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              "Seen by  ",
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              ),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: displayGuests.map((reader) {
-                final String? avatarUrl = reader['avatarUrl'];
-
-                return Align(
-                  widthFactor: 0.7,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isDark
-                            ? Colors.grey.shade900
-                            : Colors.grey.shade100,
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color(
-                            reader['avatarColor'],
-                          ).withValues(alpha: 0.4),
-                          blurRadius: 4,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
-                    child: CircleAvatar(
-                      radius: 12,
-                      backgroundColor: Color(reader['avatarColor']),
-                      backgroundImage: avatarUrl != null
-                          ? CachedNetworkImageProvider(avatarUrl)
-                          : null,
-                      child: avatarUrl == null
-                          ? Text(
-                              reader['displayName'][0].toUpperCase(),
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            )
-                          : null,
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            if (extraCount > 0)
-              Padding(
-                padding: const EdgeInsets.only(left: 10.0),
-                child: Text(
-                  "+$extraCount",
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -1165,6 +1064,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     // 1. Resolve Event Stream
     return StreamBuilder<DocumentSnapshot>(
@@ -1235,7 +1136,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                     // --- 7. RENDER THE LAYOUT ---
                     return LayoutBuilder(
                       builder: (context, constraints) {
-                        final bool useTwoColumns = constraints.maxWidth > 600;
+                        final bool useTwoColumns =
+                            isLandscape || constraints.maxWidth > 500;
                         final Color appBarIconColor = isDark
                             ? Colors.white
                             : (_isAppBarCollapsed
@@ -1249,37 +1151,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
                         final vitalsCardWidget = _buildInfoCard(
                           title: "The Vitals",
-                          icon: Icons.push_pin,
-                          trailing: TextButton.icon(
-                            onPressed: _pushToCalendar,
-                            icon: Icon(
-                              Icons.calendar_month,
-                              size: 16,
-                              color: primaryColor,
-                            ),
-                            label: Text(
-                              "Calendar",
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: primaryColor,
-                              ),
-                            ),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              backgroundColor: primaryColor.withValues(
-                                alpha: 0.1,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
+                          icon: Icons.calendar_month,
+                          onIconTap: _pushToCalendar,
                           child: Column(
                             children: [
                               Row(
@@ -1359,7 +1232,11 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Row(
+                                        Wrap(
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          spacing: 10,
+                                          runSpacing: 6,
                                           children: [
                                             Text(
                                               [
@@ -1379,8 +1256,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                                     : Colors.black87,
                                               ),
                                             ),
-                                            if (keepAliveDays > 0) ...[
-                                              const SizedBox(width: 10),
+                                            if (keepAliveDays > 0)
                                               Container(
                                                 padding:
                                                     const EdgeInsets.symmetric(
@@ -1410,7 +1286,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                                   ),
                                                 ),
                                               ),
-                                            ],
                                           ],
                                         ),
                                         const SizedBox(height: 4),
@@ -1428,7 +1303,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                   ),
                                 ],
                               ),
-                              // The Location Row & Map Tap Handler!
                               if (!isVibeCheck) ...[
                                 const SizedBox(height: 24),
                                 InkWell(
@@ -1495,6 +1369,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                   ),
                                 ),
                               ],
+                              // (The old calendar button is now completely gone!)
                             ],
                           ),
                         );
@@ -1734,227 +1609,249 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                               }
                               final guests = sortedSnap.data!;
 
+                              final seenGuests = guests
+                                  .where(
+                                    (g) =>
+                                        g['hasSeen'] == true &&
+                                        g['uid'] != currentUser.uid,
+                                  )
+                                  .toList();
+
                               return _buildInfoCard(
                                 title: "The Crew",
                                 icon: Icons.group,
-                                trailing: _buildFacepile(
-                                  guests,
-                                  currentUser.uid,
-                                  isDark,
-                                ),
-                                child: ListView.builder(
-                                  padding: EdgeInsets.zero,
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: guests.length,
-                                  itemBuilder: (context, index) {
-                                    final guest = guests[index];
-                                    final String status = guest['status'];
-                                    final String guestUid = guest['uid'];
+                                onIconTap: seenGuests.isNotEmpty
+                                    ? () => _showSeenByBottomSheet(seenGuests)
+                                    : null,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    ListView.builder(
+                                      padding: EdgeInsets.zero,
+                                      shrinkWrap: true,
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      itemCount: guests.length,
+                                      itemBuilder: (context, index) {
+                                        final guest = guests[index];
+                                        final String status = guest['status'];
+                                        final String guestUid = guest['uid'];
 
-                                    IconData badgeIcon = status == 'going'
-                                        ? Icons.check_circle
-                                        : (status == 'declined'
-                                              ? Icons.cancel
-                                              : Icons.hourglass_empty);
-                                    Color badgeColor = status == 'going'
-                                        ? Colors.green
-                                        : (status == 'declined'
-                                              ? Colors.red
-                                              : (isDark
-                                                    ? Colors.grey.shade400
-                                                    : Colors.grey.shade700));
+                                        IconData badgeIcon = status == 'going'
+                                            ? Icons.check_circle
+                                            : (status == 'declined'
+                                                  ? Icons.cancel
+                                                  : Icons.hourglass_empty);
+                                        Color badgeColor = status == 'going'
+                                            ? Colors.green
+                                            : (status == 'declined'
+                                                  ? Colors.red
+                                                  : (isDark
+                                                        ? Colors.grey.shade400
+                                                        : Colors
+                                                              .grey
+                                                              .shade700));
 
-                                    return StreamBuilder<DocumentSnapshot>(
-                                      stream: FirebaseFirestore.instance
-                                          .collection('users')
-                                          .doc(currentUser.uid)
-                                          .collection('friends')
-                                          .doc(guestUid)
-                                          .snapshots(),
-                                      builder: (context, friendSnap) {
-                                        bool showAddButton =
-                                            (guestUid != currentUser.uid) &&
-                                            !(friendSnap.hasData &&
-                                                friendSnap.data!.exists);
-                                        return InkWell(
-                                          onTap: () => _showGuestProfileSheet(
-                                            guest,
-                                            showAddButton,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 10,
-                                              horizontal:
-                                                  8, // Added a little horizontal padding for the tap highlight
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                Stack(
-                                                  clipBehavior: Clip.none,
-                                                  children: [
-                                                    Container(
-                                                      decoration: BoxDecoration(
-                                                        shape: BoxShape.circle,
-                                                        boxShadow: [
-                                                          BoxShadow(
-                                                            color:
-                                                                Color(
-                                                                  guest['avatarColor'],
-                                                                ).withValues(
-                                                                  alpha: 0.4,
-                                                                ),
-                                                            blurRadius: 8,
-                                                            spreadRadius: 1,
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      child: CircleAvatar(
-                                                        backgroundColor: Color(
-                                                          guest['avatarColor'],
-                                                        ),
-                                                        radius: 22,
-                                                        backgroundImage:
-                                                            guest['avatarUrl'] !=
-                                                                null
-                                                            ? CachedNetworkImageProvider(
-                                                                guest['avatarUrl'],
-                                                              )
-                                                            : null,
-                                                        child:
-                                                            guest['avatarUrl'] ==
-                                                                null
-                                                            ? Text(
-                                                                guest['displayName'][0]
-                                                                    .toUpperCase(),
-                                                                style: const TextStyle(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                ),
-                                                              )
-                                                            : null,
-                                                      ),
-                                                    ),
-                                                    Positioned(
-                                                      top: -5,
-                                                      right: -10,
-                                                      child: Container(
-                                                        padding:
-                                                            const EdgeInsets.all(
-                                                              2,
-                                                            ),
-                                                        decoration:
-                                                            BoxDecoration(
-                                                              color: Theme.of(
-                                                                context,
-                                                              ).cardColor,
-                                                              shape: BoxShape
-                                                                  .circle,
-                                                            ),
-                                                        child: Icon(
-                                                          badgeIcon,
-                                                          size: 18,
-                                                          color: badgeColor,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
+                                        return StreamBuilder<DocumentSnapshot>(
+                                          stream: FirebaseFirestore.instance
+                                              .collection('users')
+                                              .doc(currentUser.uid)
+                                              .collection('friends')
+                                              .doc(guestUid)
+                                              .snapshots(),
+                                          builder: (context, friendSnap) {
+                                            bool showAddButton =
+                                                (guestUid != currentUser.uid) &&
+                                                !(friendSnap.hasData &&
+                                                    friendSnap.data!.exists);
+                                            return InkWell(
+                                              onTap: () =>
+                                                  _showGuestProfileSheet(
+                                                    guest,
+                                                    showAddButton,
+                                                  ),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              child: Padding(
+                                                padding: const EdgeInsets.symmetric(
+                                                  vertical: 10,
+                                                  horizontal:
+                                                      8, // Added a little horizontal padding for the tap highlight
                                                 ),
-                                                const SizedBox(width: 16),
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Row(
+                                                child: Row(
+                                                  children: [
+                                                    Stack(
+                                                      clipBehavior: Clip.none,
+                                                      children: [
+                                                        Container(
+                                                          decoration: BoxDecoration(
+                                                            shape:
+                                                                BoxShape.circle,
+                                                            boxShadow: [
+                                                              BoxShadow(
+                                                                color:
+                                                                    Color(
+                                                                      guest['avatarColor'],
+                                                                    ).withValues(
+                                                                      alpha:
+                                                                          0.4,
+                                                                    ),
+                                                                blurRadius: 8,
+                                                                spreadRadius: 1,
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          child: CircleAvatar(
+                                                            backgroundColor: Color(
+                                                              guest['avatarColor'],
+                                                            ),
+                                                            radius: 22,
+                                                            backgroundImage:
+                                                                guest['avatarUrl'] !=
+                                                                    null
+                                                                ? CachedNetworkImageProvider(
+                                                                    guest['avatarUrl'],
+                                                                  )
+                                                                : null,
+                                                            child:
+                                                                guest['avatarUrl'] ==
+                                                                    null
+                                                                ? Text(
+                                                                    guest['displayName'][0]
+                                                                        .toUpperCase(),
+                                                                    style: const TextStyle(
+                                                                      color: Colors
+                                                                          .white,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold,
+                                                                    ),
+                                                                  )
+                                                                : null,
+                                                          ),
+                                                        ),
+                                                        Positioned(
+                                                          top: -5,
+                                                          right: -10,
+                                                          child: Container(
+                                                            padding:
+                                                                const EdgeInsets.all(
+                                                                  2,
+                                                                ),
+                                                            decoration:
+                                                                BoxDecoration(
+                                                                  color: Theme.of(
+                                                                    context,
+                                                                  ).cardColor,
+                                                                  shape: BoxShape
+                                                                      .circle,
+                                                                ),
+                                                            child: Icon(
+                                                              badgeIcon,
+                                                              size: 18,
+                                                              color: badgeColor,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(width: 16),
+                                                    Expanded(
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
                                                         children: [
-                                                          Flexible(
-                                                            child: Text(
-                                                              guest['displayName'],
-                                                              style: const TextStyle(
+                                                          Row(
+                                                            children: [
+                                                              Flexible(
+                                                                child: Text(
+                                                                  guest['displayName'],
+                                                                  style: const TextStyle(
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                    fontSize:
+                                                                        16,
+                                                                  ),
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                ),
+                                                              ),
+                                                              if (guestUid ==
+                                                                  data['hostId'])
+                                                                const Padding(
+                                                                  padding:
+                                                                      EdgeInsets.only(
+                                                                        left: 6,
+                                                                      ),
+                                                                  child: Icon(
+                                                                    Symbols
+                                                                        .crown,
+                                                                    size: 18,
+                                                                    color: Colors
+                                                                        .amber,
+                                                                  ),
+                                                                ),
+                                                              if (guestUid ==
+                                                                  data['coHostId'])
+                                                                Padding(
+                                                                  padding:
+                                                                      const EdgeInsets.only(
+                                                                        left: 6,
+                                                                      ),
+                                                                  child: Icon(
+                                                                    Symbols
+                                                                        .military_tech,
+                                                                    size: 16,
+                                                                    color: Colors
+                                                                        .amber,
+                                                                  ),
+                                                                ),
+                                                            ],
+                                                          ),
+                                                          if ((guest['username'] ??
+                                                                  "")
+                                                              .isNotEmpty)
+                                                            Text(
+                                                              "@${guest['username']}",
+                                                              style: TextStyle(
+                                                                color:
+                                                                    primaryColor,
+                                                                fontSize: 13,
                                                                 fontWeight:
                                                                     FontWeight
-                                                                        .bold,
-                                                                fontSize: 16,
-                                                              ),
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                            ),
-                                                          ),
-                                                          if (guestUid ==
-                                                              data['hostId'])
-                                                            const Padding(
-                                                              padding:
-                                                                  EdgeInsets.only(
-                                                                    left: 6,
-                                                                  ),
-                                                              child: Icon(
-                                                                Symbols.crown,
-                                                                size: 18,
-                                                                color: Colors
-                                                                    .amber,
-                                                              ),
-                                                            ),
-                                                          if (guestUid ==
-                                                              data['coHostId'])
-                                                            Padding(
-                                                              padding:
-                                                                  const EdgeInsets.only(
-                                                                    left: 6,
-                                                                  ),
-                                                              child: Icon(
-                                                                Symbols
-                                                                    .military_tech,
-                                                                size: 16,
-                                                                color: Colors
-                                                                    .amber,
+                                                                        .w600,
                                                               ),
                                                             ),
                                                         ],
                                                       ),
-                                                      if ((guest['username'] ??
-                                                              "")
-                                                          .isNotEmpty)
-                                                        Text(
-                                                          "@${guest['username']}",
-                                                          style: TextStyle(
-                                                            color: primaryColor,
-                                                            fontSize: 13,
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                          ),
+                                                    ),
+                                                    if (showAddButton)
+                                                      IconButton(
+                                                        icon: Icon(
+                                                          Icons
+                                                              .person_add_alt_1,
+                                                          color: primaryColor,
                                                         ),
-                                                    ],
-                                                  ),
+                                                        onPressed: () =>
+                                                            _addFriend(
+                                                              context,
+                                                              guestUid,
+                                                              guest['phone'],
+                                                              guest['displayName'],
+                                                            ),
+                                                      ),
+                                                  ],
                                                 ),
-                                                if (showAddButton)
-                                                  IconButton(
-                                                    icon: Icon(
-                                                      Icons.person_add_alt_1,
-                                                      color: primaryColor,
-                                                    ),
-                                                    onPressed: () => _addFriend(
-                                                      context,
-                                                      guestUid,
-                                                      guest['phone'],
-                                                      guest['displayName'],
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                          ),
+                                              ),
+                                            );
+                                          },
                                         );
                                       },
-                                    );
-                                  },
+                                    ),
+                                  ],
                                 ),
                               );
                             },
@@ -2019,8 +1916,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                             controller: _scrollController,
                             slivers: [
                               SliverAppBar(
-                                expandedHeight:
-                                    MediaQuery.of(context).size.height * 0.55,
+                                expandedHeight: isLandscape
+                                    ? 220.0
+                                    : MediaQuery.of(context).size.height * 0.55,
                                 pinned: true,
                                 stretch: true,
                                 backgroundColor: Theme.of(
@@ -2355,100 +2253,254 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Status 1: ACCEPTED
-    if (widget.currentStatus == 'going') {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-        decoration: BoxDecoration(
-          color: Colors.green.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.green.withValues(alpha: 0.5),
-            width: 2,
-          ),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 28),
-            const SizedBox(width: 12),
-            // FIX: Expanded prevents overflow and allows text to wrap if needed
-            const Expanded(
-              child: Text(
-                "You're in! 🤗",
-                style: TextStyle(
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            TextButton(
-              onPressed: () => widget.onRsvp('pending'),
-              child: const Text(
-                "Change",
-                style: TextStyle(
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Status 2: DECLINED
-    if (widget.currentStatus == 'declined') {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-        decoration: BoxDecoration(
-          color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.red.withValues(alpha: 0.5),
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.cancel, color: Colors.red, size: 28),
-            const SizedBox(width: 12),
-            // FIX: Expanded prevents overflow and allows text to wrap if needed
-            const Expanded(
-              child: Text(
-                "You're missing out.",
-                style: TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            TextButton(
-              onPressed: () => widget.onRsvp('pending'),
-              child: const Text(
-                "Change",
-                style: TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Status 3: PENDING (Interactive Slider)
     return LayoutBuilder(
       builder: (context, constraints) {
         final double trackWidth = constraints.maxWidth;
+        final bool isCompact =
+            trackWidth < 280; // 👈 Detects landscape/narrow widths
+
+        // Status 1: ACCEPTED
+        if (widget.currentStatus == 'going') {
+          return Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(
+              vertical: isCompact ? 12 : 16,
+              horizontal: 16,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Colors.green.withValues(alpha: 0.5),
+                width: 2,
+              ),
+            ),
+            child: isCompact
+                ? Column(
+                    children: [
+                      const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                            size: 24,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            "You're in! 🤗",
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 36,
+                        child: OutlinedButton(
+                          onPressed: () => widget.onRsvp('pending'),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: Colors.green.withValues(alpha: 0.5),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            "Change",
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      const Icon(
+                        Icons.check_circle,
+                        color: Colors.green,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          "You're in! 🤗",
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => widget.onRsvp('pending'),
+                        child: const Text(
+                          "Change",
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          );
+        }
+
+        // Status 2: DECLINED
+        if (widget.currentStatus == 'declined') {
+          return Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(
+              vertical: isCompact ? 12 : 16,
+              horizontal: 16,
+            ),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Colors.red.withValues(alpha: 0.5),
+                width: 1.5,
+              ),
+            ),
+            child: isCompact
+                ? Column(
+                    children: [
+                      const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.cancel, color: Colors.red, size: 24),
+                          SizedBox(width: 8),
+                          Text(
+                            "Missing out.",
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 36,
+                        child: OutlinedButton(
+                          onPressed: () => widget.onRsvp('pending'),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: Colors.red.withValues(alpha: 0.5),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            "Change RSVP",
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      const Icon(Icons.cancel, color: Colors.red, size: 28),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          "You're missing out.",
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => widget.onRsvp('pending'),
+                        child: const Text(
+                          "Change",
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          );
+        }
+
+        // Status 3: PENDING (Interactive Slider OR Compact Buttons)
+        if (isCompact) {
+          return Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    widget.onRsvp('declined');
+                  },
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    "Decline",
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    widget.onRsvp('going');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    "I'm In!",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        // Normal Pending Slider for Portrait Mode
         const double thumbWidth = 100.0;
         final double maxDrag = (trackWidth - thumbWidth) / 2;
 
@@ -2488,7 +2540,6 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
                   ),
                 ),
               ),
-
               AnimatedPositioned(
                 duration: _isDragging
                     ? Duration.zero
