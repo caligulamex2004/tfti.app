@@ -365,6 +365,7 @@ class HomeFeedTab extends StatefulWidget {
 class _HomeFeedTabState extends State<HomeFeedTab> {
   String? _selectedEventId;
   Map<String, dynamic>? _selectedEventData;
+  bool _showHidden = false;
 
   Future<void> _quickRSVP(String eventId, String status) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -709,10 +710,11 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
 
             final now = DateTime.now();
 
-            // 👇 NEW: Smart Categorization Lists
             List<Map<String, dynamic>> actionNeededEvents = [];
             List<Map<String, dynamic>> agendaEvents = [];
+            List<Map<String, dynamic>> declinedEvents = [];
             List<Map<String, dynamic>> pastEvents = [];
+            List<Map<String, dynamic>> hiddenEvents = [];
 
             for (var eventDoc in eventSnapshot.data!.docs) {
               final eventId = eventDoc.id;
@@ -724,8 +726,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
               String status =
                   inviteData['status'] ?? (isMyEvent ? 'going' : 'pending');
               final bool isHidden = inviteData['isHidden'] ?? false;
-
-              if (isHidden) continue; // Skip hidden events
 
               final Timestamp? ts = eventData['time'];
               final DateTime eventTime = ts?.toDate() ?? now;
@@ -756,17 +756,21 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                 'time': eventTime,
               };
 
-              // Sort into the correct bucket
-              if (isPast) {
+              // Properly routes every event to its rightful bucket
+              if (isHidden) {
+                hiddenEvents.add(eventItem);
+              } else if (isPast) {
                 pastEvents.add(eventItem);
               } else if (status == 'pending') {
                 actionNeededEvents.add(eventItem);
               } else if (status == 'going') {
                 agendaEvents.add(eventItem);
+              } else if (status == 'declined') {
+                declinedEvents.add(eventItem);
               }
             }
 
-            // Sort logic: Action needed shows most urgent first. Agenda shows chronological.
+            // Sort logic
             actionNeededEvents.sort(
               (a, b) =>
                   (a['time'] as DateTime).compareTo(b['time'] as DateTime),
@@ -775,14 +779,24 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
               (a, b) =>
                   (a['time'] as DateTime).compareTo(b['time'] as DateTime),
             );
+            declinedEvents.sort(
+              (a, b) =>
+                  (a['time'] as DateTime).compareTo(b['time'] as DateTime),
+            );
             pastEvents.sort(
+              (a, b) =>
+                  (b['time'] as DateTime).compareTo(a['time'] as DateTime),
+            );
+            hiddenEvents.sort(
               (a, b) =>
                   (b['time'] as DateTime).compareTo(a['time'] as DateTime),
             );
 
             if (actionNeededEvents.isEmpty &&
                 agendaEvents.isEmpty &&
-                pastEvents.isEmpty) {
+                pastEvents.isEmpty &&
+                declinedEvents.isEmpty &&
+                hiddenEvents.isEmpty) {
               return _buildEmptyState(isDark);
             }
 
@@ -824,7 +838,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                   ),
                   SliverToBoxAdapter(
                     child: SizedBox(
-                      height: 280, // Height of the horizontal card
+                      height: 310,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -883,7 +897,47 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                   ),
                 ],
 
-                // 4. Past Events
+                // 4. Not Going (Declined) List
+                if (declinedEvents.isNotEmpty) ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                        left: 20,
+                        top: 12,
+                        bottom: 12,
+                      ),
+                      child: Text(
+                        "Not Going",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDark
+                              ? Colors.grey.shade600
+                              : Colors.grey.shade400,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => _buildEventCard(
+                          context,
+                          declinedEvents[index],
+                          isDark,
+                          primaryColor,
+                          user?.uid,
+                          isLandscape,
+                          isHorizontal: false,
+                        ),
+                        childCount: declinedEvents.length,
+                      ),
+                    ),
+                  ),
+                ],
+
+                // 5. Past Events
                 if (pastEvents.isNotEmpty) ...[
                   SliverToBoxAdapter(
                     child: Padding(
@@ -905,11 +959,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                     ),
                   ),
                   SliverPadding(
-                    padding: const EdgeInsets.only(
-                      left: 16,
-                      right: 16,
-                      bottom: 100,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) => _buildEventCard(
@@ -925,6 +975,56 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       ),
                     ),
                   ),
+                ],
+
+                // 6. Hidden Events Vault
+                if (hiddenEvents.isNotEmpty) ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      child: TextButton.icon(
+                        onPressed: () =>
+                            setState(() => _showHidden = !_showHidden),
+                        icon: Icon(
+                          _showHidden ? Icons.visibility_off : Icons.visibility,
+                          color: Colors.grey,
+                        ),
+                        label: Text(
+                          _showHidden
+                              ? "Hide Archived Events"
+                              : "View Hidden Events (${hiddenEvents.length})",
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (_showHidden)
+                    SliverPadding(
+                      padding: const EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        bottom: 100,
+                      ),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => _buildEventCard(
+                            context,
+                            hiddenEvents[index],
+                            isDark,
+                            primaryColor,
+                            user?.uid,
+                            isLandscape,
+                            isHorizontal: false,
+                          ),
+                          childCount: hiddenEvents.length,
+                        ),
+                      ),
+                    )
+                  else
+                    const SliverToBoxAdapter(child: SizedBox(height: 100)),
                 ] else ...[
                   const SliverToBoxAdapter(child: SizedBox(height: 100)),
                 ],
@@ -1091,10 +1191,11 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
         lastMsgTime != null &&
         (lastReadTime == null || lastMsgTime.seconds > lastReadTime.seconds);
 
+    final double safeHorizontalWidth =
+        (MediaQuery.of(context).size.width * 0.85).clamp(0.0, 340.0);
+
     Widget heroCard = Container(
-      width: isHorizontal
-          ? MediaQuery.of(context).size.width * 0.85
-          : double.infinity,
+      width: isHorizontal ? safeHorizontalWidth : double.infinity,
       margin: EdgeInsets.only(
         bottom: isHorizontal ? 0 : 24,
         right: isHorizontal ? 16 : 0,
@@ -1133,8 +1234,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
             }
           },
           child: Column(
-            mainAxisSize: MainAxisSize
-                .min, // FIX: Prevents unbounded vertical height crash
+            mainAxisSize: MainAxisSize.min,
             children: [
               // --- TOP HALF: THE 16:9 HERO IMAGE ---
               // FIX: Removed Expanded() wrapper so AspectRatio determines its own height securely!
@@ -1386,7 +1486,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          // 👇 NEW: Restored Host Profile Button & _showHostBottomSheet routing
+                          // Restored Host Profile Button & _showHostBottomSheet routing
                           if (data['hostId'] != null)
                             FutureBuilder<DocumentSnapshot>(
                               future: FirebaseFirestore.instance
@@ -1467,51 +1567,94 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                   horizontal: 16,
                   vertical: 12,
                 ),
-                child: isHorizontal && isPending && !isVibeCheck
-                    ? Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () => _quickRSVP(eventId, 'declined'),
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(
-                                  color: Colors.red.withValues(alpha: 0.5),
+                // Handles Vibe Checks AND Standard Events perfectly
+                child: isHorizontal && isPending
+                    ? (isVibeCheck
+                          ? Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      HapticFeedback.lightImpact();
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              EventDetailsPage(
+                                                eventId: eventId,
+                                                eventData: data,
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: primaryColor,
+                                      foregroundColor:
+                                          themeProvider.onPrimaryColor,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      "Vote Now",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                              ],
+                            )
+                          : Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: () =>
+                                        _quickRSVP(eventId, 'declined'),
+                                    style: OutlinedButton.styleFrom(
+                                      side: BorderSide(
+                                        color: Colors.red.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      "Decline",
+                                      style: TextStyle(
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              child: const Text(
-                                "Decline",
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontWeight: FontWeight.bold,
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      HapticFeedback.mediumImpact();
+                                      _quickRSVP(eventId, 'going');
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: primaryColor,
+                                      foregroundColor:
+                                          themeProvider.onPrimaryColor,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      "I'm In!",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () {
-                                HapticFeedback.mediumImpact();
-                                _quickRSVP(eventId, 'going');
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: primaryColor,
-                                foregroundColor: themeProvider.onPrimaryColor,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: const Text(
-                                "I'm In!",
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
+                              ],
+                            ))
                     : Row(
                         children: [
                           if (hasUnreadChat)

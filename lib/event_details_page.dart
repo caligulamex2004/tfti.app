@@ -2020,7 +2020,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                             slivers: [
                               SliverAppBar(
                                 expandedHeight:
-                                    280, // 👇 Increased for better image framing
+                                    MediaQuery.of(context).size.height * 0.55,
                                 pinned: true,
                                 stretch: true,
                                 backgroundColor: Theme.of(
@@ -2082,13 +2082,15 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                             end: Alignment.bottomCenter,
                                             colors: [
                                               Colors.transparent,
+                                              Colors.transparent,
                                               Colors.black.withValues(
-                                                alpha: 0.3,
+                                                alpha: 0.6,
                                               ),
-                                              Colors.black.withValues(
-                                                alpha: 0.8,
-                                              ),
+                                              Theme.of(
+                                                context,
+                                              ).scaffoldBackgroundColor, // Fades seamlessly into the page!
                                             ],
+                                            stops: const [0.0, 0.4, 0.8, 1.0],
                                           ),
                                         ),
                                       ),
@@ -2099,7 +2101,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                           padding: const EdgeInsets.only(
                                             left: 20,
                                             right: 20,
-                                            bottom: 20,
+                                            bottom: 40,
                                             top: 40,
                                           ),
                                           child: Column(
