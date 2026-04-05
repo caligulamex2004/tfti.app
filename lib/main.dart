@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -1136,22 +1137,9 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
 
     final bool isVibeCheck = data['type'] == 'vibe_check';
     final bool isMyEvent = data['hostId'] == myUid;
-    final bool isImportantDetails = data['isImportantDetails'] == true;
 
-    final int keepAliveDays = data['keepAliveDays'] ?? 0;
-    String keepAliveLabel = "";
-    if (keepAliveDays == 1) {
-      keepAliveLabel = "1 Day";
-    } else if (keepAliveDays == 7) {
-      keepAliveLabel = "1 Week";
-    } else if (keepAliveDays > 0) {
-      keepAliveLabel = "$keepAliveDays Days";
-    }
-
+    final String? bannerUrl = data['bannerUrl'];
     final String? lastMessageSnippet = data['lastMessageSnippet'];
-
-    Color cardBgColor = Theme.of(context).cardColor;
-    double cardElevation = isDark ? 1 : 2;
 
     final DateTime dt = item['time'] as DateTime;
     final List<String> shortMonths = [
@@ -1177,42 +1165,42 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
     final String minute = dt.minute.toString().padLeft(2, '0');
     final String timeString = "$hour:$minute $period";
 
+    // --- STATUS LOGIC ---
     IconData statusIcon;
     Color statusColor;
     String statusText;
-    Color titleTextColor = isDark ? Colors.white : Colors.black87;
 
     final bool isGoing = status == 'going';
     final bool isDeclined = status == 'declined';
+    final bool isPending = status == 'pending';
 
     if (isPast) {
-      cardElevation = 0;
       statusText = "Wrapped up";
-      statusColor = Colors.grey;
+      statusColor = Colors.grey.shade600;
       statusIcon = Icons.history;
-      titleTextColor = isDark ? Colors.grey.shade500 : Colors.grey.shade600;
     } else if (isDeclined) {
       statusText = "Missing out";
-      statusColor = isDark ? Colors.redAccent : Colors.red;
+      statusColor = Colors.redAccent;
       statusIcon = Icons.cancel;
     } else if (isHappeningNow) {
       statusText = "Happening Now!";
-      statusColor = isDark ? Colors.orangeAccent : Colors.orange.shade800;
+      statusColor = Colors.orangeAccent;
       statusIcon = Icons.whatshot;
     } else if (isStartingSoon) {
       statusText = "Starting Soon";
-      statusColor = isDark ? Colors.amberAccent : Colors.amber.shade800;
+      statusColor = Colors.amberAccent;
       statusIcon = Icons.directions_run;
     } else if (isGoing) {
       statusText = "You're going";
-      statusColor = isDark ? Colors.greenAccent : Colors.green;
+      statusColor = Colors.greenAccent;
       statusIcon = Icons.check_circle;
     } else {
-      statusText = isVibeCheck ? "Vote Pending" : "RSVP Pending";
-      statusColor = isDark ? const Color(0xFFF1AD5B) : const Color(0xFFD98301);
+      statusText = isVibeCheck ? "Vote Needed" : "Action Needed";
+      statusColor = Colors.orangeAccent;
       statusIcon = isVibeCheck ? Icons.how_to_vote : Symbols.mail;
     }
 
+    // --- NOTIFICATION LOGIC ---
     final Timestamp? lastUpdateTime = data['lastUpdatedAt'];
     final Timestamp? lastViewedDetailsTime = inviteData['lastViewedAt'];
     bool hasCriticalUpdate = false;
@@ -1244,607 +1232,394 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
       background: Container(
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 24.0),
+        margin: const EdgeInsets.only(bottom: 24),
         decoration: BoxDecoration(
           color: Colors.green,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
         ),
         child: const Icon(Symbols.thumb_up, color: Colors.white, size: 36),
       ),
       secondaryBackground: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 24.0),
+        margin: const EdgeInsets.only(bottom: 24),
         decoration: BoxDecoration(
           color: Colors.red,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
         ),
         child: const Icon(Symbols.thumb_down, color: Colors.white, size: 36),
       ),
       confirmDismiss: (direction) async {
+        // 👇 NEW: Premium Haptic Feedback on Swipe!
+        HapticFeedback.mediumImpact();
+
         if (direction == DismissDirection.startToEnd) {
           await _quickRSVP(eventId, 'going');
         } else if (direction == DismissDirection.endToStart) {
           await _quickRSVP(eventId, 'declined');
         }
-        return false;
+        return false; // Springs the card back into place
       },
-      child: Card(
-        elevation: isSelected ? 4 : cardElevation,
-        color: isSelected ? primaryColor.withValues(alpha: 0.1) : cardBgColor,
-        surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.black26,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: isSelected
-              ? BorderSide(color: primaryColor, width: 2)
-              : BorderSide(
-                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-                  width: 1,
-                ),
-        ),
-        margin: const EdgeInsets.only(bottom: 12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onLongPress: () => _toggleHideStatus(eventId, isHidden),
-          onTap: () {
-            if (isLandscape) {
-              setState(() {
-                _selectedEventId = eventId;
-                _selectedEventData = data;
-              });
-            } else {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      EventDetailsPage(eventId: eventId, eventData: data),
-                ),
-              );
-            }
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: GestureDetector(
+        onLongPress: () {
+          HapticFeedback.heavyImpact();
+          _toggleHideStatus(eventId, isHidden);
+        },
+        onTap: () {
+          if (isLandscape) {
+            setState(() {
+              _selectedEventId = eventId;
+              _selectedEventData = data;
+            });
+          } else {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    EventDetailsPage(eventId: eventId, eventData: data),
+              ),
+            );
+          }
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: isSelected
+                ? Border.all(color: primaryColor, width: 2)
+                : null,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Column(
               children: [
-                Column(
-                  children: [
-                    Container(
-                      width: 52,
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.grey.shade800 : Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isDark
-                              ? Colors.grey.shade700
-                              : Colors.grey.shade200,
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 3),
-                            decoration: BoxDecoration(
-                              color: isPast ? Colors.grey : Colors.red,
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(8),
-                              ),
-                            ),
-                            child: Text(
-                              month,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Text(
-                              day,
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.white : Colors.black87,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      timeString,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: isPast ? Colors.grey : primaryColor,
-                      ),
-                    ),
-                    if (keepAliveDays > 0) ...[
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.tertiary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.tertiary.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Text(
-                          keepAliveLabel,
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.tertiary,
-                          ),
-                          maxLines: 1,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-
-                const SizedBox(width: 16),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                // --- TOP HALF: THE 16:9 HERO IMAGE ---
+                AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      if (isVibeCheck)
+                      // 1. The Background Image or Fallback Gradient
+                      if (bannerUrl != null && bannerUrl.isNotEmpty)
+                        CachedNetworkImage(
+                          imageUrl: bannerUrl,
+                          fit: BoxFit.cover,
+                        )
+                      else
                         Container(
-                          margin: const EdgeInsets.only(bottom: 6),
+                          decoration: BoxDecoration(
+                            gradient: themeProvider.appGradient,
+                          ),
+                        ),
+
+                      // 2. The Text-Protection Gradient Overlay
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.1),
+                              Colors.black.withValues(alpha: 0.85),
+                            ],
+                            stops: const [0.4, 0.7, 1.0],
+                          ),
+                        ),
+                      ),
+
+                      // 3. Top-Right: Frosted Glass Date Badge
+                      Positioned(
+                        top: 16,
+                        right: 16,
+                        child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
+                            horizontal: 14,
+                            vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.tertiary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.black.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.tertiary.withValues(alpha: 0.3),
+                              color: Colors.white.withValues(alpha: 0.2),
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.2),
+                                blurRadius: 4,
+                              ),
+                            ],
                           ),
-                          child: Row(
+                          child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                Symbols.earthquake,
-                                size: 12,
-                                color: Theme.of(context).colorScheme.tertiary,
+                              Text(
+                                month,
+                                style: const TextStyle(
+                                  color: Colors.redAccent,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1,
+                                ),
                               ),
-                              const SizedBox(width: 4),
-                              // FIX 2: Wrapped text in Flexible to prevent overflow
-                              Flexible(
-                                child: Text(
-                                  "VIBE CHECK",
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.2,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.tertiary,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                              Text(
+                                day,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  height: 1.1,
+                                ),
+                              ),
+                              Text(
+                                timeString,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              data['title'] ?? "Untitled",
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 17,
-                                color: titleTextColor,
-                                height: 1.2,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (hasCriticalUpdate)
-                            const Padding(
-                              padding: EdgeInsets.only(left: 8.0),
-                              child: Icon(
-                                Icons.info,
-                                color: Colors.amber,
-                                size: 20,
-                              ),
-                            ),
-                        ],
                       ),
 
-                      const SizedBox(height: 6),
-
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.location_on,
-                            size: 14,
-                            color: isPast
-                                ? Colors.grey.shade600
-                                : (isDark
-                                      ? Colors.grey.shade400
-                                      : Colors.grey.shade500),
+                      // 4. Top-Left: Status Pill
+                      Positioned(
+                        top: 16,
+                        left: 16,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
                           ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              data['location'] ?? 'Multiple Spots',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: isPast
-                                    ? Colors.grey.shade600
-                                    : (isDark
-                                          ? Colors.grey.shade400
-                                          : Colors.grey.shade600),
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                          decoration: BoxDecoration(
+                            color: isPending
+                                ? statusColor
+                                : Colors.black.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(20),
+                            border: isPending
+                                ? null
+                                : Border.all(
+                                    color: statusColor.withValues(alpha: 0.5),
+                                  ),
                           ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          // 1. HOST PILL
-                          if (isMyEvent)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                statusIcon,
+                                color: isPending ? Colors.white : statusColor,
+                                size: 14,
                               ),
-                              decoration: BoxDecoration(
-                                color: primaryColor.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: primaryColor.withValues(alpha: 0.3),
+                              const SizedBox(width: 6),
+                              Text(
+                                statusText,
+                                style: TextStyle(
+                                  color: isPending ? Colors.white : statusColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Symbols.crown,
-                                    size: 12,
-                                    color: primaryColor,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  // FIX 2: Wrapped text in Flexible to prevent overflow
-                                  Flexible(
-                                    child: Text(
-                                      "Captain",
-                                      style: TextStyle(
-                                        color: primaryColor,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          else
-                            FutureBuilder<DocumentSnapshot>(
-                              future: FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(data['hostId'])
-                                  .get(),
-                              builder: (context, hostSnap) {
-                                if (!hostSnap.hasData ||
-                                    !hostSnap.data!.exists) {
-                                  return const SizedBox.shrink();
-                                }
-                                final hostData =
-                                    hostSnap.data!.data()
-                                        as Map<String, dynamic>;
-                                final String hostName =
-                                    hostData['displayName'] ?? "Captain";
-                                final int hostColor =
-                                    hostData['avatarColor'] ??
-                                    Colors.blue.toARGB32();
-                                final String? hostAvatarUrl =
-                                    hostData['avatarUrl'];
+                            ],
+                          ),
+                        ),
+                      ),
 
-                                return InkWell(
-                                  onTap: () => _showHostBottomSheet(
-                                    context,
-                                    hostData,
-                                    isDark,
-                                  ),
+                      // 5. Bottom-Left: Title & Details
+                      Positioned(
+                        bottom: 16,
+                        left: 16,
+                        right: 16,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (isVibeCheck)
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.4),
                                   borderRadius: BorderRadius.circular(12),
-                                  child: Container(
-                                    padding: const EdgeInsets.only(
-                                      left: 4,
-                                      right: 8,
-                                      top: 2,
-                                      bottom: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: isDark
-                                          ? Colors.grey.shade900
-                                          : Colors.grey.shade100,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: isDark
-                                            ? Colors.grey.shade800
-                                            : Colors.grey.shade300,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Color(
-                                                  hostColor,
-                                                ).withValues(alpha: 0.4),
-                                                blurRadius: 4,
-                                                spreadRadius: 1,
-                                              ),
-                                            ],
-                                          ),
-                                          child: CircleAvatar(
-                                            radius: 10,
-                                            backgroundColor: Color(hostColor),
-                                            backgroundImage:
-                                                hostAvatarUrl != null
-                                                ? CachedNetworkImageProvider(
-                                                    hostAvatarUrl,
-                                                  )
-                                                : null,
-                                            child: hostAvatarUrl == null
-                                                ? Text(
-                                                    hostName.isNotEmpty
-                                                        ? hostName[0]
-                                                              .toUpperCase()
-                                                        : "?",
-                                                    style: const TextStyle(
-                                                      fontSize: 9,
-                                                      color: Colors.white,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                  )
-                                                : null,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        // FIX 2: Wrapped text in Flexible to prevent overflow
-                                        Flexible(
-                                          child: Text(
-                                            "Captain",
-                                            style: TextStyle(
-                                              color: isDark
-                                                  ? Colors.grey.shade300
-                                                  : Colors.black87,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-
-                          // 2. STATUS PILL
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: statusColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: statusColor.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(statusIcon, size: 12, color: statusColor),
-                                const SizedBox(width: 4),
-                                // 👇 FIX 2: Wrapped text in Flexible to prevent overflow
-                                Flexible(
-                                  child: Text(
-                                    statusText,
-                                    style: TextStyle(
-                                      color: statusColor,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.3),
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-
-                          // 3. IMPORTANT DETAILS PILL
-                          if (isImportantDetails && !isPast)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: primaryColor.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: primaryColor.withValues(alpha: 0.3),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.announcement_outlined,
-                                    size: 12,
-                                    color: primaryColor,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  // FIX 2: Wrapped text in Flexible to prevent overflow
-                                  Flexible(
-                                    child: Text(
-                                      "PLEASE READ",
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        color: primaryColor,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-
-                      if (lastMessageSnippet != null &&
-                          lastMessageSnippet.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 12.0),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? Colors.grey.shade900
-                                  : Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: hasUnreadChat
-                                  ? Border.all(
-                                      color: wasMentioned
-                                          ? Colors.amber.shade600
-                                          : primaryColor.withValues(alpha: 0.5),
-                                      width: 1,
-                                    )
-                                  : Border.all(
-                                      color: isDark
-                                          ? Colors.grey.shade800
-                                          : Colors.grey.shade200,
-                                    ),
-                            ),
-                            child: Row(
-                              children: [
-                                if (wasMentioned)
-                                  Container(
-                                    margin: const EdgeInsets.only(right: 8),
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.amber.shade600,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.alternate_email,
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Symbols.earthquake,
                                       size: 12,
                                       color: Colors.white,
                                     ),
-                                  )
-                                else if (hasUnreadChat)
-                                  Container(
-                                    margin: const EdgeInsets.only(right: 8),
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: primaryColor,
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: primaryColor.withValues(
-                                            alpha: 0.4,
-                                          ),
-                                          blurRadius: 4,
-                                          spreadRadius: 1,
-                                        ),
-                                      ],
+                                    SizedBox(width: 4),
+                                    Text(
+                                      "VIBE CHECK",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.2,
+                                      ),
                                     ),
-                                  )
-                                else
-                                  Container(
-                                    margin: const EdgeInsets.only(right: 8),
-                                    child: Icon(
-                                      Icons.chat_bubble_outline,
-                                      size: 14,
-                                      color: isDark
-                                          ? Colors.grey.shade600
-                                          : Colors.grey.shade400,
-                                    ),
-                                  ),
+                                  ],
+                                ),
+                              ),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
                                 Expanded(
                                   child: Text(
-                                    lastMessageSnippet,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: hasUnreadChat
-                                          ? (isDark
-                                                ? Colors.white
-                                                : Colors.black87)
-                                          : (isDark
-                                                ? Colors.grey.shade500
-                                                : Colors.grey.shade600),
-                                      fontWeight: hasUnreadChat
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
+                                    data['title'] ?? "Untitled Event",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: -0.5,
+                                      height: 1.1,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (hasCriticalUpdate)
+                                  Container(
+                                    margin: const EdgeInsets.only(left: 8),
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.warning_amber_rounded,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.location_on,
+                                  color: Colors.white70,
+                                  size: 14,
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    data['location'] ?? "TBD",
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                if (lastMsgTime != null)
-                                  LastMessageSenderAvatar(
-                                    eventId: eventId,
-                                    lastMessageAt: lastMsgTime,
-                                  ),
                               ],
                             ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // --- BOTTOM HALF: THE LIVE PULSE (Chat/Updates) ---
+                Container(
+                  color: Theme.of(context).cardColor,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      if (wasMentioned)
+                        Container(
+                          margin: const EdgeInsets.only(right: 12),
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade600,
+                            shape: BoxShape.circle,
                           ),
+                          child: const Icon(
+                            Icons.alternate_email,
+                            size: 12,
+                            color: Colors.white,
+                          ),
+                        )
+                      else if (hasUnreadChat)
+                        Container(
+                          margin: const EdgeInsets.only(right: 12),
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: primaryColor,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: primaryColor.withValues(alpha: 0.4),
+                                blurRadius: 4,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Container(
+                          margin: const EdgeInsets.only(right: 12),
+                          child: Icon(
+                            Icons.chat_bubble_outline,
+                            size: 16,
+                            color: isDark
+                                ? Colors.grey.shade600
+                                : Colors.grey.shade400,
+                          ),
+                        ),
+
+                      Expanded(
+                        child: Text(
+                          lastMessageSnippet != null &&
+                                  lastMessageSnippet.isNotEmpty
+                              ? lastMessageSnippet
+                              : "Tap to view details & RSVP",
+                          style: TextStyle(
+                            color: hasUnreadChat
+                                ? (isDark ? Colors.white : Colors.black87)
+                                : (isDark
+                                      ? Colors.grey.shade400
+                                      : Colors.grey.shade600),
+                            fontSize: 14,
+                            fontWeight: hasUnreadChat
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            fontStyle: lastMessageSnippet != null
+                                ? FontStyle.italic
+                                : FontStyle.normal,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+
+                      if (lastMsgTime != null)
+                        LastMessageSenderAvatar(
+                          eventId: eventId,
+                          lastMessageAt: lastMsgTime,
                         ),
                     ],
                   ),
