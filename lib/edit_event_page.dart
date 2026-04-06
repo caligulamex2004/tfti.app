@@ -1,18 +1,18 @@
 import 'dart:io';
-import 'dart:typed_data';
-import 'package:image_picker/image_picker.dart';
-import 'package:image_cropper/image_cropper.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:flutter/material.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'event_roles_page.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
+
+import 'friend_circles_page.dart';
 import 'location_search_page.dart';
 import 'theme_provider.dart';
-import 'friend_circles_page.dart';
 
 String? _localBannerPath;
 bool _removeBanner = false;
@@ -1074,24 +1074,341 @@ class _EditEventPageState extends State<EditEventPage> {
   }
 
   void _showSquadNeedsSheet() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final currentUser = FirebaseAuth.instance.currentUser!;
+    final roleController = TextEditingController();
+    const bool canEdit = true; // Always true on the Edit Page
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(context).size.height * 0.85,
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          child: EventRolesPage(
-            eventId: widget.eventId,
-            isHost: true, // Always true since they are editing the event!
-          ),
-        ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          child: SafeArea(
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.grey.shade700
+                          : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.check_box_outlined,
+                          color: primaryColor,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          "Squad Needs",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 22,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+
+                  Flexible(
+                    child: StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('events')
+                          .doc(widget.eventId)
+                          .collection('roles')
+                          .orderBy('createdAt')
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+
+                        final roles = snapshot.data!.docs;
+
+                        if (roles.isEmpty) {
+                          return Padding(
+                            padding: const EdgeInsets.all(32.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.volunteer_activism,
+                                  size: 48,
+                                  color: isDark
+                                      ? Colors.grey.shade700
+                                      : Colors.grey.shade300,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  canEdit
+                                      ? "Add items you need help with!"
+                                      // ignore: dead_code
+                                      : "No squad needs right now.",
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.grey.shade400
+                                        : Colors.grey.shade600,
+                                    fontSize: 16,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        return ListView.builder(
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          itemCount: roles.length,
+                          itemBuilder: (context, index) {
+                            final roleDoc = roles[index];
+                            final roleData =
+                                roleDoc.data() as Map<String, dynamic>;
+                            final title = roleData['title'] ?? 'Item';
+                            final assigneeId = roleData['assigneeId'];
+                            final assigneeName = roleData['assigneeName'];
+
+                            final isClaimed = assigneeId != null;
+                            final isMe = assigneeId == currentUser.uid;
+
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 4,
+                              ),
+                              leading: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: isClaimed
+                                      ? Colors.green.withValues(alpha: 0.15)
+                                      : (isDark
+                                            ? Colors.grey.shade800
+                                            : Colors.grey.shade100),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  isClaimed
+                                      ? Icons.check
+                                      : Icons.pan_tool_outlined,
+                                  color: isClaimed
+                                      ? Colors.green
+                                      : (isDark
+                                            ? Colors.grey.shade400
+                                            : Colors.grey.shade600),
+                                  size: 20,
+                                ),
+                              ),
+                              title: Text(
+                                title,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  decoration: isClaimed
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                  color: isClaimed
+                                      ? (isDark
+                                            ? Colors.grey.shade500
+                                            : Colors.grey.shade500)
+                                      : (isDark
+                                            ? Colors.white
+                                            : Colors.black87),
+                                ),
+                              ),
+                              subtitle: isClaimed
+                                  ? Text(
+                                      isMe
+                                          ? "Claimed by you"
+                                          : "Claimed by $assigneeName",
+                                      style: TextStyle(
+                                        color: isMe
+                                            ? primaryColor
+                                            : (isDark
+                                                  ? Colors.grey.shade400
+                                                  : Colors.grey.shade600),
+                                        fontWeight: isMe
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                        fontSize: 13,
+                                      ),
+                                    )
+                                  : null,
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (!isClaimed)
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        HapticFeedback.lightImpact();
+                                        final userDoc = await FirebaseFirestore
+                                            .instance
+                                            .collection('users')
+                                            .doc(currentUser.uid)
+                                            .get();
+                                        final myName =
+                                            userDoc.data()?['displayName'] ??
+                                            "Someone";
+                                        await roleDoc.reference.update({
+                                          'assigneeId': currentUser.uid,
+                                          'assigneeName': myName,
+                                        });
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: primaryColor,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                      child: const Text(
+                                        "Claim",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    )
+                                  else if (isMe || canEdit)
+                                    OutlinedButton(
+                                      onPressed: () async {
+                                        HapticFeedback.lightImpact();
+                                        await roleDoc.reference.update({
+                                          'assigneeId': FieldValue.delete(),
+                                          'assigneeName': FieldValue.delete(),
+                                        });
+                                      },
+                                      style: OutlinedButton.styleFrom(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                      child: Text(
+                                        isMe ? "Unclaim" : "Unassign",
+                                      ),
+                                    ),
+                                  if (canEdit)
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        color: Colors.red,
+                                        size: 20,
+                                      ),
+                                      onPressed: () {
+                                        HapticFeedback.mediumImpact();
+                                        roleDoc.reference.delete();
+                                      },
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+
+                  if (canEdit) ...[
+                    const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: roleController,
+                              textCapitalization: TextCapitalization.sentences,
+                              decoration: InputDecoration(
+                                hintText: "Add a new need (e.g. Bring Ice)",
+                                filled: true,
+                                fillColor: isDark
+                                    ? Colors.grey.shade900
+                                    : Colors.grey.shade50,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                              ),
+                              onSubmitted: (val) async {
+                                if (val.trim().isEmpty) return;
+                                await FirebaseFirestore.instance
+                                    .collection('events')
+                                    .doc(widget.eventId)
+                                    .collection('roles')
+                                    .add({
+                                      'title': val.trim(),
+                                      'createdAt': FieldValue.serverTimestamp(),
+                                    });
+                                roleController.clear();
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: primaryColor,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.add, color: Colors.white),
+                              onPressed: () async {
+                                if (roleController.text.trim().isEmpty) return;
+                                await FirebaseFirestore.instance
+                                    .collection('events')
+                                    .doc(widget.eventId)
+                                    .collection('roles')
+                                    .add({
+                                      'title': roleController.text.trim(),
+                                      'createdAt': FieldValue.serverTimestamp(),
+                                    });
+                                roleController.clear();
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
