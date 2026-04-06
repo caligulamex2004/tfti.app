@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
@@ -661,14 +662,14 @@ class _FriendsPageState extends State<FriendsPage> {
     }
   }
 
-  Future<void> _removeFriend(String friendUid, String friendName) async {
+  Future<bool> _removeFriend(String friendUid, String friendName) async {
     final myUid = FirebaseAuth.instance.currentUser!.uid;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Remove Friend?"),
+        title: const Text("Remove Squadmate?"),
         content: Text("Remove $friendName from your squad?"),
         actions: [
           TextButton(
@@ -693,7 +694,9 @@ class _FriendsPageState extends State<FriendsPage> {
           .collection('friends')
           .doc(friendUid)
           .delete();
+      return true; // Tells the swipe to dissolve the card
     }
+    return false; // Tells the swipe to snap back
   }
 
   Future<void> _editFriendCircles(String friendUid, String friendName) async {
@@ -873,6 +876,7 @@ class _FriendsPageState extends State<FriendsPage> {
               ],
               selected: {_isAddingByUsername},
               onSelectionChanged: (newSelection) {
+                HapticFeedback.selectionClick();
                 setState(() => _isAddingByUsername = newSelection.first);
               },
               showSelectedIcon: false,
@@ -1282,249 +1286,239 @@ class _FriendsPageState extends State<FriendsPage> {
                     return Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
-                        vertical: 6,
+                        vertical: 8, // Slightly more vertical breathing room
                       ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isDark
-                                ? Colors.grey.shade800
-                                : Colors.grey.shade200,
-                            width: 1,
+                      child: Dismissible(
+                        key: Key(uid),
+                        direction: DismissDirection.horizontal,
+                        background: Container(
+                          alignment: Alignment.centerLeft,
+                          padding: const EdgeInsets.only(left: 24.0),
+                          decoration: BoxDecoration(
+                            color: primaryColor.withValues(alpha: 0.8),
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                          boxShadow: [
-                            if (!isDark)
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.03),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                          ],
+                          child: const Icon(
+                            Symbols.circles,
+                            color: Colors.white,
+                            size: 32,
+                          ),
                         ),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: () => _showFriendProfileBottomSheet(
-                            context,
-                            userData,
-                            isDark,
-                            primaryColor,
+                        secondaryBackground: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 24.0),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.8),
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
+                          child: const Icon(
+                            Icons.person_remove,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                        ),
+                        confirmDismiss: (direction) async {
+                          HapticFeedback.mediumImpact();
+                          if (direction == DismissDirection.startToEnd) {
+                            // Swipe Right -> Assign to Team
+                            _editFriendCircles(uid, displayName);
+                            return false; // Always snap back after opening the dialog
+                          } else if (direction == DismissDirection.endToStart) {
+                            // Swipe Left -> Delete
+                            return await _removeFriend(uid, displayName);
+                          }
+                          return false;
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(
+                              20,
+                            ), // 👈 Rounder, more premium corners
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.grey.shade800
+                                  : Colors.grey.shade200,
+                              width: 1,
                             ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: avatarColor.withValues(
-                                          alpha: 0.4,
-                                        ),
-                                        blurRadius: 10,
-                                        spreadRadius: 2,
-                                      ),
-                                    ],
-                                  ),
-                                  child: CircleAvatar(
-                                    radius: 24,
-                                    backgroundColor: avatarColor,
-                                    backgroundImage: avatarUrl != null
-                                        ? CachedNetworkImageProvider(avatarUrl)
-                                        : null,
-                                    child: avatarUrl == null
-                                        ? Text(
-                                            displayName.isNotEmpty
-                                                ? displayName[0].toUpperCase()
-                                                : "?",
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 18,
-                                            ),
-                                          )
-                                        : null,
-                                  ),
+                            boxShadow: [
+                              if (!isDark)
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
                                 ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        displayName,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: isDark
-                                              ? Colors.white
-                                              : Colors.black87,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      if (username.isNotEmpty ||
-                                          statusText.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            top: 4.0,
+                            ],
+                          ),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(20),
+                            onTap: () => _showFriendProfileBottomSheet(
+                              context,
+                              userData,
+                              isDark,
+                              primaryColor,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical:
+                                    16, // 👈 Taller, more luxurious padding
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: avatarColor.withValues(
+                                            alpha: 0.4,
                                           ),
-                                          child: Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.center,
-                                            children: [
-                                              if (username.isNotEmpty) ...[
-                                                Flexible(
-                                                  child: Text(
-                                                    "@$username",
-                                                    style: TextStyle(
-                                                      fontSize: 13,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      color: isDark
-                                                          ? Colors.grey.shade400
-                                                          : Colors
-                                                                .grey
-                                                                .shade600,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                                if (statusText.isNotEmpty)
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 6.0,
-                                                        ),
+                                          blurRadius: 12,
+                                          spreadRadius: 2,
+                                        ),
+                                      ],
+                                    ),
+                                    child: CircleAvatar(
+                                      radius: 26, // 👈 Slightly larger avatar
+                                      backgroundColor: avatarColor,
+                                      backgroundImage: avatarUrl != null
+                                          ? CachedNetworkImageProvider(
+                                              avatarUrl,
+                                            )
+                                          : null,
+                                      child: avatarUrl == null
+                                          ? Text(
+                                              displayName.isNotEmpty
+                                                  ? displayName[0].toUpperCase()
+                                                  : "?",
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 20,
+                                              ),
+                                            )
+                                          : null,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          displayName,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight
+                                                .w900, // 👈 Bold like the Home Feed headers
+                                            fontSize: 17,
+                                            letterSpacing: -0.3,
+                                            color: isDark
+                                                ? Colors.white
+                                                : Colors.black87,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        if (username.isNotEmpty ||
+                                            statusText.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 4.0,
+                                            ),
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.center,
+                                              children: [
+                                                if (username.isNotEmpty) ...[
+                                                  Flexible(
                                                     child: Text(
-                                                      "•",
+                                                      "@$username",
                                                       style: TextStyle(
-                                                        color: isDark
-                                                            ? Colors
-                                                                  .grey
-                                                                  .shade600
-                                                            : Colors
-                                                                  .grey
-                                                                  .shade400,
-                                                      ),
-                                                    ),
-                                                  ),
-                                              ],
-                                              if (statusText.isNotEmpty)
-                                                Flexible(
-                                                  child: Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 6,
-                                                          vertical: 2,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .secondaryContainer,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            8,
-                                                          ),
-                                                      border: Border.all(
-                                                        color: primaryColor
-                                                            .withValues(
-                                                              alpha: 0.3,
-                                                            ),
-                                                      ),
-                                                    ),
-                                                    child: Text(
-                                                      statusText,
-                                                      style: TextStyle(
-                                                        fontSize: 10,
+                                                        fontSize: 13,
                                                         fontWeight:
                                                             FontWeight.bold,
-                                                        color: primaryColor,
+                                                        color:
+                                                            primaryColor, // 👈 Makes the username pop
                                                       ),
                                                       maxLines: 1,
                                                       overflow:
                                                           TextOverflow.ellipsis,
                                                     ),
                                                   ),
-                                                ),
-                                            ],
+                                                  if (statusText.isNotEmpty)
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 6.0,
+                                                          ),
+                                                      child: Text(
+                                                        "•",
+                                                        style: TextStyle(
+                                                          color: isDark
+                                                              ? Colors
+                                                                    .grey
+                                                                    .shade600
+                                                              : Colors
+                                                                    .grey
+                                                                    .shade400,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                                if (statusText.isNotEmpty)
+                                                  Flexible(
+                                                    child: Container(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 8,
+                                                            vertical: 2,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .secondaryContainer,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              8,
+                                                            ),
+                                                        border: Border.all(
+                                                          color: primaryColor
+                                                              .withValues(
+                                                                alpha: 0.3,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                      child: Text(
+                                                        statusText,
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: primaryColor,
+                                                        ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                PopupMenuButton<String>(
-                                  icon: Icon(
-                                    Icons.more_vert,
+                                  // 👈 The PopupMenuButton is completely GONE! Replaced by Swipe-to-Manage.
+                                  Icon(
+                                    Icons.chevron_right,
                                     color: isDark
-                                        ? Colors.grey.shade400
-                                        : Colors.grey.shade600,
+                                        ? Colors.grey.shade700
+                                        : Colors.grey.shade300,
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  color: Theme.of(
-                                    context,
-                                  ).scaffoldBackgroundColor,
-                                  onSelected: (value) {
-                                    if (value == 'circle') {
-                                      _editFriendCircles(uid, displayName);
-                                    }
-                                    if (value == 'remove') {
-                                      _removeFriend(uid, displayName);
-                                    }
-                                  },
-                                  itemBuilder: (context) => [
-                                    PopupMenuItem(
-                                      value: 'circle',
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Symbols.circles,
-                                            color: primaryColor,
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          const Text(
-                                            "Assign to Team",
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'remove',
-                                      child: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.person_remove,
-                                            color: Colors.red,
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          const Text(
-                                            "Remove Squadmate",
-                                            style: TextStyle(
-                                              color: Colors.red,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
