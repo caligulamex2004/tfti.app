@@ -1057,6 +1057,26 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     Add2Calendar.addEvent2Cal(calendarEvent);
   }
 
+  void _showSquadNeedsSheet(BuildContext context, bool canEdit) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor:
+          Colors.transparent, // Transparent so ClipRRect handles the corners!
+      builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: EventRolesPage(eventId: widget.eventId, isHost: canEdit),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -1442,15 +1462,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                             title: "Squad Needs",
                             icon: Icons.check_box_outlined,
                             child: InkWell(
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => EventRolesPage(
-                                    eventId: widget.eventId,
-                                    isHost: canEdit,
-                                  ),
-                                ),
-                              ),
+                              onTap: () =>
+                                  _showSquadNeedsSheet(context, canEdit),
                               borderRadius: BorderRadius.circular(16),
                               child: Container(
                                 padding: const EdgeInsets.all(16),

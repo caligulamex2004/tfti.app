@@ -1073,6 +1073,28 @@ class _EditEventPageState extends State<EditEventPage> {
     );
   }
 
+  void _showSquadNeedsSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: EventRolesPage(
+            eventId: widget.eventId,
+            isHost: true, // Always true since they are editing the event!
+          ),
+        ),
+      ),
+    );
+  }
+
   // --- NEW: TACTILE CHIP ROW UI ---
   Widget _buildChipRow({
     required String label,
@@ -1268,17 +1290,7 @@ class _EditEventPageState extends State<EditEventPage> {
                 circlesField,
                 const SizedBox(height: 16),
                 InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => EventRolesPage(
-                          eventId: widget.eventId,
-                          isHost: true,
-                        ),
-                      ),
-                    );
-                  },
+                  onTap: _showSquadNeedsSheet,
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -1664,15 +1676,7 @@ class _EditEventPageState extends State<EditEventPage> {
       children: [
         Expanded(
           child: InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      EventRolesPage(eventId: widget.eventId, isHost: true),
-                ),
-              );
-            },
+            onTap: _showSquadNeedsSheet,
             borderRadius: BorderRadius.circular(16),
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
