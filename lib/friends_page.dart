@@ -702,6 +702,7 @@ class _FriendsPageState extends State<FriendsPage> {
   Future<void> _editFriendCircles(String friendUid, String friendName) async {
     final user = FirebaseAuth.instance.currentUser;
     final primaryColor = Theme.of(context).colorScheme.primary;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final circlesSnapshot = await FirebaseFirestore.instance
         .collection('users')
@@ -729,63 +730,160 @@ class _FriendsPageState extends State<FriendsPage> {
         .collection('friends')
         .doc(friendUid)
         .get();
+
     List<String> selectedCircleIds = List<String>.from(
       friendDoc.data()?['circles'] ?? [],
     );
 
     if (!mounted) return;
 
-    await showDialog(
+    // Upgraded from AlertDialog to a sleek Bottom Sheet!
+    showModalBottomSheet(
       context: context,
-      builder: (context) {
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
         return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: Text("Assign $friendName to..."),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: ListView(
-                  shrinkWrap: true,
-                  children: circles.map((circle) {
-                    final isChecked = selectedCircleIds.contains(circle.id);
-                    return CheckboxListTile(
-                      activeColor: primaryColor,
-                      title: Text(circle['name']),
-                      value: isChecked,
-                      onChanged: (bool? value) {
-                        setStateDialog(() {
-                          if (value == true) {
-                            selectedCircleIds.add(circle.id);
-                          } else {
-                            selectedCircleIds.remove(circle.id);
-                          }
-                        });
-                      },
-                    );
-                  }).toList(),
+          builder: (innerContext, setDialogState) {
+            return SafeArea(
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.85,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 10),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.grey.shade700
+                            : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Text(
+                        "Assign $friendName",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 22,
+                          letterSpacing: -0.5,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const Divider(height: 1),
+
+                    // Tactile list items instead of standard checkboxes
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: circles.length,
+                        itemBuilder: (context, index) {
+                          final circle = circles[index];
+                          final isChecked = selectedCircleIds.contains(
+                            circle.id,
+                          );
+
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 8,
+                            ),
+                            leading: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: primaryColor.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Symbols.circles, color: primaryColor),
+                            ),
+                            title: Text(
+                              circle['name'],
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            trailing: isChecked
+                                ? Icon(
+                                    Icons.check_circle,
+                                    color: primaryColor,
+                                    size: 28,
+                                  )
+                                : Icon(
+                                    Icons.circle_outlined,
+                                    color: isDark
+                                        ? Colors.grey.shade600
+                                        : Colors.grey.shade400,
+                                    size: 28,
+                                  ),
+                            onTap: () {
+                              setDialogState(() {
+                                if (isChecked) {
+                                  selectedCircleIds.remove(circle.id);
+                                } else {
+                                  selectedCircleIds.add(circle.id);
+                                }
+                              });
+                            },
+                          );
+                        },
+                      ),
+                    ),
+
+                    // Prominent, fixed Action Button
+                    Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 55,
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            Navigator.pop(innerContext);
+                            await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(user.uid)
+                                .collection('friends')
+                                .doc(friendUid)
+                                .update({'circles': selectedCircleIds});
+
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("$friendName's teams updated!"),
+                                ),
+                              );
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: themeProvider.onPrimaryColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: const Text(
+                            "Save Changes",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              actions: [
-                ElevatedButton(
-                  onPressed: () async {
-                    await FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(user.uid)
-                        .collection('friends')
-                        .doc(friendUid)
-                        .update({'circles': selectedCircleIds});
-
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: themeProvider.onPrimaryColor,
-                  ),
-                  child: const Text("Save"),
-                ),
-              ],
             );
           },
         );

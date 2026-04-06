@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -961,21 +962,49 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
     return profiles;
   }
 
-  Future<void> _removeMember(String friendUid) async {
-    final user = FirebaseAuth.instance.currentUser;
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user!.uid)
-        .collection('friends')
-        .doc(friendUid)
-        .update({
-          'circles': FieldValue.arrayRemove([widget.circleId]),
-        });
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Removed from Team!")));
+  // Upgraded to Future<bool> and added a premium confirmation dialog
+  Future<bool> _removeMember(String friendUid, String friendName) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Remove from Team?"),
+        content: Text("Remove $friendName from ${widget.circleName}?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: isDark ? Colors.redAccent : Colors.red,
+            ),
+            child: const Text("Remove"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final user = FirebaseAuth.instance.currentUser;
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .collection('friends')
+          .doc(friendUid)
+          .update({
+            'circles': FieldValue.arrayRemove([widget.circleId]),
+          });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("$friendName removed from team!")),
+        );
+      }
+      return true; // Tells the swipe to dissolve the card
     }
+    return false; // Tells the swipe to snap back
   }
 
   Future<void> _showAddMembersBottomSheet() async {
@@ -1416,7 +1445,7 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
 
           final friendDocs = snapshot.data!.docs;
 
-          // 👇 FIX: Lifted FutureBuilder to wrap the whole ScrollView
+          // Lifted FutureBuilder to wrap the whole ScrollView
           return FutureBuilder<List<Map<String, dynamic>>>(
             future: _fetchAndSortMembers(friendDocs),
             builder: (context, profileSnap) {
@@ -1588,6 +1617,7 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate((context, index) {
                           final profile = profiles[index];
+                          final String uid = profile['uid'];
                           final displayName =
                               profile['displayName'] ?? "Unknown";
                           final String username = profile['username'] ?? "";
@@ -1600,181 +1630,153 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                           }
 
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 12.0),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).cardColor,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: isDark
-                                      ? Colors.grey.shade800
-                                      : Colors.grey.shade200,
-                                  width: 1,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical:
+                                  8, // Slightly more vertical breathing room
+                            ),
+                            child: Dismissible(
+                              key: Key(uid),
+                              // Only allow swiping left to delete for Team Members
+                              direction: DismissDirection.endToStart,
+                              background: Container(
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.only(right: 24.0),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withValues(alpha: 0.8),
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
-                                boxShadow: [
-                                  if (!isDark)
-                                    BoxShadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.03,
-                                      ),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                ],
+                                child: const Icon(
+                                  Icons.person_remove,
+                                  color: Colors.white,
+                                  size: 32,
+                                ),
                               ),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(16),
-                                onTap: () => _showFriendProfileBottomSheet(
-                                  context,
-                                  profile,
-                                  isDark,
-                                  primaryColor,
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 12,
+                              confirmDismiss: (direction) async {
+                                HapticFeedback.mediumImpact();
+                                return await _removeMember(uid, displayName);
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).cardColor,
+                                  borderRadius: BorderRadius.circular(
+                                    20,
+                                  ), // Rounder, premium corners
+                                  border: Border.all(
+                                    color: isDark
+                                        ? Colors.grey.shade800
+                                        : Colors.grey.shade200,
+                                    width: 1,
                                   ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: avatarColor.withValues(
-                                                alpha: 0.4,
-                                              ),
-                                              blurRadius: 10,
-                                              spreadRadius: 2,
-                                            ),
-                                          ],
+                                  boxShadow: [
+                                    if (!isDark)
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.04,
                                         ),
-                                        child: CircleAvatar(
-                                          backgroundColor: avatarColor,
-                                          radius: 24,
-                                          backgroundImage: avatarUrl != null
-                                              ? CachedNetworkImageProvider(
-                                                  avatarUrl,
-                                                )
-                                              : null,
-                                          child: avatarUrl == null
-                                              ? Text(
-                                                  displayName.isNotEmpty
-                                                      ? displayName[0]
-                                                            .toUpperCase()
-                                                      : "?",
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 18,
-                                                  ),
-                                                )
-                                              : null,
-                                        ),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
                                       ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              displayName,
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                                color: isDark
-                                                    ? Colors.white
-                                                    : Colors.black87,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            if (username.isNotEmpty ||
-                                                statusText.isNotEmpty)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                  top: 4.0,
+                                  ],
+                                ),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(20),
+                                  onTap: () => _showFriendProfileBottomSheet(
+                                    context,
+                                    profile,
+                                    isDark,
+                                    primaryColor,
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical:
+                                          16, // Taller, more luxurious padding
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: avatarColor.withValues(
+                                                  alpha: 0.4,
                                                 ),
-                                                child: Row(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.center,
-                                                  children: [
-                                                    if (username
-                                                        .isNotEmpty) ...[
-                                                      Flexible(
-                                                        child: Text(
-                                                          "@$username",
-                                                          style: TextStyle(
-                                                            fontSize: 13,
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                            color: isDark
-                                                                ? Colors
-                                                                      .grey
-                                                                      .shade400
-                                                                : Colors
-                                                                      .grey
-                                                                      .shade600,
-                                                          ),
-                                                          maxLines: 1,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
+                                                blurRadius: 12,
+                                                spreadRadius: 2,
+                                              ),
+                                            ],
+                                          ),
+                                          child: CircleAvatar(
+                                            backgroundColor: avatarColor,
+                                            radius:
+                                                26, // Slightly larger avatar
+                                            backgroundImage: avatarUrl != null
+                                                ? CachedNetworkImageProvider(
+                                                    avatarUrl,
+                                                  )
+                                                : null,
+                                            child: avatarUrl == null
+                                                ? Text(
+                                                    displayName.isNotEmpty
+                                                        ? displayName[0]
+                                                              .toUpperCase()
+                                                        : "?",
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 20,
+                                                    ),
+                                                  )
+                                                : null,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                displayName,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight
+                                                      .w900, // Bold headers
+                                                  fontSize: 17,
+                                                  letterSpacing: -0.3,
+                                                  color: isDark
+                                                      ? Colors.white
+                                                      : Colors.black87,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              if (username.isNotEmpty ||
+                                                  statusText.isNotEmpty)
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        top: 4.0,
                                                       ),
-                                                      if (statusText.isNotEmpty)
-                                                        Padding(
-                                                          padding:
-                                                              const EdgeInsets.symmetric(
-                                                                horizontal: 6.0,
-                                                              ),
+                                                  child: Row(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .center,
+                                                    children: [
+                                                      if (username
+                                                          .isNotEmpty) ...[
+                                                        Flexible(
                                                           child: Text(
-                                                            "•",
+                                                            "@$username",
                                                             style: TextStyle(
-                                                              color: isDark
-                                                                  ? Colors
-                                                                        .grey
-                                                                        .shade600
-                                                                  : Colors
-                                                                        .grey
-                                                                        .shade400,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                    ],
-                                                    if (statusText.isNotEmpty)
-                                                      Flexible(
-                                                        child: Container(
-                                                          padding:
-                                                              const EdgeInsets.symmetric(
-                                                                horizontal: 6,
-                                                                vertical: 2,
-                                                              ),
-                                                          decoration: BoxDecoration(
-                                                            color: Theme.of(context)
-                                                                .colorScheme
-                                                                .secondaryContainer,
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  8,
-                                                                ),
-                                                            border: Border.all(
-                                                              color: primaryColor
-                                                                  .withValues(
-                                                                    alpha: 0.3,
-                                                                  ),
-                                                            ),
-                                                          ),
-                                                          child: Text(
-                                                            statusText,
-                                                            style: TextStyle(
-                                                              fontSize: 10,
+                                                              fontSize: 13,
                                                               fontWeight:
                                                                   FontWeight
                                                                       .bold,
                                                               color:
-                                                                  primaryColor,
+                                                                  primaryColor, // Pops the username
                                                             ),
                                                             maxLines: 1,
                                                             overflow:
@@ -1782,24 +1784,84 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                                                     .ellipsis,
                                                           ),
                                                         ),
-                                                      ),
-                                                  ],
+                                                        if (statusText
+                                                            .isNotEmpty)
+                                                          Padding(
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  horizontal:
+                                                                      6.0,
+                                                                ),
+                                                            child: Text(
+                                                              "•",
+                                                              style: TextStyle(
+                                                                color: isDark
+                                                                    ? Colors
+                                                                          .grey
+                                                                          .shade600
+                                                                    : Colors
+                                                                          .grey
+                                                                          .shade400,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                      ],
+                                                      if (statusText.isNotEmpty)
+                                                        Flexible(
+                                                          child: Container(
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  horizontal: 8,
+                                                                  vertical: 2,
+                                                                ),
+                                                            decoration: BoxDecoration(
+                                                              color: Theme.of(context)
+                                                                  .colorScheme
+                                                                  .secondaryContainer,
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    8,
+                                                                  ),
+                                                              border: Border.all(
+                                                                color: primaryColor
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.3,
+                                                                    ),
+                                                              ),
+                                                            ),
+                                                            child: Text(
+                                                              statusText,
+                                                              style: TextStyle(
+                                                                fontSize: 11,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                color:
+                                                                    primaryColor,
+                                                              ),
+                                                              maxLines: 1,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  ),
                                                 ),
-                                              ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                      IconButton(
-                                        icon: Icon(
-                                          Icons.remove_circle_outline,
+                                        // 👇 Replaced the IconButton with a subtle chevron!
+                                        Icon(
+                                          Icons.chevron_right,
                                           color: isDark
-                                              ? Colors.redAccent
-                                              : Colors.red,
+                                              ? Colors.grey.shade700
+                                              : Colors.grey.shade300,
                                         ),
-                                        onPressed: () =>
-                                            _removeMember(profile['uid']),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
