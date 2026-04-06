@@ -1876,6 +1876,10 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                           }
                         }
 
+                        final bool hasBanner =
+                            data['bannerUrl'] != null &&
+                            data['bannerUrl'].toString().isNotEmpty;
+
                         return Scaffold(
                           backgroundColor: Theme.of(
                             context,
@@ -1916,9 +1920,12 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                             controller: _scrollController,
                             slivers: [
                               SliverAppBar(
-                                expandedHeight: isLandscape
-                                    ? 220.0
-                                    : MediaQuery.of(context).size.height * 0.55,
+                                expandedHeight: hasBanner
+                                    ? (isLandscape
+                                          ? 220.0
+                                          : MediaQuery.of(context).size.height *
+                                                0.55)
+                                    : (isLandscape ? 180.0 : 240.0),
                                 pinned: true,
                                 stretch: true,
                                 backgroundColor: Theme.of(

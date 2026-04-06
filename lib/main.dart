@@ -742,8 +742,16 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                 status = 'declined';
               }
 
+              // Dynamically calculate the event's true lifespan!
+              final int keepAliveDays = eventData['keepAliveDays'] ?? 0;
+              final int durationMinutes = keepAliveDays > 0
+                  ? (keepAliveDays * 24 * 60)
+                  : 240;
+
               final Duration diff = eventTime.difference(now);
-              final bool isPast = diff.inMinutes < -240;
+
+              // Use the dynamic duration instead of the hardcoded -240
+              final bool isPast = diff.inMinutes < -durationMinutes;
 
               final eventItem = {
                 'id': eventId,
@@ -751,7 +759,8 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                 'inviteData': inviteData,
                 'isPast': isPast,
                 'isStartingSoon': diff.inMinutes <= 60 && diff.inMinutes > 0,
-                'isHappeningNow': diff.inMinutes <= 0 && diff.inMinutes >= -240,
+                'isHappeningNow':
+                    diff.inMinutes <= 0 && diff.inMinutes >= -durationMinutes,
                 'status': status,
                 'time': eventTime,
               };
