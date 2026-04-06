@@ -1975,43 +1975,36 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                   background: Stack(
                                     fit: StackFit.expand,
                                     children: [
-                                      // 1. Base Gradient (Fallback if no image)
+                                      // 1. Base Gradient (Fallback if no image - identical to Teams page!)
                                       Container(
                                         decoration: BoxDecoration(
                                           gradient: themeProvider.appGradient,
                                         ),
                                       ),
 
-                                      // 2. Custom Uploaded Banner Image
-                                      if (data['bannerUrl'] != null &&
-                                          data['bannerUrl']
-                                              .toString()
-                                              .isNotEmpty)
+                                      // 2. Custom Uploaded Banner & Simple 2-Color Overlay
+                                      if (hasBanner) ...[
                                         CachedNetworkImage(
                                           imageUrl: data['bannerUrl'],
                                           fit: BoxFit.cover,
                                         ),
 
-                                      // 3. Smooth Fade Overlay (Ensures text is always readable!)
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            begin: Alignment.topCenter,
-                                            end: Alignment.bottomCenter,
-                                            colors: [
-                                              Colors.transparent,
-                                              Colors.transparent,
-                                              Colors.black.withValues(
-                                                alpha: 0.6,
-                                              ),
-                                              Theme.of(
-                                                context,
-                                              ).scaffoldBackgroundColor, // Fades seamlessly into the page!
-                                            ],
-                                            stops: const [0.0, 0.4, 0.8, 1.0],
+                                        // 3. Text Protection (Only applied if there's a photo!)
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
+                                              colors: [
+                                                Colors.transparent,
+                                                Colors.black.withValues(
+                                                  alpha: 0.8,
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                         ),
-                                      ),
+                                      ],
 
                                       // 4. The Content (Title, Host, Vibe Check Pill)
                                       SafeArea(
