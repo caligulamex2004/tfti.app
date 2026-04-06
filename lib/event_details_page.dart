@@ -1137,7 +1137,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                     return LayoutBuilder(
                       builder: (context, constraints) {
                         final bool useTwoColumns =
-                            isLandscape || constraints.maxWidth > 500;
+                            isLandscape || constraints.maxWidth > 600;
                         final Color appBarIconColor = isDark
                             ? Colors.white
                             : (_isAppBarCollapsed
