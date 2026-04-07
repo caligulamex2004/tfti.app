@@ -1213,9 +1213,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
-                                  decoration: isClaimed
-                                      ? TextDecoration.lineThrough
-                                      : null,
+                                  decoration: null,
                                   color: isClaimed
                                       ? (isDark
                                             ? Colors.grey.shade500
