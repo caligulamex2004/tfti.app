@@ -1740,8 +1740,22 @@ class _EditEventPageState extends State<EditEventPage> {
           .snapshots(),
       builder: (context, snapshot) {
         final circles = snapshot.hasData
-            ? snapshot.data!.docs
+            ? snapshot.data!.docs.toList()
             : <DocumentSnapshot>[];
+
+        circles.sort((a, b) {
+          final nameA =
+              (a.data() as Map<String, dynamic>)['name']
+                  ?.toString()
+                  .toLowerCase() ??
+              '';
+          final nameB =
+              (b.data() as Map<String, dynamic>)['name']
+                  ?.toString()
+                  .toLowerCase() ??
+              '';
+          return nameA.compareTo(nameB);
+        });
 
         String targetPreviewText = "Select Teams...";
         if (_inviteAll) {
@@ -2377,8 +2391,22 @@ class _EditEventPageState extends State<EditEventPage> {
                   .snapshots(),
               builder: (context, snapshot) {
                 final circles = snapshot.hasData
-                    ? snapshot.data!.docs
+                    ? snapshot.data!.docs.toList()
                     : <DocumentSnapshot>[];
+
+                circles.sort((a, b) {
+                  final nameA =
+                      (a.data() as Map<String, dynamic>)['name']
+                          ?.toString()
+                          .toLowerCase() ??
+                      '';
+                  final nameB =
+                      (b.data() as Map<String, dynamic>)['name']
+                          ?.toString()
+                          .toLowerCase() ??
+                      '';
+                  return nameA.compareTo(nameB);
+                });
 
                 String targetPreviewText = "Select Squads...";
                 if (_inviteAll) {
