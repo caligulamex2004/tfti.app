@@ -380,7 +380,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
               Flexible(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(20),
-                  child: Text(
+                  child: SelectableText(
                     details,
                     style: const TextStyle(fontSize: 16, height: 1.5),
                   ),
