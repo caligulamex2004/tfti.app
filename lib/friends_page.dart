@@ -662,235 +662,6 @@ class _FriendsPageState extends State<FriendsPage> {
     }
   }
 
-  Future<bool> _removeFriend(String friendUid, String friendName) async {
-    final myUid = FirebaseAuth.instance.currentUser!.uid;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Remove Squadmate?"),
-        content: Text("Remove $friendName from your squad?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: isDark ? Colors.redAccent : Colors.red,
-            ),
-            child: const Text("Remove"),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(myUid)
-          .collection('friends')
-          .doc(friendUid)
-          .delete();
-      return true; // Tells the swipe to dissolve the card
-    }
-    return false; // Tells the swipe to snap back
-  }
-
-  Future<void> _editFriendCircles(String friendUid, String friendName) async {
-    final user = FirebaseAuth.instance.currentUser;
-    final primaryColor = Theme.of(context).colorScheme.primary;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final circlesSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user!.uid)
-        .collection('circles')
-        .get();
-
-    if (circlesSnapshot.docs.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Create some Squad Teams first!")),
-        );
-      }
-      return;
-    }
-
-    final circles = circlesSnapshot.docs.toList();
-    circles.sort(
-      (a, b) => (a['name'] as String).compareTo(b['name'] as String),
-    );
-
-    final friendDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('friends')
-        .doc(friendUid)
-        .get();
-
-    List<String> selectedCircleIds = List<String>.from(
-      friendDoc.data()?['circles'] ?? [],
-    );
-
-    if (!mounted) return;
-
-    // Upgraded from AlertDialog to a sleek Bottom Sheet!
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (innerContext, setDialogState) {
-            return SafeArea(
-              child: Container(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.85,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 10),
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.grey.shade700
-                            : Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Text(
-                        "Assign $friendName",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 22,
-                          letterSpacing: -0.5,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const Divider(height: 1),
-
-                    // Tactile list items instead of standard checkboxes
-                    Flexible(
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: circles.length,
-                        itemBuilder: (context, index) {
-                          final circle = circles[index];
-                          final isChecked = selectedCircleIds.contains(
-                            circle.id,
-                          );
-
-                          return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 8,
-                            ),
-                            leading: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: primaryColor.withValues(alpha: 0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(Symbols.circles, color: primaryColor),
-                            ),
-                            title: Text(
-                              circle['name'],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            trailing: isChecked
-                                ? Icon(
-                                    Icons.check_circle,
-                                    color: primaryColor,
-                                    size: 28,
-                                  )
-                                : Icon(
-                                    Icons.circle_outlined,
-                                    color: isDark
-                                        ? Colors.grey.shade600
-                                        : Colors.grey.shade400,
-                                    size: 28,
-                                  ),
-                            onTap: () {
-                              setDialogState(() {
-                                if (isChecked) {
-                                  selectedCircleIds.remove(circle.id);
-                                } else {
-                                  selectedCircleIds.add(circle.id);
-                                }
-                              });
-                            },
-                          );
-                        },
-                      ),
-                    ),
-
-                    // Prominent, fixed Action Button
-                    Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 55,
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            Navigator.pop(innerContext);
-                            await FirebaseFirestore.instance
-                                .collection('users')
-                                .doc(user.uid)
-                                .collection('friends')
-                                .doc(friendUid)
-                                .update({'circles': selectedCircleIds});
-
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text("$friendName's teams updated!"),
-                                ),
-                              );
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
-                            foregroundColor: themeProvider.onPrimaryColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: const Text(
-                            "Save Changes",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   Future<List<Map<String, dynamic>>> _fetchAndSortFriends(
     List<DocumentSnapshot> docs,
   ) async {
@@ -905,6 +676,8 @@ class _FriendsPageState extends State<FriendsPage> {
         if (userSnap.exists) {
           final data = userSnap.data() as Map<String, dynamic>;
           data['uid'] = uid;
+          final friendDocData = doc.data() as Map<String, dynamic>? ?? {};
+          data['isGoated'] = friendDocData['isGoated'] ?? false;
           list.add(data);
         }
       }),
@@ -1114,13 +887,16 @@ class _FriendsPageState extends State<FriendsPage> {
     );
   }
 
-  // ... (All Bottom sheet / Friend List builder logic remains exactly the same) ...
   void _showFriendProfileBottomSheet(
     BuildContext context,
     Map<String, dynamic> userData,
     bool isDark,
     Color primaryColor,
+    String myUid,
+    bool isBlocked,
   ) {
+    final bool isGoated = userData['isGoated'] ?? false;
+    final String friendUid = userData['uid'];
     final displayName = userData['displayName'] ?? "No Name";
     final username = userData['username'] ?? "";
     final rawPhone = userData['phoneNumber'] ?? "";
@@ -1283,6 +1059,93 @@ class _FriendsPageState extends State<FriendsPage> {
                           ],
                         ),
                       ),
+                    // Goated & Block Actions
+                    const SizedBox(height: 32),
+                    Divider(
+                      height: 1,
+                      color: isDark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade200,
+                    ),
+
+                    ListTile(
+                      leading: Icon(
+                        isGoated ? Symbols.star : Symbols.star,
+                        fill: isGoated ? 1.0 : 0.0,
+                        color: Colors.amber,
+                        size: 28,
+                      ),
+                      title: Text(
+                        isGoated ? "Remove from Goated" : "Mark as Goated",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: const Text(
+                        "Show their events first on your feed",
+                      ),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        HapticFeedback.mediumImpact();
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(myUid)
+                            .collection('friends')
+                            .doc(friendUid)
+                            .set({
+                              'isGoated': !isGoated,
+                            }, SetOptions(merge: true));
+                      },
+                    ),
+
+                    Divider(
+                      height: 1,
+                      color: isDark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade200,
+                    ),
+
+                    ListTile(
+                      leading: Icon(
+                        isBlocked ? Icons.notifications_active : Icons.block,
+                        color: isBlocked ? Colors.green : Colors.red,
+                        size: 28,
+                      ),
+                      title: Text(
+                        isBlocked ? "Unblock User" : "Block User (Shadow Ban)",
+                        style: TextStyle(
+                          color: isBlocked ? Colors.green : Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(
+                        isBlocked
+                            ? "You will see their invites again"
+                            : "Silently hide their invites & chats",
+                      ),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        HapticFeedback.heavyImpact();
+                        if (isBlocked) {
+                          await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(myUid)
+                              .update({
+                                'blockedUids': FieldValue.arrayRemove([
+                                  friendUid,
+                                ]),
+                              });
+                        } else {
+                          await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(myUid)
+                              .update({
+                                'blockedUids': FieldValue.arrayUnion([
+                                  friendUid,
+                                ]),
+                              });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
@@ -1298,329 +1161,372 @@ class _FriendsPageState extends State<FriendsPage> {
     Color primaryColor,
     String myUid,
   ) {
-    return StreamBuilder<QuerySnapshot>(
+    return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
           .doc(myUid)
-          .collection('friends')
           .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+      builder: (context, myUserSnap) {
+        List<String> blockedUids = [];
+        if (myUserSnap.hasData && myUserSnap.data!.exists) {
+          final data = myUserSnap.data!.data() as Map<String, dynamic>?;
+          if (data != null && data['blockedUids'] != null) {
+            blockedUids = List<String>.from(data['blockedUids']);
+          }
         }
 
-        return FutureBuilder<List<Map<String, dynamic>>>(
-          future: _fetchAndSortFriends(snapshot.data!.docs),
-          builder: (context, friendsSnap) {
-            if (!friendsSnap.hasData) {
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(myUid)
+              .collection('friends')
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
-            final friends = friendsSnap.data!;
 
-            if (friends.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.person_add_alt_1,
-                      size: 60,
-                      color: isDark
-                          ? Colors.grey.shade700
-                          : Colors.grey.shade300,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      "Your squad is empty.",
-                      style: TextStyle(
-                        color: isDark
-                            ? Colors.grey.shade400
-                            : Colors.grey.shade600,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "Add friends by username or phone number!",
-                      style: TextStyle(
-                        color: isDark ? Colors.grey.shade500 : Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
+            return FutureBuilder<List<Map<String, dynamic>>>(
+              future: _fetchAndSortFriends(snapshot.data!.docs),
+              builder: (context, friendsSnap) {
+                if (!friendsSnap.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-            return ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              itemCount: friends.length,
-              itemBuilder: (context, index) {
-                final friendInitData = friends[index];
-                final uid = friendInitData['uid'];
-
-                return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                  stream: FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(uid)
-                      .snapshots(),
-                  builder: (context, userSnap) {
-                    Map<String, dynamic> userData = friendInitData;
-
-                    if (userSnap.hasData && userSnap.data!.exists) {
-                      userData = userSnap.data!.data() ?? {};
-                    }
-
-                    final displayName = userData['displayName'] ?? "No Name";
-                    final username = userData['username'] ?? "";
-                    final String statusText = userData['statusText'] ?? "";
-                    final String? avatarUrl = userData['avatarUrl'];
-
-                    Color avatarColor = Colors.blue.shade100;
-                    if (userData['avatarColor'] is int) {
-                      avatarColor = Color(userData['avatarColor']);
-                    }
-
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8, // Slightly more vertical breathing room
-                      ),
-                      child: Dismissible(
-                        key: Key(uid),
-                        direction: DismissDirection.horizontal,
-                        background: Container(
-                          alignment: Alignment.centerLeft,
-                          padding: const EdgeInsets.only(left: 24.0),
-                          decoration: BoxDecoration(
-                            color: primaryColor.withValues(alpha: 0.8),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Icon(
-                            Symbols.circles,
-                            color: Colors.white,
-                            size: 32,
+                final List<Map<String, dynamic>> friends = friendsSnap.data!;
+                if (friends.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.person_add_alt_1,
+                          size: 60,
+                          color: isDark
+                              ? Colors.grey.shade700
+                              : Colors.grey.shade300,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "Your squad is empty.",
+                          style: TextStyle(
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        secondaryBackground: Container(
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 24.0),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withValues(alpha: 0.8),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Icon(
-                            Icons.person_remove,
-                            color: Colors.white,
-                            size: 32,
+                        const SizedBox(height: 8),
+                        Text(
+                          "Add friends by username or phone number!",
+                          style: TextStyle(
+                            color: isDark
+                                ? Colors.grey.shade500
+                                : Colors.black87,
                           ),
                         ),
-                        confirmDismiss: (direction) async {
-                          HapticFeedback.mediumImpact();
-                          if (direction == DismissDirection.startToEnd) {
-                            // Swipe Right -> Assign to Team
-                            _editFriendCircles(uid, displayName);
-                            return false; // Always snap back after opening the dialog
-                          } else if (direction == DismissDirection.endToStart) {
-                            // Swipe Left -> Delete
-                            return await _removeFriend(uid, displayName);
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  itemCount: friends.length,
+                  itemBuilder: (context, index) {
+                    final Map<String, dynamic> friendInitData = friends[index];
+                    final String uid = friendInitData['uid'] as String;
+
+                    final bool isGoated = friendInitData['isGoated'] == true;
+                    final bool isBlocked = blockedUids.contains(uid);
+
+                    return StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(uid)
+                          .snapshots(),
+                      builder: (context, userSnap) {
+                        Map<String, dynamic> userData = Map.from(
+                          friendInitData,
+                        );
+                        if (userSnap.hasData && userSnap.data!.exists) {
+                          final snapData =
+                              userSnap.data!.data() as Map<String, dynamic>?;
+                          if (snapData != null) {
+                            userData.addAll(snapData);
                           }
-                          return false;
-                        },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(
-                              20,
-                            ), // 👈 Rounder, more premium corners
-                            border: Border.all(
-                              color: isDark
-                                  ? Colors.grey.shade800
-                                  : Colors.grey.shade200,
-                              width: 1,
-                            ),
-                            boxShadow: [
-                              if (!isDark)
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.04),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                            ],
+                        }
+
+                        // Re-inject the states into the payload so the bottom sheet has them
+                        userData['isGoated'] = isGoated;
+                        userData['uid'] = uid;
+
+                        final String displayName =
+                            userData['displayName'] ?? "No Name";
+                        final String username = userData['username'] ?? "";
+                        final String statusText = userData['statusText'] ?? "";
+                        final String? avatarUrl = userData['avatarUrl'];
+                        final Color avatarColor = userData['avatarColor'] is int
+                            ? Color(userData['avatarColor'])
+                            : Colors.blue.shade100;
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
                           ),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(20),
-                            onTap: () => _showFriendProfileBottomSheet(
-                              context,
-                              userData,
-                              isDark,
-                              primaryColor,
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical:
-                                    16, // 👈 Taller, more luxurious padding
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isDark
+                                    ? Colors.grey.shade800
+                                    : Colors.grey.shade200,
+                                width: 1,
                               ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: avatarColor.withValues(
-                                            alpha: 0.4,
-                                          ),
-                                          blurRadius: 12,
-                                          spreadRadius: 2,
-                                        ),
-                                      ],
-                                    ),
-                                    child: CircleAvatar(
-                                      radius: 26, // 👈 Slightly larger avatar
-                                      backgroundColor: avatarColor,
-                                      backgroundImage: avatarUrl != null
-                                          ? CachedNetworkImageProvider(
-                                              avatarUrl,
-                                            )
-                                          : null,
-                                      child: avatarUrl == null
-                                          ? Text(
-                                              displayName.isNotEmpty
-                                                  ? displayName[0].toUpperCase()
-                                                  : "?",
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 20,
-                                              ),
-                                            )
-                                          : null,
-                                    ),
+                              boxShadow: [
+                                if (!isDark)
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.04),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
                                   ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          displayName,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight
-                                                .w900, // 👈 Bold like the Home Feed headers
-                                            fontSize: 17,
-                                            letterSpacing: -0.3,
-                                            color: isDark
-                                                ? Colors.white
-                                                : Colors.black87,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        if (username.isNotEmpty ||
-                                            statusText.isNotEmpty)
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              top: 4.0,
+                              ],
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(20),
+                                onTap: () => _showFriendProfileBottomSheet(
+                                  context,
+                                  userData,
+                                  isDark,
+                                  primaryColor,
+                                  myUid,
+                                  isBlocked,
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 16,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: avatarColor.withValues(
+                                                alpha: 0.4,
+                                              ),
+                                              blurRadius: 12,
+                                              spreadRadius: 2,
                                             ),
-                                            child: Row(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.center,
+                                          ],
+                                        ),
+                                        child: CircleAvatar(
+                                          radius: 26,
+                                          backgroundColor: avatarColor,
+                                          backgroundImage: avatarUrl != null
+                                              ? CachedNetworkImageProvider(
+                                                  avatarUrl,
+                                                )
+                                              : null,
+                                          child: avatarUrl == null
+                                              ? Text(
+                                                  displayName.isNotEmpty
+                                                      ? displayName[0]
+                                                            .toUpperCase()
+                                                      : "?",
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 20,
+                                                  ),
+                                                )
+                                              : null,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
                                               children: [
-                                                if (username.isNotEmpty) ...[
-                                                  Flexible(
-                                                    child: Text(
-                                                      "@$username",
-                                                      style: TextStyle(
-                                                        fontSize: 13,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        color:
-                                                            primaryColor, // 👈 Makes the username pop
-                                                      ),
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
+                                                Flexible(
+                                                  child: Text(
+                                                    displayName,
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                      fontSize: 17,
+                                                      letterSpacing: -0.3,
+                                                      color: isBlocked
+                                                          ? Colors.grey
+                                                          : (isDark
+                                                                ? Colors.white
+                                                                : Colors
+                                                                      .black87),
+                                                      decoration: null,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                                if (isGoated && !isBlocked)
+                                                  const Padding(
+                                                    padding: EdgeInsets.only(
+                                                      left: 6.0,
+                                                    ),
+                                                    child: Icon(
+                                                      Symbols.star,
+                                                      fill: 1.0,
+                                                      color: Colors.amber,
+                                                      size: 18,
                                                     ),
                                                   ),
-                                                  if (statusText.isNotEmpty)
-                                                    Padding(
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 6.0,
-                                                          ),
-                                                      child: Text(
-                                                        "•",
-                                                        style: TextStyle(
-                                                          color: isDark
-                                                              ? Colors
-                                                                    .grey
-                                                                    .shade600
-                                                              : Colors
-                                                                    .grey
-                                                                    .shade400,
-                                                        ),
-                                                      ),
+                                                if (isBlocked)
+                                                  const Padding(
+                                                    padding: EdgeInsets.only(
+                                                      left: 6.0,
                                                     ),
-                                                ],
-                                                if (statusText.isNotEmpty)
-                                                  Flexible(
-                                                    child: Container(
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 8,
-                                                            vertical: 2,
-                                                          ),
-                                                      decoration: BoxDecoration(
-                                                        color: Theme.of(context)
-                                                            .colorScheme
-                                                            .secondaryContainer,
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              8,
-                                                            ),
-                                                        border: Border.all(
-                                                          color: primaryColor
-                                                              .withValues(
-                                                                alpha: 0.3,
-                                                              ),
-                                                        ),
-                                                      ),
-                                                      child: Text(
-                                                        statusText,
-                                                        style: TextStyle(
-                                                          fontSize: 11,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          color: primaryColor,
-                                                        ),
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                      ),
+                                                    child: Icon(
+                                                      Icons.block,
+                                                      color: Colors.red,
+                                                      size: 16,
                                                     ),
                                                   ),
                                               ],
                                             ),
-                                          ),
-                                      ],
-                                    ),
+                                            if (username.isNotEmpty ||
+                                                statusText.isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  top: 4.0,
+                                                ),
+                                                child: Row(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.center,
+                                                  children: [
+                                                    if (username.isNotEmpty)
+                                                      Flexible(
+                                                        child: Text(
+                                                          "@$username",
+                                                          style: TextStyle(
+                                                            fontSize: 13,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: isBlocked
+                                                                ? Colors.grey
+                                                                : primaryColor,
+                                                          ),
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                    if (username.isNotEmpty &&
+                                                        statusText.isNotEmpty)
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 6.0,
+                                                            ),
+                                                        child: Text(
+                                                          "•",
+                                                          style: TextStyle(
+                                                            color: isDark
+                                                                ? Colors
+                                                                      .grey
+                                                                      .shade600
+                                                                : Colors
+                                                                      .grey
+                                                                      .shade400,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    if (statusText.isNotEmpty)
+                                                      Flexible(
+                                                        child: Container(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 8,
+                                                                vertical: 2,
+                                                              ),
+                                                          decoration: BoxDecoration(
+                                                            color: isBlocked
+                                                                ? Colors.grey
+                                                                      .withValues(
+                                                                        alpha:
+                                                                            0.1,
+                                                                      )
+                                                                : Theme.of(
+                                                                        context,
+                                                                      )
+                                                                      .colorScheme
+                                                                      .secondaryContainer,
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  8,
+                                                                ),
+                                                            border: Border.all(
+                                                              color: isBlocked
+                                                                  ? Colors.grey
+                                                                        .withValues(
+                                                                          alpha:
+                                                                              0.3,
+                                                                        )
+                                                                  : primaryColor
+                                                                        .withValues(
+                                                                          alpha:
+                                                                              0.3,
+                                                                        ),
+                                                            ),
+                                                          ),
+                                                          child: Text(
+                                                            statusText,
+                                                            style: TextStyle(
+                                                              fontSize: 11,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              color: isBlocked
+                                                                  ? Colors.grey
+                                                                  : primaryColor,
+                                                            ),
+                                                            maxLines: 1,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.chevron_right,
+                                        color: isDark
+                                            ? Colors.grey.shade700
+                                            : Colors.grey.shade300,
+                                      ),
+                                    ],
                                   ),
-                                  // 👈 The PopupMenuButton is completely GONE! Replaced by Swipe-to-Manage.
-                                  Icon(
-                                    Icons.chevron_right,
-                                    color: isDark
-                                        ? Colors.grey.shade700
-                                        : Colors.grey.shade300,
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     );
                   },
                 );

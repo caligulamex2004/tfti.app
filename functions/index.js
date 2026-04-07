@@ -116,16 +116,24 @@ exports.sendInviteNotification = onDocumentCreated("events/{eventId}/invitations
         logger.error(`Failed to update visibleTo: ${e}`);
     }
 
+    const eventDoc = await db.collection("events").doc(eventId).get();
+    const eventData = eventDoc.data() || {};
+    const hostId = eventData.hostId;
+    const eventTitle = eventData.title || "New Event";
+
     const userDoc = await db.collection("users").doc(userId).get();
     const userData = userDoc.data();
     const fcmToken = userData?.fcmToken;
 
+    // --- NEW: SHADOW BAN CHECK ---
+    const blockedUids = userData?.blockedUids || [];
+    if (hostId && blockedUids.includes(hostId)) {
+        logger.log(`Shadow Ban Active: User ${userId} blocked Host ${hostId}. Silencing invite notification.`);
+        return; // Silently kill the notification!
+    }
+
     const wantsInvites = userData?.notificationSettings?.invites ?? true;
-
     if (!fcmToken || !wantsInvites) return;
-
-    const eventDoc = await db.collection("events").doc(eventId).get();
-    const eventTitle = eventDoc.data()?.title || "New Event";
 
     const message = {
         token: fcmToken,
@@ -164,7 +172,7 @@ exports.notifyEventUpdate = onDocumentUpdated("events/{eventId}", async (event) 
     const oldData = event.data.before.data();
     const eventId = event.params.eventId;
     
-    // --- NEW: Detect Vibe Check Conversion ---
+    // --- Detect Vibe Check Conversion ---
     const isVibeCheckConversion = oldData.type === 'vibe_check' && newData.type === 'event';
 
     const oldTime = oldData.time ? oldData.time.toDate().toString() : "";
@@ -189,6 +197,12 @@ exports.notifyEventUpdate = onDocumentUpdated("events/{eventId}", async (event) 
         const userDoc = await db.collection("users").doc(userId).get();
         const userData = userDoc.data();
         
+        // --- NEW: SHADOW BAN CHECK ---
+        const blockedUids = userData?.blockedUids || [];
+        if (blockedUids.includes(newData.hostId)) {
+            continue; // Silently skip notifying this user about the host's updates
+        }
+
         const wantsUpdates = userData?.notificationSettings?.updates ?? true;
         
         if (userData?.fcmToken && wantsUpdates) {
@@ -201,7 +215,7 @@ exports.notifyEventUpdate = onDocumentUpdated("events/{eventId}", async (event) 
     let notifTitle = `Update: ${newData.title}`;
     let bodyText = "Details have changed.";
 
-    // --- NEW: Route the notification text based on what actually happened ---
+    // --- Route the notification text based on what actually happened ---
     if (isVibeCheckConversion) {
         notifTitle = "Vibe Check Locked In! 🔒";
         bodyText = `The squad has spoken. We're doing ${newData.title} at ${newData.location}!`;
@@ -257,7 +271,6 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
     const text = messageData.text;
     const eventId = event.params.eventId;
     
-    // Read the array of UIDs passed directly from Flutter!
     const mentionedUids = messageData.mentionedUids || [];
 
     const eventDoc = await db.collection("events").doc(eventId).get();
@@ -272,12 +285,17 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
         const userId = invite.id;
         const inviteData = invite.data();
         
-        // Don't notify the sender
         if (userId === senderId) continue; 
 
         const userDoc = await db.collection("users").doc(userId).get();
         const userData = userDoc.data();
         if (!userData?.fcmToken) continue;
+
+        // --- NEW: SHADOW BAN CHECK ---
+        const blockedUids = userData?.blockedUids || [];
+        if (blockedUids.includes(senderId)) {
+            continue; // Shadow Ban: Completely ignore this message/mention for this user
+        }
 
         const isMentioned = mentionedUids.includes(userId);
         
@@ -290,10 +308,8 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
 
         // Route the token based on global AND local preferences
         if (isMentioned && wantsMentions) {
-            // Mentions override local chat mutes, as long as global mentions are ON
             mentionedTokens.push(userData.fcmToken);
         } else if (wantsChat && !isChatMuted && !isMentioned) {
-            // Standard chat requires global chat to be ON, and local mute to be OFF
             standardTokens.push(userData.fcmToken);
         }
     }
