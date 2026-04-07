@@ -1070,7 +1070,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        // 👇 Padding ensures the keyboard smoothly pushes the text field up!
+        // Padding ensures the keyboard smoothly pushes the text field up!
         return Padding(
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(ctx).viewInsets.bottom,
@@ -1174,8 +1174,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                             final roleData =
                                 roleDoc.data() as Map<String, dynamic>;
                             final title = roleData['title'] ?? 'Item';
-                            final assigneeId = roleData['assigneeId'];
-                            final assigneeName = roleData['assigneeName'];
+
+                            final assigneeId = roleData['claimedByUid'];
+                            final assigneeName = roleData['claimedByName'];
 
                             final isClaimed = assigneeId != null;
                             final isMe = assigneeId == currentUser.uid;
@@ -1258,8 +1259,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                             userDoc.data()?['displayName'] ??
                                             "Someone";
                                         await roleDoc.reference.update({
-                                          'assigneeId': currentUser.uid,
-                                          'assigneeName': myName,
+                                          'claimedByUid': currentUser.uid,
+                                          'claimedByName': myName,
                                         });
                                       },
                                       style: ElevatedButton.styleFrom(
@@ -1284,8 +1285,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                       onPressed: () async {
                                         HapticFeedback.lightImpact();
                                         await roleDoc.reference.update({
-                                          'assigneeId': FieldValue.delete(),
-                                          'assigneeName': FieldValue.delete(),
+                                          'claimedByUid': FieldValue.delete(),
+                                          'claimedByName': FieldValue.delete(),
                                         });
                                       },
                                       style: OutlinedButton.styleFrom(

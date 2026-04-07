@@ -1413,8 +1413,9 @@ class _EditEventPageState extends State<EditEventPage> {
                             final roleData =
                                 roleDoc.data() as Map<String, dynamic>;
                             final title = roleData['title'] ?? 'Item';
-                            final assigneeId = roleData['assigneeId'];
-                            final assigneeName = roleData['assigneeName'];
+
+                            final assigneeId = roleData['claimedByUid'];
+                            final assigneeName = roleData['claimedByName'];
 
                             final isClaimed = assigneeId != null;
                             final isMe = assigneeId == currentUser.uid;
@@ -1497,8 +1498,8 @@ class _EditEventPageState extends State<EditEventPage> {
                                             userDoc.data()?['displayName'] ??
                                             "Someone";
                                         await roleDoc.reference.update({
-                                          'assigneeId': currentUser.uid,
-                                          'assigneeName': myName,
+                                          'claimedByUid': currentUser.uid,
+                                          'claimedByName': myName,
                                         });
                                       },
                                       style: ElevatedButton.styleFrom(
@@ -1523,8 +1524,8 @@ class _EditEventPageState extends State<EditEventPage> {
                                       onPressed: () async {
                                         HapticFeedback.lightImpact();
                                         await roleDoc.reference.update({
-                                          'assigneeId': FieldValue.delete(),
-                                          'assigneeName': FieldValue.delete(),
+                                          'claimedByUid': FieldValue.delete(),
+                                          'claimedByName': FieldValue.delete(),
                                         });
                                       },
                                       style: OutlinedButton.styleFrom(
