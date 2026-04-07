@@ -270,6 +270,7 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
 
     for (const invite of invitationsSnap.docs) {
         const userId = invite.id;
+        const inviteData = invite.data();
         
         // Don't notify the sender
         if (userId === senderId) continue; 
@@ -279,13 +280,20 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
         if (!userData?.fcmToken) continue;
 
         const isMentioned = mentionedUids.includes(userId);
+        
+        // Global User Preferences
         const wantsChat = userData?.notificationSettings?.chat ?? true;
+        const wantsMentions = userData?.notificationSettings?.mentions ?? true;
+        
+        // Local Event Setting (From the mute button!)
+        const isChatMuted = inviteData?.isMuted ?? false;
 
-        // Route the token based on whether they were tagged
-        if (isMentioned) {
-            // Mentions override generic chat muting because they are direct tags
+        // Route the token based on global AND local preferences
+        if (isMentioned && wantsMentions) {
+            // Mentions override local chat mutes, as long as global mentions are ON
             mentionedTokens.push(userData.fcmToken);
-        } else if (wantsChat) {
+        } else if (wantsChat && !isChatMuted && !isMentioned) {
+            // Standard chat requires global chat to be ON, and local mute to be OFF
             standardTokens.push(userData.fcmToken);
         }
     }

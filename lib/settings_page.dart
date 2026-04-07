@@ -230,6 +230,7 @@ class _SettingsPageState extends State<SettingsPage> {
         bool notifyInvites = true;
         bool notifyUpdates = true;
         bool notifyChat = true;
+        bool notifyMentions = true;
         bool notifyReminderHour = true;
         bool notifyReminderStart = true;
 
@@ -240,6 +241,7 @@ class _SettingsPageState extends State<SettingsPage> {
             notifyInvites = settings['invites'] ?? true;
             notifyUpdates = settings['updates'] ?? true;
             notifyChat = settings['chat'] ?? true;
+            notifyMentions = settings['mentions'] ?? true;
             notifyReminderHour = settings['reminder_hour'] ?? true;
             notifyReminderStart = settings['reminder_start'] ?? true;
           }
@@ -304,6 +306,36 @@ class _SettingsPageState extends State<SettingsPage> {
                 isDark: isDark,
                 primaryColor: primaryColor,
               ),
+
+              // Visually indented sub-category for @Mentions
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: 64.0,
+                ), // Indents to match the text above
+                child: SwitchListTile(
+                  contentPadding: const EdgeInsets.only(right: 20),
+                  activeThumbColor: primaryColor,
+                  title: const Text(
+                    "@Mentions in Chat",
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    "Notify me when someone tags me",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
+                    ),
+                  ),
+                  value: notifyMentions,
+                  onChanged: (val) => _toggleNotification(
+                    'mentions',
+                    val,
+                  ), // Uses your existing clean helper
+                ),
+              ),
+
               const SizedBox(height: 8),
             ],
           ),

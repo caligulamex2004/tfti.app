@@ -1,16 +1,16 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
-import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:any_link_preview/any_link_preview.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'theme_provider.dart';
 
@@ -37,6 +37,7 @@ class _EventChatPageState extends State<EventChatPage> {
   String? _mentionQuery;
   List<Map<String, dynamic>> _eventGuests = [];
   bool _isUploadingImage = false;
+  bool _isMuted = false;
 
   StreamSubscription<QuerySnapshot>? _invitationsSub;
   StreamSubscription<QuerySnapshot>? _messagesSub;
@@ -47,6 +48,7 @@ class _EventChatPageState extends State<EventChatPage> {
     super.initState();
     _markAsRead();
     _loadGuests();
+    _checkMuteStatus();
     _listenToReadReceipts();
     _listenToIncomingMessages();
     _messageController.addListener(_onTextChanged);
@@ -206,6 +208,65 @@ class _EventChatPageState extends State<EventChatPage> {
           }, SetOptions(merge: true));
     } catch (e) {
       debugPrint("Error marking read: $e");
+    }
+  }
+
+  // --- NEW: MUTE CHAT LOGIC ---
+  Future<void> _checkMuteStatus() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.eventId)
+          .collection('invitations')
+          .doc(user.uid)
+          .get();
+      if (doc.exists && mounted) {
+        setState(() {
+          _isMuted = doc.data()?['isMuted'] ?? false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error checking mute status: $e");
+    }
+  }
+
+  Future<void> _toggleMute() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    HapticFeedback.lightImpact();
+    final newValue = !_isMuted;
+
+    // Optimistic UI update so it feels instant
+    setState(() => _isMuted = newValue);
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.eventId)
+          .collection('invitations')
+          .doc(user.uid)
+          .set({'isMuted': newValue}, SetOptions(merge: true));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              newValue
+                  ? "Chat muted. You won't receive notifications."
+                  : "Chat unmuted.",
+            ),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // Revert if it fails
+      setState(() => _isMuted = !newValue);
+      debugPrint("Error toggling mute: $e");
     }
   }
 
@@ -1760,6 +1821,16 @@ class _EventChatPageState extends State<EventChatPage> {
         flexibleSpace: Container(
           decoration: BoxDecoration(gradient: themeProvider.appGradient),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _isMuted ? Icons.notifications_off : Icons.notifications_active,
+              color: _isMuted ? Colors.white70 : Colors.white,
+            ),
+            onPressed: _toggleMute,
+            tooltip: _isMuted ? "Unmute Chat" : "Mute Chat",
+          ),
+        ],
       ),
       body: Column(
         children: [
