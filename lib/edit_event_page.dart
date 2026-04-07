@@ -681,31 +681,96 @@ class _EditEventPageState extends State<EditEventPage> {
   }
 
   Future<void> _deleteEvent() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Hangout?'),
-        content: const Text(
-          'This will permanently delete the hangout, the squad list, and the chat history.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final String? seasonId = widget.eventData['seasonId'];
+    String deleteScope = 'single';
 
-    if (confirm == true) {
-      setState(() => _isLoading = true);
-      try {
-        final firestore = FirebaseFirestore.instance;
+    // 1. Determine Scope
+    if (seasonId != null) {
+      final scope = await showModalBottomSheet<String>(
+        context: context,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (ctx) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Delete Hangout",
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "This hangout is part of a recurring Season. Do you want to cancel just this one, or the entire remaining season?",
+                  style: TextStyle(
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ListTile(
+                  leading: const Icon(Icons.event_busy),
+                  title: const Text(
+                    "Cancel just this hangout",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  onTap: () => Navigator.pop(ctx, 'single'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.auto_delete, color: Colors.red),
+                  title: const Text(
+                    "Cancel this and all future hangouts",
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onTap: () => Navigator.pop(ctx, 'future'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      if (scope == null) return; // User swiped down
+      deleteScope = scope;
+    } else {
+      // Standard confirmation for regular events
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Delete Hangout?'),
+          content: const Text(
+            'This will permanently delete the hangout, the squad list, and the chat history.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+
+    setState(() => _isLoading = true);
+
+    // 2. Execute Deletion
+    try {
+      final firestore = FirebaseFirestore.instance;
+
+      if (deleteScope == 'single') {
         final eventRef = firestore.collection('events').doc(widget.eventId);
 
         final invitations = await eventRef.collection('invitations').get();
@@ -724,34 +789,151 @@ class _EditEventPageState extends State<EditEventPage> {
         }
 
         try {
-          final bannerRef = FirebaseStorage.instance.ref().child(
-            'event_banners/${widget.eventId}/banner.jpg',
-          );
-          await bannerRef.delete();
-        } catch (e) {
-          debugPrint(
-            "Notice: No banner found to delete during event deletion.",
-          );
-        }
+          await FirebaseStorage.instance
+              .ref()
+              .child('event_banners/${widget.eventId}/banner.jpg')
+              .delete();
+        } catch (_) {}
 
         await eventRef.delete();
+      } else if (deleteScope == 'future' && seasonId != null) {
+        // --- FIX: Deep Cascading Batch Delete ---
+        final currentEventTime = widget.eventData['time'] as Timestamp;
+        final futureEvents = await firestore
+            .collection('events')
+            .where('seasonId', isEqualTo: seasonId)
+            .where('time', isGreaterThanOrEqualTo: currentEventTime)
+            .get();
 
-        if (mounted) {
-          Navigator.of(context).popUntil((route) => route.isFirst);
+        WriteBatch batch = firestore.batch();
+        int opCount = 0;
+
+        // Helper to commit batches so we don't crash Firebase's 500 limit
+        Future<void> commitIfNeeded() async {
+          if (opCount > 450) {
+            await batch.commit();
+            batch = firestore.batch();
+            opCount = 0;
+          }
         }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error: $e')));
-          setState(() => _isLoading = false);
+
+        for (var doc in futureEvents.docs) {
+          final eventRef = doc.reference;
+
+          // 1. Delete all invitations for this specific event
+          final invites = await eventRef.collection('invitations').get();
+          for (var inv in invites.docs) {
+            batch.delete(inv.reference);
+            opCount++;
+            await commitIfNeeded();
+          }
+
+          // 2. Delete all messages for this specific event
+          final msgs = await eventRef.collection('messages').get();
+          for (var msg in msgs.docs) {
+            batch.delete(msg.reference);
+            opCount++;
+            await commitIfNeeded();
+          }
+
+          // 3. Delete all squad needs/roles for this specific event
+          final roles = await eventRef.collection('roles').get();
+          for (var role in roles.docs) {
+            batch.delete(role.reference);
+            opCount++;
+            await commitIfNeeded();
+          }
+
+          // 4. Finally, delete the event document itself
+          batch.delete(eventRef);
+          opCount++;
+          await commitIfNeeded();
         }
+
+        if (opCount > 0) await batch.commit();
+
+        // Also delete the Parent Season document so it doesn't linger
+        await firestore.collection('seasons').doc(seasonId).delete();
+
+        // Also delete the shared Season banner image!
+        try {
+          await FirebaseStorage.instance
+              .ref()
+              .child('event_banners/$seasonId/banner.jpg')
+              .delete();
+        } catch (_) {}
+      }
+
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        setState(() => _isLoading = false);
       }
     }
   }
 
   Future<void> _updateEvent() async {
     if (_isMainHost && !(_formKey.currentState?.validate() ?? false)) return;
+
+    final String? seasonId = widget.eventData['seasonId'];
+    String updateScope = 'single';
+
+    // 1. Intercept with Scope Prompt if it's a Season
+    if (_isMainHost && seasonId != null) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      final scope = await showModalBottomSheet<String>(
+        context: context,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (ctx) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Update Season",
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Do you want to apply these changes to just this hangout, or to this and all future hangouts in the Season?",
+                  style: TextStyle(
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ListTile(
+                  leading: const Icon(Icons.event),
+                  title: const Text(
+                    "This hangout only",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  onTap: () => Navigator.pop(ctx, 'single'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.update),
+                  title: const Text(
+                    "This and all future hangouts",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  onTap: () => Navigator.pop(ctx, 'future'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      if (scope == null) return;
+      updateScope = scope;
+    }
 
     setState(() => _isLoading = true);
     final user = FirebaseAuth.instance.currentUser;
@@ -778,7 +960,6 @@ class _EditEventPageState extends State<EditEventPage> {
         final oldLocation = (widget.eventData['location'] ?? '')
             .toString()
             .trim();
-
         final int oldKeepAliveDays = widget.eventData['keepAliveDays'] ?? 0;
 
         if (newLocation != oldLocation) {
@@ -793,7 +974,6 @@ class _EditEventPageState extends State<EditEventPage> {
               "${oldDateTime.month}/${oldDateTime.day}/${oldDateTime.year} @ ${TimeOfDay.fromDateTime(oldDateTime).format(context)}";
           final newDateStr =
               "${newDateTime.month}/${newDateTime.day}/${newDateTime.year} @ ${_selectedTime!.format(context)}";
-
           updateData['latestCriticalChange'] = {
             'field': 'Time/Date',
             'original': oldDateStr,
@@ -801,7 +981,6 @@ class _EditEventPageState extends State<EditEventPage> {
             'timestamp': FieldValue.serverTimestamp(),
           };
         } else if (_keepAliveDays != oldKeepAliveDays) {
-          // NEW: Duration/Keep Alive tracker
           String formatDuration(int val) {
             if (val == 0) return 'A few hours';
             if (val == 1) return '1 Day';
@@ -823,7 +1002,7 @@ class _EditEventPageState extends State<EditEventPage> {
         updateData['time'] = Timestamp.fromDate(newDateTime);
         updateData['isImportantDetails'] = _isImportantDetails;
         updateData['rsvpDeadline'] = _rsvpDeadlineOffset;
-        updateData['keepAliveDays'] = _keepAliveDays; // Saves updated duration
+        updateData['keepAliveDays'] = _keepAliveDays;
         updateData['inviteAll'] = _inviteAll;
         updateData['invitedCircles'] = _selectedCircleIds;
         updateData['coHostId'] = _selectedCoHostId;
@@ -832,117 +1011,16 @@ class _EditEventPageState extends State<EditEventPage> {
         updateData['coHostInvitedCircles'] = _selectedCircleIds;
       }
 
-      final friendsSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('friends')
-          .get();
-
-      Set<String> newIntendedIds = {};
-      Set<String> oldIntendedIds = {};
-
-      final bool oldInviteAll = _isCoHost
-          ? (widget.eventData['coHostInviteAll'] ?? false)
-          : (widget.eventData['inviteAll'] ?? true);
-
-      final List<String> oldCircles = List<String>.from(
-        _isCoHost
-            ? (widget.eventData['coHostInvitedCircles'] ?? [])
-            : (widget.eventData['invitedCircles'] ?? []),
-      );
-
-      for (var friendDoc in friendsSnapshot.docs) {
-        final data = friendDoc.data();
-        final friendCircles = List<String>.from(data['circles'] ?? []);
-
-        if (_inviteAll ||
-            _selectedCircleIds.any((id) => friendCircles.contains(id))) {
-          newIntendedIds.add(friendDoc.id);
-        }
-
-        if (oldInviteAll ||
-            oldCircles.any((id) => friendCircles.contains(id))) {
-          oldIntendedIds.add(friendDoc.id);
-        }
-      }
-
-      // 1. Fetch the ACTUAL database of who is currently in the event
-      final currentInvitesSnap = await FirebaseFirestore.instance
-          .collection('events')
-          .doc(widget.eventId)
-          .collection('invitations')
-          .get();
-      final Set<String> currentlyInvitedIds = currentInvitesSnap.docs
-          .map((d) => d.id)
-          .toSet();
-
-      // 2. THE FIX: Compare your intended list against the ACTUAL database, not the theoretical old list!
-      Set<String> toAdd = newIntendedIds.difference(currentlyInvitedIds);
-
-      // 3. Keep the old logic for removals so we don't accidentally kick out people the Co-Captain invited
-      Set<String> toRemove = oldIntendedIds.difference(newIntendedIds);
-
-      toRemove.remove(widget.eventData['hostId']);
-      if (widget.eventData['coHostId'] != null) {
-        toRemove.remove(widget.eventData['coHostId']);
-      }
-
-      final batch = FirebaseFirestore.instance.batch();
-      final eventRef = FirebaseFirestore.instance
-          .collection('events')
-          .doc(widget.eventId);
-
-      if (toAdd.isNotEmpty) {
-        updateData['visibleTo'] = FieldValue.arrayUnion(toAdd.toList());
-        for (String uid in toAdd) {
-          if (!currentlyInvitedIds.contains(uid)) {
-            batch.set(eventRef.collection('invitations').doc(uid), {
-              'uid': uid,
-              'role':
-                  'guest', // Default to guest, we will promote the co-host safely below
-              'status': 'pending',
-              'sentAt': FieldValue.serverTimestamp(),
-            });
-          }
-        }
-      }
-
-      if (toRemove.isNotEmpty) {
-        updateData['visibleTo'] = FieldValue.arrayRemove(toRemove.toList());
-        for (String uid in toRemove) {
-          batch.delete(eventRef.collection('invitations').doc(uid));
-        }
-      }
-
-      if (_isMainHost && oldCoHostId != _selectedCoHostId) {
-        if (oldCoHostId != null && !toRemove.contains(oldCoHostId)) {
-          batch.update(eventRef.collection('invitations').doc(oldCoHostId), {
-            'role': 'guest',
-          });
-        }
-        if (_selectedCoHostId != null) {
-          // merge:true so we only update the role and never wipe their RSVP status!
-          batch.set(
-            eventRef.collection('invitations').doc(_selectedCoHostId),
-            {'role': 'co-host'},
-            SetOptions(merge: true),
-          );
-        }
-      }
-
+      // --- Handle Image Upload First so the URL is ready for the batch ---
       if (_isMainHost) {
         if (_removeBanner) {
           updateData['bannerUrl'] = FieldValue.delete();
           try {
-            final ref = FirebaseStorage.instance.ref().child(
-              'event_banners/${widget.eventId}/banner.jpg',
-            );
-            await ref.delete();
-          } catch (e) {
-            debugPrint(
-              "Notice: Failed to delete banner from storage (might already be deleted): $e",
-            );
-          }
+            await FirebaseStorage.instance
+                .ref()
+                .child('event_banners/${widget.eventId}/banner.jpg')
+                .delete();
+          } catch (_) {}
         } else if (_localBannerPath != null) {
           try {
             final File file = File(_localBannerPath!);
@@ -954,8 +1032,11 @@ class _EditEventPageState extends State<EditEventPage> {
                   minHeight: 720,
                   quality: 75,
                 );
+
+            // If it's a season, upload under the seasonId to share the URL!
+            final storageFolder = seasonId ?? widget.eventId;
             final ref = FirebaseStorage.instance.ref().child(
-              'event_banners/${widget.eventId}/banner.jpg',
+              'event_banners/$storageFolder/banner.jpg',
             );
             await ref.putData(
               compressedBytes,
@@ -968,19 +1049,160 @@ class _EditEventPageState extends State<EditEventPage> {
         }
       }
 
-      batch.update(eventRef, updateData);
+      // --- APPLY THE SCOPED BATCH UPDATE ---
+      final batch = FirebaseFirestore.instance.batch();
 
-      // FIX: Automatically mark the event as "viewed" for the person making the edits!
-      // This prevents the Icons.info badge from showing up on their own home feed.
-      batch.set(eventRef.collection('invitations').doc(user.uid), {
-        'lastViewedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      if (updateScope == 'single') {
+        final eventRef = FirebaseFirestore.instance
+            .collection('events')
+            .doc(widget.eventId);
+        batch.update(eventRef, updateData);
+
+        // Handle Invites for Single Event
+        final friendsSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('friends')
+            .get();
+        Set<String> newIntendedIds = {};
+        Set<String> oldIntendedIds = {};
+        final bool oldInviteAll = _isCoHost
+            ? (widget.eventData['coHostInviteAll'] ?? false)
+            : (widget.eventData['inviteAll'] ?? true);
+        final List<String> oldCircles = List<String>.from(
+          _isCoHost
+              ? (widget.eventData['coHostInvitedCircles'] ?? [])
+              : (widget.eventData['invitedCircles'] ?? []),
+        );
+
+        for (var friendDoc in friendsSnapshot.docs) {
+          final friendCircles = List<String>.from(
+            friendDoc.data()['circles'] ?? [],
+          );
+          if (_inviteAll ||
+              _selectedCircleIds.any((id) => friendCircles.contains(id)))
+            newIntendedIds.add(friendDoc.id);
+          if (oldInviteAll ||
+              oldCircles.any((id) => friendCircles.contains(id)))
+            oldIntendedIds.add(friendDoc.id);
+        }
+
+        final currentInvitesSnap = await eventRef
+            .collection('invitations')
+            .get();
+        final Set<String> currentlyInvitedIds = currentInvitesSnap.docs
+            .map((d) => d.id)
+            .toSet();
+
+        Set<String> toAdd = newIntendedIds.difference(currentlyInvitedIds);
+        Set<String> toRemove = oldIntendedIds.difference(newIntendedIds);
+
+        toRemove.remove(widget.eventData['hostId']);
+        if (widget.eventData['coHostId'] != null)
+          toRemove.remove(widget.eventData['coHostId']);
+
+        if (toAdd.isNotEmpty) {
+          updateData['visibleTo'] = FieldValue.arrayUnion(toAdd.toList());
+          for (String uid in toAdd) {
+            if (!currentlyInvitedIds.contains(uid)) {
+              batch.set(eventRef.collection('invitations').doc(uid), {
+                'uid': uid,
+                'role': 'guest',
+                'status': 'pending',
+                'sentAt': FieldValue.serverTimestamp(),
+              });
+            }
+          }
+        }
+        if (toRemove.isNotEmpty) {
+          updateData['visibleTo'] = FieldValue.arrayRemove(toRemove.toList());
+          for (String uid in toRemove) {
+            batch.delete(eventRef.collection('invitations').doc(uid));
+          }
+        }
+
+        if (_isMainHost && oldCoHostId != _selectedCoHostId) {
+          if (oldCoHostId != null && !toRemove.contains(oldCoHostId)) {
+            batch.update(eventRef.collection('invitations').doc(oldCoHostId), {
+              'role': 'guest',
+            });
+          }
+          if (_selectedCoHostId != null) {
+            batch.set(
+              eventRef.collection('invitations').doc(_selectedCoHostId),
+              {'role': 'co-host'},
+              SetOptions(merge: true),
+            );
+          }
+        }
+
+        batch.set(
+          eventRef.collection('invitations').doc(user.uid),
+          {'lastViewedAt': FieldValue.serverTimestamp()},
+          SetOptions(merge: true),
+        );
+      } else if (updateScope == 'future' && seasonId != null) {
+        // --- CASCADING BATCH FUTURE UPDATE ---
+        final currentEventTime = widget.eventData['time'] as Timestamp;
+        final futureEvents = await FirebaseFirestore.instance
+            .collection('events')
+            .where('seasonId', isEqualTo: seasonId)
+            .where('time', isGreaterThanOrEqualTo: currentEventTime)
+            .get();
+
+        // Calculate time shift delta for future events
+        final oldDateTime = currentEventTime.toDate();
+        final newDateTime = DateTime(
+          _selectedDate!.year,
+          _selectedDate!.month,
+          _selectedDate!.day,
+          _selectedTime!.hour,
+          _selectedTime!.minute,
+        );
+        final timeDifference = newDateTime.difference(oldDateTime);
+
+        int opCount = 0;
+
+        // Strip out 'latestCriticalChange' from the blanket update so it doesn't duplicate the string
+        Map<String, dynamic> cascadingData = Map.from(updateData);
+        cascadingData.remove('latestCriticalChange');
+
+        for (var doc in futureEvents.docs) {
+          final futureEventTime = (doc.data()['time'] as Timestamp).toDate();
+          final shiftedTime = futureEventTime.add(timeDifference);
+
+          cascadingData['time'] = Timestamp.fromDate(shiftedTime);
+
+          // We also preserve the specific event ID critical change for just the edited one
+          if (doc.id == widget.eventId &&
+              updateData.containsKey('latestCriticalChange')) {
+            cascadingData['latestCriticalChange'] =
+                updateData['latestCriticalChange'];
+          }
+
+          batch.update(doc.reference, cascadingData);
+          opCount++;
+
+          if (opCount > 450) {
+            await batch.commit();
+            opCount = 0;
+          }
+        }
+
+        // Update parent season document
+        await FirebaseFirestore.instance
+            .collection('seasons')
+            .doc(seasonId)
+            .update({
+              'title': cascadingData['title'],
+              'location': cascadingData['location'],
+              'details': cascadingData['details'],
+            });
+      }
 
       await batch.commit();
 
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -2124,8 +2346,8 @@ class _EditEventPageState extends State<EditEventPage> {
           const SizedBox(height: 24),
 
           _buildChipRow(
-            label: "Keep it going on for...",
-            icon: Icons.calendar_month,
+            label: "Active for...",
+            icon: Icons.timelapse,
             selectedValue: _keepAliveDays,
             onSelected: (val) => setState(() => _keepAliveDays = val),
             options: [

@@ -1,14 +1,15 @@
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+
 import 'location_search_page.dart';
 import 'theme_provider.dart';
 import 'friend_circles_page.dart';
@@ -36,6 +37,19 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
   bool _isImportantDetails = false;
   String? _bannerImagePath;
+
+  // Advanced Season State
+  bool _isRecurring = false;
+  String _recurringFrequency = 'weekly'; // 'weekly', 'biweekly', 'monthly'
+  int _recurringInstances = 16; // Default starting value
+
+  // Dynamically limits the stepper based on their frequency choice
+  int get _maxRecurringInstances {
+    if (_recurringFrequency == 'weekly') return 16;
+    if (_recurringFrequency == 'biweekly') return 8;
+    if (_recurringFrequency == 'monthly') return 4;
+    return 16;
+  }
 
   // State for the new tactile Chip Rows
   int _rsvpDeadlineOffset = 0;
@@ -193,6 +207,50 @@ class _CreateEventPageState extends State<CreateEventPage> {
         }
       }
     }
+  }
+
+  // --- NEW: SEASON DATE GENERATOR ---
+  List<DateTime> _generateSeasonDates(DateTime start) {
+    List<DateTime> dates = [start];
+    if (!_isRecurring) return dates;
+
+    int daysToAdd = 0;
+    if (_recurringFrequency == 'weekly') {
+      daysToAdd = 7;
+    } else if (_recurringFrequency == 'biweekly') {
+      daysToAdd = 14;
+    }
+
+    DateTime current = start;
+
+    // Loops exactly to the user's requested number of instances!
+    for (int i = 1; i < _recurringInstances; i++) {
+      if (_recurringFrequency == 'monthly') {
+        int newYear = current.year;
+        int newMonth = current.month + 1;
+        if (newMonth > 12) {
+          newMonth = 1;
+          newYear++;
+        }
+        // Safety check so Jan 31 doesn't crash in Feb
+        int daysInNewMonth = DateTime(newYear, newMonth + 1, 0).day;
+        int newDay = current.day > daysInNewMonth
+            ? daysInNewMonth
+            : current.day;
+
+        current = DateTime(
+          newYear,
+          newMonth,
+          newDay,
+          current.hour,
+          current.minute,
+        );
+      } else {
+        current = current.add(Duration(days: daysToAdd));
+      }
+      dates.add(current);
+    }
+    return dates;
   }
 
   // --- MODERNIZED INPUT DECORATION ---
@@ -793,6 +851,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
           _selectedTime.minute,
         );
 
+        // 1. Generate the timeline! (1 date if single, up to 16 if Season)
+        final List<DateTime> eventDates = _generateSeasonDates(finalDateTime);
+
         final friendsSnapshot = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
@@ -803,7 +864,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
         Set<DocumentSnapshot> friendsToInvite = {};
 
         for (var friendDoc in friendsSnapshot.docs) {
-          final data = friendDoc.data();
+          final data = friendDoc.data() as Map<String, dynamic>? ?? {};
           final friendCircles = List<String>.from(data['circles'] ?? []);
 
           if (_inviteAll ||
@@ -825,77 +886,139 @@ class _CreateEventPageState extends State<CreateEventPage> {
           return;
         }
 
-        final eventRef = await FirebaseFirestore.instance
-            .collection('events')
-            .add({
-              'hostId': user.uid,
-              'coHostId': _selectedCoHostId,
-              'title': _titleController.text.trim(),
-              'location': _locController.text.trim(),
-              'details': _detailsController.text.trim(),
-              'time': Timestamp.fromDate(finalDateTime),
-              'created_at': FieldValue.serverTimestamp(),
-              'visibleTo': visibleToIds.toList(),
-              'inviteAll': _inviteAll,
-              'invitedCircles': _selectedCircleIds,
-              'isImportantDetails': _isImportantDetails,
-              'rsvpDeadline': _rsvpDeadlineOffset,
-              'keepAliveDays': _keepAliveDays, // NEW: Field added to database
-            });
+        // --- THE DYNAMIC BATCH ENGINE ---
+        WriteBatch batch = FirebaseFirestore.instance.batch();
+        int operationCount = 0;
 
-        final batch = FirebaseFirestore.instance.batch();
-
-        for (var friendDoc in friendsToInvite) {
-          final isCoHost = friendDoc.id == _selectedCoHostId;
-          final inviteRef = eventRef
-              .collection('invitations')
-              .doc(friendDoc.id);
-
-          batch.set(inviteRef, {
-            'uid': friendDoc.id,
-            'role': isCoHost ? 'co-host' : 'guest',
-            'status': 'pending',
-            'sentAt': FieldValue.serverTimestamp(),
-          });
+        // Helper to prevent Firebase from crashing if we exceed 500 writes!
+        Future<void> commitBatchIfNeeded() async {
+          if (operationCount > 450) {
+            await batch.commit();
+            batch = FirebaseFirestore.instance.batch();
+            operationCount = 0;
+          }
         }
 
-        final hostRef = eventRef.collection('invitations').doc(user.uid);
-        batch.set(hostRef, {
-          'uid': user.uid,
-          'role': 'host',
-          'status': 'going',
-          'sentAt': FieldValue.serverTimestamp(),
-        });
+        // 2. Create the Season Parent (ONLY if it's recurring!)
+        String? seasonId;
+        DocumentReference? seasonRef;
 
-        for (String roleTitle in _roles) {
-          final roleRef = eventRef.collection('roles').doc();
-          batch.set(roleRef, {
-            'title': roleTitle,
-            'addedBy': user.uid,
-            'claimedByUid': null,
-            'claimedByName': null,
+        if (_isRecurring && eventDates.length > 1) {
+          seasonRef = FirebaseFirestore.instance.collection('seasons').doc();
+          seasonId = seasonRef.id;
+
+          batch.set(seasonRef, {
+            'hostId': user.uid,
+            'coHostId': _selectedCoHostId,
+            'title': _titleController.text.trim(),
+            'location': _locController.text.trim(),
+            'details': _detailsController.text.trim(),
+            'frequency': _recurringFrequency,
+            'totalInstances': eventDates.length,
             'createdAt': FieldValue.serverTimestamp(),
           });
+          operationCount++;
         }
 
-        await batch.commit();
+        List<DocumentReference> createdEventRefs = [];
 
-        if (_bannerImagePath != null) {
+        // 3. Loop through and create all the Hangouts!
+        for (int i = 0; i < eventDates.length; i++) {
+          final date = eventDates[i];
+          final eventRef = FirebaseFirestore.instance
+              .collection('events')
+              .doc();
+          createdEventRefs.add(eventRef);
+
+          batch.set(eventRef, {
+            'hostId': user.uid,
+            'coHostId': _selectedCoHostId,
+            'title': _titleController.text.trim(),
+            'location': _locController.text.trim(),
+            'details': _detailsController.text.trim(),
+            'time': Timestamp.fromDate(date),
+            'created_at': FieldValue.serverTimestamp(),
+            'visibleTo': visibleToIds.toList(),
+            'inviteAll': _inviteAll,
+            'invitedCircles': _selectedCircleIds,
+            'isImportantDetails': _isImportantDetails,
+            'rsvpDeadline': _rsvpDeadlineOffset,
+            'keepAliveDays': _keepAliveDays,
+            // Link back to the season so we can edit them together later!
+            'seasonId': seasonId,
+            'seasonInstance': i + 1,
+            'seasonTotal': eventDates.length,
+          });
+          operationCount++;
+          await commitBatchIfNeeded();
+
+          // Invitations for guests
+          for (var friendDoc in friendsToInvite) {
+            final isCoHost = friendDoc.id == _selectedCoHostId;
+            final inviteRef = eventRef
+                .collection('invitations')
+                .doc(friendDoc.id);
+
+            batch.set(inviteRef, {
+              'uid': friendDoc.id,
+              'role': isCoHost ? 'co-host' : 'guest',
+              'status': 'pending',
+              'sentAt': FieldValue.serverTimestamp(),
+            });
+            operationCount++;
+          }
+          await commitBatchIfNeeded();
+
+          // Invitation for host
+          final hostRef = eventRef.collection('invitations').doc(user.uid);
+          batch.set(hostRef, {
+            'uid': user.uid,
+            'role': 'host',
+            'status': 'going',
+            'sentAt': FieldValue.serverTimestamp(),
+          });
+          operationCount++;
+          await commitBatchIfNeeded();
+
+          // Squad Needs (Roles)
+          for (String roleTitle in _roles) {
+            final roleRef = eventRef.collection('roles').doc();
+            batch.set(roleRef, {
+              'title': roleTitle,
+              'addedBy': user.uid,
+              'claimedByUid': null,
+              'claimedByName': null,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+            operationCount++;
+          }
+          await commitBatchIfNeeded();
+        }
+
+        // Commit any remaining operations
+        if (operationCount > 0) {
+          await batch.commit();
+        }
+
+        // 4. Handle Banner Upload (We only upload the image ONCE!)
+        if (_bannerImagePath != null && createdEventRefs.isNotEmpty) {
           try {
             final File file = File(_bannerImagePath!);
             final Uint8List bytes = await file.readAsBytes();
 
-            // Compress the 16:9 banner
             final Uint8List compressedBytes =
                 await FlutterImageCompress.compressWithList(
                   bytes,
-                  minWidth: 1280, // High quality width for banners
+                  minWidth: 1280,
                   minHeight: 720,
                   quality: 75,
                 );
 
+            // Store image under the Season ID (if recurring) or the single event ID
+            final String storageFolderId =
+                seasonId ?? createdEventRefs.first.id;
             final Reference ref = FirebaseStorage.instance.ref().child(
-              'event_banners/${eventRef.id}/banner.jpg',
+              'event_banners/$storageFolderId/banner.jpg',
             );
 
             final UploadTask uploadTask = ref.putData(
@@ -906,8 +1029,24 @@ class _CreateEventPageState extends State<CreateEventPage> {
             final TaskSnapshot snapshot = await uploadTask;
             final String downloadUrl = await snapshot.ref.getDownloadURL();
 
-            // Update the event document with the URL
-            await eventRef.update({'bannerUrl': downloadUrl});
+            // Update the Season document
+            if (seasonRef != null) {
+              await seasonRef.update({'bannerUrl': downloadUrl});
+            }
+
+            // Fast-update ALL event documents with the shared URL
+            WriteBatch urlBatch = FirebaseFirestore.instance.batch();
+            int urlOps = 0;
+            for (var eRef in createdEventRefs) {
+              urlBatch.update(eRef, {'bannerUrl': downloadUrl});
+              urlOps++;
+              if (urlOps > 450) {
+                await urlBatch.commit();
+                urlBatch = FirebaseFirestore.instance.batch();
+                urlOps = 0;
+              }
+            }
+            if (urlOps > 0) await urlBatch.commit();
           } catch (e) {
             debugPrint("Failed to upload banner: $e");
           }
@@ -917,7 +1056,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text("Invited ${friendsToInvite.length} squadmates!"),
+              content: Text(
+                eventDates.length > 1
+                    ? "Season created! ${eventDates.length} hangouts scheduled."
+                    : "Invited ${friendsToInvite.length} squadmates!",
+              ),
               backgroundColor: Colors.green,
             ),
           );
@@ -1347,6 +1490,141 @@ class _CreateEventPageState extends State<CreateEventPage> {
       ],
     );
 
+    // The "Season" Toggle UI with Stepper
+    final recurringToggle = Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _isRecurring
+              ? primaryColor
+              : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+          width: _isRecurring ? 2 : 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            activeThumbColor: primaryColor,
+            title: const Text(
+              "Keep it rolling",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              "Turn this into a recurring Season",
+              style: TextStyle(
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                fontSize: 13,
+              ),
+            ),
+            value: _isRecurring,
+            onChanged: (val) {
+              HapticFeedback.lightImpact();
+              setState(() => _isRecurring = val);
+            },
+          ),
+          if (_isRecurring) ...[
+            Divider(
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+              height: 1,
+            ),
+            const SizedBox(height: 12),
+            _buildChipRow(
+              label: "Frequency",
+              icon: Icons.autorenew,
+              selectedValue: _recurringFrequency,
+              onSelected: (val) {
+                setState(() {
+                  _recurringFrequency = val;
+                  // Auto-clamp their instances if they switch to Monthly!
+                  if (_recurringInstances > _maxRecurringInstances) {
+                    _recurringInstances = _maxRecurringInstances;
+                  }
+                });
+              },
+              options: [
+                {'label': 'Weekly', 'value': 'weekly'},
+                {'label': 'Bi-Weekly', 'value': 'biweekly'},
+                {'label': 'Monthly', 'value': 'monthly'},
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // The Tactile Stepper
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade800 : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Total Hangouts",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: _recurringInstances > 2
+                            ? () {
+                                HapticFeedback.lightImpact();
+                                setState(() => _recurringInstances--);
+                              }
+                            : null,
+                        icon: Icon(
+                          Icons.remove_circle_outline,
+                          color: _recurringInstances > 2
+                              ? primaryColor
+                              : Colors.grey,
+                        ),
+                      ),
+                      SizedBox(
+                        width: 30,
+                        child: Text(
+                          "$_recurringInstances",
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _recurringInstances < _maxRecurringInstances
+                            ? () {
+                                HapticFeedback.lightImpact();
+                                setState(() => _recurringInstances++);
+                              }
+                            : null,
+                        icon: Icon(
+                          Icons.add_circle_outline,
+                          color: _recurringInstances < _maxRecurringInstances
+                              ? primaryColor
+                              : Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+
     final detailsField = TextFormField(
       controller: _detailsController,
       textCapitalization: TextCapitalization.sentences,
@@ -1481,6 +1759,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
           locationField,
           const SizedBox(height: 16),
           dateTimeRow,
+          recurringToggle,
         ],
       ),
     );
@@ -1492,8 +1771,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildChipRow(
-            label: "Keep it going on for...",
-            icon: Icons.calendar_month,
+            label: "Active for...",
+            icon: Icons.timelapse,
             selectedValue: _keepAliveDays,
             onSelected: (val) => setState(() => _keepAliveDays = val),
             options: [
