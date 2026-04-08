@@ -27,6 +27,7 @@ class _FriendsPageState extends State<FriendsPage> {
   bool _isAddingByUsername = true;
   String _completePhoneNumber = "";
   String _statusMessage = "";
+  bool _sortByScore = true;
 
   @override
   void dispose() {
@@ -662,7 +663,7 @@ class _FriendsPageState extends State<FriendsPage> {
     }
   }
 
-  // --- LEADERBOARD SORTING ---
+  // --- RPG LEADERBOARD SORTING ---
   Future<List<Map<String, dynamic>>> _fetchAndSortFriends(
     List<DocumentSnapshot> docs,
   ) async {
@@ -684,26 +685,36 @@ class _FriendsPageState extends State<FriendsPage> {
       }),
     );
 
-    // Apply the RPG Weighted Algorithm: (hp * 0.6) + (mana * 0.4)
-    list.sort((a, b) {
-      final int hpA = a['hp'] ?? 0;
-      final int manaA = a['mana'] ?? 0;
-      final int hpB = b['hp'] ?? 0;
-      final int manaB = b['mana'] ?? 0;
+    if (_sortByScore) {
+      // Apply the RPG Weighted Algorithm: (hp * 0.6) + (mana * 0.4)
+      list.sort((a, b) {
+        final int hpA = a['hp'] ?? 0;
+        final int manaA = a['mana'] ?? 0;
+        final int hpB = b['hp'] ?? 0;
+        final int manaB = b['mana'] ?? 0;
 
-      final double scoreA = (hpA * 0.6) + (manaA * 0.4);
-      final double scoreB = (hpB * 0.6) + (manaB * 0.4);
+        final double scoreA = (hpA * 0.6) + (manaA * 0.4);
+        final double scoreB = (hpB * 0.6) + (manaB * 0.4);
 
-      int result = scoreB.compareTo(scoreA); // Descending (Highest First)
+        int result = scoreB.compareTo(scoreA); // Descending (Highest First)
 
-      // Fallback: If points are tied, sort alphabetically
-      if (result == 0) {
-        return (a['displayName'] ?? '').toString().toLowerCase().compareTo(
+        // Fallback: If points are tied, sort alphabetically
+        if (result == 0) {
+          return (a['displayName'] ?? '').toString().toLowerCase().compareTo(
+            (b['displayName'] ?? '').toString().toLowerCase(),
+          );
+        }
+        return result;
+      });
+    } else {
+      // Traditional A-Z Sort
+      list.sort(
+        (a, b) => (a['displayName'] ?? '').toString().toLowerCase().compareTo(
           (b['displayName'] ?? '').toString().toLowerCase(),
-        );
-      }
-      return result;
-    });
+        ),
+      );
+    }
+
     return list;
   }
 
@@ -922,6 +933,103 @@ class _FriendsPageState extends State<FriendsPage> {
       avatarColor = Color(userData['avatarColor']);
     }
 
+    // --- PHASE 3: Extract RPG Stats & Origin Date ---
+    final int hp = userData['hp'] ?? 0;
+    final int mana = userData['mana'] ?? 0;
+    final Timestamp? createdAt =
+        userData['createdAt'] ?? userData['created_at'];
+
+    String originDate = "";
+    if (createdAt != null) {
+      final DateTime dt = createdAt.toDate();
+      final List<String> months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      originDate = "Joined ${months[dt.month - 1]} ${dt.year}";
+    }
+
+    // Helper widget for drawing the RPG Bars
+    Widget buildStatBar(
+      String label,
+      int totalValue,
+      Color color,
+      IconData icon,
+    ) {
+      int level = (totalValue ~/ 100) + 1;
+      int progress = totalValue % 100;
+      double percentage = progress / 100.0;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 14, color: color),
+                  const SizedBox(width: 4),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade700,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                "Lv. $level",
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: percentage,
+              minHeight: 12,
+              backgroundColor: isDark
+                  ? Colors.grey.shade800
+                  : Colors.grey.shade200,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              "$progress / 100",
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1011,10 +1119,65 @@ class _FriendsPageState extends State<FriendsPage> {
                         ),
                       ),
 
+                    // --- PHASE 3: Origin Date ---
+                    if (originDate.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6.0),
+                        child: Text(
+                          originDate,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? Colors.grey.shade500
+                                : Colors.grey.shade400,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+
+                    // --- PHASE 3: RPG BARS ---
+                    Container(
+                      margin: const EdgeInsets.only(
+                        top: 24,
+                        left: 32,
+                        right: 32,
+                      ),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.grey.shade900
+                            : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isDark
+                              ? Colors.grey.shade800
+                              : Colors.grey.shade200,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          buildStatBar(
+                            "Hangout Points (HP)",
+                            hp,
+                            Colors.redAccent,
+                            Icons.favorite,
+                          ),
+                          const SizedBox(height: 16),
+                          buildStatBar(
+                            "Mana",
+                            mana,
+                            Colors.blueAccent,
+                            Icons.water_drop,
+                          ),
+                        ],
+                      ),
+                    ),
+
                     if (statusText.isNotEmpty)
                       Container(
                         margin: const EdgeInsets.only(
-                          top: 16,
+                          top: 24,
                           left: 32,
                           right: 32,
                         ),
@@ -1071,6 +1234,7 @@ class _FriendsPageState extends State<FriendsPage> {
                           ],
                         ),
                       ),
+
                     // Goated & Block Actions
                     const SizedBox(height: 32),
                     Divider(
@@ -1243,301 +1407,381 @@ class _FriendsPageState extends State<FriendsPage> {
                   );
                 }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  itemCount: friends.length,
-                  itemBuilder: (context, index) {
-                    final Map<String, dynamic> friendInitData = friends[index];
-                    final String uid = friendInitData['uid'] as String;
-
-                    final bool isGoated = friendInitData['isGoated'] == true;
-                    final bool isBlocked = blockedUids.contains(uid);
-
-                    // --- Determine Medal for Top 3 ---
-                    Widget? rankIcon;
-                    if (index == 0) {
-                      rankIcon = const Padding(
-                        padding: EdgeInsets.only(right: 6.0),
-                        child: Icon(
-                          Icons.workspace_premium,
-                          color: Colors.amber,
-                          size: 22,
-                        ),
-                      );
-                    } else if (index == 1) {
-                      rankIcon = Padding(
-                        padding: const EdgeInsets.only(right: 6.0),
-                        child: Icon(
-                          Icons.workspace_premium,
-                          color: Colors.grey.shade400,
-                          size: 22,
-                        ),
-                      );
-                    } else if (index == 2) {
-                      rankIcon = const Padding(
-                        padding: EdgeInsets.only(right: 6.0),
-                        child: Icon(
-                          Icons.workspace_premium,
-                          color: Color(0xFFCD7F32),
-                          size: 22,
-                        ), // Bronze
-                      );
-                    }
-
-                    return StreamBuilder<DocumentSnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(uid)
-                          .snapshots(),
-                      builder: (context, userSnap) {
-                        Map<String, dynamic> userData = Map.from(
-                          friendInitData,
-                        );
-                        if (userSnap.hasData && userSnap.data!.exists) {
-                          final snapData =
-                              userSnap.data!.data() as Map<String, dynamic>?;
-                          if (snapData != null) {
-                            userData.addAll(snapData);
-                          }
-                        }
-
-                        // Re-inject the states into the payload so the bottom sheet has them
-                        userData['isGoated'] = isGoated;
-                        userData['uid'] = uid;
-
-                        final String displayName =
-                            userData['displayName'] ?? "No Name";
-                        final String username = userData['username'] ?? "";
-                        final String? avatarUrl = userData['avatarUrl'];
-                        final Color avatarColor = userData['avatarColor'] is int
-                            ? Color(userData['avatarColor'])
-                            : Colors.blue.shade100;
-
-                        // --- Extract Stats ---
-                        final int hp = userData['hp'] ?? 0;
-                        final int mana = userData['mana'] ?? 0;
-
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).cardColor,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: isDark
-                                    ? Colors.grey.shade800
-                                    : Colors.grey.shade200,
-                                width: 1,
-                              ),
-                              boxShadow: [
-                                if (!isDark)
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.04),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                              ],
+                return Column(
+                  children: [
+                    // --- NEW: THE SORTING TOGGLE HEADER ---
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Squad List (${friends.length})",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
                             ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(20),
-                                onTap: () => _showFriendProfileBottomSheet(
-                                  context,
-                                  userData,
-                                  isDark,
-                                  primaryColor,
-                                  myUid,
-                                  isBlocked,
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 16,
+                          ),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              setState(() => _sortByScore = !_sortByScore);
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8.0,
+                                vertical: 4.0,
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _sortByScore
+                                        ? Icons.leaderboard
+                                        : Icons.sort_by_alpha,
+                                    size: 16,
+                                    color: primaryColor,
                                   ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: avatarColor.withValues(
-                                                alpha: 0.4,
-                                              ),
-                                              blurRadius: 12,
-                                              spreadRadius: 2,
-                                            ),
-                                          ],
-                                        ),
-                                        child: CircleAvatar(
-                                          radius: 26,
-                                          backgroundColor: avatarColor,
-                                          backgroundImage: avatarUrl != null
-                                              ? CachedNetworkImageProvider(
-                                                  avatarUrl,
-                                                )
-                                              : null,
-                                          child: avatarUrl == null
-                                              ? Text(
-                                                  displayName.isNotEmpty
-                                                      ? displayName[0]
-                                                            .toUpperCase()
-                                                      : "?",
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 20,
-                                                  ),
-                                                )
-                                              : null,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                ?rankIcon,
-                                                Flexible(
-                                                  child: Text(
-                                                    displayName,
-                                                    style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w900,
-                                                      fontSize: 17,
-                                                      letterSpacing: -0.3,
-                                                      color: isBlocked
-                                                          ? Colors.grey
-                                                          : (isDark
-                                                                ? Colors.white
-                                                                : Colors
-                                                                      .black87),
-                                                      decoration: null,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                                if (isGoated && !isBlocked)
-                                                  const Padding(
-                                                    padding: EdgeInsets.only(
-                                                      left: 6.0,
-                                                    ),
-                                                    child: Icon(
-                                                      Symbols.star,
-                                                      fill: 1.0,
-                                                      color: Colors.amber,
-                                                      size: 18,
-                                                    ),
-                                                  ),
-                                                if (isBlocked)
-                                                  const Padding(
-                                                    padding: EdgeInsets.only(
-                                                      left: 6.0,
-                                                    ),
-                                                    child: Icon(
-                                                      Icons.block,
-                                                      color: Colors.red,
-                                                      size: 16,
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                            if (username.isNotEmpty)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                  top: 4.0,
-                                                ),
-                                                child: Text(
-                                                  "@$username",
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: isBlocked
-                                                        ? Colors.grey
-                                                        : primaryColor,
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _sortByScore ? "Ranked" : "A-Z",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: primaryColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
-                                      // --- TRAILING STATS ---
-                                      Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.end,
-                                        children: [
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                '$hp',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 14,
-                                                  color: isDark
-                                                      ? Colors.white
-                                                      : Colors.black87,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              const Icon(
-                                                Icons.favorite,
-                                                color: Colors.redAccent,
-                                                size: 14,
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                '$mana',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 14,
-                                                  color: isDark
-                                                      ? Colors.white
-                                                      : Colors.black87,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              const Icon(
-                                                Icons.water_drop,
-                                                color: Colors.blueAccent,
-                                                size: 14,
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
+                    // --- THE ACTUAL LIST ---
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        itemCount: friends.length,
+                        itemBuilder: (context, index) {
+                          final Map<String, dynamic> friendInitData =
+                              friends[index];
+                          final String uid = friendInitData['uid'] as String;
 
-                                      // --------------------------------
+                          final bool isGoated =
+                              friendInitData['isGoated'] == true;
+                          final bool isBlocked = blockedUids.contains(uid);
+
+                          // --- PHASE 2: Determine Medal for Top 3 (ONLY if Ranked!) ---
+                          Widget? rankIcon;
+                          if (_sortByScore) {
+                            if (index == 0) {
+                              rankIcon = const Padding(
+                                padding: EdgeInsets.only(right: 6.0),
+                                child: Icon(
+                                  Icons.workspace_premium,
+                                  color: Colors.amber,
+                                  size: 22,
+                                ),
+                              );
+                            } else if (index == 1) {
+                              rankIcon = Padding(
+                                padding: const EdgeInsets.only(right: 6.0),
+                                child: Icon(
+                                  Icons.workspace_premium,
+                                  color: Colors.grey.shade400,
+                                  size: 22,
+                                ),
+                              );
+                            } else if (index == 2) {
+                              rankIcon = const Padding(
+                                padding: EdgeInsets.only(right: 6.0),
+                                child: Icon(
+                                  Icons.workspace_premium,
+                                  color: Color(0xFFCD7F32),
+                                  size: 22,
+                                ), // Bronze
+                              );
+                            }
+                          }
+
+                          return StreamBuilder<DocumentSnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(uid)
+                                .snapshots(),
+                            builder: (context, userSnap) {
+                              Map<String, dynamic> userData = Map.from(
+                                friendInitData,
+                              );
+                              if (userSnap.hasData && userSnap.data!.exists) {
+                                final snapData =
+                                    userSnap.data!.data()
+                                        as Map<String, dynamic>?;
+                                if (snapData != null) {
+                                  userData.addAll(snapData);
+                                }
+                              }
+
+                              // Re-inject the states into the payload so the bottom sheet has them
+                              userData['isGoated'] = isGoated;
+                              userData['uid'] = uid;
+
+                              final String displayName =
+                                  userData['displayName'] ?? "No Name";
+                              final String username =
+                                  userData['username'] ?? "";
+                              final String? avatarUrl = userData['avatarUrl'];
+                              final Color avatarColor =
+                                  userData['avatarColor'] is int
+                                  ? Color(userData['avatarColor'])
+                                  : Colors.blue.shade100;
+
+                              // --- Extract Stats ---
+                              final int hp = userData['hp'] ?? 0;
+                              final int mana = userData['mana'] ?? 0;
+
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).cardColor,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: isDark
+                                          ? Colors.grey.shade800
+                                          : Colors.grey.shade200,
+                                      width: 1,
+                                    ),
+                                    boxShadow: [
+                                      if (!isDark)
+                                        BoxShadow(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.04,
+                                          ),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 4),
+                                        ),
                                     ],
                                   ),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(20),
+                                      onTap: () =>
+                                          _showFriendProfileBottomSheet(
+                                            context,
+                                            userData,
+                                            isDark,
+                                            primaryColor,
+                                            myUid,
+                                            isBlocked,
+                                          ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 16,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: avatarColor
+                                                        .withValues(alpha: 0.4),
+                                                    blurRadius: 12,
+                                                    spreadRadius: 2,
+                                                  ),
+                                                ],
+                                              ),
+                                              child: CircleAvatar(
+                                                radius: 26,
+                                                backgroundColor: avatarColor,
+                                                backgroundImage:
+                                                    avatarUrl != null
+                                                    ? CachedNetworkImageProvider(
+                                                        avatarUrl,
+                                                      )
+                                                    : null,
+                                                child: avatarUrl == null
+                                                    ? Text(
+                                                        displayName.isNotEmpty
+                                                            ? displayName[0]
+                                                                  .toUpperCase()
+                                                            : "?",
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 20,
+                                                        ),
+                                                      )
+                                                    : null,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      ?rankIcon,
+                                                      Flexible(
+                                                        child: Text(
+                                                          displayName,
+                                                          style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.w900,
+                                                            fontSize: 17,
+                                                            letterSpacing: -0.3,
+                                                            color: isBlocked
+                                                                ? Colors.grey
+                                                                : (isDark
+                                                                      ? Colors
+                                                                            .white
+                                                                      : Colors
+                                                                            .black87),
+                                                            decoration: null,
+                                                          ),
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                      if (isGoated &&
+                                                          !isBlocked)
+                                                        const Padding(
+                                                          padding:
+                                                              EdgeInsets.only(
+                                                                left: 6.0,
+                                                              ),
+                                                          child: Icon(
+                                                            Symbols.star,
+                                                            fill: 1.0,
+                                                            color: Colors.amber,
+                                                            size: 18,
+                                                          ),
+                                                        ),
+                                                      if (isBlocked)
+                                                        const Padding(
+                                                          padding:
+                                                              EdgeInsets.only(
+                                                                left: 6.0,
+                                                              ),
+                                                          child: Icon(
+                                                            Icons.block,
+                                                            color: Colors.red,
+                                                            size: 16,
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  ),
+                                                  if (username.isNotEmpty)
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                            top: 4.0,
+                                                          ),
+                                                      child: Text(
+                                                        "@$username",
+                                                        style: TextStyle(
+                                                          fontSize: 13,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: isBlocked
+                                                              ? Colors.grey
+                                                              : primaryColor,
+                                                        ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+
+                                            // --- TRAILING STATS ---
+                                            Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
+                                              children: [
+                                                Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      '$hp',
+                                                      style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 14,
+                                                        color: isDark
+                                                            ? Colors.white
+                                                            : Colors.black87,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    const Icon(
+                                                      Icons.favorite,
+                                                      color: Colors.redAccent,
+                                                      size: 14,
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      '$mana',
+                                                      style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 14,
+                                                        color: isDark
+                                                            ? Colors.white
+                                                            : Colors.black87,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    const Icon(
+                                                      Icons.water_drop,
+                                                      color: Colors.blueAccent,
+                                                      size: 14,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 );
               },
             );
