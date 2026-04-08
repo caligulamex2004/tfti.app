@@ -952,7 +952,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
             'isImportantDetails': _isImportantDetails,
             'rsvpDeadline': _rsvpDeadlineOffset,
             'keepAliveDays': _keepAliveDays,
-            // Link back to the season so we can edit them together later!
+            'pointsAwarded': false,
             'seasonId': seasonId,
             'seasonInstance': i + 1,
             'seasonTotal': eventDates.length,

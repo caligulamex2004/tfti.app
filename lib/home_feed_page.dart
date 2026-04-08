@@ -456,8 +456,16 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       return _buildEmptyState(isDark);
                     }
 
-                    // Pre-calculate date boundaries for Phase 4 Filter
+                    // Pre-calculate date boundaries for Filter
                     final now = DateTime.now();
+
+                    // THIS WEEK (Monday at 00:00:00 to Sunday at 23:59:59)
+                    final int daysSinceMonday = now.weekday - 1;
+                    final startOfThisWeek = DateTime(
+                      now.year,
+                      now.month,
+                      now.day - daysSinceMonday,
+                    );
                     final int daysToSunday = 7 - now.weekday;
                     final endOfThisWeek = DateTime(
                       now.year,
@@ -467,6 +475,8 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       59,
                       59,
                     );
+
+                    // NEXT WEEK
                     final startOfNextWeek = endOfThisWeek.add(
                       const Duration(seconds: 1),
                     );
@@ -478,6 +488,9 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                         seconds: 59,
                       ),
                     );
+
+                    // THIS MONTH (1st day to Last day)
+                    final startOfThisMonth = DateTime(now.year, now.month, 1);
                     final endOfThisMonth = DateTime(
                       now.year,
                       now.month + 1,
@@ -486,6 +499,8 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       59,
                       59,
                     );
+
+                    // NEXT MONTH
                     final startOfNextMonth = DateTime(
                       now.year,
                       now.month + 1,
@@ -525,7 +540,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       final DateTime eventTime = ts?.toDate() ?? now;
 
                       if (_selectedFilter == FeedFilter.thisWeek) {
-                        if (eventTime.isBefore(now) ||
+                        if (eventTime.isBefore(startOfThisWeek) ||
                             eventTime.isAfter(endOfThisWeek)) {
                           continue;
                         }
@@ -535,7 +550,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                           continue;
                         }
                       } else if (_selectedFilter == FeedFilter.thisMonth) {
-                        if (eventTime.isBefore(now) ||
+                        if (eventTime.isBefore(startOfThisMonth) ||
                             eventTime.isAfter(endOfThisMonth)) {
                           continue;
                         }
@@ -567,24 +582,40 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                         status = 'declined';
                       }
 
-                      final int keepAliveDays = eventData['keepAliveDays'] ?? 0;
-                      final int durationMinutes = keepAliveDays > 0
-                          ? (keepAliveDays * 24 * 60)
-                          : 240;
+                      // --- NEW: Optimized Time Logic using Firestore 'endTime' ---
+                      final Timestamp? endTs = eventData['endTime'];
+                      DateTime endTime;
 
-                      final Duration diff = eventTime.difference(now);
-                      final bool isPast = diff.inMinutes < -durationMinutes;
+                      if (endTs != null) {
+                        endTime = endTs.toDate();
+                      } else {
+                        // Graceful fallback for older events created before Phase 1
+                        final int keepAliveDays =
+                            eventData['keepAliveDays'] ?? 0;
+                        final int durationMinutes = keepAliveDays > 0
+                            ? (keepAliveDays * 24 * 60)
+                            : 240;
+                        endTime = eventTime.add(
+                          Duration(minutes: durationMinutes),
+                        );
+                      }
+
+                      final bool isPast = now.isAfter(endTime);
+                      final bool isStartingSoon =
+                          eventTime.isAfter(now) &&
+                          eventTime.difference(now).inMinutes <= 60;
+                      // Happening now means 'now' is between the start time and the end time
+                      final bool isHappeningNow =
+                          !eventTime.isAfter(now) && !now.isAfter(endTime);
+                      // -------------------------------------------------------------
 
                       final eventItem = {
                         'id': eventId,
                         'eventData': eventData,
                         'inviteData': inviteData,
                         'isPast': isPast,
-                        'isStartingSoon':
-                            diff.inMinutes <= 60 && diff.inMinutes > 0,
-                        'isHappeningNow':
-                            diff.inMinutes <= 0 &&
-                            diff.inMinutes >= -durationMinutes,
+                        'isStartingSoon': isStartingSoon,
+                        'isHappeningNow': isHappeningNow,
                         'status': status,
                         'time': eventTime,
                       };

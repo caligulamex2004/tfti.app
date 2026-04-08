@@ -427,7 +427,7 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
             'time': Timestamp.fromDate(finalDateTime),
             'endTime': Timestamp.fromDate(defaultEndTime),
             'keepAliveDays': 0,
-            // ----------------------------------------------------
+            'pointsAwarded': false,
             'created_at': FieldValue.serverTimestamp(),
             'visibleTo': visibleToIds.toList(),
             'inviteAll': _inviteAll,

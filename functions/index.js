@@ -605,7 +605,7 @@ exports.resolveExpiredVibeChecks = onSchedule({
             logger.log(`Vibe Check ${eventId} ended in a tie.`);
             resolveCount++;
 
-            // 👇 NEW: Queue up a notification for the Captain
+            // NEW: Queue up a notification for the Captain
             if (eventData.hostId) {
                 notificationsToSend.push({
                     hostId: eventData.hostId,
@@ -654,5 +654,94 @@ exports.resolveExpiredVibeChecks = onSchedule({
                 logger.error(`Failed to send tie-breaker notification to ${notif.hostId}:`, err);
             }
         }
+    }
+});
+
+// --- 9. THE GAME MASTER: Award Points & Send Notification ---
+exports.awardLootDrops = onSchedule("every 15 minutes", async (event) => {
+    const db = admin.firestore();
+    const now = admin.firestore.Timestamp.now();
+
+    try {
+        // 1. THE SWEEP
+        // Query events that have passed their endTime AND have not yet rewarded the host
+        const eventsSnapshot = await db.collection("events")
+            .where("pointsAwarded", "==", false)
+            .where("endTime", "<=", now)
+            .get();
+
+        if (eventsSnapshot.empty) {
+            console.log("No completed events waiting for loot drops.");
+            return;
+        }
+
+        console.log(`Processing ${eventsSnapshot.size} ended events...`);
+
+        // Process each event
+        for (const eventDoc of eventsSnapshot.docs) {
+            const eventId = eventDoc.id;
+            const eventData = eventDoc.data();
+            const hostId = eventData.hostId;
+
+            // Prevent processing if there's no host
+            if (!hostId) continue;
+
+            // 2. THE CALCULATION
+            // Count how many people officially went (including the host)
+            const invitesSnapshot = await db.collection("events").doc(eventId)
+                .collection("invitations")
+                .where("status", "==", "going")
+                .get();
+
+            const manaEarned = invitesSnapshot.size; // 1 Mana per attendee
+            const hpEarned = 1; // 1 HP per successful hangout
+
+            // 3. THE PAYOUT & THE SEAL (Atomic Batch)
+            // Using a batch guarantees that if the server crashes mid-process, 
+            // you don't accidentally give points without sealing the event!
+            const batch = db.batch();
+
+            const hostRef = db.collection("users").doc(hostId);
+            batch.update(hostRef, {
+                hp: admin.firestore.FieldValue.increment(hpEarned),
+                mana: admin.firestore.FieldValue.increment(manaEarned)
+            });
+
+            const eventRef = db.collection("events").doc(eventId);
+            batch.update(eventRef, {
+                pointsAwarded: true // THE SEAL
+            });
+
+            await batch.commit();
+            console.log(`Awarded ${hpEarned} HP and ${manaEarned} Mana to ${hostId}.`);
+
+            // 4. THE NOTIFICATION
+            const hostDoc = await hostRef.get();
+            if (hostDoc.exists) {
+                const hostInfo = hostDoc.data();
+                const notificationSettings = hostInfo.notificationSettings || {};
+                const fcmToken = hostInfo.fcmToken; 
+
+                // Check their preferences (defaults to true if missing)
+                if (notificationSettings.points !== false && fcmToken) {
+                    const message = {
+                        notification: {
+                            title: "Loot Drop! 📦",
+                            body: `Congratulations! "${eventData.title}" earned you ${hpEarned} HP and ${manaEarned} Mana!`,
+                        },
+                        token: fcmToken,
+                    };
+
+                    try {
+                        await admin.messaging().send(message);
+                        console.log(`Push sent to host of ${eventId}.`);
+                    } catch (error) {
+                        console.error(`Failed to send push to ${hostId}:`, error);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Critical error in awardLootDrops:", error);
     }
 });
