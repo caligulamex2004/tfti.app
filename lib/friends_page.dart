@@ -7,7 +7,7 @@ import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:mobile_scanner/mobile_scanner.dart'; // NEW: Scanner Import
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 import 'contact_service.dart';
 import 'theme_provider.dart';
@@ -43,7 +43,7 @@ class _FriendsPageState extends State<FriendsPage> {
     });
   }
 
-  // --- NEW: QR SCANNER LOGIC ---
+  // --- QR SCANNER LOGIC ---
   Future<void> _openScanner() async {
     final result = await Navigator.push(
       context,
@@ -662,6 +662,7 @@ class _FriendsPageState extends State<FriendsPage> {
     }
   }
 
+  // --- LEADERBOARD SORTING ---
   Future<List<Map<String, dynamic>>> _fetchAndSortFriends(
     List<DocumentSnapshot> docs,
   ) async {
@@ -683,22 +684,36 @@ class _FriendsPageState extends State<FriendsPage> {
       }),
     );
 
-    list.sort(
-      (a, b) => (a['displayName'] ?? '').toString().toLowerCase().compareTo(
-        (b['displayName'] ?? '').toString().toLowerCase(),
-      ),
-    );
+    // Apply the RPG Weighted Algorithm: (hp * 0.6) + (mana * 0.4)
+    list.sort((a, b) {
+      final int hpA = a['hp'] ?? 0;
+      final int manaA = a['mana'] ?? 0;
+      final int hpB = b['hp'] ?? 0;
+      final int manaB = b['mana'] ?? 0;
+
+      final double scoreA = (hpA * 0.6) + (manaA * 0.4);
+      final double scoreB = (hpB * 0.6) + (manaB * 0.4);
+
+      int result = scoreB.compareTo(scoreA); // Descending (Highest First)
+
+      // Fallback: If points are tied, sort alphabetically
+      if (result == 0) {
+        return (a['displayName'] ?? '').toString().toLowerCase().compareTo(
+          (b['displayName'] ?? '').toString().toLowerCase(),
+        );
+      }
+      return result;
+    });
     return list;
   }
 
-  // --- UPDATED: Ultra Tight Add Friend UI ---
   Widget _buildAddFriendSection(bool isDark, Color primaryColor) {
     return Container(
       padding: const EdgeInsets.only(
         left: 20.0,
         top: 20.0,
         right: 20.0,
-        bottom: 4.0, // Reduced bottom padding significantly
+        bottom: 4.0,
       ),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
@@ -723,10 +738,9 @@ class _FriendsPageState extends State<FriendsPage> {
               color: isDark ? Colors.white : Colors.black87,
             ),
           ),
-          const SizedBox(height: 12), // Tighter gap
-          // --- TIGHTER TOGGLE ---
+          const SizedBox(height: 12),
           SizedBox(
-            height: 36, // Force the button to be compact
+            height: 36,
             width: double.infinity,
             child: SegmentedButton<bool>(
               segments: const [
@@ -752,14 +766,13 @@ class _FriendsPageState extends State<FriendsPage> {
               },
               showSelectedIcon: false,
               style: SegmentedButton.styleFrom(
-                visualDensity:
-                    VisualDensity.compact, // Natively shrinks internal padding
+                visualDensity: VisualDensity.compact,
                 selectedBackgroundColor: primaryColor.withValues(alpha: 0.15),
                 selectedForegroundColor: primaryColor,
               ),
             ),
           ),
-          const SizedBox(height: 12), // Tighter gap
+          const SizedBox(height: 12),
 
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -843,8 +856,7 @@ class _FriendsPageState extends State<FriendsPage> {
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: () =>
-                      _addFriend(), // Pass empty so it reads the text fields
+                  onPressed: () => _addFriend(),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryColor,
                     foregroundColor: themeProvider.onPrimaryColor,
@@ -864,7 +876,7 @@ class _FriendsPageState extends State<FriendsPage> {
           ),
 
           SizedBox(
-            height: 28, // Shrunk to save more space
+            height: 28,
             child: _statusMessage.isNotEmpty
                 ? Padding(
                     padding: const EdgeInsets.only(top: 8.0),
@@ -1241,6 +1253,37 @@ class _FriendsPageState extends State<FriendsPage> {
                     final bool isGoated = friendInitData['isGoated'] == true;
                     final bool isBlocked = blockedUids.contains(uid);
 
+                    // --- Determine Medal for Top 3 ---
+                    Widget? rankIcon;
+                    if (index == 0) {
+                      rankIcon = const Padding(
+                        padding: EdgeInsets.only(right: 6.0),
+                        child: Icon(
+                          Icons.workspace_premium,
+                          color: Colors.amber,
+                          size: 22,
+                        ),
+                      );
+                    } else if (index == 1) {
+                      rankIcon = Padding(
+                        padding: const EdgeInsets.only(right: 6.0),
+                        child: Icon(
+                          Icons.workspace_premium,
+                          color: Colors.grey.shade400,
+                          size: 22,
+                        ),
+                      );
+                    } else if (index == 2) {
+                      rankIcon = const Padding(
+                        padding: EdgeInsets.only(right: 6.0),
+                        child: Icon(
+                          Icons.workspace_premium,
+                          color: Color(0xFFCD7F32),
+                          size: 22,
+                        ), // Bronze
+                      );
+                    }
+
                     return StreamBuilder<DocumentSnapshot>(
                       stream: FirebaseFirestore.instance
                           .collection('users')
@@ -1265,11 +1308,14 @@ class _FriendsPageState extends State<FriendsPage> {
                         final String displayName =
                             userData['displayName'] ?? "No Name";
                         final String username = userData['username'] ?? "";
-                        final String statusText = userData['statusText'] ?? "";
                         final String? avatarUrl = userData['avatarUrl'];
                         final Color avatarColor = userData['avatarColor'] is int
                             ? Color(userData['avatarColor'])
                             : Colors.blue.shade100;
+
+                        // --- Extract Stats ---
+                        final int hp = userData['hp'] ?? 0;
+                        final int mana = userData['mana'] ?? 0;
 
                         return Padding(
                           padding: const EdgeInsets.symmetric(
@@ -1358,6 +1404,7 @@ class _FriendsPageState extends State<FriendsPage> {
                                           children: [
                                             Row(
                                               children: [
+                                                ?rankIcon,
                                                 Flexible(
                                                   child: Text(
                                                     displayName,
@@ -1404,121 +1451,83 @@ class _FriendsPageState extends State<FriendsPage> {
                                                   ),
                                               ],
                                             ),
-                                            if (username.isNotEmpty ||
-                                                statusText.isNotEmpty)
+                                            if (username.isNotEmpty)
                                               Padding(
                                                 padding: const EdgeInsets.only(
                                                   top: 4.0,
                                                 ),
-                                                child: Row(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.center,
-                                                  children: [
-                                                    if (username.isNotEmpty)
-                                                      Flexible(
-                                                        child: Text(
-                                                          "@$username",
-                                                          style: TextStyle(
-                                                            fontSize: 13,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            color: isBlocked
-                                                                ? Colors.grey
-                                                                : primaryColor,
-                                                          ),
-                                                          maxLines: 1,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                    if (username.isNotEmpty &&
-                                                        statusText.isNotEmpty)
-                                                      Padding(
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              horizontal: 6.0,
-                                                            ),
-                                                        child: Text(
-                                                          "•",
-                                                          style: TextStyle(
-                                                            color: isDark
-                                                                ? Colors
-                                                                      .grey
-                                                                      .shade600
-                                                                : Colors
-                                                                      .grey
-                                                                      .shade400,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    if (statusText.isNotEmpty)
-                                                      Flexible(
-                                                        child: Container(
-                                                          padding:
-                                                              const EdgeInsets.symmetric(
-                                                                horizontal: 8,
-                                                                vertical: 2,
-                                                              ),
-                                                          decoration: BoxDecoration(
-                                                            color: isBlocked
-                                                                ? Colors.grey
-                                                                      .withValues(
-                                                                        alpha:
-                                                                            0.1,
-                                                                      )
-                                                                : Theme.of(
-                                                                        context,
-                                                                      )
-                                                                      .colorScheme
-                                                                      .secondaryContainer,
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  8,
-                                                                ),
-                                                            border: Border.all(
-                                                              color: isBlocked
-                                                                  ? Colors.grey
-                                                                        .withValues(
-                                                                          alpha:
-                                                                              0.3,
-                                                                        )
-                                                                  : primaryColor
-                                                                        .withValues(
-                                                                          alpha:
-                                                                              0.3,
-                                                                        ),
-                                                            ),
-                                                          ),
-                                                          child: Text(
-                                                            statusText,
-                                                            style: TextStyle(
-                                                              fontSize: 11,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                              color: isBlocked
-                                                                  ? Colors.grey
-                                                                  : primaryColor,
-                                                            ),
-                                                            maxLines: 1,
-                                                            overflow:
-                                                                TextOverflow
-                                                                    .ellipsis,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                  ],
+                                                child: Text(
+                                                  "@$username",
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: isBlocked
+                                                        ? Colors.grey
+                                                        : primaryColor,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
                                           ],
                                         ),
                                       ),
-                                      Icon(
-                                        Icons.chevron_right,
-                                        color: isDark
-                                            ? Colors.grey.shade700
-                                            : Colors.grey.shade300,
+
+                                      // --- TRAILING STATS ---
+                                      Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                '$hp',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 14,
+                                                  color: isDark
+                                                      ? Colors.white
+                                                      : Colors.black87,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const Icon(
+                                                Icons.favorite,
+                                                color: Colors.redAccent,
+                                                size: 14,
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                '$mana',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 14,
+                                                  color: isDark
+                                                      ? Colors.white
+                                                      : Colors.black87,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const Icon(
+                                                Icons.water_drop,
+                                                color: Colors.blueAccent,
+                                                size: 14,
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
+
+                                      // --------------------------------
                                     ],
                                   ),
                                 ),
@@ -1560,7 +1569,6 @@ class _FriendsPageState extends State<FriendsPage> {
           decoration: BoxDecoration(gradient: themeProvider.appGradient),
         ),
         actions: [
-          // NEW: Camera Scanner Button!
           IconButton(
             icon: const Icon(Icons.qr_code_scanner),
             tooltip: "Scan QR",
@@ -1606,7 +1614,6 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 }
 
-// --- NEW: THE FULL SCREEN CAMERA SCANNER ---
 class QRScannerPage extends StatefulWidget {
   const QRScannerPage({super.key});
 
@@ -1615,7 +1622,7 @@ class QRScannerPage extends StatefulWidget {
 }
 
 class _QRScannerPageState extends State<QRScannerPage> {
-  bool _hasScanned = false; // Prevents double-popping
+  bool _hasScanned = false;
 
   @override
   Widget build(BuildContext context) {
@@ -1633,7 +1640,6 @@ class _QRScannerPageState extends State<QRScannerPage> {
       body: Stack(
         children: [
           MobileScanner(
-            // Uses the updated v7.2.0 BarcodeCapture API
             onDetect: (BarcodeCapture capture) {
               if (_hasScanned) return;
 
@@ -1641,17 +1647,12 @@ class _QRScannerPageState extends State<QRScannerPage> {
               for (final barcode in barcodes) {
                 if (barcode.rawValue != null) {
                   _hasScanned = true;
-                  Navigator.pop(
-                    context,
-                    barcode.rawValue,
-                  ); // Return the raw text back to FriendsPage
+                  Navigator.pop(context, barcode.rawValue);
                   break;
                 }
               }
             },
           ),
-
-          // A cool visual overlay for the scanner
           Center(
             child: Container(
               width: 250,
@@ -1672,7 +1673,6 @@ class _QRScannerPageState extends State<QRScannerPage> {
               ),
             ),
           ),
-
           const Positioned(
             bottom: 120,
             left: 0,
