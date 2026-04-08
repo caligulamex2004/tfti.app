@@ -473,10 +473,13 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
         _selectedTime!.minute,
       );
 
+      final newEndTime = newDateTime.add(const Duration(hours: 4));
+
       final Map<String, dynamic> updateData = {
         'title': _titleController.text.trim(),
         'details': _detailsController.text.trim(),
         'time': Timestamp.fromDate(newDateTime),
+        'endTime': Timestamp.fromDate(newEndTime),
         'pollOptions': finalPollOptions,
         'rsvpDeadline': _rsvpDeadlineOffset,
         'inviteAll': _inviteAll,

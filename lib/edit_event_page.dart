@@ -56,6 +56,8 @@ class _EditEventPageState extends State<EditEventPage> {
   late bool _isMainHost;
   late bool _isCoHost;
 
+  late bool _isPast;
+
   String? _selectedCoHostId;
   String? _selectedCoHostName;
 
@@ -86,6 +88,16 @@ class _EditEventPageState extends State<EditEventPage> {
     _isImportantDetails = widget.eventData['isImportantDetails'] ?? false;
     _rsvpDeadlineOffset = widget.eventData['rsvpDeadline'] ?? 0;
     _keepAliveDays = widget.eventData['keepAliveDays'] ?? 0;
+
+    // Determine if the event is locked down
+    final Timestamp startTs = widget.eventData['time'];
+    final Timestamp? endTs = widget.eventData['endTime'];
+    final DateTime endTime =
+        endTs?.toDate() ??
+        startTs.toDate().add(
+          Duration(days: _keepAliveDays > 0 ? _keepAliveDays : 1),
+        );
+    _isPast = endTime.isBefore(DateTime.now());
 
     if (_isCoHost && !_isMainHost) {
       _inviteAll = widget.eventData['coHostInviteAll'] ?? false;
@@ -276,6 +288,13 @@ class _EditEventPageState extends State<EditEventPage> {
         borderSide: BorderSide(
           color: primaryColor.withValues(alpha: 0.6),
           width: 2,
+        ),
+      ),
+      disabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+          width: 1,
         ),
       ),
       border: OutlineInputBorder(
@@ -681,6 +700,10 @@ class _EditEventPageState extends State<EditEventPage> {
   }
 
   Future<void> _deleteEvent() async {
+    if (_isPast) {
+      return;
+    }
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final String? seasonId = widget.eventData['seasonId'];
     String deleteScope = 'single';
@@ -876,7 +899,18 @@ class _EditEventPageState extends State<EditEventPage> {
   }
 
   Future<void> _updateEvent() async {
+    if (_isPast) {
+      return;
+    }
+
     if (_isMainHost && !(_formKey.currentState?.validate() ?? false)) return;
+
+    // Cache context-dependent formatting BEFORE any async gaps!
+    final oldTimestampForFormat = widget.eventData['time'] as Timestamp;
+    final String oldTimeStr = TimeOfDay.fromDateTime(
+      oldTimestampForFormat.toDate(),
+    ).format(context);
+    final String newTimeStr = _selectedTime?.format(context) ?? '';
 
     final String? seasonId = widget.eventData['seasonId'];
     String updateScope = 'single';
@@ -971,9 +1005,10 @@ class _EditEventPageState extends State<EditEventPage> {
           };
         } else if (newDateTime != oldDateTime) {
           final oldDateStr =
-              "${oldDateTime.month}/${oldDateTime.day}/${oldDateTime.year} @ ${TimeOfDay.fromDateTime(oldDateTime).format(context)}";
+              "${oldDateTime.month}/${oldDateTime.day}/${oldDateTime.year} @ $oldTimeStr";
           final newDateStr =
-              "${newDateTime.month}/${newDateTime.day}/${newDateTime.year} @ ${_selectedTime!.format(context)}";
+              "${newDateTime.month}/${newDateTime.day}/${newDateTime.year} @ $newTimeStr";
+
           updateData['latestCriticalChange'] = {
             'field': 'Time/Date',
             'original': oldDateStr,
@@ -1080,11 +1115,13 @@ class _EditEventPageState extends State<EditEventPage> {
             friendDoc.data()['circles'] ?? [],
           );
           if (_inviteAll ||
-              _selectedCircleIds.any((id) => friendCircles.contains(id)))
+              _selectedCircleIds.any((id) => friendCircles.contains(id))) {
             newIntendedIds.add(friendDoc.id);
+          }
           if (oldInviteAll ||
-              oldCircles.any((id) => friendCircles.contains(id)))
+              oldCircles.any((id) => friendCircles.contains(id))) {
             oldIntendedIds.add(friendDoc.id);
+          }
         }
 
         final currentInvitesSnap = await eventRef
@@ -1098,8 +1135,9 @@ class _EditEventPageState extends State<EditEventPage> {
         Set<String> toRemove = oldIntendedIds.difference(newIntendedIds);
 
         toRemove.remove(widget.eventData['hostId']);
-        if (widget.eventData['coHostId'] != null)
+        if (widget.eventData['coHostId'] != null) {
           toRemove.remove(widget.eventData['coHostId']);
+        }
 
         if (toAdd.isNotEmpty) {
           updateData['visibleTo'] = FieldValue.arrayUnion(toAdd.toList());
@@ -1300,7 +1338,7 @@ class _EditEventPageState extends State<EditEventPage> {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final currentUser = FirebaseAuth.instance.currentUser!;
     final roleController = TextEditingController();
-    const bool canEdit = true; // Always true on the Edit Page
+    final bool canEdit = !_isPast; // Locks editing if event has passed
 
     showModalBottomSheet(
       context: context,
@@ -1389,8 +1427,7 @@ class _EditEventPageState extends State<EditEventPage> {
                                 Text(
                                   canEdit
                                       ? "Add items you need help with!"
-                                      // ignore: dead_code
-                                      : "No squad needs right now.",
+                                      : "No squad needs were added.",
                                   style: TextStyle(
                                     color: isDark
                                         ? Colors.grey.shade400
@@ -1483,7 +1520,7 @@ class _EditEventPageState extends State<EditEventPage> {
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  if (!isClaimed)
+                                  if (!isClaimed && canEdit)
                                     ElevatedButton(
                                       onPressed: () async {
                                         HapticFeedback.lightImpact();
@@ -1517,7 +1554,7 @@ class _EditEventPageState extends State<EditEventPage> {
                                         ),
                                       ),
                                     )
-                                  else if (isMe || canEdit)
+                                  else if ((isMe || canEdit) && canEdit)
                                     OutlinedButton(
                                       onPressed: () async {
                                         HapticFeedback.lightImpact();
@@ -1774,7 +1811,7 @@ class _EditEventPageState extends State<EditEventPage> {
 
         return InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => _showCircleDialog(circles),
+          onTap: _isPast ? null : () => _showCircleDialog(circles),
           child: InputDecorator(
             decoration: _buildInputDecoration(
               label: "Update Crew List",
@@ -1799,6 +1836,32 @@ class _EditEventPageState extends State<EditEventPage> {
       padding: const EdgeInsets.all(20.0),
       child: Column(
         children: [
+          // Render Lockdown Banner here as well for Co-Hosts
+          if (_isPast)
+            Container(
+              margin: const EdgeInsets.only(bottom: 24),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade100,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.amber.shade300),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.lock, color: Colors.amber.shade900),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      "This hangout has ended and is locked. Points have been finalized.",
+                      style: TextStyle(
+                        color: Colors.amber.shade900,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           _buildFormCard(
             title: "Co-Captain Dashboard",
             icon: Symbols.military_tech,
@@ -1842,7 +1905,7 @@ class _EditEventPageState extends State<EditEventPage> {
                 circlesField,
                 const SizedBox(height: 16),
                 InkWell(
-                  onTap: _showSquadNeedsSheet,
+                  onTap: _isPast ? null : _showSquadNeedsSheet,
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -1904,7 +1967,7 @@ class _EditEventPageState extends State<EditEventPage> {
             width: double.infinity,
             height: 60,
             child: ElevatedButton(
-              onPressed: _updateEvent,
+              onPressed: (_isPast || _isLoading) ? null : _updateEvent,
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryColor,
                 foregroundColor: themeProvider.onPrimaryColor,
@@ -2050,7 +2113,9 @@ class _EditEventPageState extends State<EditEventPage> {
     }
 
     return GestureDetector(
-      onTap: _showBannerOptions,
+      onTap: _isPast
+          ? null
+          : _showBannerOptions, // Disables changing image if past
       child: Container(
         margin: const EdgeInsets.only(bottom: 24),
         width: double.infinity,
@@ -2122,9 +2187,38 @@ class _EditEventPageState extends State<EditEventPage> {
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
+    // THE LOCKDOWN BANNER
+    final lockdownBanner = _isPast
+        ? Container(
+            margin: const EdgeInsets.only(bottom: 24),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade100,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.amber.shade300),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.lock, color: Colors.amber.shade900),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    "This hangout has ended and is locked. Points have been finalized.",
+                    style: TextStyle(
+                      color: Colors.amber.shade900,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+        : const SizedBox.shrink();
+
     final titleField = TextFormField(
       controller: _titleController,
       maxLength: 50,
+      enabled: !_isPast, // Disable if past
       decoration: _buildInputDecoration(
         label: 'Hangout Title',
         prefixIcon: Icon(Symbols.campaign, color: primaryColor),
@@ -2135,7 +2229,8 @@ class _EditEventPageState extends State<EditEventPage> {
     final locationField = TextFormField(
       controller: _locationController,
       readOnly: true,
-      onTap: _selectLocation,
+      enabled: !_isPast, // Disable if past
+      onTap: _isPast ? null : _selectLocation, // Safe check
       maxLength: 100,
       decoration: _buildInputDecoration(
         label: 'Location',
@@ -2153,7 +2248,7 @@ class _EditEventPageState extends State<EditEventPage> {
                       : (isDark ? Colors.grey.shade500 : Colors.grey),
                   size: 26,
                 ),
-                onPressed: _toggleFavoriteStatus,
+                onPressed: _isPast ? null : _toggleFavoriteStatus, // Safe check
               )
             : Icon(
                 Icons.search,
@@ -2168,7 +2263,7 @@ class _EditEventPageState extends State<EditEventPage> {
         Expanded(
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
-            onTap: _pickDate,
+            onTap: _isPast ? null : _pickDate, // Safe check
             child: InputDecorator(
               decoration: _buildInputDecoration(
                 label: "Date",
@@ -2190,7 +2285,7 @@ class _EditEventPageState extends State<EditEventPage> {
         Expanded(
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
-            onTap: _pickTime,
+            onTap: _isPast ? null : _pickTime, // Safe check
             child: InputDecorator(
               decoration: _buildInputDecoration(
                 label: "Time",
@@ -2214,6 +2309,7 @@ class _EditEventPageState extends State<EditEventPage> {
     final detailsField = TextFormField(
       controller: _detailsController,
       maxLength: 500,
+      enabled: !_isPast, // Disable if past
       decoration: _buildInputDecoration(
         label: 'Details / Description',
         prefixIcon: Icon(
@@ -2228,7 +2324,7 @@ class _EditEventPageState extends State<EditEventPage> {
       children: [
         Expanded(
           child: InkWell(
-            onTap: _showSquadNeedsSheet,
+            onTap: _isPast ? null : _showSquadNeedsSheet, // Safe check
             borderRadius: BorderRadius.circular(16),
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
@@ -2264,8 +2360,11 @@ class _EditEventPageState extends State<EditEventPage> {
         const SizedBox(width: 12),
         Expanded(
           child: InkWell(
-            onTap: () =>
-                setState(() => _isImportantDetails = !_isImportantDetails),
+            onTap: _isPast
+                ? null
+                : () => setState(
+                    () => _isImportantDetails = !_isImportantDetails,
+                  ), // Safe check
             borderRadius: BorderRadius.circular(16),
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
@@ -2344,7 +2443,10 @@ class _EditEventPageState extends State<EditEventPage> {
             label: "RSVP Deadline",
             icon: Icons.timer_off_outlined,
             selectedValue: _rsvpDeadlineOffset,
-            onSelected: (val) => setState(() => _rsvpDeadlineOffset = val),
+            onSelected: _isPast
+                ? (val) {}
+                : (val) =>
+                      setState(() => _rsvpDeadlineOffset = val), // Safe check
             options: [
               {'label': 'At start time', 'value': 0},
               {'label': '30 mins before', 'value': -30},
@@ -2362,7 +2464,9 @@ class _EditEventPageState extends State<EditEventPage> {
             label: "Active for...",
             icon: Icons.timelapse,
             selectedValue: _keepAliveDays,
-            onSelected: (val) => setState(() => _keepAliveDays = val),
+            onSelected: _isPast
+                ? (val) {}
+                : (val) => setState(() => _keepAliveDays = val), // Safe check
             options: [
               {'label': 'Standard (A few hours)', 'value': 0},
               {'label': '1 Day', 'value': 1},
@@ -2427,7 +2531,9 @@ class _EditEventPageState extends State<EditEventPage> {
 
                 final circlesField = InkWell(
                   borderRadius: BorderRadius.circular(16),
-                  onTap: () => _showCircleDialog(circles),
+                  onTap: _isPast
+                      ? null
+                      : () => _showCircleDialog(circles), // Safe check
                   child: InputDecorator(
                     decoration: _buildInputDecoration(
                       label: "Update Squad List",
@@ -2451,7 +2557,7 @@ class _EditEventPageState extends State<EditEventPage> {
 
                 final coHostField = InkWell(
                   borderRadius: BorderRadius.circular(16),
-                  onTap: _showCoHostDialog,
+                  onTap: _isPast ? null : _showCoHostDialog, // Safe check
                   child: InputDecorator(
                     decoration: _buildInputDecoration(
                       label: "Change Co-Captain (optional)",
@@ -2464,10 +2570,12 @@ class _EditEventPageState extends State<EditEventPage> {
                       suffixIcon: _selectedCoHostId != null
                           ? IconButton(
                               icon: const Icon(Icons.close, size: 20),
-                              onPressed: () => setState(() {
-                                _selectedCoHostId = null;
-                                _selectedCoHostName = null;
-                              }),
+                              onPressed: _isPast
+                                  ? null
+                                  : () => setState(() {
+                                      _selectedCoHostId = null;
+                                      _selectedCoHostName = null;
+                                    }),
                             )
                           : const Icon(Icons.arrow_drop_down),
                     ),
@@ -2500,7 +2608,8 @@ class _EditEventPageState extends State<EditEventPage> {
           width: double.infinity,
           height: 60,
           child: ElevatedButton(
-            onPressed: _updateEvent,
+            // Safely disables button if past or loading
+            onPressed: (_isPast || _isLoading) ? null : _updateEvent,
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryColor,
               foregroundColor: themeProvider.onPrimaryColor,
@@ -2526,7 +2635,8 @@ class _EditEventPageState extends State<EditEventPage> {
           width: double.infinity,
           height: 55,
           child: OutlinedButton.icon(
-            onPressed: _deleteEvent,
+            // Safely disables button if past or loading
+            onPressed: (_isPast || _isLoading) ? null : _deleteEvent,
             icon: Icon(
               Icons.delete,
               color: isDark ? Colors.redAccent : Colors.red,
@@ -2587,6 +2697,7 @@ class _EditEventPageState extends State<EditEventPage> {
                             Expanded(
                               child: Column(
                                 children: [
+                                  lockdownBanner,
                                   bannerPicker,
                                   vitalsCard,
                                   crewCard,
@@ -2601,6 +2712,7 @@ class _EditEventPageState extends State<EditEventPage> {
                       else
                         Column(
                           children: [
+                            lockdownBanner,
                             bannerPicker,
                             vitalsCard,
                             extrasCard,

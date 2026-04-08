@@ -930,6 +930,12 @@ class _CreateEventPageState extends State<CreateEventPage> {
               .doc();
           createdEventRefs.add(eventRef);
 
+          // Calculate exact end time
+          int durationMinutes = _keepAliveDays > 0
+              ? (_keepAliveDays * 24 * 60)
+              : 240;
+          DateTime endTime = date.add(Duration(minutes: durationMinutes));
+
           batch.set(eventRef, {
             'hostId': user.uid,
             'coHostId': _selectedCoHostId,
@@ -937,6 +943,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
             'location': _locController.text.trim(),
             'details': _detailsController.text.trim(),
             'time': Timestamp.fromDate(date),
+            'endTime': Timestamp.fromDate(endTime),
+            'isPast': false,
             'created_at': FieldValue.serverTimestamp(),
             'visibleTo': visibleToIds.toList(),
             'inviteAll': _inviteAll,

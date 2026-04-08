@@ -381,6 +381,8 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
         _selectedTime.minute,
       );
 
+      final defaultEndTime = finalDateTime.add(const Duration(hours: 4));
+
       final friendsSnapshot = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -423,6 +425,9 @@ class _CreateVibeCheckPageState extends State<CreateVibeCheckPage> {
             'title': _titleController.text.trim(),
             'details': _detailsController.text.trim(),
             'time': Timestamp.fromDate(finalDateTime),
+            'endTime': Timestamp.fromDate(defaultEndTime),
+            'keepAliveDays': 0,
+            // ----------------------------------------------------
             'created_at': FieldValue.serverTimestamp(),
             'visibleTo': visibleToIds.toList(),
             'inviteAll': _inviteAll,
