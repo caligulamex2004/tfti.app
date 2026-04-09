@@ -709,7 +709,8 @@ exports.awardLootDrops = onSchedule("every 15 minutes", async (event) => {
 
             const eventRef = db.collection("events").doc(eventId);
             batch.update(eventRef, {
-                pointsAwarded: true // THE SEAL
+                pointsAwarded: true, // THE SEAL
+                isPast: true         // DATABASE INTEGRITY
             });
 
             await batch.commit();
