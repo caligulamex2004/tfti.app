@@ -55,7 +55,7 @@ class _EditEventPageState extends State<EditEventPage> {
 
   late bool _isMainHost;
   late bool _isCoHost;
-
+  late bool _dbIsPast;
   late bool _isPast;
 
   String? _selectedCoHostId;
@@ -90,14 +90,19 @@ class _EditEventPageState extends State<EditEventPage> {
     _keepAliveDays = widget.eventData['keepAliveDays'] ?? 0;
 
     // Determine if the event is locked down
-    final Timestamp startTs = widget.eventData['time'];
     final Timestamp? endTs = widget.eventData['endTime'];
-    final DateTime endTime =
-        endTs?.toDate() ??
-        startTs.toDate().add(
-          Duration(days: _keepAliveDays > 0 ? _keepAliveDays : 1),
-        );
-    _isPast = endTime.isBefore(DateTime.now());
+    DateTime endTime;
+    if (endTs != null) {
+      endTime = endTs.toDate();
+    } else {
+      // Fallback: Assume a default 4-hour duration if endTime isn't set
+      final int durationMinutes = _keepAliveDays > 0
+          ? (_keepAliveDays * 24 * 60)
+          : 240;
+      endTime = _selectedDate!.add(Duration(minutes: durationMinutes));
+    }
+    _dbIsPast = widget.eventData['isPast'] == true;
+    _isPast = _dbIsPast || DateTime.now().isAfter(endTime);
 
     if (_isCoHost && !_isMainHost) {
       _inviteAll = widget.eventData['coHostInviteAll'] ?? false;

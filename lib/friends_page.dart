@@ -1,17 +1,17 @@
-import 'package:flutter/material.dart';
-import 'package:material_symbols_icons/symbols.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'contact_service.dart';
-import 'theme_provider.dart';
 import 'phone_formatter.dart';
+import 'theme_provider.dart';
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
@@ -1722,243 +1722,349 @@ class _FriendsPageState extends State<FriendsPage> {
                                   horizontal: 16,
                                   vertical: 8,
                                 ),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).cardColor,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: isDark
-                                          ? Colors.grey.shade800
-                                          : Colors.grey.shade200,
-                                      width: 1,
-                                    ),
-                                    boxShadow: [
-                                      if (!isDark)
-                                        BoxShadow(
-                                          color: Colors.black.withValues(
-                                            alpha: 0.04,
-                                          ),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                    ],
-                                  ),
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    child: InkWell(
+                                child: Dismissible(
+                                  key: ValueKey(uid),
+                                  direction: DismissDirection
+                                      .endToStart, // Swipe left only
+                                  background: Container(
+                                    alignment: Alignment.centerRight,
+                                    padding: const EdgeInsets.only(right: 24),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
                                       borderRadius: BorderRadius.circular(20),
-                                      onTap: () =>
-                                          _showFriendProfileBottomSheet(
-                                            context,
-                                            userData,
-                                            isDark,
-                                            primaryColor,
-                                            myUid,
-                                            isBlocked,
-                                          ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 16,
+                                    ),
+                                    child: const Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.person_remove,
+                                          color: Colors.white,
+                                          size: 28,
                                         ),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: avatarColor
-                                                        .withValues(alpha: 0.4),
-                                                    blurRadius: 12,
-                                                    spreadRadius: 2,
-                                                  ),
-                                                ],
-                                              ),
-                                              child: CircleAvatar(
-                                                radius: 26,
-                                                backgroundColor: avatarColor,
-                                                backgroundImage:
-                                                    avatarUrl != null
-                                                    ? CachedNetworkImageProvider(
-                                                        avatarUrl,
-                                                      )
-                                                    : null,
-                                                child: avatarUrl == null
-                                                    ? Text(
-                                                        displayName.isNotEmpty
-                                                            ? displayName[0]
-                                                                  .toUpperCase()
-                                                            : "?",
-                                                        style: const TextStyle(
-                                                          color: Colors.white,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          fontSize: 20,
-                                                        ),
-                                                      )
-                                                    : null,
+                                        SizedBox(height: 4),
+                                        Text(
+                                          "Remove",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  confirmDismiss: (direction) async {
+                                    HapticFeedback.mediumImpact();
+                                    return await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text("Remove Squad Mate?"),
+                                        content: Text(
+                                          "Are you sure you want to remove $displayName from your squad?",
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, false),
+                                            child: const Text("Cancel"),
+                                          ),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, true),
+                                            style: TextButton.styleFrom(
+                                              foregroundColor: Colors.red,
+                                            ),
+                                            child: const Text(
+                                              "Remove",
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
                                               ),
                                             ),
-                                            const SizedBox(width: 16),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Row(
-                                                    children: [
-                                                      ?rankIcon,
-                                                      Flexible(
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                  onDismissed: (direction) async {
+                                    try {
+                                      await FirebaseFirestore.instance
+                                          .collection('users')
+                                          .doc(myUid)
+                                          .collection('friends')
+                                          .doc(uid)
+                                          .delete();
+
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              "$displayName was removed from your squad.",
+                                            ),
+                                            behavior: SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      debugPrint("Error removing friend: $e");
+                                    }
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).cardColor,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: isDark
+                                            ? Colors.grey.shade800
+                                            : Colors.grey.shade200,
+                                        width: 1,
+                                      ),
+                                      boxShadow: [
+                                        if (!isDark)
+                                          BoxShadow(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.04,
+                                            ),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                      ],
+                                    ),
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(20),
+                                        onTap: () =>
+                                            _showFriendProfileBottomSheet(
+                                              context,
+                                              userData,
+                                              isDark,
+                                              primaryColor,
+                                              myUid,
+                                              isBlocked,
+                                            ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 16,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: avatarColor
+                                                          .withValues(
+                                                            alpha: 0.4,
+                                                          ),
+                                                      blurRadius: 12,
+                                                      spreadRadius: 2,
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: CircleAvatar(
+                                                  radius: 26,
+                                                  backgroundColor: avatarColor,
+                                                  backgroundImage:
+                                                      avatarUrl != null
+                                                      ? CachedNetworkImageProvider(
+                                                          avatarUrl,
+                                                        )
+                                                      : null,
+                                                  child: avatarUrl == null
+                                                      ? Text(
+                                                          displayName.isNotEmpty
+                                                              ? displayName[0]
+                                                                    .toUpperCase()
+                                                              : "?",
+                                                          style:
+                                                              const TextStyle(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                fontSize: 20,
+                                                              ),
+                                                        )
+                                                      : null,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        ?rankIcon,
+                                                        Flexible(
+                                                          child: Text(
+                                                            displayName,
+                                                            style: TextStyle(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w900,
+                                                              fontSize: 17,
+                                                              letterSpacing:
+                                                                  -0.3,
+                                                              color: isBlocked
+                                                                  ? Colors.grey
+                                                                  : (isDark
+                                                                        ? Colors
+                                                                              .white
+                                                                        : Colors
+                                                                              .black87),
+                                                              decoration: null,
+                                                            ),
+                                                            maxLines: 1,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                          ),
+                                                        ),
+                                                        if (isGoated &&
+                                                            !isBlocked)
+                                                          const Padding(
+                                                            padding:
+                                                                EdgeInsets.only(
+                                                                  left: 6.0,
+                                                                ),
+                                                            child: Icon(
+                                                              Symbols.star,
+                                                              fill: 1.0,
+                                                              color:
+                                                                  Colors.amber,
+                                                              size: 18,
+                                                            ),
+                                                          ),
+                                                        if (isBlocked)
+                                                          const Padding(
+                                                            padding:
+                                                                EdgeInsets.only(
+                                                                  left: 6.0,
+                                                                ),
+                                                            child: Icon(
+                                                              Icons.block,
+                                                              color: Colors.red,
+                                                              size: 16,
+                                                            ),
+                                                          ),
+                                                      ],
+                                                    ),
+                                                    if (username.isNotEmpty)
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsets.only(
+                                                              top: 4.0,
+                                                            ),
                                                         child: Text(
-                                                          displayName,
+                                                          "@$username",
                                                           style: TextStyle(
+                                                            fontSize: 13,
                                                             fontWeight:
-                                                                FontWeight.w900,
-                                                            fontSize: 17,
-                                                            letterSpacing: -0.3,
+                                                                FontWeight.bold,
                                                             color: isBlocked
                                                                 ? Colors.grey
-                                                                : (isDark
-                                                                      ? Colors
-                                                                            .white
-                                                                      : Colors
-                                                                            .black87),
-                                                            decoration: null,
+                                                                : primaryColor,
                                                           ),
                                                           maxLines: 1,
                                                           overflow: TextOverflow
                                                               .ellipsis,
                                                         ),
                                                       ),
-                                                      if (isGoated &&
-                                                          !isBlocked)
-                                                        const Padding(
-                                                          padding:
-                                                              EdgeInsets.only(
-                                                                left: 6.0,
-                                                              ),
-                                                          child: Icon(
-                                                            Symbols.star,
-                                                            fill: 1.0,
-                                                            color: Colors.amber,
-                                                            size: 18,
-                                                          ),
-                                                        ),
-                                                      if (isBlocked)
-                                                        const Padding(
-                                                          padding:
-                                                              EdgeInsets.only(
-                                                                left: 6.0,
-                                                              ),
-                                                          child: Icon(
-                                                            Icons.block,
-                                                            color: Colors.red,
-                                                            size: 16,
-                                                          ),
-                                                        ),
-                                                    ],
-                                                  ),
-                                                  if (username.isNotEmpty)
-                                                    Padding(
-                                                      padding:
-                                                          const EdgeInsets.only(
-                                                            top: 4.0,
-                                                          ),
-                                                      child: Text(
-                                                        "@$username",
-                                                        style: TextStyle(
-                                                          fontSize: 13,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          color: isBlocked
-                                                              ? Colors.grey
-                                                              : primaryColor,
-                                                        ),
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                      ),
-                                                    ),
-                                                ],
+                                                  ],
+                                                ),
                                               ),
-                                            ),
 
-                                            // --- TRAILING STATS OR CHEVRON ---
-                                            _sortByScore
-                                                ? Column(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .center,
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment.end,
-                                                    children: [
-                                                      Row(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          Text(
-                                                            '$hp',
-                                                            style: TextStyle(
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                              fontSize: 14,
-                                                              color: isDark
-                                                                  ? Colors.white
-                                                                  : Colors
-                                                                        .black87,
+                                              // --- TRAILING STATS OR CHEVRON ---
+                                              _sortByScore
+                                                  ? Column(
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .center,
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .end,
+                                                      children: [
+                                                        Row(
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          children: [
+                                                            Text(
+                                                              '$hp',
+                                                              style: TextStyle(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                fontSize: 14,
+                                                                color: isDark
+                                                                    ? Colors
+                                                                          .white
+                                                                    : Colors
+                                                                          .black87,
+                                                              ),
                                                             ),
-                                                          ),
-                                                          const SizedBox(
-                                                            width: 4,
-                                                          ),
-                                                          const Icon(
-                                                            Icons.whatshot,
-                                                            color: Colors
-                                                                .redAccent,
-                                                            size: 14,
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      const SizedBox(height: 4),
-                                                      Row(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          Text(
-                                                            '$mana',
-                                                            style: TextStyle(
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                              fontSize: 14,
-                                                              color: isDark
-                                                                  ? Colors.white
-                                                                  : Colors
-                                                                        .black87,
+                                                            const SizedBox(
+                                                              width: 4,
                                                             ),
-                                                          ),
-                                                          const SizedBox(
-                                                            width: 4,
-                                                          ),
-                                                          const Icon(
-                                                            Icons.water_drop,
-                                                            color: Colors
-                                                                .blueAccent,
-                                                            size: 14,
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ],
-                                                  )
-                                                : Icon(
-                                                    Icons.chevron_right,
-                                                    color: isDark
-                                                        ? Colors.grey.shade700
-                                                        : Colors.grey.shade300,
-                                                  ),
-                                          ],
+                                                            const Icon(
+                                                              Icons.whatshot,
+                                                              color: Colors
+                                                                  .redAccent,
+                                                              size: 14,
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        const SizedBox(
+                                                          height: 4,
+                                                        ),
+                                                        Row(
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          children: [
+                                                            Text(
+                                                              '$mana',
+                                                              style: TextStyle(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                fontSize: 14,
+                                                                color: isDark
+                                                                    ? Colors
+                                                                          .white
+                                                                    : Colors
+                                                                          .black87,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(
+                                                              width: 4,
+                                                            ),
+                                                            const Icon(
+                                                              Icons.water_drop,
+                                                              color: Colors
+                                                                  .blueAccent,
+                                                              size: 14,
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    )
+                                                  : Icon(
+                                                      Icons.chevron_right,
+                                                      color: isDark
+                                                          ? Colors.grey.shade700
+                                                          : Colors
+                                                                .grey
+                                                                .shade300,
+                                                    ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),

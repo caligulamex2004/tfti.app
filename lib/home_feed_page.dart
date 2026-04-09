@@ -585,7 +585,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       // --- NEW: Optimized Time Logic using Firestore 'endTime' ---
                       final Timestamp? endTs = eventData['endTime'];
                       DateTime endTime;
-
                       if (endTs != null) {
                         endTime = endTs.toDate();
                       } else {
@@ -600,7 +599,8 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                         );
                       }
 
-                      final bool isPast = now.isAfter(endTime);
+                      final bool dbIsPast = eventData['isPast'] == true;
+                      final bool isPast = dbIsPast || now.isAfter(endTime);
                       final bool isStartingSoon =
                           eventTime.isAfter(now) &&
                           eventTime.difference(now).inMinutes <= 60;

@@ -1858,7 +1858,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                           : 240;
                       endTime = dt.add(Duration(minutes: durationMinutes));
                     }
-                    final bool isPast = DateTime.now().isAfter(endTime);
+                    final bool dbIsPast = data['isPast'] == true;
+                    final bool isPast =
+                        dbIsPast || DateTime.now().isAfter(endTime);
 
                     // --- 6. CACHE CREW FUTURE ---
                     // Generates a hash to see if anyone's RSVP changed
