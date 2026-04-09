@@ -251,6 +251,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           'username': userData['username'] ?? '',
           'statusText': userData['statusText'] ?? '',
           'votes': inviteData['votes'] ?? [],
+          'hp': userData['hp'] ?? 0,
+          'mana': userData['mana'] ?? 0,
+          'createdAt': userData['createdAt'] ?? userData['created_at'],
         };
       } catch (e) {
         debugPrint("Guest fetch failed, skipping... $e");
@@ -520,16 +523,111 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     );
   }
 
-  void _showGuestProfileSheet(Map<String, dynamic> guest, bool showAddButton) {
+  Future<void> _reportUser(String reportedUid, String reportedName) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Report User?"),
+        content: Text(
+          "Flag $reportedName for inappropriate behavior or profile content? Our team will review this.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: isDark ? Colors.redAccent : Colors.red,
+            ),
+            child: const Text("Report"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('reports').add({
+        'eventId': widget.eventId,
+        'reportedUserUid': reportedUid,
+        'reportedByName': reportedName,
+        'reportedBy': user.uid,
+        'reportedAt': FieldValue.serverTimestamp(),
+        'status': 'pending',
+        'type': 'user_report',
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              "Report sent. Thank you for keeping TFTI safe.",
+            ),
+            backgroundColor: isDark ? Colors.green.shade700 : Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Error sending report.")));
+      }
+    }
+  }
+
+  void _showGuestProfileSheet(
+    Map<String, dynamic> guest,
+    bool showAddButton, {
+    bool isGoated = false,
+  }) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
 
-    final String name = guest['displayName'];
+    final String displayName = guest['displayName'] ?? "No Name";
     final String username = guest['username'] ?? "";
-    final String statusText = guest['statusText'] ?? "";
     final String phone = guest['phone'] ?? "";
+    final bool showPhone = phone.isNotEmpty;
+    final String statusText = guest['statusText'] ?? "";
+
     final String? avatarUrl = guest['avatarUrl'];
-    final int avatarColor = guest['avatarColor'] ?? Colors.blue.toARGB32();
+    Color avatarColor = Colors.blue.shade100;
+    if (guest['avatarColor'] is int) {
+      avatarColor = Color(guest['avatarColor']);
+    }
+
+    // --- Extract RPG Stats & Origin Date ---
+    final int hp = guest['hp'] ?? 0;
+    final int mana = guest['mana'] ?? 0;
+    final Timestamp? createdAt = guest['createdAt'];
+
+    String originDate = "";
+    if (createdAt != null) {
+      final DateTime dt = createdAt.toDate();
+      final List<String> months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      originDate = "Joined ${months[dt.month - 1]} ${dt.year}";
+    }
 
     showModalBottomSheet(
       context: context,
@@ -539,204 +637,506 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return SafeArea(
-          child: SizedBox(
-            width: double.infinity,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+        final isLandscape =
+            MediaQuery.of(ctx).orientation == Orientation.landscape;
+
+        // --- TCG STYLE DECORATIONS ---
+        // Creates the "Card Text Box" feel (semi-transparent tinted glass)
+        final plateDecoration = BoxDecoration(
+          color: isDark
+              ? Colors.black.withValues(alpha: 0.25)
+              : Colors.white.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.1)
+                : Colors.black.withValues(alpha: 0.05),
+            width: 1,
+          ),
+        );
+
+        // Helper widget for drawing the RPG Bars
+        Widget buildStatBar(
+          String label,
+          int totalValue,
+          Color color,
+          IconData icon,
+        ) {
+          int level = (totalValue ~/ 100) + 1;
+          int progress = totalValue % 100;
+          double percentage = progress / 100.0;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const SizedBox(height: 10),
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? Colors.grey.shade700
-                          : Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Avatar
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color(avatarColor).withValues(alpha: 0.4),
-                          blurRadius: 15,
-                          spreadRadius: 2,
+                  Row(
+                    children: [
+                      Icon(icon, size: 14, color: color),
+                      const SizedBox(width: 6),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: isDark
+                              ? Colors.grey.shade300
+                              : Colors.grey.shade800,
                         ),
-                      ],
-                    ),
-                    child: CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Color(avatarColor),
-                      backgroundImage: avatarUrl != null
-                          ? CachedNetworkImageProvider(avatarUrl)
-                          : null,
-                      child: avatarUrl == null
-                          ? Text(
-                              name.isNotEmpty ? name[0].toUpperCase() : "?",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            )
-                          : null,
-                    ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-
-                  // Name & Username
                   Text(
-                    name,
+                    "Lvl. $level",
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: 14,
                       fontWeight: FontWeight.w900,
-                      color: isDark ? Colors.white : Colors.black87,
+                      color: color,
                     ),
                   ),
-                  if (username.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Text(
-                        "@$username",
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: primaryColor,
-                        ),
-                      ),
-                    ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: percentage,
+                  minHeight: 10,
+                  backgroundColor: isDark ? Colors.black38 : Colors.white60,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.center,
+                child: Text(
+                  "$progress / 100",
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
 
-                  if (statusText.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        top: 12.0,
-                        left: 24,
-                        right: 24,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Symbols.mode_comment,
-                            size: 18,
-                            color: isDark
-                                ? Colors.grey.shade500
-                                : Colors.grey.shade600,
+        // --- REUSABLE TCG CARD COMPONENTS ---
+
+        // 1. The Title Plate
+        Widget titleWidget = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: plateDecoration,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: RichText(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  text: TextSpan(
+                    children: [
+                      if (username.isNotEmpty)
+                        TextSpan(
+                          text: "@$username, ",
+                          style: TextStyle(
+                            fontSize: isLandscape ? 15 : 14,
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
                           ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              statusText,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontStyle: FontStyle.italic,
-                                color: isDark
-                                    ? Colors.grey.shade400
-                                    : Colors.grey.shade700,
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  const SizedBox(height: 24),
-
-                  // Only draw this divider if there is content below it!
-                  if (phone.isNotEmpty || showAddButton)
-                    Divider(
-                      height: 1,
-                      color: isDark
-                          ? Colors.grey.shade800
-                          : Colors.grey.shade200,
-                    ),
-
-                  // Phone Number (If visible)
-                  if (phone.isNotEmpty)
-                    ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 8,
-                      ),
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
                         ),
-                        child: const Icon(
-                          Icons.phone_android,
-                          color: Colors.green,
-                        ),
-                      ),
-                      title: const Text(
-                        "Phone Number",
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                      subtitle: Text(
-                        phone,
+                      TextSpan(
+                        text: displayName,
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontSize: isLandscape ? 20 : 18,
+                          fontWeight: FontWeight.w900,
                           color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
-                    ),
+                    ],
+                  ),
+                ),
+              ),
+              if (isGoated) ...[
+                const SizedBox(width: 8),
+                const Text("🐐", style: TextStyle(fontSize: 22)),
+              ],
+            ],
+          ),
+        );
 
-                  // Add Friend Button
-                  if (showAddButton) ...[
-                    if (phone.isNotEmpty)
+        // 2. The Card Art
+        Widget avatarWidget = Container(
+          width: isLandscape ? 120 : 160,
+          height: isLandscape ? 120 : 160,
+          decoration: BoxDecoration(
+            color: avatarColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isDark ? Colors.white24 : Colors.black12,
+              width: 3,
+            ),
+            image: avatarUrl != null
+                ? DecorationImage(
+                    image: CachedNetworkImageProvider(avatarUrl),
+                    fit: BoxFit.cover,
+                  )
+                : null,
+          ),
+          child: avatarUrl == null
+              ? Center(
+                  child: Text(
+                    displayName.isNotEmpty ? displayName[0].toUpperCase() : "?",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 60,
+                    ),
+                  ),
+                )
+              : null,
+        );
+
+        // 3. The Power Level Badge (Pill)
+        Widget hpManaPill = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.secondaryContainer,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark ? Colors.white24 : Colors.black12,
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Text(
+            "🔥 $hp / $mana 💧",
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900, // Extra bold for impact
+              color: isDark ? Colors.white : Colors.black87,
+              letterSpacing: 0.5,
+            ),
+          ),
+        );
+
+        // 4. The Flavor Text Plate
+        Widget statusWidget = Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(
+            top: 24.0,
+          ), // Extra top margin to clear the overlapping pill
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: plateDecoration,
+          child: Text(
+            '"$statusText"',
+            textAlign: TextAlign.center, // Centered looks great inside a plate
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontStyle: FontStyle.italic,
+              fontSize: 13,
+              color: isDark ? Colors.white70 : Colors.black87,
+              height: 1.3,
+            ),
+          ),
+        );
+
+        // 5. The Footer Plate
+        Widget metaWidget = Row(
+          children: [
+            // LEFT ALIGNED: Joined Date
+            Expanded(
+              flex: 1,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: originDate.isNotEmpty
+                    ? FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          originDate,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+
+            // RIGHT ALIGNED: Phone Number
+            Expanded(
+              flex: 1,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: showPhone
+                    ? FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.center,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.phone_iphone,
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              phone,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                                color: isDark
+                                    ? Colors.grey.shade300
+                                    : Colors.grey.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+          ],
+        );
+
+        // STACK: Combines Card Art + Overlapping Power Level Badge
+        Widget metaWithBadgeStack = Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.bottomRight,
+          children: [
+            metaWidget,
+            Positioned(
+              bottom:
+                  -46, // Pulls the pill down so it straddles the bottom border!
+              child: hpManaPill,
+            ),
+          ],
+        );
+
+        // --- ASSEMBLE THE TCG CARD BASED ON ORIENTATION ---
+        Widget tcgCard;
+        if (isLandscape) {
+          tcgCard = Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: avatarColor.withValues(alpha: isDark ? 0.15 : 0.10),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: avatarColor.withValues(alpha: 0.6),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: avatarColor.withValues(alpha: 0.25),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                titleWidget,
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 4,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          avatarWidget,
+                          if (statusText.isNotEmpty) statusWidget,
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      flex: 6,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          buildStatBar(
+                            "HP (Hangouts)",
+                            hp,
+                            Colors.redAccent,
+                            Icons.whatshot,
+                          ),
+                          const SizedBox(height: 12),
+                          buildStatBar(
+                            "Mana (Invites)",
+                            mana,
+                            Colors.blueAccent,
+                            Icons.water_drop,
+                          ),
+                          const SizedBox(height: 20),
+                          metaWithBadgeStack,
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        } else {
+          tcgCard = Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: avatarColor.withValues(alpha: isDark ? 0.15 : 0.10),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: avatarColor.withValues(alpha: 0.6),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: avatarColor.withValues(alpha: 0.25),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                titleWidget,
+                const SizedBox(height: 20),
+                avatarWidget,
+                if (statusText.isNotEmpty) statusWidget,
+                if (statusText.isEmpty)
+                  const SizedBox(height: 24), // Spacer if no status
+                const SizedBox(height: 20),
+                buildStatBar(
+                  "HP (Hangouts)",
+                  hp,
+                  Colors.redAccent,
+                  Icons.whatshot,
+                ),
+                const SizedBox(height: 12),
+                buildStatBar(
+                  "Mana (Invites)",
+                  mana,
+                  Colors.blueAccent,
+                  Icons.water_drop,
+                ),
+                const SizedBox(height: 16),
+                metaWithBadgeStack,
+              ],
+            ),
+          );
+        }
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 24.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 10),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.grey.shade700
+                            : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Render the dynamically built TCG Card
+                    tcgCard,
+
+                    const SizedBox(height: 24),
+
+                    // --- ACTION BUTTONS ---
+                    if (showAddButton) ...[
                       Divider(
                         height: 1,
                         color: isDark
                             ? Colors.grey.shade800
                             : Colors.grey.shade200,
                       ),
-                    Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            _addFriend(context, guest['uid'], phone, name);
-                          },
-                          icon: Icon(
-                            Icons.person_add,
-                            color: themeProvider.onPrimaryColor,
-                          ),
-                          label: Text(
-                            "Add to Squad",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: themeProvider.onPrimaryColor,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                      ListTile(
+                        leading: Icon(
+                          Icons.person_add_alt_1,
+                          color: primaryColor,
+                          size: 28,
+                        ),
+                        title: const Text(
+                          "Add to Squad",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: const Text(
+                          "Invite them to your future hangouts",
+                        ),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _addFriend(context, guest['uid'], phone, displayName);
+                        },
+                      ),
+                    ],
+
+                    // HIDE FROM SELF: Only show Report if this is NOT the logged-in user
+                    if (guest['uid'] != currentUserId) ...[
+                      Divider(
+                        height: 1,
+                        color: isDark
+                            ? Colors.grey.shade800
+                            : Colors.grey.shade200,
+                      ),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.flag,
+                          color: Colors.red,
+                          size: 28,
+                        ),
+                        title: const Text(
+                          "Report User",
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
+                        subtitle: const Text("Flag for inappropriate behavior"),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _reportUser(guest['uid'], displayName);
+                        },
                       ),
-                    ),
+                    ],
+                    const SizedBox(height: 12),
                   ],
-
-                  if (!showAddButton && phone.isEmpty)
-                    const SizedBox(height: 32),
-                ],
+                ),
               ),
             ),
           ),
@@ -1448,6 +1848,18 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                     final int rsvpDeadline = data['rsvpDeadline'] ?? 0;
                     final int keepAliveDays = data['keepAliveDays'] ?? 0;
 
+                    final Timestamp? endTs = data['endTime'];
+                    DateTime endTime;
+                    if (endTs != null) {
+                      endTime = endTs.toDate();
+                    } else {
+                      final int durationMinutes = keepAliveDays > 0
+                          ? (keepAliveDays * 24 * 60)
+                          : 240;
+                      endTime = dt.add(Duration(minutes: durationMinutes));
+                    }
+                    final bool isPast = DateTime.now().isAfter(endTime);
+
                     // --- 6. CACHE CREW FUTURE ---
                     // Generates a hash to see if anyone's RSVP changed
                     int currentHash = inviteDocs.length;
@@ -1888,11 +2300,13 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                   myInviteData: myInviteData,
                                   myUid: currentUser.uid,
                                   isHost: isMainHost,
+                                  isLocked: isPast,
                                 ),
                                 const SizedBox(height: 24),
                                 SwipeRsvpWidget(
                                   key: ValueKey(myStatus),
                                   currentStatus: myStatus,
+                                  isLocked: isPast,
                                   onRsvp: _rsvp,
                                 ),
                               ],
@@ -1905,6 +2319,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                             child: SwipeRsvpWidget(
                               key: ValueKey(myStatus),
                               currentStatus: myStatus,
+                              isLocked: isPast,
                               onRsvp: _rsvp,
                             ),
                           );
@@ -1995,11 +2410,24 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                                 (guestUid != currentUser.uid) &&
                                                 !(friendSnap.hasData &&
                                                     friendSnap.data!.exists);
+
+                                            bool isGoated =
+                                                friendSnap.hasData &&
+                                                    friendSnap.data!.exists
+                                                ? (friendSnap.data!.data()
+                                                          as Map<
+                                                            String,
+                                                            dynamic
+                                                          >)['isGoated'] ==
+                                                      true
+                                                : false;
+
                                             return InkWell(
                                               onTap: () =>
                                                   _showGuestProfileSheet(
                                                     guest,
                                                     showAddButton,
+                                                    isGoated: isGoated,
                                                   ),
                                               borderRadius:
                                                   BorderRadius.circular(12),
@@ -2530,11 +2958,13 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 // --- SWIPE-TO-RSVP WIDGET ---
 class SwipeRsvpWidget extends StatefulWidget {
   final String currentStatus;
+  final bool isLocked;
   final Function(String) onRsvp;
 
   const SwipeRsvpWidget({
     super.key,
     required this.currentStatus,
+    this.isLocked = false,
     required this.onRsvp,
   });
 
@@ -2588,7 +3018,41 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
       builder: (context, constraints) {
         final double trackWidth = constraints.maxWidth;
         final bool isCompact =
-            trackWidth < 280; // 👈 Detects landscape/narrow widths
+            trackWidth < 280; // Detects landscape/narrow widths
+
+        // If event is locked and they haven't RSVP'd, show closed text
+        if (widget.isLocked && widget.currentStatus == 'pending') {
+          return Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(
+              vertical: isCompact ? 12 : 16,
+              horizontal: 16,
+            ),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Colors.grey.withValues(alpha: 0.5),
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.lock, color: Colors.grey, size: 24),
+                const SizedBox(width: 8),
+                Text(
+                  "RSVP Closed",
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
 
         // Status 1: ACCEPTED
         if (widget.currentStatus == 'going') {
@@ -2629,29 +3093,30 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 36,
-                        child: OutlinedButton(
-                          onPressed: () => widget.onRsvp('pending'),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(
-                              color: Colors.green.withValues(alpha: 0.5),
+                      if (!widget.isLocked)
+                        SizedBox(
+                          width: double.infinity,
+                          height: 36,
+                          child: OutlinedButton(
+                            onPressed: () => widget.onRsvp('pending'),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: Colors.green.withValues(alpha: 0.5),
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text(
-                            "Change",
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
+                            child: const Text(
+                              "Change",
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
-                      ),
                     ],
                   )
                 : Row(
@@ -2674,16 +3139,17 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      TextButton(
-                        onPressed: () => widget.onRsvp('pending'),
-                        child: const Text(
-                          "Change",
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
+                      if (!widget.isLocked)
+                        TextButton(
+                          onPressed: () => widget.onRsvp('pending'),
+                          child: const Text(
+                            "Change",
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   ),
           );
@@ -2724,29 +3190,31 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 36,
-                        child: OutlinedButton(
-                          onPressed: () => widget.onRsvp('pending'),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(
-                              color: Colors.red.withValues(alpha: 0.5),
+                      // --- FIX: ADDED LOCK CHECK HERE ---
+                      if (!widget.isLocked)
+                        SizedBox(
+                          width: double.infinity,
+                          height: 36,
+                          child: OutlinedButton(
+                            onPressed: () => widget.onRsvp('pending'),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: Colors.red.withValues(alpha: 0.5),
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text(
-                            "Change RSVP",
-                            style: TextStyle(
-                              color: Colors.red,
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
+                            child: const Text(
+                              "Change RSVP",
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
-                      ),
                     ],
                   )
                 : Row(
@@ -2765,16 +3233,18 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      TextButton(
-                        onPressed: () => widget.onRsvp('pending'),
-                        child: const Text(
-                          "Change",
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
+                      // --- FIX: ADDED LOCK CHECK HERE ---
+                      if (!widget.isLocked)
+                        TextButton(
+                          onPressed: () => widget.onRsvp('pending'),
+                          child: const Text(
+                            "Change",
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   ),
           );
@@ -2937,6 +3407,7 @@ class VibeCheckPollUI extends StatelessWidget {
   final Map<String, dynamic> myInviteData;
   final String myUid;
   final bool isHost;
+  final bool isLocked;
 
   const VibeCheckPollUI({
     super.key,
@@ -2945,9 +3416,12 @@ class VibeCheckPollUI extends StatelessWidget {
     required this.myInviteData,
     required this.myUid,
     required this.isHost,
+    this.isLocked = false,
   });
 
   Future<void> _castVote(String optionId) async {
+    if (isLocked) return;
+
     final status = myInviteData['status'] ?? 'pending';
     if (status != 'going' && !isHost) {
       return;
@@ -2984,6 +3458,8 @@ class VibeCheckPollUI extends StatelessWidget {
   }
 
   Future<void> _lockInTieBreaker(Map<String, dynamic> option) async {
+    if (isLocked) return;
+
     final batch = FirebaseFirestore.instance.batch();
     final eventRef = FirebaseFirestore.instance
         .collection('events')

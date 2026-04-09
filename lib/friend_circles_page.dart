@@ -940,6 +940,7 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
     await Future.wait(
       friendDocs.map((doc) async {
         final uid = doc.id;
+        final friendData = doc.data() as Map<String, dynamic>? ?? {};
         final userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(uid)
@@ -948,6 +949,7 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
         if (userDoc.exists) {
           final data = userDoc.data() as Map<String, dynamic>;
           data['uid'] = uid;
+          data['isGoated'] = friendData['isGoated'] ?? false;
           profiles.add(data);
         }
       }),
@@ -1250,7 +1252,10 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
     Map<String, dynamic> userData,
     bool isDark,
     Color primaryColor,
+    String myUid,
   ) {
+    final bool isGoated = userData['isGoated'] ?? false;
+    final String friendUid = userData['uid'] ?? userData['id'] ?? "";
     final displayName = userData['displayName'] ?? "No Name";
     final username = userData['username'] ?? "";
     final rawPhone = userData['phoneNumber'] ?? "";
@@ -1264,6 +1269,32 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
       avatarColor = Color(userData['avatarColor']);
     }
 
+    // --- PHASE 3: Extract RPG Stats & Origin Date ---
+    final int hp = userData['hp'] ?? 0;
+    final int mana = userData['mana'] ?? 0;
+    final Timestamp? createdAt =
+        userData['createdAt'] ?? userData['created_at'];
+
+    String originDate = "";
+    if (createdAt != null) {
+      final DateTime dt = createdAt.toDate();
+      final List<String> months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      originDate = "Joined ${months[dt.month - 1]} ${dt.year}";
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1272,6 +1303,420 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
+        final isLandscape =
+            MediaQuery.of(ctx).orientation == Orientation.landscape;
+
+        // --- TCG STYLE DECORATIONS ---
+        // Creates the "Card Text Box" feel (semi-transparent tinted glass)
+        final plateDecoration = BoxDecoration(
+          color: isDark
+              ? Colors.black.withValues(alpha: 0.25)
+              : Colors.white.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.1)
+                : Colors.black.withValues(alpha: 0.05),
+            width: 1,
+          ),
+        );
+
+        // Helper widget for drawing the RPG Bars
+        Widget buildStatBar(
+          String label,
+          int totalValue,
+          Color color,
+          IconData icon,
+        ) {
+          int level = (totalValue ~/ 100) + 1;
+          int progress = totalValue % 100;
+          double percentage = progress / 100.0;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(icon, size: 14, color: color),
+                      const SizedBox(width: 6),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: isDark
+                              ? Colors.grey.shade300
+                              : Colors.grey.shade800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    "Lvl. $level",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: color,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: percentage,
+                  minHeight: 10,
+                  backgroundColor: isDark ? Colors.black38 : Colors.white60,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.center,
+                child: Text(
+                  "$progress / 100",
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        // --- REUSABLE TCG CARD COMPONENTS ---
+
+        // 1. The Title Plate
+        Widget titleWidget = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: plateDecoration,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: RichText(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  text: TextSpan(
+                    children: [
+                      if (username.isNotEmpty)
+                        TextSpan(
+                          text: "@$username, ",
+                          style: TextStyle(
+                            fontSize: isLandscape ? 15 : 14,
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
+                          ),
+                        ),
+                      TextSpan(
+                        text: displayName,
+                        style: TextStyle(
+                          fontSize: isLandscape ? 20 : 18,
+                          fontWeight: FontWeight.w900,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (isGoated) ...[
+                const SizedBox(width: 8),
+                const Text("🐐", style: TextStyle(fontSize: 22)),
+              ],
+            ],
+          ),
+        );
+
+        // 2. The Card Art
+        Widget avatarWidget = Container(
+          width: isLandscape ? 120 : 160,
+          height: isLandscape ? 120 : 160,
+          decoration: BoxDecoration(
+            color: avatarColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isDark ? Colors.white24 : Colors.black12,
+              width: 3,
+            ),
+            image: avatarUrl != null
+                ? DecorationImage(
+                    image: CachedNetworkImageProvider(avatarUrl),
+                    fit: BoxFit.cover,
+                  )
+                : null,
+          ),
+          child: avatarUrl == null
+              ? Center(
+                  child: Text(
+                    displayName.isNotEmpty ? displayName[0].toUpperCase() : "?",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 60,
+                    ),
+                  ),
+                )
+              : null,
+        );
+
+        // 3. The Power Level Badge (Pill)
+        Widget hpManaPill = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.secondaryContainer,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark ? Colors.white24 : Colors.black12,
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Text(
+            "🔥 $hp / $mana 💧",
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900, // Extra bold for impact
+              color: isDark ? Colors.white : Colors.black87,
+              letterSpacing: 0.5,
+            ),
+          ),
+        );
+
+        // 4. The Flavor Text Plate
+        Widget statusWidget = Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(
+            top: 24.0,
+          ), // Extra top margin to clear the overlapping pill
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: plateDecoration,
+          child: Text(
+            '"$statusText"',
+            textAlign: TextAlign.center, // Centered looks great inside a plate
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontStyle: FontStyle.italic,
+              fontSize: 13,
+              color: isDark ? Colors.white70 : Colors.black87,
+              height: 1.3,
+            ),
+          ),
+        );
+
+        // 5. The Footer Plate
+        Widget metaWidget = Row(
+          children: [
+            // LEFT ALIGNED: Joined Date
+            Expanded(
+              flex: 1,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: originDate.isNotEmpty
+                    ? FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          originDate,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+
+            // RIGHT ALIGNED: Phone Number
+            Expanded(
+              flex: 1,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: showPhone
+                    ? FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.center,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.phone_iphone,
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              displayPhone,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                                color: isDark
+                                    ? Colors.grey.shade300
+                                    : Colors.grey.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+          ],
+        );
+
+        // STACK: Combines Card Art + Overlapping Power Level Badge
+        Widget metaWithBadgeStack = Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.bottomRight,
+          children: [
+            metaWidget,
+            Positioned(
+              bottom:
+                  -46, // Pulls the pill down so it straddles the bottom border!
+              child: hpManaPill,
+            ),
+          ],
+        );
+
+        // --- ASSEMBLE THE TCG CARD BASED ON ORIENTATION ---
+        Widget tcgCard;
+        if (isLandscape) {
+          tcgCard = Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: avatarColor.withValues(alpha: isDark ? 0.15 : 0.10),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: avatarColor.withValues(alpha: 0.6),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: avatarColor.withValues(alpha: 0.25),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                titleWidget,
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 4,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          avatarWidget,
+                          if (statusText.isNotEmpty) statusWidget,
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      flex: 6,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          buildStatBar(
+                            "HP (Hangouts)",
+                            hp,
+                            Colors.redAccent,
+                            Icons.whatshot,
+                          ),
+                          const SizedBox(height: 12),
+                          buildStatBar(
+                            "Mana (Invites)",
+                            mana,
+                            Colors.blueAccent,
+                            Icons.water_drop,
+                          ),
+                          const SizedBox(height: 20),
+                          metaWithBadgeStack,
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        } else {
+          tcgCard = Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: avatarColor.withValues(alpha: isDark ? 0.15 : 0.10),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: avatarColor.withValues(alpha: 0.6),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: avatarColor.withValues(alpha: 0.25),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                titleWidget,
+                const SizedBox(height: 20),
+                avatarWidget,
+                if (statusText.isNotEmpty) statusWidget,
+                if (statusText.isEmpty)
+                  const SizedBox(height: 24), // Spacer if no status
+                const SizedBox(height: 20),
+                buildStatBar(
+                  "HP (Hangouts)",
+                  hp,
+                  Colors.redAccent,
+                  Icons.whatshot,
+                ),
+                const SizedBox(height: 12),
+                buildStatBar(
+                  "Mana (Invites)",
+                  mana,
+                  Colors.blueAccent,
+                  Icons.water_drop,
+                ),
+                const SizedBox(height: 16),
+                metaWithBadgeStack,
+              ],
+            ),
+          );
+        }
+
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.only(bottom: 24.0),
@@ -1292,127 +1737,50 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    const SizedBox(height: 32),
-
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: avatarColor.withValues(alpha: 0.4),
-                            blurRadius: 20,
-                            spreadRadius: 5,
-                          ),
-                        ],
-                      ),
-                      child: CircleAvatar(
-                        radius: 56,
-                        backgroundColor: avatarColor,
-                        backgroundImage: avatarUrl != null
-                            ? CachedNetworkImageProvider(avatarUrl)
-                            : null,
-                        child: avatarUrl == null
-                            ? Text(
-                                displayName.isNotEmpty
-                                    ? displayName[0].toUpperCase()
-                                    : "?",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 40,
-                                ),
-                              )
-                            : null,
-                      ),
-                    ),
                     const SizedBox(height: 24),
 
-                    Text(
-                      displayName,
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
-                        color: isDark ? Colors.white : Colors.black87,
-                        letterSpacing: -0.5,
+                    // Render the dynamically built TCG Card
+                    tcgCard,
+
+                    const SizedBox(height: 24),
+
+                    // --- NEW: GOATED ACTION BUTTON ---
+                    Divider(
+                      height: 1,
+                      color: isDark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade200,
+                    ),
+                    ListTile(
+                      leading: Icon(
+                        isGoated ? Symbols.star : Symbols.star,
+                        fill: isGoated ? 1.0 : 0.0,
+                        color: Colors.amber,
+                        size: 28,
                       ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      title: Text(
+                        isGoated ? "Remove from Goated" : "Mark as Goated",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: const Text(
+                        "Show their events first on your feed",
+                      ),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        HapticFeedback.mediumImpact();
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(myUid)
+                            .collection('friends')
+                            .doc(friendUid)
+                            .set({
+                              'isGoated': !isGoated,
+                            }, SetOptions(merge: true));
+                      },
                     ),
 
-                    if (username.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4.0),
-                        child: Text(
-                          "@$username",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: primaryColor,
-                          ),
-                        ),
-                      ),
-
-                    if (statusText.isNotEmpty)
-                      Container(
-                        margin: const EdgeInsets.only(
-                          top: 16,
-                          left: 32,
-                          right: 32,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 14,
-                        ),
-                        decoration: BoxDecoration(
-                          color: primaryColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: primaryColor.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Text(
-                          statusText,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: primaryColor,
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-
-                    if (showPhone && displayPhone.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 24),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.phone_iphone,
-                              color: isDark
-                                  ? Colors.grey.shade400
-                                  : Colors.grey.shade600,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              displayPhone,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.5,
-                                color: isDark
-                                    ? Colors.grey.shade300
-                                    : Colors.grey.shade800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    // ---------------------------------
+                    const SizedBox(height: 12), // Subtle padding at the bottom
                   ],
                 ),
               ),
@@ -1454,8 +1822,7 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
               }
 
               final profiles = profileSnap.data!;
-              final int memberCount =
-                  profiles.length; // 👈 Perfectly synced count!
+              final int memberCount = profiles.length;
 
               return CustomScrollView(
                 slivers: [
@@ -1686,6 +2053,7 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                     profile,
                                     isDark,
                                     primaryColor,
+                                    user.uid,
                                   ),
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
@@ -1853,7 +2221,7 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                             ],
                                           ),
                                         ),
-                                        // 👇 Replaced the IconButton with a subtle chevron!
+                                        // Replaced the IconButton with a subtle chevron!
                                         Icon(
                                           Icons.chevron_right,
                                           color: isDark
