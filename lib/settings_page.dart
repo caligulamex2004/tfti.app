@@ -233,6 +233,7 @@ class _SettingsPageState extends State<SettingsPage> {
         bool notifyMentions = true;
         bool notifyReminderHour = true;
         bool notifyReminderStart = true;
+        bool notifyPoints = true;
 
         if (snapshot.hasData && snapshot.data!.exists) {
           final data = snapshot.data!.data() as Map<String, dynamic>;
@@ -244,6 +245,7 @@ class _SettingsPageState extends State<SettingsPage> {
             notifyMentions = settings['mentions'] ?? true;
             notifyReminderHour = settings['reminder_hour'] ?? true;
             notifyReminderStart = settings['reminder_start'] ?? true;
+            notifyPoints = settings['points'] ?? true;
           }
         }
 
@@ -292,6 +294,18 @@ class _SettingsPageState extends State<SettingsPage> {
                 iconColor: Colors.red,
                 value: notifyReminderStart,
                 onChanged: (val) => _toggleNotification('reminder_start', val),
+                isDark: isDark,
+                primaryColor: primaryColor,
+              ),
+              _buildDivider(isDark),
+              _buildModernSwitch(
+                title: "Loot Drops",
+                subtitle: "When you earn 🔥HP & 💧Mana",
+                icon: Icons
+                    .workspace_premium, // Fits the RPG gamification vibe perfectly
+                iconColor: Colors.amber,
+                value: notifyPoints,
+                onChanged: (val) => _toggleNotification('points', val),
                 isDark: isDark,
                 primaryColor: primaryColor,
               ),

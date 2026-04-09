@@ -30,7 +30,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final _statusController = TextEditingController();
 
   String _phoneNumber = '';
-  String? _currentUsername; // Tracks the currently saved username
+  String? _currentUsername;
 
   int _selectedColorValue = Colors.blue.toARGB32();
   bool _isLoading = false;
@@ -38,6 +38,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
   String? _avatarUrl;
   bool _isUploadingAvatar = false;
+
+  int _hp = 0;
+  int _mana = 0;
+  String _originDate = "";
 
   StreamSubscription<DocumentSnapshot>? _userSub;
   bool _hasLoadedInitialData = false;
@@ -57,11 +61,19 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
+    _nameController.addListener(_onFormChanged);
+    _statusController.addListener(_onFormChanged);
     _listenToUserData();
+  }
+
+  void _onFormChanged() {
+    setState(() {}); // Triggers a live UI rebuild
   }
 
   @override
   void dispose() {
+    _nameController.removeListener(_onFormChanged);
+    _statusController.removeListener(_onFormChanged);
     _autoSaveIdentity();
     _userSub?.cancel();
     _nameController.dispose();
@@ -71,65 +83,99 @@ class _ProfilePageState extends State<ProfilePage> {
 
   void _listenToUserData() {
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      _nameController.text = user.displayName ?? '';
+    if (user == null) return;
 
-      _userSub = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .snapshots()
-          .listen(
-            (doc) {
-              if (doc.exists && doc.data() != null && mounted) {
-                final data = doc.data()!;
-
-                setState(() {
-                  if (!_hasLoadedInitialData) {
-                    if (data.containsKey('displayName')) {
-                      _nameController.text = data['displayName'] ?? '';
-                    }
-                    if (data.containsKey('statusText')) {
-                      _statusController.text = data['statusText'] ?? '';
-                    }
-                    if (data.containsKey('username')) {
-                      _currentUsername = data['username'];
-                    }
-                    _hasLoadedInitialData = true;
-                  }
-
-                  if (data.containsKey('phoneNumber')) {
-                    _phoneNumber = PhoneFormatter.beautify(
-                      data['phoneNumber'] ?? '',
-                    );
-                  } else if (data.containsKey('phone')) {
-                    _phoneNumber = PhoneFormatter.beautify(data['phone'] ?? '');
-                  } else {
-                    _phoneNumber = PhoneFormatter.beautify(
-                      user.phoneNumber ?? '',
-                    );
-                  }
-
-                  if (data.containsKey('avatarColor')) {
-                    _selectedColorValue = data['avatarColor'];
-                  }
-
-                  if (data.containsKey('avatarUrl')) {
-                    _avatarUrl = data['avatarUrl'];
-                  } else {
-                    _avatarUrl = null;
-                  }
-
-                  if (data.containsKey('showPhoneNumber')) {
-                    _showPhoneNumber = data['showPhoneNumber'] ?? false;
-                  }
-                });
-              }
-            },
-            onError: (e) {
-              debugPrint("Notice: Could not load user profile data: $e");
-            },
-          );
+    // --- GUARANTEED FALLBACK: Pull from Firebase Auth Metadata! ---
+    if (user.metadata.creationTime != null) {
+      final dt = user.metadata.creationTime!;
+      final List<String> months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      _originDate = "Joined ${months[dt.month - 1]} ${dt.year}";
     }
+
+    setState(() => _isLoading = true);
+
+    _userSub = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .snapshots()
+        .listen((snap) {
+          if (snap.exists) {
+            final data = snap.data() as Map<String, dynamic>;
+
+            if (!_hasLoadedInitialData) {
+              if (data.containsKey('displayName')) {
+                _nameController.text = data['displayName'];
+              }
+              if (data.containsKey('statusText')) {
+                _statusController.text = data['statusText'];
+              }
+              if (data.containsKey('phoneNumber')) {
+                _phoneNumber = PhoneFormatter.beautify(data['phoneNumber']);
+              } else if (data.containsKey('phone')) {
+                _phoneNumber = PhoneFormatter.beautify(data['phone']);
+              }
+              if (data.containsKey('username')) {
+                _currentUsername = data['username'];
+              }
+              if (data.containsKey('avatarColor')) {
+                _selectedColorValue = data['avatarColor'];
+              }
+              if (data.containsKey('showPhoneNumber')) {
+                _showPhoneNumber = data['showPhoneNumber'] ?? false;
+              }
+              if (data.containsKey('avatarUrl')) {
+                _avatarUrl = data['avatarUrl'];
+              }
+
+              // --- Extract RPG Stats ---
+              if (data.containsKey('hp')) _hp = data['hp'] ?? 0;
+              if (data.containsKey('mana')) _mana = data['mana'] ?? 0;
+
+              // Override Auth date if Firestore has a specific one
+              if (data.containsKey('createdAt') ||
+                  data.containsKey('created_at')) {
+                final Timestamp? ts = data['createdAt'] ?? data['created_at'];
+                if (ts != null) {
+                  final dt = ts.toDate();
+                  final List<String> months = [
+                    'Jan',
+                    'Feb',
+                    'Mar',
+                    'Apr',
+                    'May',
+                    'Jun',
+                    'Jul',
+                    'Aug',
+                    'Sep',
+                    'Oct',
+                    'Nov',
+                    'Dec',
+                  ];
+                  _originDate = "Joined ${months[dt.month - 1]} ${dt.year}";
+                }
+              }
+
+              _hasLoadedInitialData = true;
+            }
+          }
+
+          if (mounted) {
+            setState(() => _isLoading = false);
+          }
+        });
   }
 
   void _autoSaveIdentity() {
@@ -937,7 +983,393 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // --- UPDATED PROFILE IDENTITY UI ---
-  Widget _buildProfileIdentityCard(bool isDark, Color primaryColor) {
+  Widget _buildTcgPreviewCard(bool isDark, Color primaryColor) {
+    final displayName = _nameController.text.trim().isNotEmpty
+        ? _nameController.text
+        : "No Name";
+    final username = _currentUsername ?? "";
+    final statusText = _statusController.text.trim();
+    final displayPhone = _showPhoneNumber && _phoneNumber.isNotEmpty
+        ? _phoneNumber
+        : "Hidden";
+    final avatarColor = Color(_selectedColorValue);
+    final avatarUrl = _avatarUrl;
+    final hp = _hp;
+    final mana = _mana;
+    final originDate = _originDate;
+
+    // --- TCG STYLE DECORATIONS ---
+    final plateDecoration = BoxDecoration(
+      color: isDark
+          ? Colors.black.withValues(alpha: 0.25)
+          : Colors.white.withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.1)
+            : Colors.black.withValues(alpha: 0.05),
+        width: 1,
+      ),
+    );
+
+    Widget buildStatBar(
+      String label,
+      int totalValue,
+      Color color,
+      IconData icon,
+    ) {
+      int level = (totalValue ~/ 100) + 1;
+      int progress = totalValue % 100;
+      double percentage = progress / 100.0;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 14, color: color),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: isDark
+                          ? Colors.grey.shade300
+                          : Colors.grey.shade800,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                "Lv. $level",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: percentage,
+              minHeight: 10,
+              backgroundColor: isDark ? Colors.black38 : Colors.white60,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.center,
+            child: Text(
+              "$progress / 100",
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    Widget titleWidget = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: plateDecoration,
+      child: Row(
+        children: [
+          Expanded(
+            child: RichText(
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              text: TextSpan(
+                children: [
+                  if (username.isNotEmpty)
+                    TextSpan(
+                      text: "@$username, ",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: primaryColor,
+                      ),
+                    ),
+                  TextSpan(
+                    text: displayName,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // Editable Avatar directly on the Preview!
+    Widget avatarWidget = GestureDetector(
+      onTap: _showAvatarOptions,
+      child: Stack(
+        alignment: Alignment.bottomRight,
+        children: [
+          Container(
+            width: 160,
+            height: 160,
+            decoration: BoxDecoration(
+              color: avatarColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? Colors.white24 : Colors.black12,
+                width: 3,
+              ),
+              image: avatarUrl != null
+                  ? DecorationImage(
+                      image: CachedNetworkImageProvider(avatarUrl),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: _isUploadingAvatar
+                ? const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  )
+                : (avatarUrl == null
+                      ? Center(
+                          child: Text(
+                            displayName.isNotEmpty
+                                ? displayName[0].toUpperCase()
+                                : "?",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 60,
+                            ),
+                          ),
+                        )
+                      : null),
+          ),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: primaryColor,
+              shape: BoxShape.circle,
+              border: Border.all(color: Theme.of(context).cardColor, width: 3),
+            ),
+            child: Icon(
+              Icons.camera_alt,
+              color: themeProvider.onPrimaryColor,
+              size: 16,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    Widget statusWidget = Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: plateDecoration,
+      child: Text(
+        statusText.isNotEmpty
+            ? '"$statusText"'
+            : '"Tap below to set a mood..."',
+        textAlign: TextAlign.center,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontStyle: FontStyle.italic,
+          fontSize: 13,
+          color: isDark ? Colors.white70 : Colors.black87,
+          height: 1.3,
+        ),
+      ),
+    );
+
+    Widget metaWidget = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: plateDecoration,
+      child: Row(
+        children: [
+          // LEFT ALIGNED: Joined Date
+          Expanded(
+            flex: 1,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: originDate.isNotEmpty
+                  ? FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        originDate,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ),
+
+          // RIGHT ALIGNED: Phone Number or "Hidden" status
+          Expanded(
+            flex: 1,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _showPhoneNumber
+                          ? Icons.phone_iphone
+                          : Icons.visibility_off,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      displayPhone,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                        color: isDark
+                            ? Colors.grey.shade300
+                            : Colors.grey.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    Widget hpManaPill = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.white24 : Colors.black12,
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        "🔥 $hp / $mana 💧",
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w900,
+          color: isDark ? Colors.white : Colors.black87,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+
+    Widget metaWithBadgeStack = Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.bottomRight,
+      children: [
+        metaWidget,
+        Positioned(bottom: -46, child: hpManaPill),
+      ],
+    );
+
+    Widget tcgCard = Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: avatarColor.withValues(alpha: isDark ? 0.15 : 0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: avatarColor.withValues(alpha: 0.6), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: avatarColor.withValues(alpha: 0.25),
+            blurRadius: 20,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          titleWidget,
+          const SizedBox(height: 20),
+          avatarWidget,
+          statusWidget,
+          const SizedBox(height: 24),
+          buildStatBar("HP (Hangouts)", hp, Colors.redAccent, Icons.whatshot),
+          const SizedBox(height: 12),
+          buildStatBar(
+            "Mana (Invites)",
+            mana,
+            Colors.blueAccent,
+            Icons.water_drop,
+          ),
+          const SizedBox(height: 20),
+          metaWithBadgeStack,
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.visibility,
+              color: isDark ? Colors.grey.shade500 : Colors.grey.shade400,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              "Public Profile Preview",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: isDark ? Colors.grey.shade500 : Colors.grey.shade400,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        tcgCard,
+      ],
+    );
+  }
+
+  Widget _buildEditControls(bool isDark, Color primaryColor) {
     return Container(
       padding: const EdgeInsets.all(24.0),
       decoration: BoxDecoration(
@@ -956,87 +1388,15 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. AVATAR
-          GestureDetector(
-            onTap: _showAvatarOptions,
-            child: Stack(
-              alignment: Alignment.bottomRight,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(
-                          _selectedColorValue,
-                        ).withValues(alpha: 0.4),
-                        blurRadius: 15,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: CircleAvatar(
-                    radius: 56,
-                    backgroundColor: Color(_selectedColorValue),
-                    backgroundImage: _avatarUrl != null
-                        ? CachedNetworkImageProvider(_avatarUrl!)
-                        : null,
-                    child: _isUploadingAvatar
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : (_avatarUrl == null
-                              ? Text(
-                                  _nameController.text.isNotEmpty
-                                      ? _nameController.text[0].toUpperCase()
-                                      : "?",
-                                  style: TextStyle(
-                                    fontSize: 44,
-                                    color:
-                                        _selectedColorValue ==
-                                            Colors.white.toARGB32()
-                                        ? Colors.grey.shade800
-                                        : Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                )
-                              : null),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: primaryColor,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Theme.of(context).cardColor,
-                      width: 3,
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.camera_alt,
-                    color: themeProvider.onPrimaryColor,
-                    size: 16,
-                  ),
-                ),
-              ],
-            ),
+          const Text(
+            "Edit Profile",
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
           ),
-          // Username permanently displayed under the avatar
-          if (_currentUsername != null && _currentUsername!.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(
-              "@$_currentUsername",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-                color: primaryColor, // Uses their signature theme color!
-              ),
-            ),
-          ],
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
 
-          // 2. DISPLAY NAME
+          // DISPLAY NAME
           TextField(
             controller: _nameController,
             textInputAction: TextInputAction.next,
@@ -1078,7 +1438,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 16),
 
-          // 4. MOOD / STATUS
+          // MOOD / STATUS
           TextField(
             controller: _statusController,
             textInputAction: TextInputAction.done,
@@ -1120,7 +1480,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 16),
 
-          // 5. PHONE NUMBER & PRIVACY TOGGLE
+          // PHONE NUMBER & PRIVACY TOGGLE
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
@@ -1172,20 +1532,16 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
-
           const SizedBox(height: 32),
 
-          // 6. SIGNATURE COLOR
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              "Signature Color",
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                letterSpacing: 0.5,
-              ),
+          // SIGNATURE COLOR
+          Text(
+            "Signature Color",
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              letterSpacing: 0.5,
             ),
           ),
           const SizedBox(height: 16),
@@ -1463,7 +1819,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   flex: 50,
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(24.0),
-                    child: _buildProfileIdentityCard(isDark, primaryColor),
+                    child: Column(
+                      children: [
+                        _buildTcgPreviewCard(isDark, primaryColor),
+                        const SizedBox(height: 24),
+                        _buildEditControls(isDark, primaryColor),
+                      ],
+                    ),
                   ),
                 ),
                 VerticalDivider(
@@ -1490,7 +1852,9 @@ class _ProfilePageState extends State<ProfilePage> {
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 children: [
-                  _buildProfileIdentityCard(isDark, primaryColor),
+                  _buildTcgPreviewCard(isDark, primaryColor),
+                  const SizedBox(height: 24),
+                  _buildEditControls(isDark, primaryColor),
                   const SizedBox(height: 24),
                   _buildSettingsCard(isDark),
                   const SizedBox(height: 24),
