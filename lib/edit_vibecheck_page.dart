@@ -583,6 +583,212 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
     }
   }
 
+  Future<void> _showConvertDialog() async {
+    // Show loading spinner briefly while we fetch the votes
+    setState(() => _isLoading = true);
+
+    Map<String, int> voteCounts = {};
+    try {
+      final invitesSnap = await FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.eventId)
+          .collection('invitations')
+          .get();
+
+      // Tally up the votes
+      for (var doc in invitesSnap.docs) {
+        final data = doc.data();
+        if (data['status'] == 'declined') continue; // Skip declined guests
+
+        final votes = List<String>.from(data['votes'] ?? []);
+        for (String optId in votes) {
+          voteCounts[optId] = (voteCounts[optId] ?? 0) + 1;
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching votes: $e");
+    }
+
+    if (mounted) setState(() => _isLoading = false);
+
+    // 1. Extract valid options currently on the screen and inject their vote counts
+    List<Map<String, dynamic>> validOptions = [];
+    for (int i = 0; i < _pollOptions.length; i++) {
+      final title = (_pollOptions[i]['title'] as TextEditingController).text
+          .trim();
+      final location = (_pollOptions[i]['location'] as TextEditingController)
+          .text
+          .trim();
+      final id =
+          _pollOptions[i]['id'] ??
+          'opt_${DateTime.now().millisecondsSinceEpoch}_$i';
+
+      if (title.isNotEmpty) {
+        validOptions.add({
+          'id': id,
+          'title': title,
+          'location': location.isNotEmpty ? location : "TBD",
+          'votes': voteCounts[id] ?? 0, // Inject tallied votes
+        });
+      }
+    }
+
+    if (validOptions.length < 2) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Please provide at least two Activity Options before converting.",
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Sort the options so the winner is always at the top!
+    validOptions.sort(
+      (a, b) => (b['votes'] as int).compareTo(a['votes'] as int),
+    );
+
+    if (!mounted) return;
+
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    // 2. Show Dialog to pick the winner
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Select the Winner"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: validOptions.map((opt) {
+            return ListTile(
+              leading: const Icon(Icons.workspace_premium, color: Colors.amber),
+              title: Text(
+                opt['title'],
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                opt['location'] == 'TBD' ? 'No location' : opt['location'],
+              ),
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  "${opt['votes']} Votes",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                _confirmConvert(opt);
+              },
+            );
+          }).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmConvert(Map<String, dynamic> option) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Lock In Winner?"),
+        content: Text(
+          "Are you sure you want to lock in '${option['title']}'?\n\n"
+          "This will instantly close the voting and convert this Vibe Check into a finalized Hangout. "
+          "RSVPs will automatically update for anyone who voted for this option.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.green),
+            child: const Text(
+              "Lock In",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final batch = FirebaseFirestore.instance.batch();
+      final eventRef = FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.eventId);
+
+      // Lock in the Hangout
+      batch.update(eventRef, {
+        'type': 'event',
+        'lockedOptionId': option['id'],
+        'title': option['title'],
+        'location': option['location'],
+        'isTieBreakerNeeded': false,
+        'lastUpdatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update Invites based on votes
+      final invitesSnap = await eventRef.collection('invitations').get();
+      for (var doc in invitesSnap.docs) {
+        final data = doc.data();
+        if (data['status'] == 'declined') {
+          continue;
+        } // respect those who already declined
+
+        final votes = List<String>.from(data['votes'] ?? []);
+        String newStatus = votes.contains(option['id']) ? 'going' : 'pending';
+
+        // Host and Co-host are always marked as 'going'
+        if (data['role'] == 'host' || data['role'] == 'co-host') {
+          newStatus = 'going';
+        }
+
+        batch.update(doc.reference, {'status': newStatus});
+      }
+
+      await batch.commit();
+
+      if (mounted) {
+        Navigator.pop(
+          context,
+        ); // Pop back to details page, which will dynamically redraw as an Event!
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   // --- NEW: CARD WRAPPER UI ---
   Widget _buildFormCard({
     required String title,
@@ -1078,6 +1284,39 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
           ),
         ),
         const SizedBox(height: 16),
+        // --- NEW: CONVERT TO HANGOUT BUTTON ---
+        SizedBox(
+          width: double.infinity,
+          height: 55,
+          child: OutlinedButton.icon(
+            onPressed: _showConvertDialog,
+            icon: Icon(
+              Icons.done_all,
+              color: isDark ? Colors.greenAccent : Colors.green,
+            ),
+            label: Text(
+              "Lock In Winner & Convert",
+              style: TextStyle(
+                color: isDark ? Colors.greenAccent : Colors.green,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(
+                color: isDark
+                    ? Colors.greenAccent.withValues(alpha: 0.5)
+                    : Colors.green.withValues(alpha: 0.5),
+                width: 1.5,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // --------------------------------------
         SizedBox(
           width: double.infinity,
           height: 55,
