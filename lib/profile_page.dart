@@ -115,6 +115,20 @@ class _ProfilePageState extends State<ProfilePage> {
           if (snap.exists) {
             final data = snap.data() as Map<String, dynamic>;
 
+            // --- REAL-TIME SYNCED VARIABLES ---
+            // These live OUTSIDE the flag so they update instantly!
+            if (data.containsKey('hp')) _hp = data['hp'] ?? 0;
+            if (data.containsKey('mana')) _mana = data['mana'] ?? 0;
+            if (data.containsKey('avatarUrl')) _avatarUrl = data['avatarUrl'];
+            if (data.containsKey('avatarColor')) {
+              _selectedColorValue = data['avatarColor'];
+            }
+            if (data.containsKey('showPhoneNumber')) {
+              _showPhoneNumber = data['showPhoneNumber'] ?? false;
+            }
+
+            // --- ONE-TIME INITIALIZATION ---
+            // Text fields stay inside to prevent the stream from interrupting your typing!
             if (!_hasLoadedInitialData) {
               if (data.containsKey('displayName')) {
                 _nameController.text = data['displayName'];
@@ -130,21 +144,7 @@ class _ProfilePageState extends State<ProfilePage> {
               if (data.containsKey('username')) {
                 _currentUsername = data['username'];
               }
-              if (data.containsKey('avatarColor')) {
-                _selectedColorValue = data['avatarColor'];
-              }
-              if (data.containsKey('showPhoneNumber')) {
-                _showPhoneNumber = data['showPhoneNumber'] ?? false;
-              }
-              if (data.containsKey('avatarUrl')) {
-                _avatarUrl = data['avatarUrl'];
-              }
 
-              // --- Extract RPG Stats ---
-              if (data.containsKey('hp')) _hp = data['hp'] ?? 0;
-              if (data.containsKey('mana')) _mana = data['mana'] ?? 0;
-
-              // Override Auth date if Firestore has a specific one
               if (data.containsKey('createdAt') ||
                   data.containsKey('created_at')) {
                 final Timestamp? ts = data['createdAt'] ?? data['created_at'];
