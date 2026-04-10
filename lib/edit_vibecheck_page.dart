@@ -473,7 +473,12 @@ class _EditVibeCheckPageState extends State<EditVibeCheckPage> {
         _selectedTime!.minute,
       );
 
-      final newEndTime = newDateTime.add(const Duration(hours: 4));
+      // --- Preserve original duration when recalculating endTime! ---
+      final int keepAliveDays = widget.eventData['keepAliveDays'] ?? 0;
+      final int durationMinutes = keepAliveDays > 0
+          ? (keepAliveDays * 24 * 60)
+          : 240;
+      final newEndTime = newDateTime.add(Duration(minutes: durationMinutes));
 
       final Map<String, dynamic> updateData = {
         'title': _titleController.text.trim(),

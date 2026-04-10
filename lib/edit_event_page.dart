@@ -1036,10 +1036,16 @@ class _EditEventPageState extends State<EditEventPage> {
           };
         }
 
+        final int durationMinutes = _keepAliveDays > 0
+            ? (_keepAliveDays * 24 * 60)
+            : 240;
+        final newEndTime = newDateTime.add(Duration(minutes: durationMinutes));
+
         updateData['title'] = _titleController.text.trim();
         updateData['location'] = newLocation;
         updateData['details'] = _detailsController.text.trim();
         updateData['time'] = Timestamp.fromDate(newDateTime);
+        updateData['endTime'] = Timestamp.fromDate(newEndTime);
         updateData['isImportantDetails'] = _isImportantDetails;
         updateData['rsvpDeadline'] = _rsvpDeadlineOffset;
         updateData['keepAliveDays'] = _keepAliveDays;
@@ -1210,11 +1216,20 @@ class _EditEventPageState extends State<EditEventPage> {
         Map<String, dynamic> cascadingData = Map.from(updateData);
         cascadingData.remove('latestCriticalChange');
 
+        // Calculate the duration for the cascading events
+        final int durationMinutes = _keepAliveDays > 0
+            ? (_keepAliveDays * 24 * 60)
+            : 240;
+
         for (var doc in futureEvents.docs) {
           final futureEventTime = (doc.data()['time'] as Timestamp).toDate();
           final shiftedTime = futureEventTime.add(timeDifference);
+          final futureEndTime = shiftedTime.add(
+            Duration(minutes: durationMinutes),
+          );
 
           cascadingData['time'] = Timestamp.fromDate(shiftedTime);
+          cascadingData['endTime'] = Timestamp.fromDate(futureEndTime);
 
           // We also preserve the specific event ID critical change for just the edited one
           if (doc.id == widget.eventId &&
