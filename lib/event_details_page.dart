@@ -1577,9 +1577,16 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
                             final assigneeId = roleData['claimedByUid'];
                             final assigneeName = roleData['claimedByName'];
+                            final addedBy = roleData['addedBy'];
 
                             final isClaimed = assigneeId != null;
                             final isMe = assigneeId == currentUser.uid;
+
+                            // --- EXACT PERMISSIONS ---
+                            final isMainHost =
+                                widget.eventData['hostId'] == currentUser.uid;
+                            final isItemCreator = addedBy == currentUser.uid;
+                            final canManageItem = isMainHost || isItemCreator;
 
                             return ListTile(
                               contentPadding: const EdgeInsets.symmetric(
@@ -1678,7 +1685,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                         ),
                                       ),
                                     )
-                                  else if (isMe || canEdit)
+                                  else if (isMe || canManageItem)
                                     OutlinedButton(
                                       onPressed: () async {
                                         HapticFeedback.lightImpact();
@@ -1699,7 +1706,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                         isMe ? "Unclaim" : "Unassign",
                                       ),
                                     ),
-                                  if (canEdit)
+                                  if (canManageItem)
                                     IconButton(
                                       icon: const Icon(
                                         Icons.delete_outline,
@@ -1754,6 +1761,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                     .collection('roles')
                                     .add({
                                       'title': val.trim(),
+                                      'addedBy': currentUser.uid,
                                       'createdAt': FieldValue.serverTimestamp(),
                                     });
                                 roleController.clear();
@@ -1776,6 +1784,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                     .collection('roles')
                                     .add({
                                       'title': roleController.text.trim(),
+                                      'addedBy': currentUser.uid,
                                       'createdAt': FieldValue.serverTimestamp(),
                                     });
                                 roleController.clear();

@@ -1396,7 +1396,7 @@ class _EventChatPageState extends State<EventChatPage> {
               'title': itemTitle,
               'claimedByUid': user.uid,
               'claimedByName': displayName,
-              'addedByUid':
+              'addedBy':
                   user.uid, // Crucial for allowing them to delete it later
               'createdAt': FieldValue.serverTimestamp(),
             });
