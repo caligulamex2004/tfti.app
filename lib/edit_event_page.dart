@@ -1473,9 +1473,16 @@ class _EditEventPageState extends State<EditEventPage> {
 
                             final assigneeId = roleData['claimedByUid'];
                             final assigneeName = roleData['claimedByName'];
+                            final addedBy = roleData['addedBy'];
 
                             final isClaimed = assigneeId != null;
                             final isMe = assigneeId == currentUser.uid;
+
+                            // --- EXACT PERMISSIONS FOR EDIT PAGE SQUAD NEEDS ---
+                            final isMainHost =
+                                widget.eventData['hostId'] == currentUser.uid;
+                            final isItemCreator = addedBy == currentUser.uid;
+                            final canManageItem = isMainHost || isItemCreator;
 
                             return ListTile(
                               contentPadding: const EdgeInsets.symmetric(
@@ -1574,7 +1581,7 @@ class _EditEventPageState extends State<EditEventPage> {
                                         ),
                                       ),
                                     )
-                                  else if ((isMe || canEdit) && canEdit)
+                                  else if ((isMe || canManageItem) && canEdit)
                                     OutlinedButton(
                                       onPressed: () async {
                                         HapticFeedback.lightImpact();
@@ -1595,7 +1602,7 @@ class _EditEventPageState extends State<EditEventPage> {
                                         isMe ? "Unclaim" : "Unassign",
                                       ),
                                     ),
-                                  if (canEdit)
+                                  if (canManageItem && canEdit)
                                     IconButton(
                                       icon: const Icon(
                                         Icons.delete_outline,
@@ -1649,6 +1656,7 @@ class _EditEventPageState extends State<EditEventPage> {
                                     .collection('roles')
                                     .add({
                                       'title': val.trim(),
+                                      'addedBy': currentUser.uid,
                                       'createdAt': FieldValue.serverTimestamp(),
                                     });
                                 roleController.clear();
@@ -1671,6 +1679,7 @@ class _EditEventPageState extends State<EditEventPage> {
                                     .collection('roles')
                                     .add({
                                       'title': roleController.text.trim(),
+                                      'addedBy': currentUser.uid,
                                       'createdAt': FieldValue.serverTimestamp(),
                                     });
                                 roleController.clear();
