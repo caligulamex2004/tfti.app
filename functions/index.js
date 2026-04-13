@@ -682,6 +682,7 @@ exports.awardLootDrops = onSchedule("every 15 minutes", async (event) => {
             const eventId = eventDoc.id;
             const eventData = eventDoc.data();
             const hostId = eventData.hostId;
+            const coHostId = eventData.coHostId; // Extract co-host if one exists
 
             // Prevent processing if there's no host
             if (!hostId) continue;
@@ -695,18 +696,29 @@ exports.awardLootDrops = onSchedule("every 15 minutes", async (event) => {
 
             const manaEarned = invitesSnapshot.size; // 1 Mana per attendee
             const hpEarned = 1; // 1 HP per successful hangout
+            const coHostHpEarned = 1; // 1 HP for helping, 0 Mana
 
             // 3. THE PAYOUT & THE SEAL (Atomic Batch)
             // Using a batch guarantees that if the server crashes mid-process, 
             // you don't accidentally give points without sealing the event!
             const batch = db.batch();
 
+            // Payout Main Host
             const hostRef = db.collection("users").doc(hostId);
             batch.update(hostRef, {
                 hp: admin.firestore.FieldValue.increment(hpEarned),
                 mana: admin.firestore.FieldValue.increment(manaEarned)
             });
 
+            // Payout Co-Host (if they exist)
+            if (coHostId) {
+                const coHostRef = db.collection("users").doc(coHostId);
+                batch.update(coHostRef, {
+                    hp: admin.firestore.FieldValue.increment(coHostHpEarned)
+                });
+            }
+
+            // Seal the Event
             const eventRef = db.collection("events").doc(eventId);
             batch.update(eventRef, {
                 pointsAwarded: true, // THE SEAL
@@ -714,16 +726,19 @@ exports.awardLootDrops = onSchedule("every 15 minutes", async (event) => {
             });
 
             await batch.commit();
-            console.log(`Awarded ${hpEarned} HP and ${manaEarned} Mana to ${hostId}.`);
+            console.log(`Awarded ${hpEarned} HP and ${manaEarned} Mana to Host ${hostId}.`);
+            if (coHostId) {
+                console.log(`Awarded ${coHostHpEarned} HP to Co-Captain ${coHostId}.`);
+            }
 
-            // 4. THE NOTIFICATION
+            // 4. THE NOTIFICATIONS
+            // Notify Main Host
             const hostDoc = await hostRef.get();
             if (hostDoc.exists) {
                 const hostInfo = hostDoc.data();
                 const notificationSettings = hostInfo.notificationSettings || {};
                 const fcmToken = hostInfo.fcmToken; 
 
-                // Check their preferences (defaults to true if missing)
                 if (notificationSettings.points !== false && fcmToken) {
                     const message = {
                         notification: {
@@ -737,7 +752,34 @@ exports.awardLootDrops = onSchedule("every 15 minutes", async (event) => {
                         await admin.messaging().send(message);
                         console.log(`Push sent to host of ${eventId}.`);
                     } catch (error) {
-                        console.error(`Failed to send push to ${hostId}:`, error);
+                        console.error(`Failed to send push to host ${hostId}:`, error);
+                    }
+                }
+            }
+
+            // Notify Co-Host
+            if (coHostId) {
+                const coHostDoc = await db.collection("users").doc(coHostId).get();
+                if (coHostDoc.exists) {
+                    const coHostInfo = coHostDoc.data();
+                    const notificationSettings = coHostInfo.notificationSettings || {};
+                    const fcmToken = coHostInfo.fcmToken; 
+
+                    if (notificationSettings.points !== false && fcmToken) {
+                        const message = {
+                            notification: {
+                                title: "Loot Drop! 📦",
+                                body: `Thanks for the assist! "${eventData.title}" earned you ${coHostHpEarned} HP!`,
+                            },
+                            token: fcmToken,
+                        };
+
+                        try {
+                            await admin.messaging().send(message);
+                            console.log(`Push sent to co-host of ${eventId}.`);
+                        } catch (error) {
+                            console.error(`Failed to send push to co-host ${coHostId}:`, error);
+                        }
                     }
                 }
             }
