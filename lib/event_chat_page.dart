@@ -631,47 +631,21 @@ class _EventChatPageState extends State<EventChatPage> {
                     final String? avatarUrl = guest?['avatarUrl'];
 
                     return ListTile(
-                      leading: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundColor: Color(color),
-                            backgroundImage: avatarUrl != null
-                                ? CachedNetworkImageProvider(avatarUrl)
-                                : null,
-                            child: avatarUrl == null
-                                ? Text(
-                                    name[0].toUpperCase(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  )
-                                : null,
-                          ),
-                          Positioned(
-                            bottom: -4,
-                            right: -4,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).cardColor,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.1),
-                                    blurRadius: 2,
-                                  ),
-                                ],
-                              ),
-                              child: Text(
-                                emoji,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ),
-                          ),
-                        ],
+                      leading: CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Color(color),
+                        backgroundImage: avatarUrl != null
+                            ? CachedNetworkImageProvider(avatarUrl)
+                            : null,
+                        child: avatarUrl == null
+                            ? Text(
+                                name[0].toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : null,
                       ),
                       title: Text(
                         name,
@@ -680,22 +654,152 @@ class _EventChatPageState extends State<EventChatPage> {
                           fontSize: 15,
                         ),
                       ),
-                      trailing: uid == myUid
-                          ? Text(
-                              "You",
-                              style: TextStyle(
-                                color: isDark
-                                    ? Colors.grey.shade400
-                                    : Colors.grey.shade500,
-                                fontSize: 13,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (uid == myUid)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 12.0),
+                              child: Text(
+                                "You",
+                                style: TextStyle(
+                                  color: isDark
+                                      ? Colors.grey.shade400
+                                      : Colors.grey.shade500,
+                                  fontSize: 13,
+                                ),
                               ),
-                            )
-                          : null,
+                            ),
+                          Text(emoji, style: const TextStyle(fontSize: 22)),
+                        ],
+                      ),
                     );
                   },
                 ),
               ),
             ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSeenByBottomSheet(List<Map<String, dynamic>> seenGuests) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  "Read By",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 12),
+                Divider(
+                  height: 1,
+                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                ),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: seenGuests.length,
+                    itemBuilder: (context, index) {
+                      final guest = seenGuests[index];
+                      final String name = guest['name'];
+                      final String tag = guest['tag'] ?? "";
+                      final String? avatarUrl = guest['avatarUrl'];
+                      final int avatarColor =
+                          guest['color'] ?? Colors.blue.toARGB32();
+
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 4,
+                        ),
+                        leading: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Color(
+                                  avatarColor,
+                                ).withValues(alpha: 0.4),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 20,
+                            backgroundColor: Color(avatarColor),
+                            backgroundImage: avatarUrl != null
+                                ? CachedNetworkImageProvider(avatarUrl)
+                                : null,
+                            child: avatarUrl == null
+                                ? Text(
+                                    name.isNotEmpty
+                                        ? name[0].toUpperCase()
+                                        : "?",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        ),
+                        title: Text(
+                          name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                        subtitle: tag.isNotEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.only(top: 2.0),
+                                child: Text(
+                                  "@$tag",
+                                  style: TextStyle(
+                                    color: primaryColor,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              )
+                            : null,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -2118,6 +2222,25 @@ class _EventChatPageState extends State<EventChatPage> {
         isMe,
         reactions,
       ),
+      onTap: () {
+        // Find everyone who read this message or newer
+        List<Map<String, dynamic>> allWhoRead = [];
+        _readReceipts.forEach((uid, readTime) {
+          if (uid == myUid) return;
+
+          if (readTime.compareTo(currentMsgTime) >= 0) {
+            try {
+              final guest = _eventGuests.firstWhere((g) => g['uid'] == uid);
+              allWhoRead.add(guest);
+            } catch (_) {}
+          }
+        });
+
+        if (allWhoRead.isNotEmpty) {
+          HapticFeedback.lightImpact();
+          _showSeenByBottomSheet(allWhoRead);
+        }
+      },
       child: Padding(
         padding: EdgeInsets.only(bottom: needsExtraPadding ? 22 : 12),
         child: Row(
