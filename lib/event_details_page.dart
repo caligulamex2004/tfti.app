@@ -1,16 +1,17 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:material_symbols_icons/symbols.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:add_2_calendar/add_2_calendar.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:material_symbols_icons/symbols.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import 'event_chat_page.dart';
 import 'edit_event_page.dart';
 import 'edit_vibecheck_page.dart';
+import 'event_chat_page.dart';
 import 'phone_formatter.dart';
 import 'theme_provider.dart';
 
@@ -347,6 +348,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
   void _showFullDetails(BuildContext context, String details) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -383,8 +385,14 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
               Flexible(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(20),
-                  child: SelectableText(
-                    details,
+                  child: SelectableText.rich(
+                    TextSpan(
+                      children: _buildLinkedTextSpans(
+                        details,
+                        isDark,
+                        primaryColor,
+                      ),
+                    ),
                     style: const TextStyle(fontSize: 16, height: 1.5),
                   ),
                 ),
@@ -1802,6 +1810,87 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         );
       },
     );
+  }
+
+  List<TextSpan> _buildLinkedTextSpans(
+    String text,
+    bool isDark,
+    Color primaryColor,
+  ) {
+    final List<TextSpan> spans = [];
+
+    // regex to catch http, https, and www links
+    final RegExp urlRegExp = RegExp(
+      r'((https?:www\.)|(https?:\/\/)|(www\.))[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9]{1,6}(\/[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)?',
+      caseSensitive: false,
+    );
+
+    final matches = urlRegExp.allMatches(text);
+    int previousEnd = 0;
+
+    for (final match in matches) {
+      // Add the normal text before the URL
+      if (match.start > previousEnd) {
+        spans.add(
+          TextSpan(
+            text: text.substring(previousEnd, match.start),
+            style: TextStyle(
+              color: isDark ? Colors.grey.shade300 : Colors.black87,
+              height: 1.5,
+            ),
+          ),
+        );
+      }
+
+      // Add the clickable URL
+      final String url = match.group(0)!;
+      spans.add(
+        TextSpan(
+          text: url,
+          style: TextStyle(
+            color: primaryColor,
+            fontWeight: FontWeight.bold,
+            decoration: TextDecoration.underline,
+            height: 1.5,
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () async {
+              HapticFeedback.lightImpact();
+              String launchUrlString = url;
+              // Force https if they just typed "www.example.com"
+              if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                launchUrlString = 'https://$url';
+              }
+              final Uri uri = Uri.parse(launchUrlString);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(
+                  uri,
+                  mode: LaunchMode.externalApplication,
+                ); // Opens default Safari/Chrome
+              } else {
+                debugPrint('Could not launch $launchUrlString');
+              }
+            },
+        ),
+      );
+
+      previousEnd = match.end;
+    }
+
+    // Add any remaining normal text after the last URL
+    if (previousEnd < text.length) {
+      spans.add(
+        TextSpan(
+          text: text.substring(previousEnd),
+          style: TextStyle(
+            color: isDark ? Colors.grey.shade300 : Colors.black87,
+            height: 1.5,
+          ),
+        ),
+      );
+    }
+
+    return spans;
   }
 
   @override
