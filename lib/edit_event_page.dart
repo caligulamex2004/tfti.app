@@ -1738,6 +1738,7 @@ class _EditEventPageState extends State<EditEventPage> {
                   label: Text(opt['label']),
                   selected: isSelected,
                   onSelected: (selected) {
+                    FocusManager.instance.primaryFocus?.unfocus();
                     if (selected) onSelected(opt['value']);
                   },
                   selectedColor: primaryColor.withValues(alpha: 0.15),
@@ -2248,6 +2249,7 @@ class _EditEventPageState extends State<EditEventPage> {
       controller: _titleController,
       maxLength: 50,
       enabled: !_isPast, // Disable if past
+      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
       decoration: _buildInputDecoration(
         label: 'Hangout Title',
         prefixIcon: Icon(Symbols.campaign, color: primaryColor),
@@ -2259,6 +2261,7 @@ class _EditEventPageState extends State<EditEventPage> {
       controller: _locationController,
       readOnly: true,
       enabled: !_isPast, // Disable if past
+      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
       onTap: _isPast ? null : _selectLocation, // Safe check
       maxLength: 100,
       decoration: _buildInputDecoration(
@@ -2339,6 +2342,7 @@ class _EditEventPageState extends State<EditEventPage> {
       controller: _detailsController,
       maxLength: 500,
       enabled: !_isPast, // Disable if past
+      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
       decoration: _buildInputDecoration(
         label: 'Details / Description',
         prefixIcon: Icon(

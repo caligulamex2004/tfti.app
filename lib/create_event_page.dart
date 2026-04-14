@@ -1187,6 +1187,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                   label: Text(opt['label']),
                   selected: isSelected,
                   onSelected: (selected) {
+                    FocusManager.instance.primaryFocus?.unfocus();
                     if (selected) onSelected(opt['value']);
                   },
                   selectedColor: primaryColor.withValues(alpha: 0.15),
@@ -1421,6 +1422,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
       controller: _titleController,
       textCapitalization: TextCapitalization.sentences,
       maxLength: 50,
+      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
       decoration: _buildInputDecoration(
         label: "Let's do...",
         hint: "e.g. Taco Night 🌮",
@@ -1434,6 +1436,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
       readOnly: true,
       onTap: _selectLocation,
       maxLength: 100,
+      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
       decoration: _buildInputDecoration(
         label: "Where at?",
         hint: "Tap to search address...",
@@ -1637,6 +1640,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
       controller: _detailsController,
       textCapitalization: TextCapitalization.sentences,
       maxLength: 500,
+      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
       decoration: _buildInputDecoration(
         label: "Need to Know",
         hint: "e.g. Meet in the lobby at 7...",
