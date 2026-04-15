@@ -491,8 +491,11 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             label: "RSVP Deadline",
             icon: Icons.timer_off_outlined,
             options: const [
-              {'label': 'At start', 'value': 0},
+              {'label': 'On time', 'value': 0},
+              {'label': '1/2 hour before', 'value': -30},
               {'label': '1 hr before', 'value': -60},
+              {'label': '2 hrs before', 'value': -120},
+              {'label': '4 hrs before', 'value': -240},
               {'label': '24 hrs before', 'value': -1440},
             ],
             selectedValue: _rsvpDeadlineOffset,
@@ -507,7 +510,13 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             options: const [
               {'label': 'A few hours', 'value': 0},
               {'label': '1 Day', 'value': 1},
+              {'label': '2 Days', 'value': 2},
+              {'label': '3 Days', 'value': 3},
+              {'label': '4 Days', 'value': 4},
+              {'label': '5 Days', 'value': 5},
               {'label': '1 Week', 'value': 7},
+              {'label': '10 Days', 'value': 10},
+              {'label': '2 Weeks', 'value': 14},
             ],
             selectedValue: _keepAliveDays,
             onSelected: _isPast

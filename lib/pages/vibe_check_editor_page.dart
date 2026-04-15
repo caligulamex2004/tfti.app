@@ -797,6 +797,7 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
               {'label': '2 hrs before', 'value': -120},
               {'label': '4 hrs before', 'value': -240},
               {'label': '24 hrs before', 'value': -1440},
+              {'label': '48 hrs before', 'value': -2880},
             ],
             selectedValue: _rsvpDeadlineOffset,
             onSelected: (v) => setState(() => _rsvpDeadlineOffset = v),
