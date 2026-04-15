@@ -7,8 +7,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../utils/theme_provider.dart';
 import 'hangout_details_page.dart';
-import '../create_event_page.dart';
-import '../create_vibecheck_page.dart';
+import 'hangout_editor_page.dart';
+import 'vibe_check_editor_page.dart';
 
 enum FeedFilter { all, goated, thisWeek, nextWeek, thisMonth, nextMonth }
 
@@ -24,7 +24,6 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
   Map<String, dynamic>? _selectedEventData;
   bool _showHidden = false;
 
-  // Phase 4: State variable
   FeedFilter _selectedFilter = FeedFilter.thisWeek;
 
   Future<void> _quickRSVP(String eventId, String status) async {
@@ -259,7 +258,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const CreateEventPage(),
+                          builder: (context) => const HangoutEditorPage(),
                         ),
                       );
                     },
@@ -288,7 +287,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const CreateVibeCheckPage(),
+                          builder: (context) => const VibeCheckEditorPage(),
                         ),
                       );
                     },
@@ -326,7 +325,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
     );
   }
 
-  // Phase 4: UI for the horizontal sliding filter chips
+  // UI for the horizontal sliding filter chips
   Widget _buildFilterChips(bool isDark, Color primaryColor) {
     final filters = [
       {'label': 'All', 'value': FeedFilter.all},
@@ -526,7 +525,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       final eventData = eventDoc.data() as Map<String, dynamic>;
                       final String hostId = eventData['hostId'] ?? '';
 
-                      // --- Phase 4: Shadow Ban & Filter Pre-Checks ---
+                      // --- Shadow Ban & Filter Pre-Checks ---
                       if (blockedUids.contains(hostId)) {
                         continue;
                       }
@@ -588,7 +587,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                       if (endTs != null) {
                         endTime = endTs.toDate();
                       } else {
-                        // Graceful fallback for older events created before Phase 1
+                        // Graceful fallback for older events without 'endTime'
                         final int keepAliveDays =
                             eventData['keepAliveDays'] ?? 0;
                         final int durationMinutes = keepAliveDays > 0
@@ -675,10 +674,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
 
                     return Column(
                       children: [
-                        _buildFilterChips(
-                          isDark,
-                          primaryColor,
-                        ), // Phase 4 Injection!
+                        _buildFilterChips(isDark, primaryColor),
                         Expanded(
                           child: CustomScrollView(
                             slivers: [

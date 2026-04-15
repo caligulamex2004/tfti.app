@@ -9,8 +9,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../edit_event_page.dart';
-import '../edit_vibecheck_page.dart';
+import 'hangout_editor_page.dart';
+import 'vibe_check_editor_page.dart';
 import 'hangout_chat_page.dart';
 import '../utils/phone_formatter.dart';
 import '../utils/theme_provider.dart';
@@ -2802,11 +2802,11 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                                         context,
                                         MaterialPageRoute(
                                           builder: (context) => isVibeCheck
-                                              ? EditVibeCheckPage(
+                                              ? VibeCheckEditorPage(
                                                   eventId: widget.eventId,
                                                   eventData: data,
                                                 )
-                                              : EditEventPage(
+                                              : HangoutEditorPage(
                                                   eventId: widget.eventId,
                                                   eventData: data,
                                                 ),

@@ -111,7 +111,7 @@ class _FavoritePlacesPageState extends State<FavoritePlacesPage> {
     final address = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const LocationSearchPage(showFavorites: false),
+        builder: (context) => const PlacesSearchPage(showFavorites: false),
       ),
     );
 

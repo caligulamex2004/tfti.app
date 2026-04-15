@@ -6,18 +6,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/theme_provider.dart';
 
-class LocationSearchPage extends StatefulWidget {
-  // NEW: Controls whether to show the favorites list below the search bar
+class PlacesSearchPage extends StatefulWidget {
   final bool showFavorites;
 
-  // Defaults to true so it doesn't break the Create Event page!
-  const LocationSearchPage({super.key, this.showFavorites = true});
+  // Defaults to true so it doesn't break the Hangout Editor Page!
+  const PlacesSearchPage({super.key, this.showFavorites = true});
 
   @override
-  State<LocationSearchPage> createState() => _LocationSearchPageState();
+  State<PlacesSearchPage> createState() => _PlacesSearchPageState();
 }
 
-class _LocationSearchPageState extends State<LocationSearchPage> {
+class _PlacesSearchPageState extends State<PlacesSearchPage> {
   final _controller = TextEditingController();
   List<dynamic> _placePredictions = [];
   final _uuid = const Uuid();
