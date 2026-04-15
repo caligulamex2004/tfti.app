@@ -9,11 +9,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'edit_event_page.dart';
-import 'edit_vibecheck_page.dart';
-import 'event_chat_page.dart';
-import 'phone_formatter.dart';
-import 'theme_provider.dart';
+import '../edit_event_page.dart';
+import '../edit_vibecheck_page.dart';
+import 'hangout_chat_page.dart';
+import '../utils/phone_formatter.dart';
+import '../utils/theme_provider.dart';
 
 class EventDetailsPage extends StatefulWidget {
   final String eventId;

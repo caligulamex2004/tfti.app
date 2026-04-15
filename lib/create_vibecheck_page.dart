@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'theme_provider.dart';
-import 'friend_circles_page.dart';
-import 'location_search_page.dart';
+import 'utils/theme_provider.dart';
+import 'pages/teams_page.dart';
+import 'pages/places_search_page.dart';
 
 class CreateVibeCheckPage extends StatefulWidget {
   const CreateVibeCheckPage({super.key});

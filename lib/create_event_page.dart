@@ -10,9 +10,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
-import 'location_search_page.dart';
-import 'theme_provider.dart';
-import 'friend_circles_page.dart';
+import 'pages/places_search_page.dart';
+import 'utils/theme_provider.dart';
+import 'pages/teams_page.dart';
 
 class CreateEventPage extends StatefulWidget {
   const CreateEventPage({super.key});

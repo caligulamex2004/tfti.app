@@ -4,8 +4,8 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'theme_provider.dart';
-import 'phone_formatter.dart';
+import '../utils/theme_provider.dart';
+import '../utils/phone_formatter.dart';
 
 class FriendCirclesPage extends StatefulWidget {
   const FriendCirclesPage({super.key});

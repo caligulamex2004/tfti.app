@@ -5,10 +5,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-import 'theme_provider.dart';
-import 'event_details_page.dart';
-import 'create_event_page.dart';
-import 'create_vibecheck_page.dart';
+import '../utils/theme_provider.dart';
+import 'hangout_details_page.dart';
+import '../create_event_page.dart';
+import '../create_vibecheck_page.dart';
 
 enum FeedFilter { all, goated, thisWeek, nextWeek, thisMonth, nextMonth }
 

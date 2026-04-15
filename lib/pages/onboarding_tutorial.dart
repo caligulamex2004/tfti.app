@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'theme_provider.dart';
+import '../utils/theme_provider.dart';
 
 class OnboardingTutorial extends StatefulWidget {
   final VoidCallback onComplete;

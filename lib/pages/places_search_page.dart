@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'theme_provider.dart';
+import '../utils/theme_provider.dart';
 
 class LocationSearchPage extends StatefulWidget {
   // NEW: Controls whether to show the favorites list below the search bar

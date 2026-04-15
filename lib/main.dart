@@ -10,16 +10,16 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_app_badger/flutter_app_badger.dart';
 
-import 'login_page.dart';
-import 'event_chat_page.dart';
-import 'event_details_page.dart';
-import 'friends_page.dart';
-import 'friend_circles_page.dart';
-import 'profile_page.dart';
+import 'pages/login_page.dart';
+import 'pages/hangout_chat_page.dart';
+import 'pages/hangout_details_page.dart';
+import 'pages/squad_page.dart';
+import 'pages/teams_page.dart';
+import 'pages/account_page.dart';
 import 'firebase_options.dart';
-import 'theme_provider.dart';
-import 'onboarding_tutorial.dart';
-import 'home_feed_page.dart';
+import 'utils/theme_provider.dart';
+import 'pages/onboarding_tutorial.dart';
+import 'pages/home_feed_page.dart';
 
 final GlobalKey<NavigatorState> navigatorKey =
     GlobalKey<

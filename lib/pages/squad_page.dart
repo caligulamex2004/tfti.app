@@ -9,9 +9,9 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'contact_service.dart';
-import 'phone_formatter.dart';
-import 'theme_provider.dart';
+import '../services/contact_service.dart';
+import '../utils/phone_formatter.dart';
+import '../utils/theme_provider.dart';
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'theme_provider.dart';
-import 'location_search_page.dart';
+import '../utils/theme_provider.dart';
+import 'places_search_page.dart';
 
 class FavoritePlacesPage extends StatefulWidget {
   const FavoritePlacesPage({super.key});

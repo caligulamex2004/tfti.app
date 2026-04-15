@@ -13,9 +13,9 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_cropper/image_cropper.dart';
 
-import 'phone_formatter.dart';
-import 'settings_page.dart';
-import 'theme_provider.dart';
+import '../utils/phone_formatter.dart';
+import 'preferences_page.dart';
+import '../utils/theme_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class ProfilePage extends StatefulWidget {

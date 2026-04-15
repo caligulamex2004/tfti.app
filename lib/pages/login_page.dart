@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'theme_provider.dart';
+import '../utils/theme_provider.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
