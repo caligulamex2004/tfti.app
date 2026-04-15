@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -16,6 +17,9 @@ class SavedPlacesPage extends StatefulWidget {
 }
 
 class _SavedPlacesPageState extends State<SavedPlacesPage> {
+  // State for sorting
+  bool _sortAlphabetically = true;
+
   Future<void> _renamePlace(String docId, String currentName) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final renameController = TextEditingController(text: currentName);
@@ -204,7 +208,32 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final places = snapshot.data!.docs;
+          final rawDocs = snapshot.data!.docs;
+
+          // --- Client-side sorting logic ---
+          List<Map<String, dynamic>> sortedPlaces = rawDocs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            data['id'] = doc.id; // Inject ID for the card
+            return data;
+          }).toList();
+
+          if (_sortAlphabetically) {
+            sortedPlaces.sort(
+              (a, b) => (a['name'] ?? '').toString().toLowerCase().compareTo(
+                (b['name'] ?? '').toString().toLowerCase(),
+              ),
+            );
+          } else {
+            // Sort by newest first
+            sortedPlaces.sort((a, b) {
+              final tA = a['addedAt'] as Timestamp?;
+              final tB = b['addedAt'] as Timestamp?;
+              if (tA == null && tB == null) return 0;
+              if (tA == null) return 1;
+              if (tB == null) return -1;
+              return tB.compareTo(tA);
+            });
+          }
 
           return CustomScrollView(
             slivers: [
@@ -254,14 +283,66 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  "${places.length} Saved",
+                                  "${sortedPlaces.length} Saved",
                                   style: TextStyle(
                                     color: Colors.white.withValues(alpha: 0.9),
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
+
+                                const SizedBox(width: 12),
+
+                                // --- Sort Toggle ---
+                                if (sortedPlaces.isNotEmpty)
+                                  InkWell(
+                                    onTap: () {
+                                      HapticFeedback.lightImpact();
+                                      setState(
+                                        () => _sortAlphabetically =
+                                            !_sortAlphabetically,
+                                      );
+                                    },
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.15,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            _sortAlphabetically
+                                                ? Icons.sort_by_alpha
+                                                : Icons.access_time,
+                                            color: Colors.white,
+                                            size: 14,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            _sortAlphabetically
+                                                ? "A-Z"
+                                                : "Newest",
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+
                                 const Spacer(),
+
                                 InkWell(
                                   onTap: _addNewPlace,
                                   borderRadius: BorderRadius.circular(12),
@@ -306,7 +387,7 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
                 ),
               ),
 
-              if (places.isEmpty)
+              if (sortedPlaces.isEmpty)
                 SliverFillRemaining(
                   child: Center(
                     child: Column(
@@ -354,13 +435,13 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
                   ),
                 ),
 
-              if (places.isNotEmpty)
+              if (sortedPlaces.isNotEmpty)
                 SliverPadding(
                   padding: const EdgeInsets.all(20),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
-                      final data = places[index].data() as Map<String, dynamic>;
-                      final docId = places[index].id;
+                      final data = sortedPlaces[index];
+                      final docId = data['id'];
                       final name = data['name'] ?? 'Unknown Place';
                       final address = data['address'] ?? '';
 
@@ -372,7 +453,7 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
                         onRename: () => _renamePlace(docId, name),
                         onDelete: () => _deletePlace(docId, name),
                       );
-                    }, childCount: places.length),
+                    }, childCount: sortedPlaces.length),
                   ),
                 ),
             ],
