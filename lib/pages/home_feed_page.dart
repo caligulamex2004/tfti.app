@@ -1090,7 +1090,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                 Expanded(
                   flex: 65,
                   child: _selectedEventId != null && _selectedEventData != null
-                      ? EventDetailsPage(
+                      ? HangoutDetailsPage(
                           key: ValueKey(_selectedEventId),
                           eventId: _selectedEventId!,
                           eventData: _selectedEventData!,
@@ -1252,7 +1252,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                 context,
                 MaterialPageRoute(
                   builder: (context) =>
-                      EventDetailsPage(eventId: eventId, eventData: data),
+                      HangoutDetailsPage(eventId: eventId, eventData: data),
                 ),
               );
             }
@@ -1600,7 +1600,7 @@ class _HomeFeedTabState extends State<HomeFeedTab> {
                                         context,
                                         MaterialPageRoute(
                                           builder: (context) =>
-                                              EventDetailsPage(
+                                              HangoutDetailsPage(
                                                 eventId: eventId,
                                                 eventData: data,
                                               ),

@@ -378,14 +378,14 @@ Future<void> handleNotificationRouting(Map<String, dynamic> data) async {
       navigatorKey.currentState?.push(
         MaterialPageRoute(
           builder: (_) =>
-              EventChatPage(eventId: eventId, eventTitle: eventTitle),
+              HangoutChatPage(eventId: eventId, eventTitle: eventTitle),
         ),
       );
     } else {
       navigatorKey.currentState?.push(
         MaterialPageRoute(
           builder: (_) =>
-              EventDetailsPage(eventId: eventId, eventData: eventData),
+              HangoutDetailsPage(eventId: eventId, eventData: eventData),
         ),
       );
     }

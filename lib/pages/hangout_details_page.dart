@@ -23,21 +23,21 @@ import '../components/details/vibe_check_poll_ui.dart';
 import '../components/details/guest_profile_sheet.dart';
 import '../components/details/vote_tally_sheet.dart';
 
-class EventDetailsPage extends StatefulWidget {
+class HangoutDetailsPage extends StatefulWidget {
   final String eventId;
   final Map<String, dynamic> eventData;
 
-  const EventDetailsPage({
+  const HangoutDetailsPage({
     super.key,
     required this.eventId,
     required this.eventData,
   });
 
   @override
-  State<EventDetailsPage> createState() => _EventDetailsPageState();
+  State<HangoutDetailsPage> createState() => _HangoutDetailsPageState();
 }
 
-class _EventDetailsPageState extends State<EventDetailsPage> {
+class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
   final ScrollController _scrollController = ScrollController();
   bool _isAppBarCollapsed = false;
 
@@ -1602,7 +1602,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                               onPressed: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => EventChatPage(
+                                  builder: (context) => HangoutChatPage(
                                     eventId: widget.eventId,
                                     eventTitle: data['title'] ?? "Chat",
                                   ),
