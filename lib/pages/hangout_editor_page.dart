@@ -363,7 +363,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isEditing ? "Changes saved!" : "Hangout deployed!"),
+            content: Text(isEditing ? "Changes saved!" : "All the i's sent!"),
             backgroundColor: Colors.green,
           ),
         );
@@ -575,7 +575,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
         MediaQuery.of(context).orientation == Orientation.landscape;
 
     final String appBarTitle = isEditing ? "Manage Hangout" : "Create Hangout";
-    final String submitText = isEditing ? "Save Changes" : "Deploy Hangout";
+    final String submitText = isEditing ? "Save Changes" : "Send out the i's";
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
