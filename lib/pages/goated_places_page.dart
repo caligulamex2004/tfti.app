@@ -146,7 +146,9 @@ class _GoatedPlacesPageState extends State<GoatedPlacesPage> {
   Future<void> _addNewPlace() async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const PlacesSearchPage()),
+      MaterialPageRoute(
+        builder: (context) => const PlacesSearchPage(showFavorites: false),
+      ),
     );
 
     if (result != null && result is String && mounted) {
@@ -185,37 +187,14 @@ class _GoatedPlacesPageState extends State<GoatedPlacesPage> {
     if (user == null) return const SizedBox.shrink();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: const Text(
-          "Favorite Places",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        foregroundColor: Colors.white,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(gradient: themeProvider.appGradient),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addNewPlace,
-        backgroundColor: primaryColor,
-        foregroundColor: themeProvider.onPrimaryColor,
-        icon: const Icon(Icons.add_location_alt),
-        label: const Text(
-          "Add Place",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .collection('favorite_places')
-            // .orderBy('addedAt', descending: true) // Uncomment if index exists
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -227,70 +206,176 @@ class _GoatedPlacesPageState extends State<GoatedPlacesPage> {
 
           final places = snapshot.data!.docs;
 
-          if (places.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(24),
+          return CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 200,
+                pinned: true,
+                stretch: true,
+                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                foregroundColor: Colors.white,
+                flexibleSpace: FlexibleSpaceBar(
+                  stretchModes: const [StretchMode.zoomBackground],
+                  background: Container(
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? Colors.grey.shade900
-                          : Colors.grey.shade100,
-                      shape: BoxShape.circle,
+                      gradient: themeProvider.appGradient,
                     ),
-                    child: Icon(
-                      Icons.star_border,
-                      size: 64,
-                      color: isDark
-                          ? Colors.grey.shade700
-                          : Colors.grey.shade400,
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                          left: 20,
+                          right: 20,
+                          bottom: 20,
+                          top: 40,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Favorite Places",
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                height: 1.1,
+                                letterSpacing: -0.5,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.star,
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  "${places.length} Saved",
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const Spacer(),
+                                InkWell(
+                                  onTap: _addNewPlace,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.add_location_alt,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                        SizedBox(width: 6),
+                                        Text(
+                                          "Add",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    "No Goated Places Yet",
-                    style: TextStyle(
-                      color: isDark
-                          ? Colors.grey.shade400
-                          : Colors.grey.shade700,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Save your favorite hangout spots here!",
-                    style: TextStyle(
-                      color: isDark
-                          ? Colors.grey.shade500
-                          : Colors.grey.shade600,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            );
-          }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(20),
-            itemCount: places.length,
-            itemBuilder: (context, index) {
-              final data = places[index].data() as Map<String, dynamic>;
-              final docId = places[index].id;
-              final name = data['name'] ?? 'Unknown Place';
-              final address = data['address'] ?? '';
+              if (places.isEmpty)
+                SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 60),
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.grey.shade900
+                                : Colors.grey.shade100,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.star_border,
+                            size: 64,
+                            color: isDark
+                                ? Colors.grey.shade700
+                                : Colors.grey.shade400,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "No Goated Places Yet",
+                          style: TextStyle(
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade700,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Save your favorite hangout spots here!",
+                          style: TextStyle(
+                            color: isDark
+                                ? Colors.grey.shade500
+                                : Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
 
-              return GoatedPlaceCard(
-                id: docId,
-                name: name,
-                address: address,
-                onTap: () => _openMap(address),
-                onRename: () => _renamePlace(docId, name),
-                onDelete: () => _deletePlace(docId, name),
-              );
-            },
+              if (places.isNotEmpty)
+                SliverPadding(
+                  padding: const EdgeInsets.all(20),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final data = places[index].data() as Map<String, dynamic>;
+                      final docId = places[index].id;
+                      final name = data['name'] ?? 'Unknown Place';
+                      final address = data['address'] ?? '';
+
+                      return GoatedPlaceCard(
+                        id: docId,
+                        name: name,
+                        address: address,
+                        onTap: () => _openMap(address),
+                        onRename: () => _renamePlace(docId, name),
+                        onDelete: () => _deletePlace(docId, name),
+                      );
+                    }, childCount: places.length),
+                  ),
+                ),
+            ],
           );
         },
       ),
