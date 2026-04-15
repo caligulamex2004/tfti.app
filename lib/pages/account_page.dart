@@ -1641,7 +1641,9 @@ class _AccountPageState extends State<AccountPage> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SettingsPage()),
+                MaterialPageRoute(
+                  builder: (context) => const PreferencesPage(),
+                ),
               );
             },
           ),

@@ -5,14 +5,14 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'goated_places_page.dart';
 import '../utils/theme_provider.dart';
 
-class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+class PreferencesPage extends StatefulWidget {
+  const PreferencesPage({super.key});
 
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
+  State<PreferencesPage> createState() => _PreferencesPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class _PreferencesPageState extends State<PreferencesPage> {
   // Theme metadata for the new visual selector
   final List<Map<String, dynamic>> _themeOptions = [
     // --- 6 LIGHT THEMES ---
