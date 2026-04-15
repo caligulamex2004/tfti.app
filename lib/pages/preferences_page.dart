@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:material_symbols_icons/symbols.dart';
-import 'goated_places_page.dart';
+import 'saved_places_page.dart';
 import '../utils/theme_provider.dart';
 
 class PreferencesPage extends StatefulWidget {
@@ -543,7 +543,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const GoatedPlacesPage()),
+            MaterialPageRoute(builder: (context) => const SavedPlacesPage()),
           );
         },
       ),

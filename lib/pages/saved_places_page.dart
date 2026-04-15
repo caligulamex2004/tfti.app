@@ -8,14 +8,14 @@ import '../utils/theme_provider.dart';
 import '../components/places/goated_place_card.dart';
 import 'places_search_page.dart';
 
-class GoatedPlacesPage extends StatefulWidget {
-  const GoatedPlacesPage({super.key});
+class SavedPlacesPage extends StatefulWidget {
+  const SavedPlacesPage({super.key});
 
   @override
-  State<GoatedPlacesPage> createState() => _GoatedPlacesPageState();
+  State<SavedPlacesPage> createState() => _SavedPlacesPageState();
 }
 
-class _GoatedPlacesPageState extends State<GoatedPlacesPage> {
+class _SavedPlacesPageState extends State<SavedPlacesPage> {
   Future<void> _renamePlace(String docId, String currentName) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final renameController = TextEditingController(text: currentName);
