@@ -62,6 +62,7 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
         final double trackWidth = constraints.maxWidth;
         final bool isCompact = trackWidth < 280;
 
+        // --- 1. LOCKED STATE ---
         if (widget.isLocked && widget.currentStatus == 'pending') {
           return Container(
             width: double.infinity,
@@ -82,12 +83,16 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
               children: [
                 const Icon(Icons.lock, color: Colors.grey, size: 24),
                 const SizedBox(width: 8),
-                Text(
-                  "RSVP Closed",
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                Flexible(
+                  child: Text(
+                    "RSVP Closed",
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -95,6 +100,7 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
           );
         }
 
+        // --- 2. GOING STATE ---
         if (widget.currentStatus == 'going') {
           return Container(
             width: double.infinity,
@@ -122,12 +128,16 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
                             size: 24,
                           ),
                           SizedBox(width: 8),
-                          Text(
-                            "You're in! 🤗",
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                          Flexible(
+                            child: Text(
+                              "You're in! 🤗",
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -147,12 +157,15 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child: const Text(
-                              "Change",
-                              style: TextStyle(
-                                color: Colors.green,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
+                            child: const FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                "Change",
+                                style: TextStyle(
+                                  color: Colors.green,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),
@@ -195,6 +208,7 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
           );
         }
 
+        // --- 3. DECLINED STATE ---
         if (widget.currentStatus == 'declined') {
           return Container(
             width: double.infinity,
@@ -218,12 +232,16 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
                         children: [
                           Icon(Icons.cancel, color: Colors.red, size: 24),
                           SizedBox(width: 8),
-                          Text(
-                            "Missing out.",
-                            style: TextStyle(
-                              color: Colors.red,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                          Flexible(
+                            child: Text(
+                              "Missing out.",
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -243,12 +261,15 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child: const Text(
-                              "Change RSVP",
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
+                            child: const FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                "Change RSVP",
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),
@@ -287,6 +308,7 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
           );
         }
 
+        // --- 4. COMPACT PENDING STATE (Squished Buttons) ---
         if (isCompact) {
           return Row(
             children: [
@@ -303,11 +325,14 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    "Decline",
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.bold,
+                  child: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      "Decline",
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -327,9 +352,12 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    "I'm In!",
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  child: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      "I'm In!",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ),
@@ -337,6 +365,7 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
           );
         }
 
+        // --- 5. FULL PENDING STATE (The Slider) ---
         const double thumbWidth = 100.0;
         final double maxDrag = (trackWidth - thumbWidth) / 2;
 

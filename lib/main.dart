@@ -19,7 +19,7 @@ import 'pages/account_page.dart';
 import 'firebase_options.dart';
 import 'utils/theme_provider.dart';
 import 'pages/onboarding_tutorial.dart';
-import 'pages/home_feed_page.dart';
+import 'pages/home_feed.dart';
 
 final GlobalKey<NavigatorState> navigatorKey =
     GlobalKey<
@@ -114,6 +114,10 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _selectedIndex = 0;
   bool _showTutorial = false;
 
+  // Ghost Badge Fix: Keep track of REAL pending invites
+  bool _hasRealPending = false;
+  StreamSubscription? _pendingInvitesSub;
+
   final GlobalKey _contentKey = GlobalKey();
 
   final List<Widget> _pages = [
@@ -130,11 +134,13 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     _clearAppBadge();
     _silentProfileRefresh();
     _checkTutorialStatus();
+    _listenToPendingInvites(); // Initialize the smart badge listener
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _pendingInvitesSub?.cancel(); // Clean up the listener
     super.dispose();
   }
 
@@ -143,6 +149,84 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _clearAppBadge();
     }
+  }
+
+  // --- SMART BADGE LISTENER ---
+  // This replaces the old StreamBuilder. It fetches pending invites and cross-references
+  // them against the actual event time to ensure they aren't "Ghost Badges".
+  void _listenToPendingInvites() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    _pendingInvitesSub = FirebaseFirestore.instance
+        .collectionGroup('invitations')
+        .where('uid', isEqualTo: user.uid)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .listen((snap) async {
+          bool foundRealPending = false;
+          final now = DateTime.now();
+
+          for (var doc in snap.docs) {
+            final data = doc.data();
+            if (data['isHidden'] == true) continue;
+
+            final eventId = doc.reference.parent.parent?.id;
+            if (eventId == null) continue;
+
+            try {
+              // Fetch the parent event to check its actual time
+              final eventDoc = await FirebaseFirestore.instance
+                  .collection('events')
+                  .doc(eventId)
+                  .get();
+              if (!eventDoc.exists) continue;
+
+              final eventData = eventDoc.data() as Map<String, dynamic>;
+
+              // Use the exact same validation logic as Home Feed
+              final Timestamp? ts = eventData['time'];
+              final DateTime eventTime = ts?.toDate() ?? now;
+
+              final Timestamp? endTs = eventData['endTime'];
+              DateTime endTime;
+              if (endTs != null) {
+                endTime = endTs.toDate();
+              } else {
+                final int keepAliveDays = eventData['keepAliveDays'] ?? 0;
+                final int durationMinutes = keepAliveDays > 0
+                    ? (keepAliveDays * 24 * 60)
+                    : 240;
+                endTime = eventTime.add(Duration(minutes: durationMinutes));
+              }
+
+              final bool dbIsPast = eventData['isPast'] == true;
+              final bool isPast = dbIsPast || now.isAfter(endTime);
+
+              final int deadlineOffset = eventData['rsvpDeadline'] ?? 0;
+              final DateTime deadlineTime = eventTime.add(
+                Duration(minutes: deadlineOffset),
+              );
+              final bool isPastDeadline = now.isAfter(deadlineTime);
+              final bool isActuallyDeclined =
+                  isPastDeadline && eventData['type'] != 'vibe_check';
+
+              // If the event is NOT past, and NOT artificially declined, it's a REAL pending invite!
+              if (!isPast && !isActuallyDeclined) {
+                foundRealPending = true;
+                break; // Found one! No need to check the rest, turn on the badge!
+              }
+            } catch (e) {
+              debugPrint("Error validating pending invite: $e");
+            }
+          }
+
+          if (mounted) {
+            setState(() {
+              _hasRealPending = foundRealPending;
+            });
+          }
+        });
   }
 
   Future<void> _clearAppBadge() async {
@@ -203,151 +287,129 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collectionGroup('invitations')
-          .where('uid', isEqualTo: user?.uid)
-          .where('status', isEqualTo: 'pending')
-          .snapshots(),
-      builder: (context, snapshot) {
-        bool hasPendingNotHidden = false;
-        if (snapshot.hasData) {
-          for (var doc in snapshot.data!.docs) {
-            final data = doc.data() as Map<String, dynamic>;
-            if (data['isHidden'] != true) {
-              hasPendingNotHidden = true;
-              break;
-            }
-          }
-        }
+    // Use new smart variable to show the badge
+    final showBadge = _hasRealPending && _selectedIndex != 0;
 
-        final showBadge = hasPendingNotHidden && _selectedIndex != 0;
-
-        return Stack(
-          children: [
-            Scaffold(
-              body: isLandscape
-                  ? Row(
-                      children: [
-                        SafeArea(
-                          right: false,
-                          child: NavigationRail(
-                            selectedIndex: _selectedIndex,
-                            onDestinationSelected: _onNavTapped,
-                            backgroundColor: Theme.of(context).cardColor,
-                            selectedIconTheme: IconThemeData(
-                              color: Theme.of(context).colorScheme.primary,
+    return Stack(
+      children: [
+        Scaffold(
+          body: isLandscape
+              ? Row(
+                  children: [
+                    SafeArea(
+                      right: false,
+                      child: NavigationRail(
+                        selectedIndex: _selectedIndex,
+                        onDestinationSelected: _onNavTapped,
+                        backgroundColor: Theme.of(context).cardColor,
+                        selectedIconTheme: IconThemeData(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        selectedLabelTextStyle: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        labelType: NavigationRailLabelType.all,
+                        useIndicator: true,
+                        indicatorColor: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.2),
+                        destinations: [
+                          NavigationRailDestination(
+                            icon: Badge(
+                              isLabelVisible: showBadge,
+                              backgroundColor: Colors.redAccent,
+                              smallSize: 8,
+                              child: const Icon(Symbols.cottage),
                             ),
-                            selectedLabelTextStyle: TextStyle(
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            labelType: NavigationRailLabelType.all,
-                            useIndicator: true,
-                            indicatorColor: Theme.of(
-                              context,
-                            ).colorScheme.primary.withValues(alpha: 0.2),
-                            destinations: [
-                              NavigationRailDestination(
-                                icon: Badge(
-                                  isLabelVisible: showBadge,
-                                  backgroundColor: Colors.redAccent,
-                                  smallSize: 8,
-                                  child: const Icon(Symbols.cottage),
-                                ),
-                                label: const Text("Home"),
-                              ),
-                              const NavigationRailDestination(
-                                icon: Icon(
-                                  Icons.supervised_user_circle_outlined,
-                                ),
-                                label: Text("Teams"),
-                              ),
-                              const NavigationRailDestination(
-                                icon: Icon(Symbols.group),
-                                label: Text("Squad"),
-                              ),
-                              const NavigationRailDestination(
-                                icon: Icon(Symbols.account_circle),
-                                label: Text("Account"),
-                              ),
-                            ],
+                            label: const Text("Home"),
                           ),
-                        ),
-                        VerticalDivider(
-                          thickness: 1,
-                          width: 1,
-                          color: isDark
-                              ? Colors.grey.shade800
-                              : Colors.grey.shade300,
-                        ),
-                        Expanded(
-                          child: IndexedStack(
-                            key: _contentKey,
-                            index: _selectedIndex,
-                            children: _pages,
+                          const NavigationRailDestination(
+                            icon: Icon(Icons.supervised_user_circle_outlined),
+                            label: Text("Teams"),
                           ),
-                        ),
-                      ],
-                    )
-                  : IndexedStack(
-                      key: _contentKey,
-                      index: _selectedIndex,
-                      children: _pages,
+                          const NavigationRailDestination(
+                            icon: Icon(Symbols.group),
+                            label: Text("Squad"),
+                          ),
+                          const NavigationRailDestination(
+                            icon: Icon(Symbols.account_circle),
+                            label: Text("Account"),
+                          ),
+                        ],
+                      ),
                     ),
-              bottomNavigationBar: isLandscape
-                  ? null
-                  : BottomNavigationBar(
-                      type: BottomNavigationBarType.fixed,
-                      backgroundColor: Theme.of(context).cardColor,
-                      selectedItemColor: Theme.of(context).colorScheme.primary,
-                      unselectedItemColor: Colors.grey,
-                      showSelectedLabels: true,
-                      showUnselectedLabels: true,
-                      currentIndex: _selectedIndex,
-                      onTap: _onNavTapped,
-                      items: [
-                        BottomNavigationBarItem(
-                          icon: Badge(
-                            isLabelVisible: showBadge,
-                            backgroundColor: Colors.redAccent,
-                            smallSize: 8,
-                            child: const Icon(Symbols.cottage),
-                          ),
-                          label: "Home",
-                        ),
-                        const BottomNavigationBarItem(
-                          icon: Icon(Icons.supervised_user_circle_outlined),
-                          label: "Teams",
-                        ),
-                        const BottomNavigationBarItem(
-                          icon: Icon(Symbols.group),
-                          label: "Squad",
-                        ),
-                        const BottomNavigationBarItem(
-                          icon: Icon(Symbols.account_circle),
-                          label: "Account",
-                        ),
-                      ],
+                    VerticalDivider(
+                      thickness: 1,
+                      width: 1,
+                      color: isDark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade300,
                     ),
-            ),
-            if (_showTutorial)
-              Positioned.fill(
-                child: OnboardingTutorial(
-                  onComplete: () {
-                    setState(() {
-                      _showTutorial = false;
-                    });
-                  },
+                    Expanded(
+                      child: IndexedStack(
+                        key: _contentKey,
+                        index: _selectedIndex,
+                        children: _pages,
+                      ),
+                    ),
+                  ],
+                )
+              : IndexedStack(
+                  key: _contentKey,
+                  index: _selectedIndex,
+                  children: _pages,
                 ),
-              ),
-          ],
-        );
-      },
+          bottomNavigationBar: isLandscape
+              ? null
+              : BottomNavigationBar(
+                  type: BottomNavigationBarType.fixed,
+                  backgroundColor: Theme.of(context).cardColor,
+                  selectedItemColor: Theme.of(context).colorScheme.primary,
+                  unselectedItemColor: Colors.grey,
+                  showSelectedLabels: true,
+                  showUnselectedLabels: true,
+                  currentIndex: _selectedIndex,
+                  onTap: _onNavTapped,
+                  items: [
+                    BottomNavigationBarItem(
+                      icon: Badge(
+                        isLabelVisible: showBadge,
+                        backgroundColor: Colors.redAccent,
+                        smallSize: 8,
+                        child: const Icon(Symbols.cottage),
+                      ),
+                      label: "Home",
+                    ),
+                    const BottomNavigationBarItem(
+                      icon: Icon(Icons.supervised_user_circle_outlined),
+                      label: "Teams",
+                    ),
+                    const BottomNavigationBarItem(
+                      icon: Icon(Symbols.group),
+                      label: "Squad",
+                    ),
+                    const BottomNavigationBarItem(
+                      icon: Icon(Symbols.account_circle),
+                      label: "Account",
+                    ),
+                  ],
+                ),
+        ),
+        if (_showTutorial)
+          Positioned.fill(
+            child: OnboardingTutorial(
+              onComplete: () {
+                setState(() {
+                  _showTutorial = false;
+                });
+              },
+            ),
+          ),
+      ],
     );
   }
 }
