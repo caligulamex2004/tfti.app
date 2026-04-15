@@ -29,6 +29,7 @@ class ThemeProvider extends ChangeNotifier {
     _loadTheme();
   }
 
+  // --- GRADIENTS ---
   LinearGradient get appGradient {
     switch (_currentTheme) {
       // Light Gradients
@@ -109,6 +110,7 @@ class ThemeProvider extends ChangeNotifier {
     }
   }
 
+  // Helper to dynamically set text color based on background luminance
   Color get onPrimaryColor {
     final primary = themeData.colorScheme.primary;
     return primary.computeLuminance() > 0.5
@@ -116,11 +118,10 @@ class ThemeProvider extends ChangeNotifier {
         : Colors.white;
   }
 
+  // --- THEME DATA ---
   ThemeData get themeData {
     switch (_currentTheme) {
-      // ---------------------------------------------------------
       // LIGHT THEMES (6)
-      // ---------------------------------------------------------
       case AppTheme.original:
         return ThemeData(
           brightness: Brightness.light,
@@ -131,7 +132,7 @@ class ThemeProvider extends ChangeNotifier {
             primary: Colors.lightBlue,
             secondary: Colors.blueAccent,
             tertiary: Color(0xFF0288D1),
-            secondaryContainer: Color(0xFFB3E5FC), // Pill Color
+            secondaryContainer: Color(0xFFB3E5FC),
           ),
           useMaterial3: true,
         );
@@ -149,7 +150,7 @@ class ThemeProvider extends ChangeNotifier {
             primary: Color(0xFF4A00E0),
             secondary: Color(0xFF8E2DE2),
             tertiary: Color(0xFFD500F9),
-            secondaryContainer: Color(0xFFE1BEE7), // Pill Color
+            secondaryContainer: Color(0xFFE1BEE7),
           ),
           useMaterial3: true,
         );
@@ -164,7 +165,7 @@ class ThemeProvider extends ChangeNotifier {
             primary: Color(0xFFFF6B81),
             secondary: Color(0xFFFF9A9E),
             tertiary: Color(0xFFFF4081),
-            secondaryContainer: Color(0xFFFFD1DC), // Pill Color
+            secondaryContainer: Color(0xFFFFD1DC),
           ),
           useMaterial3: true,
         );
@@ -179,7 +180,7 @@ class ThemeProvider extends ChangeNotifier {
             primary: Color(0xFF1C8D6C),
             secondary: Color(0xFF2A594A),
             tertiary: Color(0xFF00BFA5),
-            secondaryContainer: Color(0xFFB2DFDB), // Pill Color
+            secondaryContainer: Color(0xFFB2DFDB),
           ),
           useMaterial3: true,
         );
@@ -193,8 +194,8 @@ class ThemeProvider extends ChangeNotifier {
           colorScheme: const ColorScheme.light(
             primary: Color(0xFF7B61FF),
             secondary: Color(0xFF9D84FF),
-            tertiary: Color(0xFFFFA8E2), // Soft pink accent
-            secondaryContainer: Color(0xFFE6E6FA), // Pill Color
+            tertiary: Color(0xFFFFA8E2),
+            secondaryContainer: Color(0xFFE6E6FA),
             surfaceTint: Color(0xFF7B61FF),
           ),
           useMaterial3: true,
@@ -210,15 +211,13 @@ class ThemeProvider extends ChangeNotifier {
             primary: Color(0xFFFF7E5F),
             secondary: Color(0xFFFEB47B),
             tertiary: Color(0xFFFFB74D),
-            secondaryContainer: Color(0xFFFFE0B2), // Pill Color
+            secondaryContainer: Color(0xFFFFE0B2),
             surfaceTint: Color(0xFFFF7E5F),
           ),
           useMaterial3: true,
         );
 
-      // ---------------------------------------------------------
       // DARK THEMES (6)
-      // ---------------------------------------------------------
       case AppTheme.darkBlue:
         return ThemeData(
           brightness: Brightness.dark,
@@ -229,7 +228,7 @@ class ThemeProvider extends ChangeNotifier {
             primary: Color(0xFF3B82F6),
             secondary: Colors.blueAccent,
             tertiary: Color(0xFF60A5FA),
-            secondaryContainer: Color(0xFF1E3A8A), // Pill Color
+            secondaryContainer: Color(0xFF1E3A8A),
           ),
           useMaterial3: true,
         );
@@ -238,13 +237,13 @@ class ThemeProvider extends ChangeNotifier {
         return ThemeData(
           brightness: Brightness.dark,
           scaffoldBackgroundColor: const Color(0xFF121212),
-          cardColor: const Color(0xFF000000), // Pure black card
+          cardColor: const Color(0xFF000000),
           appBarTheme: const AppBarTheme(foregroundColor: Colors.white),
           colorScheme: const ColorScheme.dark(
             primary: Color(0xFF7637F3),
             secondary: Colors.grey,
             tertiary: Colors.white,
-            secondaryContainer: Color(0xFF121212), // Pill Color
+            secondaryContainer: Color(0xFF121212),
           ),
           useMaterial3: true,
         );
@@ -259,7 +258,7 @@ class ThemeProvider extends ChangeNotifier {
             primary: Color(0xFFFFAB00),
             secondary: Colors.orangeAccent,
             tertiary: Color(0xFFFFD740),
-            secondaryContainer: Color(0xFF4E342E), // Pill Color
+            secondaryContainer: Color(0xFF4E342E),
           ),
           useMaterial3: true,
         );
@@ -272,9 +271,9 @@ class ThemeProvider extends ChangeNotifier {
           appBarTheme: const AppBarTheme(foregroundColor: Colors.white),
           colorScheme: const ColorScheme.dark(
             primary: Color(0xFF00E5FF),
-            secondary: Color(0xFFFF007F), // Neon Pink Secondary
-            tertiary: Color(0xFF76FF03), // Neon Green Accent
-            secondaryContainer: Color(0xFF004D40), // Pill Color
+            secondary: Color(0xFFFF007F),
+            tertiary: Color(0xFF76FF03),
+            secondaryContainer: Color(0xFF004D40),
           ),
           useMaterial3: true,
         );
@@ -289,7 +288,7 @@ class ThemeProvider extends ChangeNotifier {
             primary: Color(0xFFEE0909),
             secondary: Colors.grey,
             tertiary: Color(0xFFFF5252),
-            secondaryContainer: Color(0xFF3E2723), // Pill Color
+            secondaryContainer: Color(0xFF3E2723),
           ),
           useMaterial3: true,
         );
@@ -297,39 +296,50 @@ class ThemeProvider extends ChangeNotifier {
       case AppTheme.velvetDust:
         return ThemeData(
           brightness: Brightness.dark,
-          scaffoldBackgroundColor: const Color(0xFF170B14), // Deep warm plum
-          cardColor: const Color(0xFF24111E), // Slightly lighter plum card
+          scaffoldBackgroundColor: const Color(0xFF170B14),
+          cardColor: const Color(0xFF24111E),
           appBarTheme: const AppBarTheme(foregroundColor: Colors.white),
           colorScheme: const ColorScheme.dark(
-            primary: Color(0xFFFF2A7A), // Neon Rose
-            secondary: Color(0xFFB48EAD), // Dusty purple
-            tertiary: Color(0xFFFF8AAE), // Soft pink accent
-            secondaryContainer: Color(
-              0xFF4A233C,
-            ), // Beautiful tinted pill background
-            surfaceTint: Color(0xFFFF2A7A), // Gives cards a faint pink glow
+            primary: Color(0xFFFF2A7A),
+            secondary: Color(0xFFB48EAD),
+            tertiary: Color(0xFFFF8AAE),
+            secondaryContainer: Color(0xFF4A233C),
+            surfaceTint: Color(0xFFFF2A7A),
           ),
           useMaterial3: true,
         );
     }
   }
 
+  // --- LOGIC WITH ERROR HANDLING ---
   Future<void> setTheme(AppTheme theme) async {
     _currentTheme = theme;
     notifyListeners();
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_themePrefKey, theme.index);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_themePrefKey, theme.index);
+    } catch (e) {
+      debugPrint("Failed to save theme to SharedPreferences: $e");
+    }
   }
 
   Future<void> _loadTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedThemeIndex = prefs.getInt(_themePrefKey);
-    if (savedThemeIndex != null) {
-      _currentTheme = AppTheme.values[savedThemeIndex];
-      notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final int? savedThemeIndex = prefs.getInt(_themePrefKey);
+
+      if (savedThemeIndex != null &&
+          savedThemeIndex >= 0 &&
+          savedThemeIndex < AppTheme.values.length) {
+        _currentTheme = AppTheme.values[savedThemeIndex];
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint("Failed to load theme from SharedPreferences: $e");
     }
   }
 }
 
+// Global instance
 final themeProvider = ThemeProvider();
