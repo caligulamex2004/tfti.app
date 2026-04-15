@@ -6,17 +6,28 @@ class RpgGlassCard extends StatelessWidget {
   final IconData icon;
   final Widget child;
 
+  // NEW: Optional color overrides!
+  final Color? iconColor;
+  final Color? titleColor;
+
   const RpgGlassCard({
     super.key,
     required this.title,
     required this.icon,
     required this.child,
+    this.iconColor,
+    this.titleColor,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
+
+    // Use the custom colors if provided, otherwise fall back to the defaults
+    final effectiveIconColor = iconColor ?? primaryColor;
+    final effectiveTitleColor =
+        titleColor ?? (isDark ? Colors.white : Colors.black87);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
@@ -46,10 +57,11 @@ class RpgGlassCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: primaryColor.withValues(alpha: 0.15),
+                    // Dynamically tints the background circle based on the effective color!
+                    color: effectiveIconColor.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(icon, color: primaryColor, size: 20),
+                  child: Icon(icon, color: effectiveIconColor, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Text(
@@ -57,7 +69,7 @@ class RpgGlassCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
-                    color: isDark ? Colors.white : Colors.black87,
+                    color: effectiveTitleColor,
                   ),
                 ),
               ],
