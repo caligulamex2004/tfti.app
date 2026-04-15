@@ -4,6 +4,7 @@ class GoatedPlaceCard extends StatelessWidget {
   final String id;
   final String name;
   final String address;
+  final VoidCallback onRename;
   final VoidCallback onDelete;
   final VoidCallback onTap;
 
@@ -12,6 +13,7 @@ class GoatedPlaceCard extends StatelessWidget {
     required this.id,
     required this.name,
     required this.address,
+    required this.onRename,
     required this.onDelete,
     required this.onTap,
   });
@@ -90,11 +92,26 @@ class GoatedPlaceCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 onSelected: (value) {
-                  if (value == 'remove') {
+                  if (value == 'rename') {
+                    onRename();
+                  } else if (value == 'remove') {
                     onDelete();
                   }
                 },
                 itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'rename',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, size: 20),
+                        SizedBox(width: 12),
+                        Text(
+                          "Rename",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
                   const PopupMenuItem(
                     value: 'remove',
                     child: Row(

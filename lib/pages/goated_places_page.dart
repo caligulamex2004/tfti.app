@@ -16,6 +16,67 @@ class GoatedPlacesPage extends StatefulWidget {
 }
 
 class _GoatedPlacesPageState extends State<GoatedPlacesPage> {
+  Future<void> _renamePlace(String docId, String currentName) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final renameController = TextEditingController(text: currentName);
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Rename Place"),
+        content: TextField(
+          controller: renameController,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(
+            hintText: "Enter new name",
+            filled: true,
+            fillColor: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(context, renameController.text.trim()),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.primary,
+            ),
+            child: const Text(
+              "Save",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (newName != null && newName.isNotEmpty && newName != currentName) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('favorite_places')
+            .doc(docId)
+            .update({'name': newName});
+
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("Renamed to '$newName'")));
+        }
+      }
+    }
+  }
+
   Future<void> _deletePlace(String docId, String placeName) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -62,48 +123,9 @@ class _GoatedPlacesPageState extends State<GoatedPlacesPage> {
     }
   }
 
-  Future<void> _addNewPlace() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const PlacesSearchPage()),
-    );
-
-    // If the PlacesSearchPage returns a selected address string
-    if (result != null && result is String && mounted) {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        // Extracts a rough name from the first part of the address string
-        final parts = result.split(',');
-        final name = parts.isNotEmpty ? parts[0] : "Saved Place";
-
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .collection('favorite_places')
-            .add({
-              'name': name,
-              'address': result, // The full address string
-              'addedAt': FieldValue.serverTimestamp(),
-            });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                "Added to Goated Places!",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          );
-        }
-      }
-    }
-  }
-
   Future<void> _openMap(String address) async {
     final query = Uri.encodeComponent(address);
 
-    // Dynamically choose Apple Maps for iOS and Google Maps for Android
     final Uri url = Platform.isIOS
         ? Uri.parse("https://maps.apple.com/?q=$query")
         : Uri.parse("https://www.google.com/maps/search/?api=1&query=$query");
@@ -121,6 +143,42 @@ class _GoatedPlacesPageState extends State<GoatedPlacesPage> {
     }
   }
 
+  Future<void> _addNewPlace() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const PlacesSearchPage()),
+    );
+
+    if (result != null && result is String && mounted) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final parts = result.split(',');
+        final name = parts.isNotEmpty ? parts[0] : "Saved Place";
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('favorite_places')
+            .add({
+              'name': name,
+              'address': result,
+              'addedAt': FieldValue.serverTimestamp(),
+            });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "Added to Goated Places!",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -133,7 +191,7 @@ class _GoatedPlacesPageState extends State<GoatedPlacesPage> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
-          "Goated Places",
+          "Favorite Places",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
@@ -153,7 +211,6 @@ class _GoatedPlacesPageState extends State<GoatedPlacesPage> {
         ),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // NOTE: Make sure your Firestore index supports ordering by addedAt descending
         stream: FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
@@ -230,6 +287,7 @@ class _GoatedPlacesPageState extends State<GoatedPlacesPage> {
                 name: name,
                 address: address,
                 onTap: () => _openMap(address),
+                onRename: () => _renamePlace(docId, name),
                 onDelete: () => _deletePlace(docId, name),
               );
             },
