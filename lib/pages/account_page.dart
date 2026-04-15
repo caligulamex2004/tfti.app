@@ -13,6 +13,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_cropper/image_cropper.dart';
 
+import '../components/shared/tcg_profile_card.dart';
 import '../utils/phone_formatter.dart';
 import 'preferences_page.dart';
 import '../utils/theme_provider.dart';
@@ -984,363 +985,6 @@ class _AccountPageState extends State<AccountPage> {
 
   // --- UPDATED PROFILE IDENTITY UI ---
   Widget _buildTcgPreviewCard(bool isDark, Color primaryColor) {
-    final displayName = _nameController.text.trim().isNotEmpty
-        ? _nameController.text
-        : "No Name";
-    final username = _currentUsername ?? "";
-    final statusText = _statusController.text.trim();
-    final displayPhone = _showPhoneNumber && _phoneNumber.isNotEmpty
-        ? _phoneNumber
-        : "Hidden";
-    final avatarColor = Color(_selectedColorValue);
-    final avatarUrl = _avatarUrl;
-    final hp = _hp;
-    final mana = _mana;
-    final originDate = _originDate;
-
-    // --- TCG STYLE DECORATIONS ---
-    final plateDecoration = BoxDecoration(
-      color: isDark
-          ? Colors.black.withValues(alpha: 0.25)
-          : Colors.white.withValues(alpha: 0.5),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.1)
-            : Colors.black.withValues(alpha: 0.05),
-        width: 1,
-      ),
-    );
-
-    Widget buildStatBar(
-      String label,
-      int totalValue,
-      Color color,
-      IconData icon,
-    ) {
-      int level = (totalValue ~/ 100) + 1;
-      int progress = totalValue % 100;
-      double percentage = progress / 100.0;
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(icon, size: 14, color: color),
-                  const SizedBox(width: 6),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: isDark
-                          ? Colors.grey.shade300
-                          : Colors.grey.shade800,
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                "Lv. $level",
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: percentage,
-              minHeight: 10,
-              backgroundColor: isDark ? Colors.black38 : Colors.white60,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Align(
-            alignment: Alignment.center,
-            child: Text(
-              "$progress / 100",
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
-    Widget titleWidget = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: plateDecoration,
-      child: Row(
-        children: [
-          Expanded(
-            child: RichText(
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              text: TextSpan(
-                children: [
-                  if (username.isNotEmpty)
-                    TextSpan(
-                      text: "@$username, ",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: primaryColor,
-                      ),
-                    ),
-                  TextSpan(
-                    text: displayName,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    // Editable Avatar directly on the Preview!
-    Widget avatarWidget = GestureDetector(
-      onTap: _showAvatarOptions,
-      child: Stack(
-        alignment: Alignment.bottomRight,
-        children: [
-          Container(
-            width: 160,
-            height: 160,
-            decoration: BoxDecoration(
-              color: avatarColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isDark ? Colors.white24 : Colors.black12,
-                width: 3,
-              ),
-              image: avatarUrl != null
-                  ? DecorationImage(
-                      image: CachedNetworkImageProvider(avatarUrl),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-            ),
-            child: _isUploadingAvatar
-                ? const Center(
-                    child: CircularProgressIndicator(color: Colors.white),
-                  )
-                : (avatarUrl == null
-                      ? Center(
-                          child: Text(
-                            displayName.isNotEmpty
-                                ? displayName[0].toUpperCase()
-                                : "?",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 60,
-                            ),
-                          ),
-                        )
-                      : null),
-          ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: primaryColor,
-              shape: BoxShape.circle,
-              border: Border.all(color: Theme.of(context).cardColor, width: 3),
-            ),
-            child: Icon(
-              Icons.camera_alt,
-              color: themeProvider.onPrimaryColor,
-              size: 16,
-            ),
-          ),
-        ],
-      ),
-    );
-
-    Widget statusWidget = Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 16.0),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: plateDecoration,
-      child: Text(
-        statusText.isNotEmpty
-            ? '"$statusText"'
-            : '"Tap below to set a mood..."',
-        textAlign: TextAlign.center,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontStyle: FontStyle.italic,
-          fontSize: 13,
-          color: isDark ? Colors.white70 : Colors.black87,
-          height: 1.3,
-        ),
-      ),
-    );
-
-    Widget metaWidget = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: plateDecoration,
-      child: Row(
-        children: [
-          // LEFT ALIGNED: Joined Date
-          Expanded(
-            flex: 1,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: originDate.isNotEmpty
-                  ? FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        originDate,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: isDark
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade600,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ),
-
-          // RIGHT ALIGNED: Phone Number or "Hidden" status
-          Expanded(
-            flex: 1,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _showPhoneNumber
-                          ? Icons.phone_iphone
-                          : Icons.visibility_off,
-                      color: isDark
-                          ? Colors.grey.shade400
-                          : Colors.grey.shade600,
-                      size: 14,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      displayPhone,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                        color: isDark
-                            ? Colors.grey.shade300
-                            : Colors.grey.shade800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    Widget hpManaPill = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark ? Colors.white24 : Colors.black12,
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Text(
-        "🔥 $hp / $mana 💧",
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w900,
-          color: isDark ? Colors.white : Colors.black87,
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-
-    Widget metaWithBadgeStack = Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.bottomRight,
-      children: [
-        metaWidget,
-        Positioned(bottom: -46, child: hpManaPill),
-      ],
-    );
-
-    Widget tcgCard = Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: avatarColor.withValues(alpha: isDark ? 0.15 : 0.10),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: avatarColor.withValues(alpha: 0.6), width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: avatarColor.withValues(alpha: 0.25),
-            blurRadius: 20,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          titleWidget,
-          const SizedBox(height: 20),
-          avatarWidget,
-          statusWidget,
-          const SizedBox(height: 24),
-          buildStatBar("HP (Hangouts)", hp, Colors.redAccent, Icons.whatshot),
-          const SizedBox(height: 12),
-          buildStatBar(
-            "Mana (Invites)",
-            mana,
-            Colors.blueAccent,
-            Icons.water_drop,
-          ),
-          const SizedBox(height: 20),
-          metaWithBadgeStack,
-          const SizedBox(height: 12),
-        ],
-      ),
-    );
-
     return Column(
       children: [
         Row(
@@ -1364,7 +1008,26 @@ class _AccountPageState extends State<AccountPage> {
           ],
         ),
         const SizedBox(height: 12),
-        tcgCard,
+        TcgProfileCard(
+          displayName: _nameController.text.trim().isNotEmpty
+              ? _nameController.text
+              : "No Name",
+          username: _currentUsername ?? "",
+          statusText: _statusController.text.trim(),
+          hp: _hp,
+          mana: _mana,
+          originDate: _originDate,
+          showPhone: _showPhoneNumber,
+          displayPhone: _showPhoneNumber && _phoneNumber.isNotEmpty
+              ? _phoneNumber
+              : "Hidden",
+          avatarUrl: _avatarUrl,
+          avatarColor: Color(_selectedColorValue),
+          isGoated: false, // You can't goat yourself!
+          onAvatarTap:
+              _showAvatarOptions, // Automatically triggers the camera overlay!
+          isUploadingAvatar: _isUploadingAvatar,
+        ),
       ],
     );
   }

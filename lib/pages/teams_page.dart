@@ -6,7 +6,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../utils/theme_provider.dart';
-import '../utils/phone_formatter.dart';
 import '../components/shared/user_profile_sheet.dart';
 
 class TeamsPage extends StatefulWidget {
