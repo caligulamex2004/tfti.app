@@ -12,14 +12,14 @@ import 'vibe_check_editor_page.dart';
 
 enum FeedFilter { all, goated, thisWeek, nextWeek, thisMonth, nextMonth }
 
-class HomeFeedTab extends StatefulWidget {
-  const HomeFeedTab({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
   @override
-  State<HomeFeedTab> createState() => _HomeFeedTabState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _HomeFeedTabState extends State<HomeFeedTab> {
+class _HomePageState extends State<HomePage> {
   String? _selectedEventId;
   Map<String, dynamic>? _selectedEventData;
   bool _showHidden = false;

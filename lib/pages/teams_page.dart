@@ -7,14 +7,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../utils/theme_provider.dart';
 import '../utils/phone_formatter.dart';
 
-class FriendCirclesPage extends StatefulWidget {
-  const FriendCirclesPage({super.key});
+class TeamsPage extends StatefulWidget {
+  const TeamsPage({super.key});
 
   @override
-  State<FriendCirclesPage> createState() => _FriendCirclesPageState();
+  State<TeamsPage> createState() => _TeamsPageState();
 }
 
-class _FriendCirclesPageState extends State<FriendCirclesPage> {
+class _TeamsPageState extends State<TeamsPage> {
   String? _selectedCircleId;
   String? _selectedCircleName;
   bool _autoOpenNewCircle = false;

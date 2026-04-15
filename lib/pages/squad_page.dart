@@ -13,14 +13,14 @@ import '../services/contact_service.dart';
 import '../utils/phone_formatter.dart';
 import '../utils/theme_provider.dart';
 
-class FriendsPage extends StatefulWidget {
-  const FriendsPage({super.key});
+class SquadPage extends StatefulWidget {
+  const SquadPage({super.key});
 
   @override
-  State<FriendsPage> createState() => _FriendsPageState();
+  State<SquadPage> createState() => _SquadPageState();
 }
 
-class _FriendsPageState extends State<FriendsPage> {
+class _SquadPageState extends State<SquadPage> {
   final _phoneController = TextEditingController();
   final _usernameController = TextEditingController();
 

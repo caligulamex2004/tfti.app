@@ -4,14 +4,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/theme_provider.dart';
 import 'places_search_page.dart';
 
-class FavoritePlacesPage extends StatefulWidget {
-  const FavoritePlacesPage({super.key});
+class GoatedPlacesPage extends StatefulWidget {
+  const GoatedPlacesPage({super.key});
 
   @override
-  State<FavoritePlacesPage> createState() => _FavoritePlacesPageState();
+  State<GoatedPlacesPage> createState() => _GoatedPlacesPageState();
 }
 
-class _FavoritePlacesPageState extends State<FavoritePlacesPage> {
+class _GoatedPlacesPageState extends State<GoatedPlacesPage> {
   Future<void> _deletePlace(String docId, String placeName) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 

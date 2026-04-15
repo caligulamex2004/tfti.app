@@ -543,7 +543,7 @@ class _SettingsPageState extends State<SettingsPage> {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const FavoritePlacesPage()),
+            MaterialPageRoute(builder: (context) => const GoatedPlacesPage()),
           );
         },
       ),

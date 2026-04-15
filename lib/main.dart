@@ -117,10 +117,10 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   final GlobalKey _contentKey = GlobalKey();
 
   final List<Widget> _pages = [
-    const HomeFeedTab(),
-    const FriendCirclesPage(),
-    const FriendsPage(),
-    const ProfilePage(),
+    const HomePage(),
+    const TeamsPage(),
+    const SquadPage(),
+    const AccountPage(),
   ];
 
   @override

@@ -18,14 +18,14 @@ import 'preferences_page.dart';
 import '../utils/theme_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+class AccountPage extends StatefulWidget {
+  const AccountPage({super.key});
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  State<AccountPage> createState() => _AccountPageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _AccountPageState extends State<AccountPage> {
   final _nameController = TextEditingController();
   final _statusController = TextEditingController();
 
