@@ -9,6 +9,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../components/shared/user_profile_sheet.dart';
 import '../services/contact_service.dart';
 import '../utils/phone_formatter.dart';
 import '../utils/theme_provider.dart';
@@ -38,9 +39,7 @@ class _SquadPageState extends State<SquadPage> {
 
   void _clearStatusAfterDelay() {
     Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        setState(() => _statusMessage = "");
-      }
+      if (mounted) setState(() => _statusMessage = "");
     });
   }
 
@@ -50,17 +49,13 @@ class _SquadPageState extends State<SquadPage> {
       context,
       MaterialPageRoute(builder: (context) => const QRScannerPage()),
     );
-
     if (result != null && result is String && mounted) {
       if (result.startsWith('tfti://add/@')) {
         final scannedUsername = result.replaceFirst('tfti://add/@', '');
-
         setState(() {
           _isAddingByUsername = true;
           _usernameController.text = scannedUsername;
         });
-
-        // Instantly trigger the add logic!
         _addFriend(overrideUsername: scannedUsername);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -89,13 +84,11 @@ class _SquadPageState extends State<SquadPage> {
       }
 
       final myUid = FirebaseAuth.instance.currentUser!.uid;
-
       final friendsSnap = await FirebaseFirestore.instance
           .collection('users')
           .doc(myUid)
           .collection('friends')
           .get(const GetOptions(source: Source.server));
-
       final myFriendUids = friendsSnap.docs.map((d) => d.id).toSet();
 
       List<String> allPhones = [];
@@ -125,14 +118,11 @@ class _SquadPageState extends State<SquadPage> {
               .collection('users')
               .where('phoneNumber', whereIn: chunk)
               .get(const GetOptions(source: Source.server));
-
           for (var doc in snap.docs) {
             final data = doc.data();
             final uid = doc.id;
             final phone = data['phoneNumber'] as String;
-
             allTftiPhones.add(phone);
-
             if (uid != myUid && !myFriendUids.contains(uid)) {
               data['uid'] = uid;
               onTfti.add(data);
@@ -159,7 +149,6 @@ class _SquadPageState extends State<SquadPage> {
 
       if (!mounted) return;
       Navigator.pop(context);
-
       _showStagingSheet(onTfti, notOnTfti, myUid);
     } catch (e) {
       if (mounted) Navigator.pop(context);
@@ -192,7 +181,6 @@ class _SquadPageState extends State<SquadPage> {
       builder: (context) {
         final primaryColor = Theme.of(context).colorScheme.primary;
         final isDark = Theme.of(context).brightness == Brightness.dark;
-
         Set<String> addedUids = {};
         Set<String> invitedPhones = {};
 
@@ -228,7 +216,6 @@ class _SquadPageState extends State<SquadPage> {
                       ),
                     ),
                     const Divider(height: 1),
-
                     if (listItems.isEmpty)
                       Expanded(
                         child: Center(
@@ -503,16 +490,14 @@ class _SquadPageState extends State<SquadPage> {
     const String kAppUrl = "https://tftiapp.com";
     final String message =
         "Hey! Join me on tfti.app so I can invite you to events! Check it out: $kAppUrl";
-    final String encodedMessage = Uri.encodeComponent(message);
-    final Uri smsLaunchUri = Uri.parse('sms:$phone?body=$encodedMessage');
-
+    final Uri smsLaunchUri = Uri.parse(
+      'sms:$phone?body=${Uri.encodeComponent(message)}',
+    );
     try {
-      if (!await launchUrl(smsLaunchUri)) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Could not launch SMS app.")),
-          );
-        }
+      if (!await launchUrl(smsLaunchUri) && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not launch SMS app.")),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -523,7 +508,6 @@ class _SquadPageState extends State<SquadPage> {
     }
   }
 
-  // --- UPDATED: Accepts overrideUsername from the Scanner ---
   Future<void> _addFriend({String? overrideUsername}) async {
     final myUid = FirebaseAuth.instance.currentUser!.uid;
     FocusManager.instance.primaryFocus?.unfocus();
@@ -532,14 +516,12 @@ class _SquadPageState extends State<SquadPage> {
       String input =
           overrideUsername ?? _usernameController.text.trim().toLowerCase();
       if (input.startsWith('@')) input = input.substring(1);
-
       if (input.isEmpty) return;
 
       final usernameDoc = await FirebaseFirestore.instance
           .collection('usernames')
           .doc(input)
           .get();
-
       if (!usernameDoc.exists) {
         setState(() => _statusMessage = "Username @$input not found.");
         _clearStatusAfterDelay();
@@ -547,7 +529,6 @@ class _SquadPageState extends State<SquadPage> {
       }
 
       final targetUid = usernameDoc.data()?['uid'];
-
       if (targetUid == myUid) {
         setState(() => _statusMessage = "You can't add yourself!");
         _clearStatusAfterDelay();
@@ -592,9 +573,7 @@ class _SquadPageState extends State<SquadPage> {
 
       if (query.docs.isEmpty) {
         setState(() => _statusMessage = "User not found on tfti.app.");
-
         if (!mounted) return;
-        final primaryColor = Theme.of(context).colorScheme.primary;
 
         final invite = await showDialog<bool>(
           context: context,
@@ -610,7 +589,6 @@ class _SquadPageState extends State<SquadPage> {
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                style: TextButton.styleFrom(foregroundColor: primaryColor),
                 child: const Text(
                   "Send Invite",
                   style: TextStyle(fontWeight: FontWeight.bold),
@@ -632,16 +610,12 @@ class _SquadPageState extends State<SquadPage> {
         return;
       }
 
-      final friendDoc = query.docs.first;
-      final friendUid = friendDoc.id;
-
+      final friendUid = query.docs.first.id;
       if (friendUid == myUid) {
         setState(() => _statusMessage = "You can't add yourself!");
         _clearStatusAfterDelay();
         return;
       }
-
-      final friendData = friendDoc.data();
 
       await FirebaseFirestore.instance
           .collection('users')
@@ -650,7 +624,7 @@ class _SquadPageState extends State<SquadPage> {
           .doc(friendUid)
           .set({
             'uid': friendUid,
-            'phoneNumber': friendData['phoneNumber'] ?? phoneToAdd,
+            'phoneNumber': query.docs.first.data()['phoneNumber'] ?? phoneToAdd,
             'addedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
 
@@ -663,7 +637,6 @@ class _SquadPageState extends State<SquadPage> {
     }
   }
 
-  // --- RPG LEADERBOARD SORTING ---
   Future<List<Map<String, dynamic>>> _fetchAndSortFriends(
     List<DocumentSnapshot> docs,
   ) async {
@@ -678,27 +651,18 @@ class _SquadPageState extends State<SquadPage> {
         if (userSnap.exists) {
           final data = userSnap.data() as Map<String, dynamic>;
           data['uid'] = uid;
-          final friendDocData = doc.data() as Map<String, dynamic>? ?? {};
-          data['isGoated'] = friendDocData['isGoated'] ?? false;
+          data['isGoated'] =
+              (doc.data() as Map<String, dynamic>? ?? {})['isGoated'] ?? false;
           list.add(data);
         }
       }),
     );
 
     if (_sortByScore) {
-      // Apply the RPG Weighted Algorithm: (hp * 0.6) + (mana * 0.4)
       list.sort((a, b) {
-        final int hpA = a['hp'] ?? 0;
-        final int manaA = a['mana'] ?? 0;
-        final int hpB = b['hp'] ?? 0;
-        final int manaB = b['mana'] ?? 0;
-
-        final double scoreA = (hpA * 0.6) + (manaA * 0.4);
-        final double scoreB = (hpB * 0.6) + (manaB * 0.4);
-
-        int result = scoreB.compareTo(scoreA); // Descending (Highest First)
-
-        // Fallback: If points are tied, sort alphabetically
+        final double scoreA = ((a['hp'] ?? 0) * 0.6) + ((a['mana'] ?? 0) * 0.4);
+        final double scoreB = ((b['hp'] ?? 0) * 0.6) + ((b['mana'] ?? 0) * 0.4);
+        int result = scoreB.compareTo(scoreA);
         if (result == 0) {
           return (a['displayName'] ?? '').toString().toLowerCase().compareTo(
             (b['displayName'] ?? '').toString().toLowerCase(),
@@ -707,14 +671,12 @@ class _SquadPageState extends State<SquadPage> {
         return result;
       });
     } else {
-      // Traditional A-Z Sort
       list.sort(
         (a, b) => (a['displayName'] ?? '').toString().toLowerCase().compareTo(
           (b['displayName'] ?? '').toString().toLowerCase(),
         ),
       );
     }
-
     return list;
   }
 
@@ -784,7 +746,6 @@ class _SquadPageState extends State<SquadPage> {
             ),
           ),
           const SizedBox(height: 12),
-
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -797,11 +758,6 @@ class _SquadPageState extends State<SquadPage> {
                         ),
                         decoration: InputDecoration(
                           hintText: "username",
-                          hintStyle: TextStyle(
-                            color: isDark
-                                ? Colors.grey.shade500
-                                : Colors.grey.shade400,
-                          ),
                           prefixText: "@ ",
                           prefixStyle: TextStyle(
                             color: primaryColor,
@@ -827,22 +783,11 @@ class _SquadPageState extends State<SquadPage> {
                         controller: _phoneController,
                         initialCountryCode: 'US',
                         dropdownIconPosition: IconPosition.trailing,
-                        dropdownIcon: Icon(
-                          Icons.arrow_drop_down,
-                          color: isDark
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade600,
-                        ),
                         style: TextStyle(
                           color: isDark ? Colors.white : Colors.black87,
                         ),
                         decoration: InputDecoration(
                           hintText: "Phone Number",
-                          hintStyle: TextStyle(
-                            color: isDark
-                                ? Colors.grey.shade500
-                                : Colors.grey.shade400,
-                          ),
                           filled: true,
                           fillColor: isDark
                               ? Colors.grey.shade800
@@ -857,9 +802,8 @@ class _SquadPageState extends State<SquadPage> {
                             horizontal: 16,
                           ),
                         ),
-                        onChanged: (phone) {
-                          _completePhoneNumber = phone.completeNumber;
-                        },
+                        onChanged: (phone) =>
+                            _completePhoneNumber = phone.completeNumber,
                         onSubmitted: (_) => _addFriend(),
                       ),
               ),
@@ -885,7 +829,6 @@ class _SquadPageState extends State<SquadPage> {
               ),
             ],
           ),
-
           SizedBox(
             height: 28,
             child: _statusMessage.isNotEmpty
@@ -907,599 +850,6 @@ class _SquadPageState extends State<SquadPage> {
           ),
         ],
       ),
-    );
-  }
-
-  void _showFriendProfileBottomSheet(
-    BuildContext context,
-    Map<String, dynamic> userData,
-    bool isDark,
-    Color primaryColor,
-    String myUid,
-    bool isBlocked,
-  ) {
-    final bool isGoated = userData['isGoated'] ?? false;
-    final String friendUid = userData['uid'];
-    final displayName = userData['displayName'] ?? "No Name";
-    final username = userData['username'] ?? "";
-    final rawPhone = userData['phoneNumber'] ?? "";
-    final bool showPhone = userData['showPhoneNumber'] == true;
-    final String statusText = userData['statusText'] ?? "";
-    final displayPhone = showPhone ? PhoneFormatter.beautify(rawPhone) : "";
-
-    final String? avatarUrl = userData['avatarUrl'];
-    Color avatarColor = Colors.blue.shade100;
-    if (userData['avatarColor'] is int) {
-      avatarColor = Color(userData['avatarColor']);
-    }
-
-    // --- PHASE 3: Extract RPG Stats & Origin Date ---
-    final int hp = userData['hp'] ?? 0;
-    final int mana = userData['mana'] ?? 0;
-    final Timestamp? createdAt =
-        userData['createdAt'] ?? userData['created_at'];
-
-    String originDate = "";
-    if (createdAt != null) {
-      final DateTime dt = createdAt.toDate();
-      final List<String> months = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
-      originDate = "Joined ${months[dt.month - 1]} ${dt.year}";
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        final isLandscape =
-            MediaQuery.of(ctx).orientation == Orientation.landscape;
-
-        // --- TCG STYLE DECORATIONS ---
-        // Creates the "Card Text Box" feel (semi-transparent tinted glass)
-        final plateDecoration = BoxDecoration(
-          color: isDark
-              ? Colors.black.withValues(alpha: 0.25)
-              : Colors.white.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.1)
-                : Colors.black.withValues(alpha: 0.05),
-            width: 1,
-          ),
-        );
-
-        // Helper widget for drawing the RPG Bars
-        Widget buildStatBar(
-          String label,
-          int totalValue,
-          Color color,
-          IconData icon,
-        ) {
-          int level = (totalValue ~/ 100) + 1;
-          int progress = totalValue % 100;
-          double percentage = progress / 100.0;
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(icon, size: 14, color: color),
-                      const SizedBox(width: 6),
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          color: isDark
-                              ? Colors.grey.shade300
-                              : Colors.grey.shade800,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    "Lvl. $level",
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: percentage,
-                  minHeight: 10,
-                  backgroundColor: isDark ? Colors.black38 : Colors.white60,
-                  color: color,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Align(
-                alignment: Alignment.center,
-                child: Text(
-                  "$progress / 100",
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                  ),
-                ),
-              ),
-            ],
-          );
-        }
-
-        // --- REUSABLE TCG CARD COMPONENTS ---
-
-        // 1. The Title Plate
-        Widget titleWidget = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: plateDecoration,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: RichText(
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  text: TextSpan(
-                    children: [
-                      if (username.isNotEmpty)
-                        TextSpan(
-                          text: "@$username, ",
-                          style: TextStyle(
-                            fontSize: isLandscape ? 15 : 14,
-                            fontWeight: FontWeight.bold,
-                            color: primaryColor,
-                          ),
-                        ),
-                      TextSpan(
-                        text: displayName,
-                        style: TextStyle(
-                          fontSize: isLandscape ? 20 : 18,
-                          fontWeight: FontWeight.w900,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              if (isGoated) ...[
-                const SizedBox(width: 8),
-                const Text("🐐", style: TextStyle(fontSize: 22)),
-              ],
-            ],
-          ),
-        );
-
-        // 2. The Card Art
-        Widget avatarWidget = Container(
-          width: isLandscape ? 120 : 160,
-          height: isLandscape ? 120 : 160,
-          decoration: BoxDecoration(
-            color: avatarColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isDark ? Colors.white24 : Colors.black12,
-              width: 3,
-            ),
-            image: avatarUrl != null
-                ? DecorationImage(
-                    image: CachedNetworkImageProvider(avatarUrl),
-                    fit: BoxFit.cover,
-                  )
-                : null,
-          ),
-          child: avatarUrl == null
-              ? Center(
-                  child: Text(
-                    displayName.isNotEmpty ? displayName[0].toUpperCase() : "?",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 60,
-                    ),
-                  ),
-                )
-              : null,
-        );
-
-        // 3. The Power Level Badge (Pill)
-        Widget hpManaPill = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.secondaryContainer,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isDark ? Colors.white24 : Colors.black12,
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Text(
-            "🔥 $hp / $mana 💧",
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w900, // Extra bold for impact
-              color: isDark ? Colors.white : Colors.black87,
-              letterSpacing: 0.5,
-            ),
-          ),
-        );
-
-        // 4. The Flavor Text Plate
-        Widget statusWidget = Container(
-          width: double.infinity,
-          margin: const EdgeInsets.only(
-            top: 24.0,
-          ), // Extra top margin to clear the overlapping pill
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: plateDecoration,
-          child: Text(
-            '"$statusText"',
-            textAlign: TextAlign.center, // Centered looks great inside a plate
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontStyle: FontStyle.italic,
-              fontSize: 13,
-              color: isDark ? Colors.white70 : Colors.black87,
-              height: 1.3,
-            ),
-          ),
-        );
-
-        // 5. The Footer Plate
-        Widget metaWidget = Row(
-          children: [
-            // LEFT ALIGNED: Joined Date
-            Expanded(
-              flex: 1,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: originDate.isNotEmpty
-                    ? FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          originDate,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: isDark
-                                ? Colors.grey.shade400
-                                : Colors.grey.shade600,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ),
-
-            // RIGHT ALIGNED: Phone Number
-            Expanded(
-              flex: 1,
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: showPhone
-                    ? FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.center,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.phone_iphone,
-                              color: isDark
-                                  ? Colors.grey.shade400
-                                  : Colors.grey.shade600,
-                              size: 14,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              displayPhone,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                                color: isDark
-                                    ? Colors.grey.shade300
-                                    : Colors.grey.shade800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ),
-          ],
-        );
-
-        // STACK: Combines Card Art + Overlapping Power Level Badge
-        Widget metaWithBadgeStack = Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.bottomRight,
-          children: [
-            metaWidget,
-            Positioned(
-              bottom:
-                  -46, // Pulls the pill down so it straddles the bottom border!
-              child: hpManaPill,
-            ),
-          ],
-        );
-
-        // --- ASSEMBLE THE TCG CARD BASED ON ORIENTATION ---
-        Widget tcgCard;
-        if (isLandscape) {
-          tcgCard = Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: avatarColor.withValues(alpha: isDark ? 0.15 : 0.10),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: avatarColor.withValues(alpha: 0.6),
-                width: 2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: avatarColor.withValues(alpha: 0.25),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                titleWidget,
-                const SizedBox(height: 16),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 4,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          avatarWidget,
-                          if (statusText.isNotEmpty) statusWidget,
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      flex: 6,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          buildStatBar(
-                            "HP (Hangouts)",
-                            hp,
-                            Colors.redAccent,
-                            Icons.whatshot,
-                          ),
-                          const SizedBox(height: 12),
-                          buildStatBar(
-                            "Mana (Invites)",
-                            mana,
-                            Colors.blueAccent,
-                            Icons.water_drop,
-                          ),
-                          const SizedBox(height: 20),
-                          metaWithBadgeStack,
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        } else {
-          tcgCard = Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: avatarColor.withValues(alpha: isDark ? 0.15 : 0.10),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: avatarColor.withValues(alpha: 0.6),
-                width: 2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: avatarColor.withValues(alpha: 0.25),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                titleWidget,
-                const SizedBox(height: 20),
-                avatarWidget,
-                if (statusText.isNotEmpty) statusWidget,
-                if (statusText.isEmpty)
-                  const SizedBox(height: 24), // Spacer if no status
-                const SizedBox(height: 20),
-                buildStatBar(
-                  "HP (Hangouts)",
-                  hp,
-                  Colors.redAccent,
-                  Icons.whatshot,
-                ),
-                const SizedBox(height: 12),
-                buildStatBar(
-                  "Mana (Invites)",
-                  mana,
-                  Colors.blueAccent,
-                  Icons.water_drop,
-                ),
-                const SizedBox(height: 16),
-                metaWithBadgeStack,
-              ],
-            ),
-          );
-        }
-
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 24.0),
-            child: SizedBox(
-              width: double.infinity,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 10),
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.grey.shade700
-                            : Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Render the dynamically built TCG Card
-                    tcgCard,
-
-                    // Goated & Block Actions
-                    const SizedBox(height: 24),
-                    Divider(
-                      height: 1,
-                      color: isDark
-                          ? Colors.grey.shade800
-                          : Colors.grey.shade200,
-                    ),
-
-                    ListTile(
-                      leading: Icon(
-                        isGoated ? Symbols.star : Symbols.star,
-                        fill: isGoated ? 1.0 : 0.0,
-                        color: Colors.amber,
-                        size: 28,
-                      ),
-                      title: Text(
-                        isGoated ? "Remove from Goated" : "Mark as Goated",
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: const Text(
-                        "Show their events first on your feed",
-                      ),
-                      onTap: () async {
-                        Navigator.pop(ctx);
-                        HapticFeedback.mediumImpact();
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(myUid)
-                            .collection('friends')
-                            .doc(friendUid)
-                            .set({
-                              'isGoated': !isGoated,
-                            }, SetOptions(merge: true));
-                      },
-                    ),
-
-                    Divider(
-                      height: 1,
-                      color: isDark
-                          ? Colors.grey.shade800
-                          : Colors.grey.shade200,
-                    ),
-
-                    ListTile(
-                      leading: Icon(
-                        isBlocked ? Icons.notifications_active : Icons.block,
-                        color: isBlocked ? Colors.green : Colors.red,
-                        size: 28,
-                      ),
-                      title: Text(
-                        isBlocked ? "Unblock User" : "Block User (Shadow Ban)",
-                        style: TextStyle(
-                          color: isBlocked ? Colors.green : Colors.red,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: Text(
-                        isBlocked
-                            ? "You will see their invites again"
-                            : "Silently hide their invites & chats",
-                      ),
-                      onTap: () async {
-                        Navigator.pop(ctx);
-                        HapticFeedback.heavyImpact();
-                        if (isBlocked) {
-                          await FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(myUid)
-                              .update({
-                                'blockedUids': FieldValue.arrayRemove([
-                                  friendUid,
-                                ]),
-                              });
-                        } else {
-                          await FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(myUid)
-                              .update({
-                                'blockedUids': FieldValue.arrayUnion([
-                                  friendUid,
-                                ]),
-                              });
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -1539,8 +889,8 @@ class _SquadPageState extends State<SquadPage> {
                 if (!friendsSnap.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-
                 final List<Map<String, dynamic>> friends = friendsSnap.data!;
+
                 if (friends.isEmpty) {
                   return Center(
                     child: Column(
@@ -1564,15 +914,6 @@ class _SquadPageState extends State<SquadPage> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          "Add friends by username or phone number!",
-                          style: TextStyle(
-                            color: isDark
-                                ? Colors.grey.shade500
-                                : Colors.black87,
-                          ),
-                        ),
                       ],
                     ),
                   );
@@ -1580,7 +921,6 @@ class _SquadPageState extends State<SquadPage> {
 
                 return Column(
                   children: [
-                    // --- NEW: THE SORTING TOGGLE HEADER ---
                     Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
@@ -1633,8 +973,6 @@ class _SquadPageState extends State<SquadPage> {
                         ],
                       ),
                     ),
-
-                    // --- THE ACTUAL LIST ---
                     Expanded(
                       child: ListView.builder(
                         padding: const EdgeInsets.only(bottom: 12),
@@ -1643,12 +981,10 @@ class _SquadPageState extends State<SquadPage> {
                           final Map<String, dynamic> friendInitData =
                               friends[index];
                           final String uid = friendInitData['uid'] as String;
-
                           final bool isGoated =
                               friendInitData['isGoated'] == true;
                           final bool isBlocked = blockedUids.contains(uid);
 
-                          // --- PHASE 2: Determine Medal for Top 3 (ONLY if Ranked!) ---
                           Widget? rankIcon;
                           if (_sortByScore) {
                             if (index == 0) {
@@ -1676,7 +1012,7 @@ class _SquadPageState extends State<SquadPage> {
                                   Icons.workspace_premium,
                                   color: Color(0xFFCD7F32),
                                   size: 22,
-                                ), // Bronze
+                                ),
                               );
                             }
                           }
@@ -1694,14 +1030,8 @@ class _SquadPageState extends State<SquadPage> {
                                 final snapData =
                                     userSnap.data!.data()
                                         as Map<String, dynamic>?;
-                                if (snapData != null) {
-                                  userData.addAll(snapData);
-                                }
+                                if (snapData != null) userData.addAll(snapData);
                               }
-
-                              // Re-inject the states into the payload so the bottom sheet has them
-                              userData['isGoated'] = isGoated;
-                              userData['uid'] = uid;
 
                               final String displayName =
                                   userData['displayName'] ?? "No Name";
@@ -1712,8 +1042,6 @@ class _SquadPageState extends State<SquadPage> {
                                   userData['avatarColor'] is int
                                   ? Color(userData['avatarColor'])
                                   : Colors.blue.shade100;
-
-                              // --- Extract Stats ---
                               final int hp = userData['hp'] ?? 0;
                               final int mana = userData['mana'] ?? 0;
 
@@ -1724,8 +1052,7 @@ class _SquadPageState extends State<SquadPage> {
                                 ),
                                 child: Dismissible(
                                   key: ValueKey(uid),
-                                  direction: DismissDirection
-                                      .endToStart, // Swipe left only
+                                  direction: DismissDirection.endToStart,
                                   background: Container(
                                     alignment: Alignment.centerRight,
                                     padding: const EdgeInsets.only(right: 24),
@@ -1794,7 +1121,6 @@ class _SquadPageState extends State<SquadPage> {
                                           .collection('friends')
                                           .doc(uid)
                                           .delete();
-
                                       if (context.mounted) {
                                         ScaffoldMessenger.of(
                                           context,
@@ -1836,15 +1162,74 @@ class _SquadPageState extends State<SquadPage> {
                                       color: Colors.transparent,
                                       child: InkWell(
                                         borderRadius: BorderRadius.circular(20),
-                                        onTap: () =>
-                                            _showFriendProfileBottomSheet(
+                                        onTap: () {
+                                          showModalBottomSheet(
+                                            context: context,
+                                            isScrollControlled: true,
+                                            backgroundColor: Theme.of(
                                               context,
-                                              userData,
-                                              isDark,
-                                              primaryColor,
-                                              myUid,
-                                              isBlocked,
+                                            ).scaffoldBackgroundColor,
+                                            shape: const RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.vertical(
+                                                    top: Radius.circular(24),
+                                                  ),
                                             ),
+                                            builder: (ctx) => UserProfileSheet(
+                                              userData: userData,
+                                              currentUserId: myUid,
+                                              isGoated: isGoated,
+                                              isBlocked: isBlocked,
+                                              onToggleGoated:
+                                                  (currentGoated) async {
+                                                    Navigator.pop(ctx);
+                                                    HapticFeedback.mediumImpact();
+                                                    await FirebaseFirestore
+                                                        .instance
+                                                        .collection('users')
+                                                        .doc(myUid)
+                                                        .collection('friends')
+                                                        .doc(uid)
+                                                        .set(
+                                                          {
+                                                            'isGoated':
+                                                                !currentGoated,
+                                                          },
+                                                          SetOptions(
+                                                            merge: true,
+                                                          ),
+                                                        );
+                                                  },
+                                              onToggleBlocked: (currentBlocked) async {
+                                                Navigator.pop(ctx);
+                                                HapticFeedback.heavyImpact();
+                                                if (currentBlocked) {
+                                                  await FirebaseFirestore
+                                                      .instance
+                                                      .collection('users')
+                                                      .doc(myUid)
+                                                      .update({
+                                                        'blockedUids':
+                                                            FieldValue.arrayRemove(
+                                                              [uid],
+                                                            ),
+                                                      });
+                                                } else {
+                                                  await FirebaseFirestore
+                                                      .instance
+                                                      .collection('users')
+                                                      .doc(myUid)
+                                                      .update({
+                                                        'blockedUids':
+                                                            FieldValue.arrayUnion(
+                                                              [uid],
+                                                            ),
+                                                      });
+                                                }
+                                              },
+                                            ),
+                                          );
+                                        },
                                         child: Padding(
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 16,
@@ -1920,7 +1305,6 @@ class _SquadPageState extends State<SquadPage> {
                                                                               .white
                                                                         : Colors
                                                                               .black87),
-                                                              decoration: null,
                                                             ),
                                                             maxLines: 1,
                                                             overflow:
@@ -1981,8 +1365,6 @@ class _SquadPageState extends State<SquadPage> {
                                                   ],
                                                 ),
                                               ),
-
-                                              // --- TRAILING STATS OR CHEVRON ---
                                               _sortByScore
                                                   ? Column(
                                                       mainAxisAlignment:
@@ -2091,9 +1473,7 @@ class _SquadPageState extends State<SquadPage> {
     final myUid = FirebaseAuth.instance.currentUser!.uid;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-
-    final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
+    final isLandscape = MediaQuery.of(context).size.width > 600;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -2181,9 +1561,7 @@ class _QRScannerPageState extends State<QRScannerPage> {
           MobileScanner(
             onDetect: (BarcodeCapture capture) {
               if (_hasScanned) return;
-
-              final List<Barcode> barcodes = capture.barcodes;
-              for (final barcode in barcodes) {
+              for (final barcode in capture.barcodes) {
                 if (barcode.rawValue != null) {
                   _hasScanned = true;
                   Navigator.pop(context, barcode.rawValue);

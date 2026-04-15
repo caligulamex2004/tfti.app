@@ -4,8 +4,10 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+
 import '../utils/theme_provider.dart';
 import '../utils/phone_formatter.dart';
+import '../components/shared/user_profile_sheet.dart';
 
 class TeamsPage extends StatefulWidget {
   const TeamsPage({super.key});
@@ -105,7 +107,6 @@ class _TeamsPageState extends State<TeamsPage> {
 
                         if (!ctx.mounted) return;
                         Navigator.pop(ctx);
-
                         if (!mounted) return;
 
                         if (MediaQuery.of(context).orientation ==
@@ -207,29 +208,19 @@ class _TeamsPageState extends State<TeamsPage> {
   Future<void> _handleCreateTeamTap() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-
     try {
-      // 1. Check if the user has ANY friends in their Squad
-      // We use limit(1) so the database stops searching the millisecond it finds one friend.
-      // This makes the query virtually instantaneous and very cheap!
       final friendsSnap = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('friends')
           .limit(1)
           .get();
-
       if (friendsSnap.docs.isEmpty) {
-        // 2. If empty, intercept the action and show the educational dialog
         if (mounted) _showNoFriendsDialog();
         return;
       }
-
-      // 3. If they have friends, proceed to your normal creation flow!
       _showCreateTeamSheet();
     } catch (e) {
-      debugPrint("Error checking squad size: $e");
-      // Failsafe: if the network drops, let them try to open the sheet anyway
       _showCreateTeamSheet();
     }
   }
@@ -307,7 +298,6 @@ class _TeamsPageState extends State<TeamsPage> {
                       onPressed: () async {
                         final newName = renameController.text.trim();
                         if (newName.isEmpty) return;
-
                         final user = FirebaseAuth.instance.currentUser;
                         await FirebaseFirestore.instance
                             .collection('users')
@@ -317,11 +307,8 @@ class _TeamsPageState extends State<TeamsPage> {
                             .update({'name': newName});
 
                         if (_selectedCircleId == circleId && mounted) {
-                          setState(() {
-                            _selectedCircleName = newName;
-                          });
+                          setState(() => _selectedCircleName = newName);
                         }
-
                         if (ctx.mounted) Navigator.pop(ctx);
                       },
                       style: ElevatedButton.styleFrom(
@@ -430,7 +417,6 @@ class _TeamsPageState extends State<TeamsPage> {
                       ],
                     ),
                   );
-
                   if (confirm == true) {
                     final user = FirebaseAuth.instance.currentUser;
                     if (_selectedCircleId == circleId && mounted) {
@@ -456,7 +442,6 @@ class _TeamsPageState extends State<TeamsPage> {
     );
   }
 
-  // --- NEW: Helper to securely fetch valid members for the face pile ---
   Future<List<Map<String, dynamic>>> _getValidFacepileMembers(
     List<QueryDocumentSnapshot> docs,
   ) async {
@@ -471,7 +456,6 @@ class _TeamsPageState extends State<TeamsPage> {
         data['uid'] = doc.id;
         validProfiles.add(data);
       }
-      // We only need up to 4 for the UI (3 visible faces + the "+X" indicator)
       if (validProfiles.length >= 4) break;
     }
     return validProfiles;
@@ -501,24 +485,21 @@ class _TeamsPageState extends State<TeamsPage> {
           .doc(myUid)
           .collection('friends')
           .where('circles', arrayContains: circleId)
-          .limit(
-            10,
-          ) // Fetch extra to account for potential deleted ghosts in the stream
+          .limit(10)
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return _buildEmptyIcon(primaryColor);
         }
 
-        // --- FIX: Wrap the stack in a FutureBuilder to pre-validate the documents ---
         return FutureBuilder<List<Map<String, dynamic>>>(
           future: _getValidFacepileMembers(snapshot.data!.docs),
           builder: (context, validSnap) {
-            if (!validSnap.hasData) return _buildEmptyIcon(primaryColor);
+            if (!validSnap.hasData || validSnap.data!.isEmpty) {
+              return _buildEmptyIcon(primaryColor);
+            }
 
             final validDocs = validSnap.data!;
-            if (validDocs.isEmpty) return _buildEmptyIcon(primaryColor);
-
             final int count = validDocs.length;
             final displayDocs = validDocs.take(3).toList();
             final bool hasMore = count > 3;
@@ -563,9 +544,8 @@ class _TeamsPageState extends State<TeamsPage> {
                       ),
                     );
 
-                    if (count == 1) {
-                      return Positioned.fill(child: avatar);
-                    } else if (count == 2) {
+                    if (count == 1) return Positioned.fill(child: avatar);
+                    if (count == 2) {
                       if (index == 0) {
                         return Positioned(
                           top: 0,
@@ -574,44 +554,41 @@ class _TeamsPageState extends State<TeamsPage> {
                           height: 32,
                           child: avatar,
                         );
-                      } else {
-                        return Positioned(
-                          bottom: 0,
-                          left: 0,
-                          width: 32,
-                          height: 32,
-                          child: avatar,
-                        );
                       }
-                    } else {
-                      if (index == 0) {
-                        return Positioned(
-                          top: 0,
-                          left: 10,
-                          width: 28,
-                          height: 28,
-                          child: avatar,
-                        );
-                      } else if (index == 1) {
-                        return Positioned(
-                          bottom: 0,
-                          left: 0,
-                          width: 28,
-                          height: 28,
-                          child: avatar,
-                        );
-                      } else {
-                        return Positioned(
-                          bottom: 0,
-                          right: 0,
-                          width: 28,
-                          height: 28,
-                          child: avatar,
-                        );
-                      }
+                      return Positioned(
+                        bottom: 0,
+                        left: 0,
+                        width: 32,
+                        height: 32,
+                        child: avatar,
+                      );
                     }
+                    if (index == 0) {
+                      return Positioned(
+                        top: 0,
+                        left: 10,
+                        width: 28,
+                        height: 28,
+                        child: avatar,
+                      );
+                    }
+                    if (index == 1) {
+                      return Positioned(
+                        bottom: 0,
+                        left: 0,
+                        width: 28,
+                        height: 28,
+                        child: avatar,
+                      );
+                    }
+                    return Positioned(
+                      bottom: 0,
+                      right: 0,
+                      width: 28,
+                      height: 28,
+                      child: avatar,
+                    );
                   }),
-
                   if (hasMore)
                     Positioned(
                       bottom: -2,
@@ -903,7 +880,7 @@ class _TeamsPageState extends State<TeamsPage> {
   }
 }
 
-// --- POLISHED MEMBERS PAGE ---
+// --- CIRCLE MEMBERS SUBLIST ---
 
 class CircleMembersPage extends StatefulWidget {
   final String circleId;
@@ -926,9 +903,9 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
   void initState() {
     super.initState();
     if (widget.autoOpenAddMembers) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showAddMembersBottomSheet();
-      });
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showAddMembersBottomSheet(),
+      );
     }
   }
 
@@ -936,7 +913,6 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
     List<DocumentSnapshot> friendDocs,
   ) async {
     List<Map<String, dynamic>> profiles = [];
-
     await Future.wait(
       friendDocs.map((doc) async {
         final uid = doc.id;
@@ -945,7 +921,6 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
             .collection('users')
             .doc(uid)
             .get();
-
         if (userDoc.exists) {
           final data = userDoc.data() as Map<String, dynamic>;
           data['uid'] = uid;
@@ -954,20 +929,16 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
         }
       }),
     );
-
-    profiles.sort((a, b) {
-      final nameA = (a['displayName'] ?? '').toString().toLowerCase();
-      final nameB = (b['displayName'] ?? '').toString().toLowerCase();
-      return nameA.compareTo(nameB);
-    });
-
+    profiles.sort(
+      (a, b) => (a['displayName'] ?? '').toString().toLowerCase().compareTo(
+        (b['displayName'] ?? '').toString().toLowerCase(),
+      ),
+    );
     return profiles;
   }
 
-  // Upgraded to Future<bool> and added a premium confirmation dialog
   Future<bool> _removeMember(String friendUid, String friendName) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1004,9 +975,9 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
           SnackBar(content: Text("$friendName removed from team!")),
         );
       }
-      return true; // Tells the swipe to dissolve the card
+      return true;
     }
-    return false; // Tells the swipe to snap back
+    return false;
   }
 
   Future<void> _showAddMembersBottomSheet() async {
@@ -1020,11 +991,13 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
         .doc(user!.uid)
         .collection('friends')
         .get();
-
-    final availableFriendDocs = allFriendsSnapshot.docs.where((doc) {
-      final circles = List<String>.from(doc.data()['circles'] ?? []);
-      return !circles.contains(widget.circleId);
-    }).toList();
+    final availableFriendDocs = allFriendsSnapshot.docs
+        .where(
+          (doc) => !List<String>.from(
+            doc.data()['circles'] ?? [],
+          ).contains(widget.circleId),
+        )
+        .toList();
 
     if (!mounted) return;
     final sortedAvailable = await _fetchAndSortMembers(availableFriendDocs);
@@ -1094,15 +1067,14 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                           final profile = sortedAvailable[index];
                           final uid = profile['uid'];
                           final isSelected = selectedIds.contains(uid);
-                          final String name =
-                              profile['displayName'] ?? "Unknown";
-                          final String username = profile['username'] ?? "";
-                          final String? avatarUrl = profile['avatarUrl'];
-
-                          Color avatarColor = Colors.grey;
-                          if (profile['avatarColor'] is int) {
-                            avatarColor = Color(profile['avatarColor']);
-                          }
+                          final name = profile['displayName'] ?? "Unknown";
+                          final username = profile['username'] ?? "";
+                          final avatarUrl = profile['avatarUrl'];
+                          final avatarColor = Color(
+                            profile['avatarColor'] is int
+                                ? profile['avatarColor']
+                                : Colors.grey.toARGB32(),
+                          );
 
                           return ListTile(
                             contentPadding: const EdgeInsets.symmetric(
@@ -1169,15 +1141,11 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                         : Colors.grey.shade400,
                                     size: 28,
                                   ),
-                            onTap: () {
-                              setDialogState(() {
-                                if (isSelected) {
-                                  selectedIds.remove(uid);
-                                } else {
-                                  selectedIds.add(uid);
-                                }
-                              });
-                            },
+                            onTap: () => setDialogState(
+                              () => isSelected
+                                  ? selectedIds.remove(uid)
+                                  : selectedIds.add(uid),
+                            ),
                           );
                         },
                       ),
@@ -1199,7 +1167,6 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                       .collection('users')
                                       .doc(user.uid)
                                       .collection('friends');
-
                                   for (final friendId in selectedIds) {
                                     batch.update(userFriendsRef.doc(friendId), {
                                       'circles': FieldValue.arrayUnion([
@@ -1247,550 +1214,6 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
     );
   }
 
-  void _showFriendProfileBottomSheet(
-    BuildContext context,
-    Map<String, dynamic> userData,
-    bool isDark,
-    Color primaryColor,
-    String myUid,
-  ) {
-    final bool isGoated = userData['isGoated'] ?? false;
-    final String friendUid = userData['uid'] ?? userData['id'] ?? "";
-    final displayName = userData['displayName'] ?? "No Name";
-    final username = userData['username'] ?? "";
-    final rawPhone = userData['phoneNumber'] ?? "";
-    final bool showPhone = userData['showPhoneNumber'] == true;
-    final String statusText = userData['statusText'] ?? "";
-    final displayPhone = showPhone ? PhoneFormatter.beautify(rawPhone) : "";
-
-    final String? avatarUrl = userData['avatarUrl'];
-    Color avatarColor = Colors.blue.shade100;
-    if (userData['avatarColor'] is int) {
-      avatarColor = Color(userData['avatarColor']);
-    }
-
-    // --- PHASE 3: Extract RPG Stats & Origin Date ---
-    final int hp = userData['hp'] ?? 0;
-    final int mana = userData['mana'] ?? 0;
-    final Timestamp? createdAt =
-        userData['createdAt'] ?? userData['created_at'];
-
-    String originDate = "";
-    if (createdAt != null) {
-      final DateTime dt = createdAt.toDate();
-      final List<String> months = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
-      originDate = "Joined ${months[dt.month - 1]} ${dt.year}";
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        final isLandscape =
-            MediaQuery.of(ctx).orientation == Orientation.landscape;
-
-        // --- TCG STYLE DECORATIONS ---
-        // Creates the "Card Text Box" feel (semi-transparent tinted glass)
-        final plateDecoration = BoxDecoration(
-          color: isDark
-              ? Colors.black.withValues(alpha: 0.25)
-              : Colors.white.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.1)
-                : Colors.black.withValues(alpha: 0.05),
-            width: 1,
-          ),
-        );
-
-        // Helper widget for drawing the RPG Bars
-        Widget buildStatBar(
-          String label,
-          int totalValue,
-          Color color,
-          IconData icon,
-        ) {
-          int level = (totalValue ~/ 100) + 1;
-          int progress = totalValue % 100;
-          double percentage = progress / 100.0;
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(icon, size: 14, color: color),
-                      const SizedBox(width: 6),
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          color: isDark
-                              ? Colors.grey.shade300
-                              : Colors.grey.shade800,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    "Lvl. $level",
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: percentage,
-                  minHeight: 10,
-                  backgroundColor: isDark ? Colors.black38 : Colors.white60,
-                  color: color,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Align(
-                alignment: Alignment.center,
-                child: Text(
-                  "$progress / 100",
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                  ),
-                ),
-              ),
-            ],
-          );
-        }
-
-        // --- REUSABLE TCG CARD COMPONENTS ---
-
-        // 1. The Title Plate
-        Widget titleWidget = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: plateDecoration,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: RichText(
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  text: TextSpan(
-                    children: [
-                      if (username.isNotEmpty)
-                        TextSpan(
-                          text: "@$username, ",
-                          style: TextStyle(
-                            fontSize: isLandscape ? 15 : 14,
-                            fontWeight: FontWeight.bold,
-                            color: primaryColor,
-                          ),
-                        ),
-                      TextSpan(
-                        text: displayName,
-                        style: TextStyle(
-                          fontSize: isLandscape ? 20 : 18,
-                          fontWeight: FontWeight.w900,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              if (isGoated) ...[
-                const SizedBox(width: 8),
-                const Text("🐐", style: TextStyle(fontSize: 22)),
-              ],
-            ],
-          ),
-        );
-
-        // 2. The Card Art
-        Widget avatarWidget = Container(
-          width: isLandscape ? 120 : 160,
-          height: isLandscape ? 120 : 160,
-          decoration: BoxDecoration(
-            color: avatarColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isDark ? Colors.white24 : Colors.black12,
-              width: 3,
-            ),
-            image: avatarUrl != null
-                ? DecorationImage(
-                    image: CachedNetworkImageProvider(avatarUrl),
-                    fit: BoxFit.cover,
-                  )
-                : null,
-          ),
-          child: avatarUrl == null
-              ? Center(
-                  child: Text(
-                    displayName.isNotEmpty ? displayName[0].toUpperCase() : "?",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 60,
-                    ),
-                  ),
-                )
-              : null,
-        );
-
-        // 3. The Power Level Badge (Pill)
-        Widget hpManaPill = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.secondaryContainer,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isDark ? Colors.white24 : Colors.black12,
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Text(
-            "🔥 $hp / $mana 💧",
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w900, // Extra bold for impact
-              color: isDark ? Colors.white : Colors.black87,
-              letterSpacing: 0.5,
-            ),
-          ),
-        );
-
-        // 4. The Flavor Text Plate
-        Widget statusWidget = Container(
-          width: double.infinity,
-          margin: const EdgeInsets.only(
-            top: 24.0,
-          ), // Extra top margin to clear the overlapping pill
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: plateDecoration,
-          child: Text(
-            '"$statusText"',
-            textAlign: TextAlign.center, // Centered looks great inside a plate
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontStyle: FontStyle.italic,
-              fontSize: 13,
-              color: isDark ? Colors.white70 : Colors.black87,
-              height: 1.3,
-            ),
-          ),
-        );
-
-        // 5. The Footer Plate
-        Widget metaWidget = Row(
-          children: [
-            // LEFT ALIGNED: Joined Date
-            Expanded(
-              flex: 1,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: originDate.isNotEmpty
-                    ? FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          originDate,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: isDark
-                                ? Colors.grey.shade400
-                                : Colors.grey.shade600,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ),
-
-            // RIGHT ALIGNED: Phone Number
-            Expanded(
-              flex: 1,
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: showPhone
-                    ? FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.center,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.phone_iphone,
-                              color: isDark
-                                  ? Colors.grey.shade400
-                                  : Colors.grey.shade600,
-                              size: 14,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              displayPhone,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                                color: isDark
-                                    ? Colors.grey.shade300
-                                    : Colors.grey.shade800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ),
-          ],
-        );
-
-        // STACK: Combines Card Art + Overlapping Power Level Badge
-        Widget metaWithBadgeStack = Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.bottomRight,
-          children: [
-            metaWidget,
-            Positioned(
-              bottom:
-                  -46, // Pulls the pill down so it straddles the bottom border!
-              child: hpManaPill,
-            ),
-          ],
-        );
-
-        // --- ASSEMBLE THE TCG CARD BASED ON ORIENTATION ---
-        Widget tcgCard;
-        if (isLandscape) {
-          tcgCard = Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: avatarColor.withValues(alpha: isDark ? 0.15 : 0.10),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: avatarColor.withValues(alpha: 0.6),
-                width: 2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: avatarColor.withValues(alpha: 0.25),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                titleWidget,
-                const SizedBox(height: 16),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 4,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          avatarWidget,
-                          if (statusText.isNotEmpty) statusWidget,
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      flex: 6,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          buildStatBar(
-                            "HP (Hangouts)",
-                            hp,
-                            Colors.redAccent,
-                            Icons.whatshot,
-                          ),
-                          const SizedBox(height: 12),
-                          buildStatBar(
-                            "Mana (Invites)",
-                            mana,
-                            Colors.blueAccent,
-                            Icons.water_drop,
-                          ),
-                          const SizedBox(height: 20),
-                          metaWithBadgeStack,
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        } else {
-          tcgCard = Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: avatarColor.withValues(alpha: isDark ? 0.15 : 0.10),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: avatarColor.withValues(alpha: 0.6),
-                width: 2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: avatarColor.withValues(alpha: 0.25),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                titleWidget,
-                const SizedBox(height: 20),
-                avatarWidget,
-                if (statusText.isNotEmpty) statusWidget,
-                if (statusText.isEmpty)
-                  const SizedBox(height: 24), // Spacer if no status
-                const SizedBox(height: 20),
-                buildStatBar(
-                  "HP (Hangouts)",
-                  hp,
-                  Colors.redAccent,
-                  Icons.whatshot,
-                ),
-                const SizedBox(height: 12),
-                buildStatBar(
-                  "Mana (Invites)",
-                  mana,
-                  Colors.blueAccent,
-                  Icons.water_drop,
-                ),
-                const SizedBox(height: 16),
-                metaWithBadgeStack,
-              ],
-            ),
-          );
-        }
-
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 24.0),
-            child: SizedBox(
-              width: double.infinity,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 10),
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.grey.shade700
-                            : Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Render the dynamically built TCG Card
-                    tcgCard,
-
-                    const SizedBox(height: 24),
-
-                    // --- NEW: GOATED ACTION BUTTON ---
-                    Divider(
-                      height: 1,
-                      color: isDark
-                          ? Colors.grey.shade800
-                          : Colors.grey.shade200,
-                    ),
-                    ListTile(
-                      leading: Icon(
-                        isGoated ? Symbols.star : Symbols.star,
-                        fill: isGoated ? 1.0 : 0.0,
-                        color: Colors.amber,
-                        size: 28,
-                      ),
-                      title: Text(
-                        isGoated ? "Remove from Goated" : "Mark as Goated",
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: const Text(
-                        "Show their events first on your feed",
-                      ),
-                      onTap: () async {
-                        Navigator.pop(ctx);
-                        HapticFeedback.mediumImpact();
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(myUid)
-                            .collection('friends')
-                            .doc(friendUid)
-                            .set({
-                              'isGoated': !isGoated,
-                            }, SetOptions(merge: true));
-                      },
-                    ),
-
-                    // ---------------------------------
-                    const SizedBox(height: 12), // Subtle padding at the bottom
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -1811,19 +1234,14 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final friendDocs = snapshot.data!.docs;
-
-          // Lifted FutureBuilder to wrap the whole ScrollView
           return FutureBuilder<List<Map<String, dynamic>>>(
-            future: _fetchAndSortMembers(friendDocs),
+            future: _fetchAndSortMembers(snapshot.data!.docs),
             builder: (context, profileSnap) {
               if (!profileSnap.hasData) {
                 return const Center(child: CircularProgressIndicator());
               }
 
               final profiles = profileSnap.data!;
-              final int memberCount = profiles.length;
-
               return CustomScrollView(
                 slivers: [
                   SliverAppBar(
@@ -1874,7 +1292,7 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
-                                      "$memberCount Members", // Now uses the filtered count
+                                      "${profiles.length} Members",
                                       style: TextStyle(
                                         color: Colors.white.withValues(
                                           alpha: 0.9,
@@ -1990,21 +1408,18 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                           final String username = profile['username'] ?? "";
                           final String statusText = profile['statusText'] ?? "";
                           final String? avatarUrl = profile['avatarUrl'];
-
-                          Color avatarColor = Colors.blue;
-                          if (profile['avatarColor'] is int) {
-                            avatarColor = Color(profile['avatarColor']);
-                          }
+                          final Color avatarColor =
+                              profile['avatarColor'] is int
+                              ? Color(profile['avatarColor'])
+                              : Colors.blue;
 
                           return Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
-                              vertical:
-                                  8, // Slightly more vertical breathing room
+                              vertical: 8,
                             ),
                             child: Dismissible(
                               key: Key(uid),
-                              // Only allow swiping left to delete for Team Members
                               direction: DismissDirection.endToStart,
                               background: Container(
                                 alignment: Alignment.centerRight,
@@ -2019,16 +1434,12 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                   size: 32,
                                 ),
                               ),
-                              confirmDismiss: (direction) async {
-                                HapticFeedback.mediumImpact();
-                                return await _removeMember(uid, displayName);
-                              },
+                              confirmDismiss: (direction) async =>
+                                  await _removeMember(uid, displayName),
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: Theme.of(context).cardColor,
-                                  borderRadius: BorderRadius.circular(
-                                    20,
-                                  ), // Rounder, premium corners
+                                  borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
                                     color: isDark
                                         ? Colors.grey.shade800
@@ -2048,18 +1459,57 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                 ),
                                 child: InkWell(
                                   borderRadius: BorderRadius.circular(20),
-                                  onTap: () => _showFriendProfileBottomSheet(
-                                    context,
-                                    profile,
-                                    isDark,
-                                    primaryColor,
-                                    user.uid,
-                                  ),
+                                  onTap: () {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Theme.of(
+                                        context,
+                                      ).scaffoldBackgroundColor,
+                                      shape: const RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.vertical(
+                                          top: Radius.circular(24),
+                                        ),
+                                      ),
+                                      builder: (ctx) => UserProfileSheet(
+                                        userData: profile,
+                                        currentUserId: user.uid,
+                                        isGoated: profile['isGoated'] ?? false,
+                                        // Because a team only shows friends, they can't be blocked!
+                                        isBlocked: false,
+                                        onToggleGoated: (currentGoated) async {
+                                          Navigator.pop(ctx);
+                                          HapticFeedback.mediumImpact();
+                                          await FirebaseFirestore.instance
+                                              .collection('users')
+                                              .doc(user.uid)
+                                              .collection('friends')
+                                              .doc(uid)
+                                              .set({
+                                                'isGoated': !currentGoated,
+                                              }, SetOptions(merge: true));
+                                        },
+                                        onToggleBlocked:
+                                            (currentBlocked) async {
+                                              Navigator.pop(ctx);
+                                              HapticFeedback.heavyImpact();
+                                              await FirebaseFirestore.instance
+                                                  .collection('users')
+                                                  .doc(user.uid)
+                                                  .update({
+                                                    'blockedUids':
+                                                        FieldValue.arrayUnion([
+                                                          uid,
+                                                        ]),
+                                                  });
+                                            },
+                                      ),
+                                    );
+                                  },
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 16,
-                                      vertical:
-                                          16, // Taller, more luxurious padding
+                                      vertical: 16,
                                     ),
                                     child: Row(
                                       children: [
@@ -2078,8 +1528,7 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                           ),
                                           child: CircleAvatar(
                                             backgroundColor: avatarColor,
-                                            radius:
-                                                26, // Slightly larger avatar
+                                            radius: 26,
                                             backgroundImage: avatarUrl != null
                                                 ? CachedNetworkImageProvider(
                                                     avatarUrl,
@@ -2110,8 +1559,7 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                               Text(
                                                 displayName,
                                                 style: TextStyle(
-                                                  fontWeight: FontWeight
-                                                      .w900, // Bold headers
+                                                  fontWeight: FontWeight.w900,
                                                   fontSize: 17,
                                                   letterSpacing: -0.3,
                                                   color: isDark
@@ -2144,7 +1592,7 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                                                   FontWeight
                                                                       .bold,
                                                               color:
-                                                                  primaryColor, // Pops the username
+                                                                  primaryColor,
                                                             ),
                                                             maxLines: 1,
                                                             overflow:
@@ -2221,7 +1669,6 @@ class _CircleMembersPageState extends State<CircleMembersPage> {
                                             ],
                                           ),
                                         ),
-                                        // Replaced the IconButton with a subtle chevron!
                                         Icon(
                                           Icons.chevron_right,
                                           color: isDark

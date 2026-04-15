@@ -10,18 +10,18 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // --- PAGES ---
+import 'hangout_chat_page.dart';
 import 'hangout_editor_page.dart';
 import 'vibe_check_editor_page.dart';
-import 'hangout_chat_page.dart';
 
 // --- UTILS & COMPONENTS ---
 import '../utils/phone_formatter.dart';
 import '../utils/theme_provider.dart';
-import '../components/forms/squad_needs_sheet.dart';
 import '../components/details/swipe_rsvp_widget.dart';
 import '../components/details/vibe_check_poll_ui.dart';
-import '../components/details/guest_profile_sheet.dart';
 import '../components/details/vote_tally_sheet.dart';
+import '../components/forms/squad_needs_sheet.dart';
+import '../components/shared/user_profile_sheet.dart';
 
 class HangoutDetailsPage extends StatefulWidget {
   final String eventId;
@@ -1362,8 +1362,8 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                                         ),
                                                   ),
                                               builder: (ctx) =>
-                                                  GuestProfileSheet(
-                                                    guest: guest,
+                                                  UserProfileSheet(
+                                                    userData: guest,
                                                     showAddButton:
                                                         showAddButton,
                                                     isGoated: isGoated,
