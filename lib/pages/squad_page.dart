@@ -4,12 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl_phone_field/intl_phone_field.dart';
-import 'package:material_symbols_icons/symbols.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../components/shared/user_profile_sheet.dart';
+// --- COMPONENTS & UTILITIES ---
+import 'qr_scanner_page.dart';
+import '../components/squad/add_friend_section.dart';
+import '../components/squad/friend_list_tile.dart';
 import '../services/contact_service.dart';
 import '../utils/phone_formatter.dart';
 import '../utils/theme_provider.dart';
@@ -45,7 +45,6 @@ class _SquadPageState extends State<SquadPage> {
     });
   }
 
-  // --- QR SCANNER LOGIC ---
   Future<void> _openScanner() async {
     final result = await Navigator.push(
       context,
@@ -379,6 +378,9 @@ class _SquadPageState extends State<SquadPage> {
                                           setStateSheet(
                                             () => addedUids.add(uid),
                                           );
+                                          setState(() {
+                                            _removedFriendUids.remove(uid);
+                                          });
                                         },
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: primaryColor
@@ -559,6 +561,7 @@ class _SquadPageState extends State<SquadPage> {
           }, SetOptions(merge: true));
 
       setState(() {
+        _removedFriendUids.remove(targetUid);
         _statusMessage = "Added @$input to the squad!";
         _usernameController.clear();
       });
@@ -631,6 +634,7 @@ class _SquadPageState extends State<SquadPage> {
           }, SetOptions(merge: true));
 
       setState(() {
+        _removedFriendUids.remove(friendUid);
         _statusMessage = "Added ${PhoneFormatter.beautify(phoneToAdd)}!";
         _phoneController.clear();
         _completePhoneNumber = "";
@@ -682,179 +686,6 @@ class _SquadPageState extends State<SquadPage> {
     return list;
   }
 
-  Widget _buildAddFriendSection(bool isDark, Color primaryColor) {
-    return Container(
-      padding: const EdgeInsets.only(
-        left: 20.0,
-        top: 20.0,
-        right: 20.0,
-        bottom: 4.0,
-      ),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        boxShadow: [
-          if (!isDark)
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Grow the Squad",
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 22,
-              letterSpacing: -0.5,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 36,
-            width: double.infinity,
-            child: SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(
-                  value: true,
-                  label: Text(
-                    "Username",
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                ButtonSegment(
-                  value: false,
-                  label: Text(
-                    "Phone Number",
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-              selected: {_isAddingByUsername},
-              onSelectionChanged: (newSelection) {
-                HapticFeedback.selectionClick();
-                setState(() => _isAddingByUsername = newSelection.first);
-              },
-              showSelectedIcon: false,
-              style: SegmentedButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                selectedBackgroundColor: primaryColor.withValues(alpha: 0.15),
-                selectedForegroundColor: primaryColor,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _isAddingByUsername
-                    ? TextField(
-                        controller: _usernameController,
-                        style: TextStyle(
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: "username",
-                          prefixText: "@ ",
-                          prefixStyle: TextStyle(
-                            color: primaryColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                          filled: true,
-                          fillColor: isDark
-                              ? Colors.grey.shade800
-                              : Colors.grey.shade50,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 16,
-                            horizontal: 16,
-                          ),
-                        ),
-                        onSubmitted: (_) => _addFriend(),
-                      )
-                    : IntlPhoneField(
-                        controller: _phoneController,
-                        initialCountryCode: 'US',
-                        dropdownIconPosition: IconPosition.trailing,
-                        style: TextStyle(
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: "Phone Number",
-                          filled: true,
-                          fillColor: isDark
-                              ? Colors.grey.shade800
-                              : Colors.grey.shade50,
-                          counterText: "",
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 16,
-                            horizontal: 16,
-                          ),
-                        ),
-                        onChanged: (phone) =>
-                            _completePhoneNumber = phone.completeNumber,
-                        onSubmitted: (_) => _addFriend(),
-                      ),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: () => _addFriend(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: themeProvider.onPrimaryColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    elevation: 2,
-                  ),
-                  child: const Text(
-                    "Add",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(
-            height: 28,
-            child: _statusMessage.isNotEmpty
-                ? Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      _statusMessage,
-                      style: TextStyle(
-                        color:
-                            _statusMessage.contains("Added") ||
-                                _statusMessage.contains("prepared")
-                            ? (isDark ? Colors.greenAccent : Colors.green)
-                            : (isDark ? Colors.redAccent : Colors.red),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  )
-                : null,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildFriendListSection(
     bool isDark,
     Color primaryColor,
@@ -892,7 +723,6 @@ class _SquadPageState extends State<SquadPage> {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                // Filter out optimistically removed friends immediately
                 final List<Map<String, dynamic>> friends = friendsSnap.data!
                     .where(
                       (friend) => !_removedFriendUids.contains(friend['uid']),
@@ -989,9 +819,6 @@ class _SquadPageState extends State<SquadPage> {
                           final Map<String, dynamic> friendInitData =
                               friends[index];
                           final String uid = friendInitData['uid'] as String;
-                          final bool isGoated =
-                              friendInitData['isGoated'] == true;
-                          final bool isBlocked = blockedUids.contains(uid);
 
                           Widget? rankIcon;
                           if (_sortByScore) {
@@ -1026,6 +853,7 @@ class _SquadPageState extends State<SquadPage> {
                           }
 
                           return StreamBuilder<DocumentSnapshot>(
+                            key: ValueKey(uid),
                             stream: FirebaseFirestore.instance
                                 .collection('users')
                                 .doc(uid)
@@ -1043,441 +871,81 @@ class _SquadPageState extends State<SquadPage> {
 
                               final String displayName =
                                   userData['displayName'] ?? "No Name";
-                              final String username =
-                                  userData['username'] ?? "";
-                              final String? avatarUrl = userData['avatarUrl'];
-                              final Color avatarColor =
-                                  userData['avatarColor'] is int
-                                  ? Color(userData['avatarColor'])
-                                  : Colors.blue.shade100;
-                              final int hp = userData['hp'] ?? 0;
-                              final int mana = userData['mana'] ?? 0;
 
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                child: Dismissible(
-                                  key: ValueKey(uid),
-                                  direction: DismissDirection.endToStart,
-                                  background: Container(
-                                    alignment: Alignment.centerRight,
-                                    padding: const EdgeInsets.only(right: 24),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: const Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.person_remove,
-                                          color: Colors.white,
-                                          size: 28,
-                                        ),
-                                        SizedBox(height: 4),
-                                        Text(
-                                          "Remove",
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
+                              return FriendListTile(
+                                userData: userData,
+                                currentUserId: myUid,
+                                isGoated: friendInitData['isGoated'] == true,
+                                isBlocked: blockedUids.contains(uid),
+                                sortByScore: _sortByScore,
+                                rankIcon: rankIcon,
+                                confirmDismiss: (direction) async {
+                                  HapticFeedback.mediumImpact();
+                                  return await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          title: const Text(
+                                            "Remove Squad Mate?",
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  confirmDismiss: (direction) async {
-                                    HapticFeedback.mediumImpact();
-                                    return await showDialog<bool>(
-                                      context: context,
-                                      builder: (ctx) => AlertDialog(
-                                        title: const Text("Remove Squad Mate?"),
-                                        content: Text(
-                                          "Are you sure you want to remove $displayName from your squad?",
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(ctx, false),
-                                            child: const Text("Cancel"),
+                                          content: Text(
+                                            "Are you sure you want to remove $displayName from your squad?",
                                           ),
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(ctx, true),
-                                            style: TextButton.styleFrom(
-                                              foregroundColor: Colors.red,
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, false),
+                                              child: const Text("Cancel"),
                                             ),
-                                            child: const Text(
-                                              "Remove",
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, true),
+                                              style: TextButton.styleFrom(
+                                                foregroundColor: Colors.red,
                                               ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                  onDismissed: (direction) {
-                                    // Instantly hide the friend from the UI locally
-                                    setState(() {
-                                      _removedFriendUids.add(uid);
-                                    });
-
-                                    // Capture the ScaffoldMessenger before the async gap
-                                    final messenger = ScaffoldMessenger.of(
-                                      context,
-                                    );
-
-                                    // Run the database delete in the background
-                                    FirebaseFirestore.instance
-                                        .collection('users')
-                                        .doc(myUid)
-                                        .collection('friends')
-                                        .doc(uid)
-                                        .delete()
-                                        .then((_) {
-                                          // Safely use the captured messenger without needing context
-                                          messenger.showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                "$displayName was removed from your squad.",
-                                              ),
-                                              behavior:
-                                                  SnackBarBehavior.floating,
-                                            ),
-                                          );
-                                        })
-                                        .catchError((e) {
-                                          debugPrint(
-                                            "Error removing friend: $e",
-                                          );
-                                          // Optional fallback: put them back if it fails
-                                          if (mounted) {
-                                            setState(() {
-                                              _removedFriendUids.remove(uid);
-                                            });
-                                          }
-                                        });
-                                  },
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).cardColor,
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: isDark
-                                            ? Colors.grey.shade800
-                                            : Colors.grey.shade200,
-                                        width: 1,
-                                      ),
-                                      boxShadow: [
-                                        if (!isDark)
-                                          BoxShadow(
-                                            color: Colors.black.withValues(
-                                              alpha: 0.04,
-                                            ),
-                                            blurRadius: 10,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                      ],
-                                    ),
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      child: InkWell(
-                                        borderRadius: BorderRadius.circular(20),
-                                        onTap: () {
-                                          showModalBottomSheet(
-                                            context: context,
-                                            isScrollControlled: true,
-                                            backgroundColor: Theme.of(
-                                              context,
-                                            ).scaffoldBackgroundColor,
-                                            shape: const RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.vertical(
-                                                    top: Radius.circular(24),
-                                                  ),
-                                            ),
-                                            builder: (ctx) => UserProfileSheet(
-                                              userData: userData,
-                                              currentUserId: myUid,
-                                              isGoated: isGoated,
-                                              isBlocked: isBlocked,
-                                              onToggleGoated:
-                                                  (currentGoated) async {
-                                                    Navigator.pop(ctx);
-                                                    HapticFeedback.mediumImpact();
-                                                    await FirebaseFirestore
-                                                        .instance
-                                                        .collection('users')
-                                                        .doc(myUid)
-                                                        .collection('friends')
-                                                        .doc(uid)
-                                                        .set(
-                                                          {
-                                                            'isGoated':
-                                                                !currentGoated,
-                                                          },
-                                                          SetOptions(
-                                                            merge: true,
-                                                          ),
-                                                        );
-                                                  },
-                                              onToggleBlocked: (currentBlocked) async {
-                                                Navigator.pop(ctx);
-                                                HapticFeedback.heavyImpact();
-                                                if (currentBlocked) {
-                                                  await FirebaseFirestore
-                                                      .instance
-                                                      .collection('users')
-                                                      .doc(myUid)
-                                                      .update({
-                                                        'blockedUids':
-                                                            FieldValue.arrayRemove(
-                                                              [uid],
-                                                            ),
-                                                      });
-                                                } else {
-                                                  await FirebaseFirestore
-                                                      .instance
-                                                      .collection('users')
-                                                      .doc(myUid)
-                                                      .update({
-                                                        'blockedUids':
-                                                            FieldValue.arrayUnion(
-                                                              [uid],
-                                                            ),
-                                                      });
-                                                }
-                                              },
-                                            ),
-                                          );
-                                        },
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 16,
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              Container(
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: avatarColor
-                                                          .withValues(
-                                                            alpha: 0.4,
-                                                          ),
-                                                      blurRadius: 12,
-                                                      spreadRadius: 2,
-                                                    ),
-                                                  ],
-                                                ),
-                                                child: CircleAvatar(
-                                                  radius: 26,
-                                                  backgroundColor: avatarColor,
-                                                  backgroundImage:
-                                                      avatarUrl != null
-                                                      ? CachedNetworkImageProvider(
-                                                          avatarUrl,
-                                                        )
-                                                      : null,
-                                                  child: avatarUrl == null
-                                                      ? Text(
-                                                          displayName.isNotEmpty
-                                                              ? displayName[0]
-                                                                    .toUpperCase()
-                                                              : "?",
-                                                          style:
-                                                              const TextStyle(
-                                                                color: Colors
-                                                                    .white,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                                fontSize: 20,
-                                                              ),
-                                                        )
-                                                      : null,
+                                              child: const Text(
+                                                "Remove",
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
                                                 ),
                                               ),
-                                              const SizedBox(width: 16),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Row(
-                                                      children: [
-                                                        ?rankIcon,
-                                                        Flexible(
-                                                          child: Text(
-                                                            displayName,
-                                                            style: TextStyle(
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w900,
-                                                              fontSize: 17,
-                                                              letterSpacing:
-                                                                  -0.3,
-                                                              color: isBlocked
-                                                                  ? Colors.grey
-                                                                  : (isDark
-                                                                        ? Colors
-                                                                              .white
-                                                                        : Colors
-                                                                              .black87),
-                                                            ),
-                                                            maxLines: 1,
-                                                            overflow:
-                                                                TextOverflow
-                                                                    .ellipsis,
-                                                          ),
-                                                        ),
-                                                        if (isGoated &&
-                                                            !isBlocked)
-                                                          const Padding(
-                                                            padding:
-                                                                EdgeInsets.only(
-                                                                  left: 6.0,
-                                                                ),
-                                                            child: Icon(
-                                                              Symbols.star,
-                                                              fill: 1.0,
-                                                              color:
-                                                                  Colors.amber,
-                                                              size: 18,
-                                                            ),
-                                                          ),
-                                                        if (isBlocked)
-                                                          const Padding(
-                                                            padding:
-                                                                EdgeInsets.only(
-                                                                  left: 6.0,
-                                                                ),
-                                                            child: Icon(
-                                                              Icons.block,
-                                                              color: Colors.red,
-                                                              size: 16,
-                                                            ),
-                                                          ),
-                                                      ],
-                                                    ),
-                                                    if (username.isNotEmpty)
-                                                      Padding(
-                                                        padding:
-                                                            const EdgeInsets.only(
-                                                              top: 4.0,
-                                                            ),
-                                                        child: Text(
-                                                          "@$username",
-                                                          style: TextStyle(
-                                                            fontSize: 13,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            color: isBlocked
-                                                                ? Colors.grey
-                                                                : primaryColor,
-                                                          ),
-                                                          maxLines: 1,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                  ],
-                                                ),
-                                              ),
-                                              _sortByScore
-                                                  ? Column(
-                                                      mainAxisAlignment:
-                                                          MainAxisAlignment
-                                                              .center,
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .end,
-                                                      children: [
-                                                        Row(
-                                                          mainAxisSize:
-                                                              MainAxisSize.min,
-                                                          children: [
-                                                            Text(
-                                                              '$hp',
-                                                              style: TextStyle(
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                                fontSize: 14,
-                                                                color: isDark
-                                                                    ? Colors
-                                                                          .white
-                                                                    : Colors
-                                                                          .black87,
-                                                              ),
-                                                            ),
-                                                            const SizedBox(
-                                                              width: 4,
-                                                            ),
-                                                            const Icon(
-                                                              Icons.whatshot,
-                                                              color: Colors
-                                                                  .redAccent,
-                                                              size: 14,
-                                                            ),
-                                                          ],
-                                                        ),
-                                                        const SizedBox(
-                                                          height: 4,
-                                                        ),
-                                                        Row(
-                                                          mainAxisSize:
-                                                              MainAxisSize.min,
-                                                          children: [
-                                                            Text(
-                                                              '$mana',
-                                                              style: TextStyle(
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                                fontSize: 14,
-                                                                color: isDark
-                                                                    ? Colors
-                                                                          .white
-                                                                    : Colors
-                                                                          .black87,
-                                                              ),
-                                                            ),
-                                                            const SizedBox(
-                                                              width: 4,
-                                                            ),
-                                                            const Icon(
-                                                              Icons.water_drop,
-                                                              color: Colors
-                                                                  .blueAccent,
-                                                              size: 14,
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ],
-                                                    )
-                                                  : Icon(
-                                                      Icons.chevron_right,
-                                                      color: isDark
-                                                          ? Colors.grey.shade700
-                                                          : Colors
-                                                                .grey
-                                                                .shade300,
-                                                    ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                                      ) ??
+                                      false;
+                                },
+                                onDismissed: (direction) {
+                                  setState(() => _removedFriendUids.add(uid));
+                                  final messenger = ScaffoldMessenger.of(
+                                    context,
+                                  );
+
+                                  FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(myUid)
+                                      .collection('friends')
+                                      .doc(uid)
+                                      .delete()
+                                      .then((_) {
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              "$displayName was removed from your squad.",
+                                            ),
+                                            behavior: SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                      })
+                                      .catchError((e) {
+                                        debugPrint("Error removing friend: $e");
+                                        if (mounted) {
+                                          setState(
+                                            () =>
+                                                _removedFriendUids.remove(uid),
+                                          );
+                                        }
+                                      });
+                                },
                               );
                             },
                           );
@@ -1533,7 +1001,18 @@ class _SquadPageState extends State<SquadPage> {
                 Expanded(
                   flex: 40,
                   child: SingleChildScrollView(
-                    child: _buildAddFriendSection(isDark, primaryColor),
+                    child: AddFriendSection(
+                      isDark: isDark,
+                      primaryColor: primaryColor,
+                      isAddingByUsername: _isAddingByUsername,
+                      usernameController: _usernameController,
+                      phoneController: _phoneController,
+                      statusMessage: _statusMessage,
+                      onToggleInputType: (val) =>
+                          setState(() => _isAddingByUsername = val),
+                      onPhoneChanged: (val) => _completePhoneNumber = val,
+                      onSubmit: _addFriend,
+                    ),
                   ),
                 ),
                 VerticalDivider(
@@ -1549,90 +1028,23 @@ class _SquadPageState extends State<SquadPage> {
             )
           : Column(
               children: [
-                _buildAddFriendSection(isDark, primaryColor),
+                AddFriendSection(
+                  isDark: isDark,
+                  primaryColor: primaryColor,
+                  isAddingByUsername: _isAddingByUsername,
+                  usernameController: _usernameController,
+                  phoneController: _phoneController,
+                  statusMessage: _statusMessage,
+                  onToggleInputType: (val) =>
+                      setState(() => _isAddingByUsername = val),
+                  onPhoneChanged: (val) => _completePhoneNumber = val,
+                  onSubmit: _addFriend,
+                ),
                 Expanded(
                   child: _buildFriendListSection(isDark, primaryColor, myUid),
                 ),
               ],
             ),
-    );
-  }
-}
-
-class QRScannerPage extends StatefulWidget {
-  const QRScannerPage({super.key});
-
-  @override
-  State<QRScannerPage> createState() => _QRScannerPageState();
-}
-
-class _QRScannerPageState extends State<QRScannerPage> {
-  bool _hasScanned = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          "Scan to Add",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.black.withValues(alpha: 0.5),
-        elevation: 0,
-        foregroundColor: Colors.white,
-      ),
-      extendBodyBehindAppBar: true,
-      body: Stack(
-        children: [
-          MobileScanner(
-            onDetect: (BarcodeCapture capture) {
-              if (_hasScanned) return;
-              for (final barcode in capture.barcodes) {
-                if (barcode.rawValue != null) {
-                  _hasScanned = true;
-                  Navigator.pop(context, barcode.rawValue);
-                  break;
-                }
-              }
-            },
-          ),
-          Center(
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  width: 4,
-                ),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    spreadRadius: 50,
-                    blurRadius: 100,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const Positioned(
-            bottom: 120,
-            left: 0,
-            right: 0,
-            child: Text(
-              "Center the QR code in the box",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                shadows: [Shadow(color: Colors.black, blurRadius: 8)],
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
