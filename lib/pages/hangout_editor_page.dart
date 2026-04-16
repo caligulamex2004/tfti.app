@@ -328,8 +328,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                         return const Center(child: CircularProgressIndicator());
                       }
 
-                      // Explicitly filter the friends list so they can only assign
-                      // Co-Captains who are actually invited via the selected teams.
                       final allFriends = snapshot.data!.docs;
                       final friends = allFriends.where((doc) {
                         if (_inviteAll) {
@@ -465,12 +463,58 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     );
 
     if (confirm == true) {
-      setState(() => _isLoading = true);
+      setState(() {
+        _isLoading = true;
+      });
       try {
-        await FirebaseFirestore.instance
+        final eventRef = FirebaseFirestore.instance
             .collection('events')
-            .doc(widget.eventId)
-            .delete();
+            .doc(widget.eventId);
+
+        final batch = FirebaseFirestore.instance.batch();
+
+        // Subcollection 1: Invitations
+        final invitesSnap = await eventRef.collection('invitations').get();
+        for (var doc in invitesSnap.docs) {
+          batch.delete(doc.reference);
+        }
+
+        // Subcollection 2: Messages
+        final messagesSnap = await eventRef.collection('messages').get();
+        for (var doc in messagesSnap.docs) {
+          batch.delete(doc.reference);
+        }
+
+        // Subcollection 3: Roles
+        final rolesSnap = await eventRef.collection('roles').get();
+        for (var doc in rolesSnap.docs) {
+          batch.delete(doc.reference);
+        }
+
+        // Finally: Delete the main event document
+        batch.delete(eventRef);
+
+        await batch.commit();
+
+        // Remove banner image if it exists to save storage space
+        try {
+          await FirebaseStorage.instance
+              .ref()
+              .child('event_banners/${widget.eventId}/banner.jpg')
+              .delete();
+        } catch (_) {}
+
+        // Cleanup all chat images in the chat_images folder
+        try {
+          final chatImagesRef = FirebaseStorage.instance.ref().child(
+            'chat_images/${widget.eventId}',
+          );
+          final listResult = await chatImagesRef.listAll();
+          for (var item in listResult.items) {
+            await item.delete();
+          }
+        } catch (_) {}
+
         if (mounted) {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -488,7 +532,9 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
         }
       } finally {
         if (mounted) {
-          setState(() => _isLoading = false);
+          setState(() {
+            _isLoading = false;
+          });
         }
       }
     }

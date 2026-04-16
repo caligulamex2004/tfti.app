@@ -49,14 +49,20 @@ exports.dailyCleanup = onSchedule({
         const eventId = doc.id;
 
         // --- Wipe associated images in Firebase Storage ---
-        try {
-            await bucket.deleteFiles({
-                prefix: `chat_images/${eventId}/`
-            });
-            logger.log(`Wiped storage images for event: ${eventId}`);
-        } catch (error) {
-            // Logs the error but doesn't stop the database cleanup
-            logger.error(`Storage deletion failed for ${eventId}:`, error);
+        // Array of all storage folder prefixes associated with this event
+        const storagePaths = [
+            `chat_images/${eventId}/`,
+            `event_banners/${eventId}/`
+        ];
+
+        for (const path of storagePaths) {
+            try {
+                await bucket.deleteFiles({ prefix: path });
+                logger.log(`Wiped storage path: ${path}`);
+            } catch (error) {
+                // Logs the error but doesn't stop the rest of the cleanup
+                logger.error(`Storage deletion failed for path ${path}:`, error);
+            }
         }
 
         // Wipe Messages
