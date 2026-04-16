@@ -7,12 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../utils/theme_provider.dart';
-import '../components/shared/rpg_glass_card.dart';
 import '../components/shared/banner_picker.dart';
-import '../components/forms/team_selection_field.dart';
-import '../components/forms/co_captain_selector.dart';
 import '../components/forms/extras_form_card.dart';
 import '../components/forms/vitals_form_card.dart';
+import '../components/forms/crew_form_card.dart';
 
 class HangoutEditorPage extends StatefulWidget {
   final String? eventId;
@@ -517,56 +515,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
 
   // --- UI HELPER METHODS ---
 
-  Widget _buildCrewCard(bool isDark, Color primaryColor) {
-    return RpgGlassCard(
-      title: "The Crew",
-      icon: Icons.group,
-      child: Column(
-        children: [
-          TeamSelectionField(
-            inviteAll: _inviteAll,
-            selectedCircleIds: _selectedCircleIds,
-            enabled: !_isPast,
-            onChanged: (newAll, newIds) {
-              setState(() {
-                _inviteAll = newAll;
-                _selectedCircleIds = newIds;
-
-                if (!_inviteAll && _selectedCircleIds.isEmpty) {
-                  _selectedCoHostId = null;
-                  _selectedCoHostName = null;
-                  _selectedCoHostUsername = null;
-                  _selectedCoHostAvatarUrl = null;
-                  _selectedCoHostAvatarColor = null;
-                }
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          CoCaptainSelector(
-            isPast: _isPast,
-            inviteAll: _inviteAll,
-            selectedCircleIds: _selectedCircleIds,
-            coHostId: _selectedCoHostId,
-            coHostName: _selectedCoHostName,
-            coHostUsername: _selectedCoHostUsername,
-            coHostAvatarUrl: _selectedCoHostAvatarUrl,
-            coHostAvatarColor: _selectedCoHostAvatarColor,
-            onChanged: (id, name, username, avatarUrl, avatarColor) {
-              setState(() {
-                _selectedCoHostId = id;
-                _selectedCoHostName = name;
-                _selectedCoHostUsername = username;
-                _selectedCoHostAvatarUrl = avatarUrl;
-                _selectedCoHostAvatarColor = avatarColor;
-              });
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSubmitButton(Color primaryColor, String submitText) {
     return Column(
       children: [
@@ -605,7 +553,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
@@ -703,7 +650,54 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                             });
                                           },
                                         ),
-                                        _buildCrewCard(isDark, primaryColor),
+                                        CrewFormCard(
+                                          isPast: _isPast,
+                                          inviteAll: _inviteAll,
+                                          selectedCircleIds: _selectedCircleIds,
+                                          coHostId: _selectedCoHostId,
+                                          coHostName: _selectedCoHostName,
+                                          coHostUsername:
+                                              _selectedCoHostUsername,
+                                          coHostAvatarUrl:
+                                              _selectedCoHostAvatarUrl,
+                                          coHostAvatarColor:
+                                              _selectedCoHostAvatarColor,
+                                          onTeamChanged: (newAll, newIds) {
+                                            setState(() {
+                                              _inviteAll = newAll;
+                                              _selectedCircleIds = newIds;
+
+                                              if (!_inviteAll &&
+                                                  _selectedCircleIds.isEmpty) {
+                                                _selectedCoHostId = null;
+                                                _selectedCoHostName = null;
+                                                _selectedCoHostUsername = null;
+                                                _selectedCoHostAvatarUrl = null;
+                                                _selectedCoHostAvatarColor =
+                                                    null;
+                                              }
+                                            });
+                                          },
+                                          onCoCaptainChanged:
+                                              (
+                                                id,
+                                                name,
+                                                username,
+                                                avatarUrl,
+                                                avatarColor,
+                                              ) {
+                                                setState(() {
+                                                  _selectedCoHostId = id;
+                                                  _selectedCoHostName = name;
+                                                  _selectedCoHostUsername =
+                                                      username;
+                                                  _selectedCoHostAvatarUrl =
+                                                      avatarUrl;
+                                                  _selectedCoHostAvatarColor =
+                                                      avatarColor;
+                                                });
+                                              },
+                                        ),
                                         _buildSubmitButton(
                                           primaryColor,
                                           submitText,
@@ -800,7 +794,48 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                   });
                                 },
                               ),
-                              _buildCrewCard(isDark, primaryColor),
+                              CrewFormCard(
+                                isPast: _isPast,
+                                inviteAll: _inviteAll,
+                                selectedCircleIds: _selectedCircleIds,
+                                coHostId: _selectedCoHostId,
+                                coHostName: _selectedCoHostName,
+                                coHostUsername: _selectedCoHostUsername,
+                                coHostAvatarUrl: _selectedCoHostAvatarUrl,
+                                coHostAvatarColor: _selectedCoHostAvatarColor,
+                                onTeamChanged: (newAll, newIds) {
+                                  setState(() {
+                                    _inviteAll = newAll;
+                                    _selectedCircleIds = newIds;
+
+                                    if (!_inviteAll &&
+                                        _selectedCircleIds.isEmpty) {
+                                      _selectedCoHostId = null;
+                                      _selectedCoHostName = null;
+                                      _selectedCoHostUsername = null;
+                                      _selectedCoHostAvatarUrl = null;
+                                      _selectedCoHostAvatarColor = null;
+                                    }
+                                  });
+                                },
+                                onCoCaptainChanged:
+                                    (
+                                      id,
+                                      name,
+                                      username,
+                                      avatarUrl,
+                                      avatarColor,
+                                    ) {
+                                      setState(() {
+                                        _selectedCoHostId = id;
+                                        _selectedCoHostName = name;
+                                        _selectedCoHostUsername = username;
+                                        _selectedCoHostAvatarUrl = avatarUrl;
+                                        _selectedCoHostAvatarColor =
+                                            avatarColor;
+                                      });
+                                    },
+                              ),
                               const SizedBox(height: 12),
                               _buildSubmitButton(primaryColor, submitText),
                               const SizedBox(height: 40),
