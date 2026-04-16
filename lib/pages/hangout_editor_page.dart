@@ -41,9 +41,9 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
   final _locController = TextEditingController();
   final _detailsController = TextEditingController();
 
-  DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
-  int _rsvpDeadlineOffset = 0; // 0 = 'On time'
+  DateTime _selectedDate = DateTime.now();
+  TimeOfDay _selectedTime = TimeOfDay.now();
+  int _rsvpDeadlineOffset = 0;
 
   bool _inviteAll = false;
   List<String> _selectedCircleIds = [];
@@ -79,14 +79,13 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
         _selectedTime = TimeOfDay(hour: dt.hour, minute: dt.minute);
       }
 
-      _rsvpDeadlineOffset = data['rsvpDeadline'] ?? 0;
+      _rsvpDeadlineOffset = data['rsvpDeadline'] ?? -60;
       _inviteAll = data['inviteAll'] == true;
       _selectedCircleIds = List<String>.from(data['invitedCircles'] ?? []);
 
       _isMainHost = data['hostId'] == user?.uid;
       _isPast = data['isPast'] == true;
 
-      // Restored Co-Host State
       _selectedCoHostId = data['coHostId'];
       _selectedCoHostName = data['coHostName'];
 
@@ -94,6 +93,16 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     } else {
       _isMainHost = true;
       _isPast = false;
+
+      // Smart Default: Round up to the next 15 minute mark
+      final now = DateTime.now();
+      int remainder = now.minute % 15;
+      int addMinutes = remainder == 0 ? 0 : 15 - remainder;
+      DateTime rounded = now.add(Duration(minutes: addMinutes));
+
+      _selectedDate = rounded;
+      _selectedTime = TimeOfDay.fromDateTime(rounded);
+      _rsvpDeadlineOffset = -60; // 1 hr before
     }
   }
 
@@ -142,15 +151,59 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
         );
       }
     } else {
-      final String name = _locController.text.split(',').first;
+      // --- Pop up the naming dialog before saving! ---
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      final defaultName = _locController.text.split(',').first;
+      final nameController = TextEditingController(text: defaultName);
+
+      final confirmedName = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text("Save Goated Place"),
+          content: TextField(
+            controller: nameController,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(
+              hintText: "Give this spot a name...",
+              filled: true,
+              fillColor: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, nameController.text.trim()),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.primary,
+              ),
+              child: const Text(
+                "Save",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      // If the user taps Cancel or leaves it completely blank, abort the save.
+      if (confirmedName == null || confirmedName.isEmpty) return;
+
       final docRef = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('favorite_places')
           .add({
-            'name': name,
+            'name': confirmedName,
             'address': _locController.text,
-            'addedAt': FieldValue.serverTimestamp(),
+            'createdAt': FieldValue.serverTimestamp(),
           });
 
       setState(() {
@@ -886,6 +939,277 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     }
   }
 
+  // --- BATCH SUBMIT/UPDATE LOGIC ---
+  Future<void> _submitEvent() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (!_inviteAll && _selectedCircleIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select who to invite.')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser!;
+      final combinedDateTime = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        _selectedTime.hour,
+        _selectedTime.minute,
+      );
+
+      String? finalBannerUrl;
+      if (!isEditing) {
+        finalBannerUrl = null;
+      } else {
+        finalBannerUrl = _removeBanner ? null : widget.eventData!['bannerUrl'];
+      }
+
+      final eventRef = isEditing
+          ? FirebaseFirestore.instance.collection('events').doc(widget.eventId)
+          : FirebaseFirestore.instance.collection('events').doc();
+
+      if (_bannerImagePath != null) {
+        final File imageFile = File(_bannerImagePath!);
+        final bytes = await imageFile.readAsBytes();
+        final compressedBytes = await FlutterImageCompress.compressWithList(
+          bytes,
+          minWidth: 800,
+          minHeight: 600,
+          quality: 85,
+        );
+
+        final ref = FirebaseStorage.instance.ref().child(
+          'event_banners/${eventRef.id}/banner.jpg',
+        );
+        await ref.putData(
+          compressedBytes,
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
+        finalBannerUrl = await ref.getDownloadURL();
+      }
+
+      final batch = FirebaseFirestore.instance.batch();
+
+      if (isEditing) {
+        // ==========================================
+        //         EDIT MODE (UPDATE HANGOUT)
+        // ==========================================
+        final int keepAliveDays = widget.eventData!['keepAliveDays'] ?? 0;
+        final int durationMinutes = keepAliveDays > 0
+            ? (keepAliveDays * 24 * 60)
+            : 240;
+        final newEndTime = combinedDateTime.add(
+          Duration(minutes: durationMinutes),
+        );
+
+        final eventPayload = {
+          'title': _titleController.text.trim(),
+          'location': _locController.text.trim(),
+          'details': _detailsController.text.trim(),
+          'time': Timestamp.fromDate(combinedDateTime),
+          'endTime': Timestamp.fromDate(newEndTime),
+          'type': 'event',
+          'inviteAll': _inviteAll,
+          'invitedCircles': _selectedCircleIds,
+          'rsvpDeadline': _rsvpDeadlineOffset,
+          'bannerUrl': finalBannerUrl,
+          'coHostId': _selectedCoHostId,
+          'coHostName': _selectedCoHostName,
+          'lastUpdatedAt': FieldValue.serverTimestamp(),
+        };
+
+        // Dynamic Invite Sync
+        final friendsSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('friends')
+            .get();
+
+        Set<String> newIntendedIds = {};
+        Set<String> oldIntendedIds = {};
+
+        final bool oldInviteAll = widget.eventData!['inviteAll'] ?? true;
+        final List<String> oldCircles = List<String>.from(
+          widget.eventData!['invitedCircles'] ?? [],
+        );
+
+        for (var friendDoc in friendsSnapshot.docs) {
+          final friendCircles = List<String>.from(
+            friendDoc.data()['circles'] ?? [],
+          );
+          if (_inviteAll ||
+              _selectedCircleIds.any((id) => friendCircles.contains(id))) {
+            newIntendedIds.add(friendDoc.id);
+          }
+          if (oldInviteAll ||
+              oldCircles.any((id) => friendCircles.contains(id))) {
+            oldIntendedIds.add(friendDoc.id);
+          }
+        }
+
+        final currentInvitesSnap = await eventRef
+            .collection('invitations')
+            .get();
+        final Set<String> currentlyInvitedIds = currentInvitesSnap.docs
+            .map((d) => d.id)
+            .toSet();
+
+        Set<String> toAdd = newIntendedIds.difference(currentlyInvitedIds);
+        Set<String> toRemove = oldIntendedIds.difference(newIntendedIds);
+
+        toRemove.remove(widget.eventData!['hostId']);
+        if (_selectedCoHostId != null) toRemove.remove(_selectedCoHostId);
+
+        if (toAdd.isNotEmpty) {
+          eventPayload['visibleTo'] = FieldValue.arrayUnion(toAdd.toList());
+          for (String uid in toAdd) {
+            if (!currentlyInvitedIds.contains(uid)) {
+              batch.set(eventRef.collection('invitations').doc(uid), {
+                'uid': uid,
+                'role': uid == _selectedCoHostId ? 'co-host' : 'guest',
+                'status': 'pending',
+                'sentAt': FieldValue.serverTimestamp(),
+              });
+            }
+          }
+        }
+
+        if (toRemove.isNotEmpty) {
+          eventPayload['visibleTo'] = FieldValue.arrayRemove(toRemove.toList());
+          for (String uid in toRemove) {
+            batch.delete(eventRef.collection('invitations').doc(uid));
+          }
+        }
+
+        // Update co-host roles
+        String? oldCoHostId = widget.eventData!['coHostId'];
+        if (oldCoHostId != _selectedCoHostId) {
+          if (oldCoHostId != null && !toRemove.contains(oldCoHostId)) {
+            batch.update(eventRef.collection('invitations').doc(oldCoHostId), {
+              'role': 'guest',
+            });
+          }
+          if (_selectedCoHostId != null) {
+            batch.set(
+              eventRef.collection('invitations').doc(_selectedCoHostId),
+              {'role': 'co-host'},
+              SetOptions(merge: true),
+            );
+          }
+        }
+
+        batch.update(eventRef, eventPayload);
+        batch.set(
+          eventRef.collection('invitations').doc(user.uid),
+          {'lastViewedAt': FieldValue.serverTimestamp()},
+          SetOptions(merge: true),
+        );
+      } else {
+        // ==========================================
+        //        CREATE MODE (NEW HANGOUT)
+        // ==========================================
+        final defaultEndTime = combinedDateTime.add(const Duration(hours: 4));
+
+        final friendsSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('friends')
+            .get();
+
+        Set<String> visibleToIds = {user.uid};
+        Set<DocumentSnapshot> friendsToInvite = {};
+
+        for (var friendDoc in friendsSnapshot.docs) {
+          final data = friendDoc.data() as Map<String, dynamic>? ?? {};
+          final friendCircles = List<String>.from(data['circles'] ?? []);
+          if (_inviteAll ||
+              _selectedCircleIds.any((id) => friendCircles.contains(id))) {
+            friendsToInvite.add(friendDoc);
+            visibleToIds.add(friendDoc.id);
+          }
+        }
+
+        if (friendsToInvite.isEmpty && !_inviteAll) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("No friends found in selected teams!"),
+              ),
+            );
+          }
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        final eventPayload = {
+          'type': 'event',
+          'title': _titleController.text.trim(),
+          'location': _locController.text.trim(),
+          'details': _detailsController.text.trim(),
+          'time': Timestamp.fromDate(combinedDateTime),
+          'endTime': Timestamp.fromDate(defaultEndTime),
+          'keepAliveDays': 0, // Fallback
+          'hostId': user.uid,
+          'coHostId': _selectedCoHostId,
+          'coHostName': _selectedCoHostName,
+          'isPast': false,
+          'created_at': FieldValue.serverTimestamp(),
+          'visibleTo': visibleToIds.toList(),
+          'inviteAll': _inviteAll,
+          'invitedCircles': _selectedCircleIds,
+          'rsvpDeadline': _rsvpDeadlineOffset,
+          'bannerUrl': finalBannerUrl,
+        };
+
+        batch.set(eventRef, eventPayload);
+
+        for (var friendDoc in friendsToInvite) {
+          bool isCoHost = friendDoc.id == _selectedCoHostId;
+          batch.set(eventRef.collection('invitations').doc(friendDoc.id), {
+            'uid': friendDoc.id,
+            'role': isCoHost ? 'co-host' : 'guest',
+            'status': 'pending',
+            'sentAt': FieldValue.serverTimestamp(),
+          });
+        }
+
+        // Host is automatically "going"
+        batch.set(eventRef.collection('invitations').doc(user.uid), {
+          'uid': user.uid,
+          'role': 'host',
+          'status': 'going',
+          'sentAt': FieldValue.serverTimestamp(),
+          'lastViewedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      await batch.commit();
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isEditing ? "Changes saved!" : "Hangout created! 🎉"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error saving hangout: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   // --- UI BUILDING BLOCKS ---
   Widget _buildVitalsCard(bool isDark, Color primaryColor) {
     return RpgGlassCard(
@@ -920,7 +1244,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             prefixIconColor: primaryColor,
             readOnly: true,
             onTap: _selectLocation,
-            // RESTORED GOATED PLACES TOGGLE
             suffixIcon: IconButton(
               icon: Icon(
                 _isLocFavorite ? Icons.star : Icons.star_border,
@@ -954,7 +1277,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             },
           ),
           const SizedBox(height: 16),
-          // RESTORED CO-HOST AND ROLES BUTTONS
           Row(
             children: [
               Expanded(
@@ -1031,6 +1353,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
         title: "Danger Zone",
         icon: Icons.warning_amber_rounded,
         iconColor: Colors.red,
+        titleColor: Colors.red,
         child: SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
@@ -1085,109 +1408,13 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     );
   }
 
-  Future<void> _submitEvent() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    if (_selectedDate == null || _selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a date and time.')),
-      );
-      return;
-    }
-    if (!_inviteAll && _selectedCircleIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select who to invite.')),
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      final user = FirebaseAuth.instance.currentUser!;
-      final combinedDateTime = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        _selectedTime!.hour,
-        _selectedTime!.minute,
-      );
-
-      String? finalBannerUrl;
-      if (!isEditing) {
-        finalBannerUrl = null;
-      } else {
-        finalBannerUrl = _removeBanner ? null : widget.eventData!['bannerUrl'];
-      }
-
-      final eventRef = isEditing
-          ? FirebaseFirestore.instance.collection('events').doc(widget.eventId)
-          : FirebaseFirestore.instance.collection('events').doc();
-
-      if (_bannerImagePath != null) {
-        final File imageFile = File(_bannerImagePath!);
-        final bytes = await imageFile.readAsBytes();
-        final compressedBytes = await FlutterImageCompress.compressWithList(
-          bytes,
-          minWidth: 800,
-          minHeight: 600,
-          quality: 85,
-        );
-
-        final ref = FirebaseStorage.instance.ref().child(
-          'event_banners/${eventRef.id}/banner.jpg',
-        );
-        await ref.putData(
-          compressedBytes,
-          SettableMetadata(contentType: 'image/jpeg'),
-        );
-        finalBannerUrl = await ref.getDownloadURL();
-      }
-
-      final eventPayload = {
-        'title': _titleController.text.trim(),
-        'location': _locController.text.trim(),
-        'details': _detailsController.text.trim(),
-        'time': Timestamp.fromDate(combinedDateTime),
-        'type': 'regular',
-        'inviteAll': _inviteAll,
-        'invitedCircles': _selectedCircleIds,
-        'rsvpDeadline': _rsvpDeadlineOffset,
-        'bannerUrl': finalBannerUrl,
-        'hostId': user.uid,
-        'coHostId': _selectedCoHostId, // RESTORED
-        'coHostName': _selectedCoHostName, // RESTORED
-        'isPast': false,
-        'createdAt': isEditing
-            ? widget.eventData!['createdAt']
-            : FieldValue.serverTimestamp(),
-      };
-
-      if (isEditing) {
-        await eventRef.update(eventPayload);
-      } else {
-        await eventRef.set(eventPayload);
-      }
-
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving hangout: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
-    final String submitText = isEditing ? "Save Changes" : "Send i";
+    final String submitText = isEditing ? "Save Changes" : "Send i's";
 
     Widget lockdownBanner = _isPast
         ? Container(

@@ -220,10 +220,8 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
             height: 1,
             color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
           ),
-
           Expanded(
             child: _controller.text.isEmpty
-                // NEW: Check the flag to determine what to show when search is empty
                 ? (widget.showFavorites
                       ? _buildFavoritesList(isDark)
                       : _buildEmptySearchPrompt(isDark))
