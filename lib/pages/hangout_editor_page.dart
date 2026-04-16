@@ -79,7 +79,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
         _selectedTime = TimeOfDay(hour: dt.hour, minute: dt.minute);
       }
 
-      _rsvpDeadlineOffset = data['rsvpDeadline'] ?? -60;
       _inviteAll = data['inviteAll'] == true;
       _selectedCircleIds = List<String>.from(data['invitedCircles'] ?? []);
 
@@ -102,7 +101,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
 
       _selectedDate = rounded;
       _selectedTime = TimeOfDay.fromDateTime(rounded);
-      _rsvpDeadlineOffset = -60; // 1 hr before
     }
   }
 
