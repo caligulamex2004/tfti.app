@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -15,6 +14,7 @@ import '../components/forms/custom_input_field.dart';
 import '../components/forms/tactile_chip_row.dart';
 import '../components/forms/date_time_row.dart';
 import '../components/forms/team_selection_field.dart';
+import '../components/forms/co_captain_selector.dart';
 import 'places_search_page.dart';
 
 class HangoutEditorPage extends StatefulWidget {
@@ -256,186 +256,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     }
   }
 
-  // --- RESTORED CO-CAPTAIN LOGIC ---
-  Future<void> _selectCoCaptain() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return;
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        final primaryColor = Theme.of(context).colorScheme.primary;
-
-        return FractionallySizedBox(
-          heightFactor: 0.7,
-          child: SafeArea(
-            child: Column(
-              children: [
-                const SizedBox(height: 10),
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text(
-                    "Assign Co-Captain",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Colors.grey,
-                    child: Icon(Icons.person_off, color: Colors.white),
-                  ),
-                  title: const Text(
-                    "None",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  onTap: () {
-                    setState(() {
-                      _selectedCoHostId = null;
-                      _selectedCoHostName = null;
-                      _selectedCoHostUsername = null;
-                      _selectedCoHostAvatarUrl = null;
-                      _selectedCoHostAvatarColor = null;
-                    });
-                    Navigator.pop(ctx);
-                  },
-                ),
-                Expanded(
-                  child: FutureBuilder<QuerySnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(user.uid)
-                        .collection('friends')
-                        .get(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-
-                      final allFriends = snapshot.data!.docs;
-                      final friends = allFriends.where((doc) {
-                        if (_inviteAll) {
-                          return true;
-                        }
-                        final data = doc.data() as Map<String, dynamic>? ?? {};
-                        final friendCircles = List<String>.from(
-                          data['circles'] ?? [],
-                        );
-                        for (String circleId in _selectedCircleIds) {
-                          if (friendCircles.contains(circleId)) {
-                            return true;
-                          }
-                        }
-                        return false;
-                      }).toList();
-
-                      if (friends.isEmpty) {
-                        return const Center(
-                          child: Text(
-                            "No eligible friends found in the selected teams.",
-                          ),
-                        );
-                      }
-
-                      return ListView.builder(
-                        itemCount: friends.length,
-                        itemBuilder: (context, index) {
-                          final friendId = friends[index].id;
-                          return FutureBuilder<DocumentSnapshot>(
-                            future: FirebaseFirestore.instance
-                                .collection('users')
-                                .doc(friendId)
-                                .get(),
-                            builder: (context, userSnap) {
-                              if (!userSnap.hasData || !userSnap.data!.exists) {
-                                return const SizedBox.shrink();
-                              }
-                              final data =
-                                  userSnap.data!.data() as Map<String, dynamic>;
-                              final name = data['displayName'] ?? 'Unknown';
-                              final username = data['username'] ?? '';
-                              final avatarUrl = data['avatarUrl'];
-                              final avatarColorVal = data['avatarColor'] is int
-                                  ? data['avatarColor']
-                                  : Colors.blue.toARGB32();
-                              final avatarColor = Color(avatarColorVal);
-
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: avatarColor,
-                                  backgroundImage: avatarUrl != null
-                                      ? CachedNetworkImageProvider(avatarUrl)
-                                      : null,
-                                  child: avatarUrl == null
-                                      ? Text(
-                                          name.isNotEmpty
-                                              ? name[0].toUpperCase()
-                                              : "?",
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                                title: Text(
-                                  name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                subtitle: username.isNotEmpty
-                                    ? Text(
-                                        "@$username",
-                                        style: TextStyle(
-                                          color: primaryColor,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      )
-                                    : null,
-                                onTap: () {
-                                  setState(() {
-                                    _selectedCoHostId = friendId;
-                                    _selectedCoHostName = name;
-                                    _selectedCoHostUsername = username;
-                                    _selectedCoHostAvatarUrl = avatarUrl;
-                                    _selectedCoHostAvatarColor = avatarColorVal;
-                                  });
-                                  Navigator.pop(ctx);
-                                },
-                              );
-                            },
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   // --- RESTORED DELETE LOGIC ---
   Future<void> _deleteEvent() async {
     final confirm = await showDialog<bool>(
@@ -516,8 +336,10 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
         } catch (_) {}
 
         if (mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
+          // Capture the messenger and pop all the way to the Home Page!
+          final messenger = ScaffoldMessenger.of(context);
+          Navigator.popUntil(context, (route) => route.isFirst);
+          messenger.showSnackBar(
             const SnackBar(
               content: Text("Hangout deleted permanently."),
               backgroundColor: Colors.red,
@@ -556,7 +378,9 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
       ),
     );
     if (selectedAddress != null && mounted) {
-      setState(() => _locController.text = selectedAddress);
+      setState(() {
+        _locController.text = selectedAddress;
+      });
       _checkFavoriteStatus();
     }
   }
@@ -565,11 +389,15 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+      });
       return;
     }
 
@@ -821,7 +649,9 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -843,7 +673,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             validator: (val) => val == null || val.isEmpty ? 'Required' : null,
           ),
           const SizedBox(height: 16),
-          // RESTORED LOCATION FAVORITE BUTTON
           Row(
             children: [
               Expanded(
@@ -1008,7 +837,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                 _inviteAll = newAll;
                 _selectedCircleIds = newIds;
 
-                // Clear Co-Captain if they deselect all teams
                 if (!_inviteAll && _selectedCircleIds.isEmpty) {
                   _selectedCoHostId = null;
                   _selectedCoHostName = null;
@@ -1020,105 +848,24 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             },
           ),
           const SizedBox(height: 16),
-          // RESTORED CO-CAPTAIN SELECTOR WITH AVATAR & USERNAME & LOCK
-          Opacity(
-            opacity: (_inviteAll || _selectedCircleIds.isNotEmpty) ? 1.0 : 0.5,
-            child: InkWell(
-              onTap: _isPast
-                  ? null
-                  : () {
-                      if (!_inviteAll && _selectedCircleIds.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              "Please select a Team or Entire Squad first.",
-                            ),
-                          ),
-                        );
-                        return;
-                      }
-                      _selectCoCaptain();
-                    },
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    if (_selectedCoHostId == null)
-                      Icon(Symbols.shield_person, color: primaryColor, size: 40)
-                    else
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Color(
-                          _selectedCoHostAvatarColor ?? Colors.blue.toARGB32(),
-                        ),
-                        backgroundImage: _selectedCoHostAvatarUrl != null
-                            ? CachedNetworkImageProvider(
-                                _selectedCoHostAvatarUrl!,
-                              )
-                            : null,
-                        child: _selectedCoHostAvatarUrl == null
-                            ? Text(
-                                (_selectedCoHostName ?? "?")[0].toUpperCase(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              )
-                            : null,
-                      ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Co-Captain",
-                            style: TextStyle(
-                              color: isDark
-                                  ? Colors.grey.shade400
-                                  : Colors.grey.shade600,
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            _selectedCoHostName ?? "None Assigned",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: isDark ? Colors.white : Colors.black87,
-                            ),
-                          ),
-                          if (_selectedCoHostUsername != null &&
-                              _selectedCoHostUsername!.isNotEmpty)
-                            Text(
-                              "@$_selectedCoHostUsername",
-                              style: TextStyle(
-                                color: primaryColor,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: isDark
-                          ? Colors.grey.shade600
-                          : Colors.grey.shade400,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          CoCaptainSelector(
+            isPast: _isPast,
+            inviteAll: _inviteAll,
+            selectedCircleIds: _selectedCircleIds,
+            coHostId: _selectedCoHostId,
+            coHostName: _selectedCoHostName,
+            coHostUsername: _selectedCoHostUsername,
+            coHostAvatarUrl: _selectedCoHostAvatarUrl,
+            coHostAvatarColor: _selectedCoHostAvatarColor,
+            onChanged: (id, name, username, avatarUrl, avatarColor) {
+              setState(() {
+                _selectedCoHostId = id;
+                _selectedCoHostName = name;
+                _selectedCoHostUsername = username;
+                _selectedCoHostAvatarUrl = avatarUrl;
+                _selectedCoHostAvatarColor = avatarColor;
+              });
+            },
           ),
         ],
       ),
@@ -1146,7 +893,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             ),
           ),
         ),
-        // RESTORED DELETE EVENT BUTTON
         if (isEditing && _isMainHost) ...[
           const SizedBox(height: 16),
           TextButton.icon(
@@ -1224,7 +970,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                   key: _formKey,
                   child: SingleChildScrollView(
                     child: isLandscape
-                        // --- LANDSCAPE LAYOUT ---
                         ? Column(
                             children: [
                               if (_isPast) lockdownBanner,
@@ -1267,7 +1012,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                               ),
                             ],
                           )
-                        // --- PORTRAIT LAYOUT ---
                         : Column(
                             children: [
                               if (_isPast) lockdownBanner,
