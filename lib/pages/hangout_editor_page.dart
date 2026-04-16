@@ -5,17 +5,14 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:material_symbols_icons/symbols.dart';
 
 import '../utils/theme_provider.dart';
 import '../components/shared/rpg_glass_card.dart';
 import '../components/shared/banner_picker.dart';
-import '../components/forms/custom_input_field.dart';
-import '../components/forms/date_time_row.dart';
 import '../components/forms/team_selection_field.dart';
 import '../components/forms/co_captain_selector.dart';
-import '../components/forms/location_input_field.dart';
 import '../components/forms/extras_form_card.dart';
+import '../components/forms/vitals_form_card.dart';
 
 class HangoutEditorPage extends StatefulWidget {
   final String? eventId;
@@ -520,35 +517,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
 
   // --- UI HELPER METHODS ---
 
-  Widget _buildVitalsCard(bool isDark, Color primaryColor) {
-    return RpgGlassCard(
-      title: "The Vitals",
-      icon: Icons.push_pin,
-      child: Column(
-        children: [
-          CustomInputField(
-            controller: _titleController,
-            label: "Hangout Title",
-            hint: "e.g. Bonfire & Chill",
-            prefixIcon: Symbols.campaign,
-            enabled: !_isPast,
-            validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-          ),
-          const SizedBox(height: 16),
-          LocationInputField(controller: _locController, isPast: _isPast),
-          const SizedBox(height: 16),
-          DateTimeRow(
-            selectedDate: _selectedDate,
-            selectedTime: _selectedTime,
-            enabled: !_isPast,
-            onDateChanged: (d) => setState(() => _selectedDate = d),
-            onTimeChanged: (t) => setState(() => _selectedTime = t),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildCrewCard(bool isDark, Color primaryColor) {
     return RpgGlassCard(
       title: "The Crew",
@@ -718,7 +686,23 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                             });
                                           },
                                         ),
-                                        _buildVitalsCard(isDark, primaryColor),
+                                        VitalsFormCard(
+                                          titleController: _titleController,
+                                          locController: _locController,
+                                          isPast: _isPast,
+                                          selectedDate: _selectedDate,
+                                          selectedTime: _selectedTime,
+                                          onDateChanged: (d) {
+                                            setState(() {
+                                              _selectedDate = d;
+                                            });
+                                          },
+                                          onTimeChanged: (t) {
+                                            setState(() {
+                                              _selectedTime = t;
+                                            });
+                                          },
+                                        ),
                                         _buildCrewCard(isDark, primaryColor),
                                         _buildSubmitButton(
                                           primaryColor,
@@ -777,7 +761,23 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                   });
                                 },
                               ),
-                              _buildVitalsCard(isDark, primaryColor),
+                              VitalsFormCard(
+                                titleController: _titleController,
+                                locController: _locController,
+                                isPast: _isPast,
+                                selectedDate: _selectedDate,
+                                selectedTime: _selectedTime,
+                                onDateChanged: (d) {
+                                  setState(() {
+                                    _selectedDate = d;
+                                  });
+                                },
+                                onTimeChanged: (t) {
+                                  setState(() {
+                                    _selectedTime = t;
+                                  });
+                                },
+                              ),
                               ExtrasFormCard(
                                 detailsController: _detailsController,
                                 isPast: _isPast,
