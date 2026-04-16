@@ -1,12 +1,12 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../utils/theme_provider.dart';
 import '../components/shared/rpg_glass_card.dart';
@@ -43,10 +43,13 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
 
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
-  int _rsvpDeadlineOffset = 0;
 
   bool _inviteAll = false;
   List<String> _selectedCircleIds = [];
+
+  int _rsvpDeadlineOffset = 0;
+  int _keepAliveDays = 0;
+  bool _isImportantDetails = false;
 
   String? _bannerImagePath;
   bool _removeBanner = false;
@@ -54,42 +57,75 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
   // --- RESTORED LOGIC STATE ---
   String? _selectedCoHostId;
   String? _selectedCoHostName;
+  String? _selectedCoHostUsername;
+  String? _selectedCoHostAvatarUrl;
+  int? _selectedCoHostAvatarColor;
+
   bool _isLocFavorite = false;
   String? _favoriteDocId;
 
   @override
   void initState() {
     super.initState();
-    _initForm();
-  }
+    final user = FirebaseAuth.instance.currentUser;
 
-  void _initForm() {
     if (isEditing) {
+      // --- EDIT MODE INITIALIZATION ---
       final data = widget.eventData!;
-      final user = FirebaseAuth.instance.currentUser;
+      _isMainHost = data['hostId'] == user?.uid;
 
       _titleController.text = data['title'] ?? '';
       _locController.text = data['location'] ?? '';
-      _detailsController.text = data['details'] ?? '';
+      _detailsController.text = data['details'] ?? data['description'] ?? '';
 
-      final Timestamp? ts = data['time'];
-      if (ts != null) {
-        final dt = ts.toDate();
+      if (data['time'] != null) {
+        final dt = (data['time'] as Timestamp).toDate();
         _selectedDate = dt;
-        _selectedTime = TimeOfDay(hour: dt.hour, minute: dt.minute);
+        _selectedTime = TimeOfDay.fromDateTime(dt);
       }
 
-      _inviteAll = data['inviteAll'] == true;
+      _inviteAll = data['inviteAll'] ?? true;
       _selectedCircleIds = List<String>.from(data['invitedCircles'] ?? []);
-
-      _isMainHost = data['hostId'] == user?.uid;
-      _isPast = data['isPast'] == true;
+      _rsvpDeadlineOffset = data['rsvpDeadline'] ?? 0;
+      _keepAliveDays = data['keepAliveDays'] ?? 0;
+      _isImportantDetails = data['isImportantDetails'] ?? false;
 
       _selectedCoHostId = data['coHostId'];
       _selectedCoHostName = data['coHostName'];
 
-      _checkFavoriteStatus();
+      // Fetch Co-Host Avatar & Username silently if one exists
+      if (_selectedCoHostId != null) {
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(_selectedCoHostId)
+            .get()
+            .then((doc) {
+              if (mounted && doc.exists) {
+                setState(() {
+                  _selectedCoHostUsername = doc.data()?['username'];
+                  _selectedCoHostAvatarUrl = doc.data()?['avatarUrl'];
+                  _selectedCoHostAvatarColor = doc.data()?['avatarColor'];
+                });
+              }
+            });
+      }
+
+      // Lockdown Check
+      final Timestamp? endTs = data['endTime'];
+      final DateTime endTime =
+          endTs?.toDate() ??
+          _selectedDate.add(
+            Duration(
+              minutes: _keepAliveDays > 0 ? (_keepAliveDays * 24 * 60) : 240,
+            ),
+          );
+      _isPast = (data['isPast'] == true) || DateTime.now().isAfter(endTime);
+
+      if (_locController.text.isNotEmpty) {
+        _checkFavoriteStatus();
+      }
     } else {
+      // --- CREATE MODE INITIALIZATION ---
       _isMainHost = true;
       _isPast = false;
 
@@ -107,7 +143,9 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
   // --- RESTORED LOCATION LOGIC ---
   Future<void> _checkFavoriteStatus() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null || _locController.text.isEmpty) return;
+    if (user == null || _locController.text.isEmpty) {
+      return;
+    }
 
     final query = await FirebaseFirestore.instance
         .collection('users')
@@ -127,7 +165,9 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
 
   Future<void> _toggleFavoriteStatus() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null || _locController.text.isEmpty) return;
+    if (user == null || _locController.text.isEmpty) {
+      return;
+    }
 
     HapticFeedback.lightImpact();
 
@@ -149,7 +189,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
         );
       }
     } else {
-      // --- Pop up the naming dialog before saving! ---
       final isDark = Theme.of(context).brightness == Brightness.dark;
       final defaultName = _locController.text.split(',').first;
       final nameController = TextEditingController(text: defaultName);
@@ -191,8 +230,9 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
         ),
       );
 
-      // If the user taps Cancel or leaves it completely blank, abort the save.
-      if (confirmedName == null || confirmedName.isEmpty) return;
+      if (confirmedName == null || confirmedName.isEmpty) {
+        return;
+      }
 
       final docRef = await FirebaseFirestore.instance
           .collection('users')
@@ -216,6 +256,252 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     }
   }
 
+  // --- RESTORED CO-CAPTAIN LOGIC ---
+  Future<void> _selectCoCaptain() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final primaryColor = Theme.of(context).colorScheme.primary;
+
+        return FractionallySizedBox(
+          heightFactor: 0.7,
+          child: SafeArea(
+            child: Column(
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    "Assign Co-Captain",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Colors.grey,
+                    child: Icon(Icons.person_off, color: Colors.white),
+                  ),
+                  title: const Text(
+                    "None",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  onTap: () {
+                    setState(() {
+                      _selectedCoHostId = null;
+                      _selectedCoHostName = null;
+                      _selectedCoHostUsername = null;
+                      _selectedCoHostAvatarUrl = null;
+                      _selectedCoHostAvatarColor = null;
+                    });
+                    Navigator.pop(ctx);
+                  },
+                ),
+                Expanded(
+                  child: FutureBuilder<QuerySnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(user.uid)
+                        .collection('friends')
+                        .get(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      // Explicitly filter the friends list so they can only assign
+                      // Co-Captains who are actually invited via the selected teams.
+                      final allFriends = snapshot.data!.docs;
+                      final friends = allFriends.where((doc) {
+                        if (_inviteAll) {
+                          return true;
+                        }
+                        final data = doc.data() as Map<String, dynamic>? ?? {};
+                        final friendCircles = List<String>.from(
+                          data['circles'] ?? [],
+                        );
+                        for (String circleId in _selectedCircleIds) {
+                          if (friendCircles.contains(circleId)) {
+                            return true;
+                          }
+                        }
+                        return false;
+                      }).toList();
+
+                      if (friends.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            "No eligible friends found in the selected teams.",
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        itemCount: friends.length,
+                        itemBuilder: (context, index) {
+                          final friendId = friends[index].id;
+                          return FutureBuilder<DocumentSnapshot>(
+                            future: FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(friendId)
+                                .get(),
+                            builder: (context, userSnap) {
+                              if (!userSnap.hasData || !userSnap.data!.exists) {
+                                return const SizedBox.shrink();
+                              }
+                              final data =
+                                  userSnap.data!.data() as Map<String, dynamic>;
+                              final name = data['displayName'] ?? 'Unknown';
+                              final username = data['username'] ?? '';
+                              final avatarUrl = data['avatarUrl'];
+                              final avatarColorVal = data['avatarColor'] is int
+                                  ? data['avatarColor']
+                                  : Colors.blue.toARGB32();
+                              final avatarColor = Color(avatarColorVal);
+
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: avatarColor,
+                                  backgroundImage: avatarUrl != null
+                                      ? CachedNetworkImageProvider(avatarUrl)
+                                      : null,
+                                  child: avatarUrl == null
+                                      ? Text(
+                                          name.isNotEmpty
+                                              ? name[0].toUpperCase()
+                                              : "?",
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                                title: Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: username.isNotEmpty
+                                    ? Text(
+                                        "@$username",
+                                        style: TextStyle(
+                                          color: primaryColor,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      )
+                                    : null,
+                                onTap: () {
+                                  setState(() {
+                                    _selectedCoHostId = friendId;
+                                    _selectedCoHostName = name;
+                                    _selectedCoHostUsername = username;
+                                    _selectedCoHostAvatarUrl = avatarUrl;
+                                    _selectedCoHostAvatarColor = avatarColorVal;
+                                  });
+                                  Navigator.pop(ctx);
+                                },
+                              );
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // --- RESTORED DELETE LOGIC ---
+  Future<void> _deleteEvent() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete Hangout?"),
+        content: const Text(
+          "Are you sure you want to permanently delete this hangout? This action cannot be undone.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text(
+              "Delete",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() => _isLoading = true);
+      try {
+        await FirebaseFirestore.instance
+            .collection('events')
+            .doc(widget.eventId)
+            .delete();
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Hangout deleted permanently."),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("Error deleting: $e")));
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _locController.dispose();
+    _detailsController.dispose();
+    super.dispose();
+  }
+
   Future<void> _selectLocation() async {
     final selectedAddress = await Navigator.push(
       context,
@@ -229,896 +515,153 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     }
   }
 
-  // --- RESTORED CO-HOST LOGIC ---
-  Future<List<Map<String, dynamic>>> _fetchEligibleCoHosts() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return [];
-
-    final friendsSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('friends')
-        .get();
-
-    List<String> eligibleUids = [];
-    for (var friendDoc in friendsSnapshot.docs) {
-      final data = friendDoc.data();
-      final friendCircles = List<String>.from(data['circles'] ?? []);
-
-      if (_inviteAll ||
-          _selectedCircleIds.any((id) => friendCircles.contains(id))) {
-        eligibleUids.add(friendDoc.id);
-      }
-    }
-
-    if (eligibleUids.isEmpty) return [];
-
-    List<Map<String, dynamic>> profiles = [];
-    await Future.wait(
-      eligibleUids.map((uid) async {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .get();
-        if (userDoc.exists) {
-          final data = userDoc.data() as Map<String, dynamic>;
-          data['uid'] = uid;
-          profiles.add(data);
-        }
-      }),
-    );
-
-    profiles.sort(
-      (a, b) => (a['displayName'] ?? '').toString().toLowerCase().compareTo(
-        (b['displayName'] ?? '').toString().toLowerCase(),
-      ),
-    );
-    return profiles;
-  }
-
-  void _showCoHostDialog() {
-    if (!_inviteAll && _selectedCircleIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Select \"Who's getting the i?\" first to pick a co-captain!",
-          ),
-        ),
-      );
-      return;
-    }
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 10),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                "Select Co-Captain",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Divider(height: 1),
-
-              if (_selectedCoHostId != null)
-                ListTile(
-                  leading: const Icon(Icons.person_remove, color: Colors.red),
-                  title: const Text(
-                    "Remove Co-Captain",
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  onTap: () {
-                    setState(() {
-                      _selectedCoHostId = null;
-                      _selectedCoHostName = null;
-                    });
-                    Navigator.pop(ctx);
-                  },
-                ),
-
-              Expanded(
-                child: FutureBuilder<List<Map<String, dynamic>>>(
-                  future: _fetchEligibleCoHosts(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return const Center(
-                        child: Text("No friends found in selected teams."),
-                      );
-                    }
-
-                    final profiles = snapshot.data!;
-                    return ListView.builder(
-                      itemCount: profiles.length,
-                      itemBuilder: (context, index) {
-                        final profile = profiles[index];
-                        final String name = profile['displayName'] ?? "Unknown";
-                        final String uid = profile['uid'];
-                        final String? avatarUrl = profile['avatarUrl'];
-                        Color avatarColor = Colors.blue;
-                        if (profile['avatarColor'] is int) {
-                          avatarColor = Color(profile['avatarColor']);
-                        }
-
-                        return ListTile(
-                          leading: Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: avatarColor.withValues(alpha: 0.4),
-                                  blurRadius: 8,
-                                  spreadRadius: 1,
-                                ),
-                              ],
-                            ),
-                            child: CircleAvatar(
-                              backgroundColor: avatarColor,
-                              backgroundImage: avatarUrl != null
-                                  ? CachedNetworkImageProvider(avatarUrl)
-                                  : null,
-                              child: avatarUrl == null
-                                  ? Text(
-                                      name.isNotEmpty
-                                          ? name[0].toUpperCase()
-                                          : "?",
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    )
-                                  : null,
-                            ),
-                          ),
-                          title: Text(
-                            name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          onTap: () {
-                            setState(() {
-                              _selectedCoHostId = uid;
-                              _selectedCoHostName = name;
-                            });
-                            Navigator.pop(ctx);
-                          },
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // --- RESTORED SQUAD NEEDS LOGIC ---
-  void _showSquadNeedsSheet() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
-    final currentUser = FirebaseAuth.instance.currentUser!;
-    final roleController = TextEditingController();
-    final bool canEdit = !_isPast;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-          ),
-          child: SafeArea(
-            child: Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.85,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 10),
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? Colors.grey.shade700
-                          : Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.check_box_outlined,
-                          color: primaryColor,
-                          size: 28,
-                        ),
-                        const SizedBox(width: 12),
-                        const Text(
-                          "Squad Needs",
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 22,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-
-                  Flexible(
-                    child: StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('events')
-                          .doc(widget.eventId)
-                          .collection('roles')
-                          .orderBy('createdAt')
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        }
-
-                        final roles = snapshot.data!.docs;
-
-                        if (roles.isEmpty) {
-                          return Padding(
-                            padding: const EdgeInsets.all(32.0),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.volunteer_activism,
-                                  size: 48,
-                                  color: isDark
-                                      ? Colors.grey.shade700
-                                      : Colors.grey.shade300,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  canEdit
-                                      ? "Add items you need help with!"
-                                      : "No squad needs were added.",
-                                  style: TextStyle(
-                                    color: isDark
-                                        ? Colors.grey.shade400
-                                        : Colors.grey.shade600,
-                                    fontSize: 16,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-
-                        return ListView.builder(
-                          shrinkWrap: true,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          itemCount: roles.length,
-                          itemBuilder: (context, index) {
-                            final roleDoc = roles[index];
-                            final roleData =
-                                roleDoc.data() as Map<String, dynamic>;
-                            final title = roleData['title'] ?? 'Item';
-                            final assigneeId = roleData['claimedByUid'];
-                            final assigneeName = roleData['claimedByName'];
-                            final addedBy = roleData['addedBy'];
-
-                            final isClaimed = assigneeId != null;
-                            final isMe = assigneeId == currentUser.uid;
-                            final isItemCreator = addedBy == currentUser.uid;
-                            final canManageItem = _isMainHost || isItemCreator;
-
-                            return ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 4,
-                              ),
-                              leading: Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: isClaimed
-                                      ? Colors.green.withValues(alpha: 0.15)
-                                      : (isDark
-                                            ? Colors.grey.shade800
-                                            : Colors.grey.shade100),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  isClaimed
-                                      ? Icons.check
-                                      : Icons.pan_tool_outlined,
-                                  color: isClaimed
-                                      ? Colors.green
-                                      : (isDark
-                                            ? Colors.grey.shade400
-                                            : Colors.grey.shade600),
-                                  size: 20,
-                                ),
-                              ),
-                              title: Text(
-                                title,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: isClaimed
-                                      ? Colors.grey.shade500
-                                      : (isDark
-                                            ? Colors.white
-                                            : Colors.black87),
-                                ),
-                              ),
-                              subtitle: isClaimed
-                                  ? Text(
-                                      isMe
-                                          ? "Claimed by you"
-                                          : "Claimed by $assigneeName",
-                                      style: TextStyle(
-                                        color: isMe
-                                            ? primaryColor
-                                            : (isDark
-                                                  ? Colors.grey.shade400
-                                                  : Colors.grey.shade600),
-                                        fontWeight: isMe
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
-                                        fontSize: 13,
-                                      ),
-                                    )
-                                  : null,
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (!isClaimed && canEdit)
-                                    ElevatedButton(
-                                      onPressed: () async {
-                                        HapticFeedback.lightImpact();
-                                        final userDoc = await FirebaseFirestore
-                                            .instance
-                                            .collection('users')
-                                            .doc(currentUser.uid)
-                                            .get();
-                                        final myName =
-                                            userDoc.data()?['displayName'] ??
-                                            "Someone";
-                                        await roleDoc.reference.update({
-                                          'claimedByUid': currentUser.uid,
-                                          'claimedByName': myName,
-                                        });
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: primaryColor,
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                        visualDensity: VisualDensity.compact,
-                                      ),
-                                      child: const Text(
-                                        "Claim",
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    )
-                                  else if ((isMe || canManageItem) && canEdit)
-                                    OutlinedButton(
-                                      onPressed: () async {
-                                        HapticFeedback.lightImpact();
-                                        await roleDoc.reference.update({
-                                          'claimedByUid': FieldValue.delete(),
-                                          'claimedByName': FieldValue.delete(),
-                                        });
-                                      },
-                                      style: OutlinedButton.styleFrom(
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                        visualDensity: VisualDensity.compact,
-                                      ),
-                                      child: Text(
-                                        isMe ? "Unclaim" : "Unassign",
-                                      ),
-                                    ),
-                                  if (canManageItem && canEdit)
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.delete_outline,
-                                        color: Colors.red,
-                                        size: 20,
-                                      ),
-                                      onPressed: () async {
-                                        HapticFeedback.heavyImpact();
-                                        await roleDoc.reference.delete();
-                                      },
-                                    ),
-                                ],
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
-
-                  if (canEdit)
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, -5),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: roleController,
-                              textCapitalization: TextCapitalization.sentences,
-                              decoration: InputDecoration(
-                                hintText: "e.g. Bring cups...",
-                                filled: true,
-                                fillColor: isDark
-                                    ? Colors.grey.shade900
-                                    : Colors.grey.shade100,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          ElevatedButton(
-                            onPressed: () async {
-                              final text = roleController.text.trim();
-                              if (text.isEmpty) return;
-                              roleController.clear();
-                              FocusScope.of(context).unfocus();
-                              await FirebaseFirestore.instance
-                                  .collection('events')
-                                  .doc(widget.eventId)
-                                  .collection('roles')
-                                  .add({
-                                    'title': text,
-                                    'createdAt': FieldValue.serverTimestamp(),
-                                    'addedBy': currentUser.uid,
-                                  });
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryColor,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              padding: const EdgeInsets.all(14),
-                            ),
-                            child: const Icon(Icons.add),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // --- RESTORED DANGER ZONE LOGIC ---
-  Future<void> _deleteEvent() async {
-    if (_isPast) return;
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final String? seasonId = widget.eventData?['seasonId'];
-    String deleteScope = 'single';
-
-    // 1. Determine Scope for Recurring Events
-    if (seasonId != null) {
-      final scope = await showModalBottomSheet<String>(
-        context: context,
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        builder: (ctx) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Delete Hangout",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "This hangout is part of a recurring Season. Do you want to cancel just this one, or the entire remaining season?",
-                  style: TextStyle(
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ListTile(
-                  leading: const Icon(Icons.event_busy),
-                  title: const Text(
-                    "Cancel just this hangout",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  onTap: () => Navigator.pop(ctx, 'single'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.auto_delete, color: Colors.red),
-                  title: const Text(
-                    "Cancel this and all future hangouts",
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  onTap: () => Navigator.pop(ctx, 'future'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-
-      if (scope == null) return;
-      deleteScope = scope;
-    } else {
-      // Standard confirmation
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Delete Hangout?'),
-          content: const Text(
-            'This will permanently delete the hangout, the squad list, and the chat history.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Delete'),
-            ),
-          ],
-        ),
-      );
-      if (confirm != true) return;
-    }
-
-    setState(() => _isLoading = true);
-
-    // 2. Execute Deep Cascade Deletion
-    try {
-      final firestore = FirebaseFirestore.instance;
-
-      if (deleteScope == 'single') {
-        final eventRef = firestore.collection('events').doc(widget.eventId);
-        final invitations = await eventRef.collection('invitations').get();
-        for (var doc in invitations.docs) {
-          await doc.reference.delete();
-        }
-        final messages = await eventRef.collection('messages').get();
-        for (var doc in messages.docs) {
-          await doc.reference.delete();
-        }
-        final roles = await eventRef.collection('roles').get();
-        for (var doc in roles.docs) {
-          await doc.reference.delete();
-        }
-
-        try {
-          await FirebaseStorage.instance
-              .ref()
-              .child('event_banners/${widget.eventId}/banner.jpg')
-              .delete();
-        } catch (_) {}
-
-        await eventRef.delete();
-      } else if (deleteScope == 'future' && seasonId != null) {
-        final currentEventTime = widget.eventData!['time'] as Timestamp;
-        final futureEvents = await firestore
-            .collection('events')
-            .where('seasonId', isEqualTo: seasonId)
-            .where('time', isGreaterThanOrEqualTo: currentEventTime)
-            .get();
-
-        WriteBatch batch = firestore.batch();
-        int opCount = 0;
-
-        Future<void> commitIfNeeded() async {
-          if (opCount > 450) {
-            await batch.commit();
-            batch = firestore.batch();
-            opCount = 0;
-          }
-        }
-
-        for (var doc in futureEvents.docs) {
-          final eventRef = doc.reference;
-          final invites = await eventRef.collection('invitations').get();
-          for (var inv in invites.docs) {
-            batch.delete(inv.reference);
-            opCount++;
-            await commitIfNeeded();
-          }
-          final msgs = await eventRef.collection('messages').get();
-          for (var msg in msgs.docs) {
-            batch.delete(msg.reference);
-            opCount++;
-            await commitIfNeeded();
-          }
-          final roles = await eventRef.collection('roles').get();
-          for (var role in roles.docs) {
-            batch.delete(role.reference);
-            opCount++;
-            await commitIfNeeded();
-          }
-          batch.delete(eventRef);
-          opCount++;
-          await commitIfNeeded();
-        }
-
-        if (opCount > 0) await batch.commit();
-        await firestore.collection('seasons').doc(seasonId).delete();
-
-        try {
-          await FirebaseStorage.instance
-              .ref()
-              .child('event_banners/$seasonId/banner.jpg')
-              .delete();
-        } catch (_) {}
-      }
-
-      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  // --- BATCH SUBMIT/UPDATE LOGIC ---
   Future<void> _submitEvent() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    setState(() => _isLoading = true);
 
-    if (!_inviteAll && _selectedCircleIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select who to invite.')),
-      );
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() => _isLoading = false);
       return;
     }
 
-    setState(() => _isLoading = true);
-
     try {
-      final user = FirebaseAuth.instance.currentUser!;
-      final combinedDateTime = DateTime(
+      final newDateTime = DateTime(
         _selectedDate.year,
         _selectedDate.month,
         _selectedDate.day,
         _selectedTime.hour,
         _selectedTime.minute,
       );
-
-      String? finalBannerUrl;
-      if (!isEditing) {
-        finalBannerUrl = null;
-      } else {
-        finalBannerUrl = _removeBanner ? null : widget.eventData!['bannerUrl'];
-      }
-
-      final eventRef = isEditing
-          ? FirebaseFirestore.instance.collection('events').doc(widget.eventId)
-          : FirebaseFirestore.instance.collection('events').doc();
-
-      if (_bannerImagePath != null) {
-        final File imageFile = File(_bannerImagePath!);
-        final bytes = await imageFile.readAsBytes();
-        final compressedBytes = await FlutterImageCompress.compressWithList(
-          bytes,
-          minWidth: 800,
-          minHeight: 600,
-          quality: 85,
-        );
-
-        final ref = FirebaseStorage.instance.ref().child(
-          'event_banners/${eventRef.id}/banner.jpg',
-        );
-        await ref.putData(
-          compressedBytes,
-          SettableMetadata(contentType: 'image/jpeg'),
-        );
-        finalBannerUrl = await ref.getDownloadURL();
-      }
-
-      final batch = FirebaseFirestore.instance.batch();
+      final int durationMinutes = _keepAliveDays > 0
+          ? (_keepAliveDays * 24 * 60)
+          : 240;
+      final newEndTime = newDateTime.add(Duration(minutes: durationMinutes));
 
       if (isEditing) {
-        // ==========================================
-        //         EDIT MODE (UPDATE HANGOUT)
-        // ==========================================
-        final int keepAliveDays = widget.eventData!['keepAliveDays'] ?? 0;
-        final int durationMinutes = keepAliveDays > 0
-            ? (keepAliveDays * 24 * 60)
-            : 240;
-        final newEndTime = combinedDateTime.add(
-          Duration(minutes: durationMinutes),
-        );
+        final eventRef = FirebaseFirestore.instance
+            .collection('events')
+            .doc(widget.eventId);
+        final batch = FirebaseFirestore.instance.batch();
 
-        final eventPayload = {
-          'title': _titleController.text.trim(),
-          'location': _locController.text.trim(),
-          'details': _detailsController.text.trim(),
-          'time': Timestamp.fromDate(combinedDateTime),
-          'endTime': Timestamp.fromDate(newEndTime),
-          'type': 'event',
-          'inviteAll': _inviteAll,
-          'invitedCircles': _selectedCircleIds,
-          'rsvpDeadline': _rsvpDeadlineOffset,
-          'bannerUrl': finalBannerUrl,
-          'coHostId': _selectedCoHostId,
-          'coHostName': _selectedCoHostName,
+        final Map<String, dynamic> updateData = {
           'lastUpdatedAt': FieldValue.serverTimestamp(),
         };
 
-        // Dynamic Invite Sync
-        final friendsSnapshot = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .collection('friends')
-            .get();
+        if (_isMainHost) {
+          updateData['title'] = _titleController.text.trim();
+          updateData['location'] = _locController.text.trim();
+          updateData['details'] = _detailsController.text.trim();
+          updateData['time'] = Timestamp.fromDate(newDateTime);
+          updateData['endTime'] = Timestamp.fromDate(newEndTime);
+          updateData['isImportantDetails'] = _isImportantDetails;
+          updateData['rsvpDeadline'] = _rsvpDeadlineOffset;
+          updateData['keepAliveDays'] = _keepAliveDays;
+          updateData['inviteAll'] = _inviteAll;
+          updateData['invitedCircles'] = _selectedCircleIds;
+          updateData['coHostId'] = _selectedCoHostId;
+          updateData['coHostName'] = _selectedCoHostName;
 
-        Set<String> newIntendedIds = {};
-        Set<String> oldIntendedIds = {};
+          if (_removeBanner) {
+            updateData['bannerUrl'] = FieldValue.delete();
+            try {
+              await FirebaseStorage.instance
+                  .ref()
+                  .child('event_banners/${widget.eventId}/banner.jpg')
+                  .delete();
+            } catch (_) {}
+          } else if (_bannerImagePath != null) {
+            try {
+              final File file = File(_bannerImagePath!);
+              final Uint8List bytes = await file.readAsBytes();
+              final Uint8List compressedBytes =
+                  await FlutterImageCompress.compressWithList(
+                    bytes,
+                    minWidth: 1280,
+                    minHeight: 720,
+                    quality: 75,
+                  );
+              final ref = FirebaseStorage.instance.ref().child(
+                'event_banners/${widget.eventId}/banner.jpg',
+              );
+              await ref.putData(
+                compressedBytes,
+                SettableMetadata(contentType: 'image/jpeg'),
+              );
+              updateData['bannerUrl'] = await ref.getDownloadURL();
+            } catch (e) {
+              debugPrint("Failed to upload new banner: $e");
+            }
+          }
 
-        final bool oldInviteAll = widget.eventData!['inviteAll'] ?? true;
-        final List<String> oldCircles = List<String>.from(
-          widget.eventData!['invitedCircles'] ?? [],
-        );
-
-        for (var friendDoc in friendsSnapshot.docs) {
-          final friendCircles = List<String>.from(
-            friendDoc.data()['circles'] ?? [],
+          final friendsSnapshot = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .collection('friends')
+              .get();
+          Set<String> newIntendedIds = {};
+          Set<String> oldIntendedIds = {};
+          final bool oldInviteAll = widget.eventData!['inviteAll'] ?? true;
+          final List<String> oldCircles = List<String>.from(
+            widget.eventData!['invitedCircles'] ?? [],
           );
-          if (_inviteAll ||
-              _selectedCircleIds.any((id) => friendCircles.contains(id))) {
-            newIntendedIds.add(friendDoc.id);
+
+          for (var friendDoc in friendsSnapshot.docs) {
+            final friendCircles = List<String>.from(
+              friendDoc.data()['circles'] ?? [],
+            );
+            if (_inviteAll ||
+                _selectedCircleIds.any((id) => friendCircles.contains(id))) {
+              newIntendedIds.add(friendDoc.id);
+            }
+            if (oldInviteAll ||
+                oldCircles.any((id) => friendCircles.contains(id))) {
+              oldIntendedIds.add(friendDoc.id);
+            }
           }
-          if (oldInviteAll ||
-              oldCircles.any((id) => friendCircles.contains(id))) {
-            oldIntendedIds.add(friendDoc.id);
+
+          final currentInvitesSnap = await eventRef
+              .collection('invitations')
+              .get();
+          final Set<String> currentlyInvitedIds = currentInvitesSnap.docs
+              .map((d) => d.id)
+              .toSet();
+
+          Set<String> toAdd = newIntendedIds.difference(currentlyInvitedIds);
+          Set<String> toRemove = oldIntendedIds.difference(newIntendedIds);
+          toRemove.remove(widget.eventData!['hostId']);
+
+          if (toAdd.isNotEmpty) {
+            updateData['visibleTo'] = FieldValue.arrayUnion(toAdd.toList());
+            for (String uid in toAdd) {
+              if (!currentlyInvitedIds.contains(uid)) {
+                batch.set(eventRef.collection('invitations').doc(uid), {
+                  'uid': uid,
+                  'role': 'guest',
+                  'status': 'pending',
+                  'sentAt': FieldValue.serverTimestamp(),
+                });
+              }
+            }
           }
-        }
-
-        final currentInvitesSnap = await eventRef
-            .collection('invitations')
-            .get();
-        final Set<String> currentlyInvitedIds = currentInvitesSnap.docs
-            .map((d) => d.id)
-            .toSet();
-
-        Set<String> toAdd = newIntendedIds.difference(currentlyInvitedIds);
-        Set<String> toRemove = oldIntendedIds.difference(newIntendedIds);
-
-        toRemove.remove(widget.eventData!['hostId']);
-        if (_selectedCoHostId != null) toRemove.remove(_selectedCoHostId);
-
-        if (toAdd.isNotEmpty) {
-          eventPayload['visibleTo'] = FieldValue.arrayUnion(toAdd.toList());
-          for (String uid in toAdd) {
-            if (!currentlyInvitedIds.contains(uid)) {
-              batch.set(eventRef.collection('invitations').doc(uid), {
-                'uid': uid,
-                'role': uid == _selectedCoHostId ? 'co-host' : 'guest',
-                'status': 'pending',
-                'sentAt': FieldValue.serverTimestamp(),
-              });
+          if (toRemove.isNotEmpty) {
+            updateData['visibleTo'] = FieldValue.arrayRemove(toRemove.toList());
+            for (String uid in toRemove) {
+              batch.delete(eventRef.collection('invitations').doc(uid));
             }
           }
         }
 
-        if (toRemove.isNotEmpty) {
-          eventPayload['visibleTo'] = FieldValue.arrayRemove(toRemove.toList());
-          for (String uid in toRemove) {
-            batch.delete(eventRef.collection('invitations').doc(uid));
-          }
-        }
-
-        // Update co-host roles
-        String? oldCoHostId = widget.eventData!['coHostId'];
-        if (oldCoHostId != _selectedCoHostId) {
-          if (oldCoHostId != null && !toRemove.contains(oldCoHostId)) {
-            batch.update(eventRef.collection('invitations').doc(oldCoHostId), {
-              'role': 'guest',
-            });
-          }
-          if (_selectedCoHostId != null) {
-            batch.set(
-              eventRef.collection('invitations').doc(_selectedCoHostId),
-              {'role': 'co-host'},
-              SetOptions(merge: true),
-            );
-          }
-        }
-
-        batch.update(eventRef, eventPayload);
-        batch.set(
-          eventRef.collection('invitations').doc(user.uid),
-          {'lastViewedAt': FieldValue.serverTimestamp()},
-          SetOptions(merge: true),
-        );
+        batch.update(eventRef, updateData);
+        await batch.commit();
       } else {
-        // ==========================================
-        //        CREATE MODE (NEW HANGOUT)
-        // ==========================================
-        final defaultEndTime = combinedDateTime.add(const Duration(hours: 4));
-
         final friendsSnapshot = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .collection('friends')
             .get();
-
         Set<String> visibleToIds = {user.uid};
         Set<DocumentSnapshot> friendsToInvite = {};
 
@@ -1140,18 +683,21 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
               ),
             );
           }
-          setState(() => _isLoading = false);
+          setState(() {
+            _isLoading = false;
+          });
           return;
         }
 
-        final eventPayload = {
-          'type': 'event',
+        final batch = FirebaseFirestore.instance.batch();
+        final eventRef = FirebaseFirestore.instance.collection('events').doc();
+
+        batch.set(eventRef, {
           'title': _titleController.text.trim(),
           'location': _locController.text.trim(),
           'details': _detailsController.text.trim(),
-          'time': Timestamp.fromDate(combinedDateTime),
-          'endTime': Timestamp.fromDate(defaultEndTime),
-          'keepAliveDays': 0, // Fallback
+          'time': Timestamp.fromDate(newDateTime),
+          'endTime': Timestamp.fromDate(newEndTime),
           'hostId': user.uid,
           'coHostId': _selectedCoHostId,
           'coHostName': _selectedCoHostName,
@@ -1160,39 +706,63 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
           'visibleTo': visibleToIds.toList(),
           'inviteAll': _inviteAll,
           'invitedCircles': _selectedCircleIds,
+          'isImportantDetails': _isImportantDetails,
           'rsvpDeadline': _rsvpDeadlineOffset,
-          'bannerUrl': finalBannerUrl,
-        };
+          'keepAliveDays': _keepAliveDays,
+          'pointsAwarded': false,
+        });
 
-        batch.set(eventRef, eventPayload);
-
+        // Add Guests
         for (var friendDoc in friendsToInvite) {
-          bool isCoHost = friendDoc.id == _selectedCoHostId;
           batch.set(eventRef.collection('invitations').doc(friendDoc.id), {
             'uid': friendDoc.id,
-            'role': isCoHost ? 'co-host' : 'guest',
+            'role': 'guest',
             'status': 'pending',
             'sentAt': FieldValue.serverTimestamp(),
           });
         }
 
-        // Host is automatically "going"
+        // Add Host
         batch.set(eventRef.collection('invitations').doc(user.uid), {
           'uid': user.uid,
           'role': 'host',
           'status': 'going',
           'sentAt': FieldValue.serverTimestamp(),
-          'lastViewedAt': FieldValue.serverTimestamp(),
         });
-      }
 
-      await batch.commit();
+        await batch.commit();
+
+        if (_bannerImagePath != null) {
+          try {
+            final File file = File(_bannerImagePath!);
+            final Uint8List bytes = await file.readAsBytes();
+            final Uint8List compressedBytes =
+                await FlutterImageCompress.compressWithList(
+                  bytes,
+                  minWidth: 1280,
+                  minHeight: 720,
+                  quality: 75,
+                );
+            final ref = FirebaseStorage.instance.ref().child(
+              'event_banners/${eventRef.id}/banner.jpg',
+            );
+            await ref.putData(
+              compressedBytes,
+              SettableMetadata(contentType: 'image/jpeg'),
+            );
+            final downloadUrl = await ref.getDownloadURL();
+            await eventRef.update({'bannerUrl': downloadUrl});
+          } catch (e) {
+            debugPrint("Failed to upload banner: $e");
+          }
+        }
+      }
 
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isEditing ? "Changes saved!" : "Hangout created! 🎉"),
+            content: Text(isEditing ? "Changes saved!" : "Hangout deployed!"),
             backgroundColor: Colors.green,
           ),
         );
@@ -1201,106 +771,70 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error saving hangout: $e')));
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  // --- UI BUILDING BLOCKS ---
+  // --- UI HELPER METHODS ---
+
   Widget _buildVitalsCard(bool isDark, Color primaryColor) {
     return RpgGlassCard(
       title: "The Vitals",
-      icon: Icons.info_outline,
+      icon: Icons.push_pin,
       child: Column(
         children: [
           CustomInputField(
             controller: _titleController,
-            label: "What's the move?",
+            label: "Hangout Title",
             hint: "e.g. Bonfire & Chill",
-            prefixIcon: Symbols.celebration,
-            prefixIconColor: primaryColor,
+            prefixIcon: Symbols.campaign,
+            enabled: !_isPast,
+            validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+          ),
+          const SizedBox(height: 16),
+          // RESTORED LOCATION FAVORITE BUTTON
+          Row(
+            children: [
+              Expanded(
+                child: CustomInputField(
+                  controller: _locController,
+                  label: "Location",
+                  hint: "Tap to search address...",
+                  prefixIcon: Icons.location_on,
+                  prefixIconColor: isDark ? Colors.redAccent : Colors.red,
+                  readOnly: true,
+                  enabled: !_isPast,
+                  onTap: _isPast ? null : _selectLocation,
+                  validator: (val) =>
+                      val == null || val.isEmpty ? 'Required' : null,
+                ),
+              ),
+              if (_locController.text.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: IconButton(
+                    icon: Icon(
+                      _isLocFavorite ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 32,
+                    ),
+                    onPressed: _isPast ? null : _toggleFavoriteStatus,
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 16),
           DateTimeRow(
             selectedDate: _selectedDate,
             selectedTime: _selectedTime,
-            onDateChanged: (date) {
-              setState(() => _selectedDate = date);
-            },
-            onTimeChanged: (time) {
-              setState(() => _selectedTime = time);
-            },
-          ),
-          const SizedBox(height: 16),
-          CustomInputField(
-            controller: _locController,
-            label: "Where we dropping?",
-            hint: "Search or type address...",
-            prefixIcon: Icons.location_on,
-            prefixIconColor: primaryColor,
-            readOnly: true,
-            onTap: _selectLocation,
-            suffixIcon: IconButton(
-              icon: Icon(
-                _isLocFavorite ? Icons.star : Icons.star_border,
-                color: _isLocFavorite
-                    ? Colors.amber
-                    : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-              ),
-              onPressed: _toggleFavoriteStatus,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCrewCard() {
-    return RpgGlassCard(
-      title: "The Crew",
-      icon: Icons.group,
-      child: Column(
-        children: [
-          TeamSelectionField(
-            inviteAll: _inviteAll,
-            selectedCircleIds: _selectedCircleIds,
             enabled: !_isPast,
-            onChanged: (newAll, newIds) {
-              setState(() {
-                _inviteAll = newAll;
-                _selectedCircleIds = newIds;
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _showCoHostDialog,
-                  icon: const Icon(Symbols.military_tech),
-                  label: Text(
-                    _selectedCoHostName != null
-                        ? "Co: ${_selectedCoHostName!.split(' ').first}"
-                        : "Co-Captain",
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              if (isEditing) ...[
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _showSquadNeedsSheet,
-                    icon: const Icon(Icons.volunteer_activism),
-                    label: const Text("Squad Needs"),
-                  ),
-                ),
-              ],
-            ],
+            onDateChanged: (d) => setState(() => _selectedDate = d),
+            onTimeChanged: (t) => setState(() => _selectedTime = t),
           ),
         ],
       ),
@@ -1314,6 +848,64 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          CustomInputField(
+            controller: _detailsController,
+            label: "Details / Description",
+            prefixIcon: Icons.notes,
+            prefixIconColor: isDark ? Colors.grey.shade400 : Colors.grey,
+            maxLines: 3,
+            enabled: !_isPast,
+          ),
+          const SizedBox(height: 16),
+          InkWell(
+            onTap: _isPast
+                ? null
+                : () => setState(
+                    () => _isImportantDetails = !_isImportantDetails,
+                  ),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: _isImportantDetails
+                      ? Colors.red
+                      : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                  width: _isImportantDetails ? 2 : 1,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _isImportantDetails
+                        ? Icons.gpp_maybe
+                        : Icons.gpp_maybe_outlined,
+                    color: _isImportantDetails
+                        ? Colors.red
+                        : (isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Important Details",
+                    style: TextStyle(
+                      fontWeight: _isImportantDetails
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: _isImportantDetails
+                          ? Colors.red
+                          : (isDark ? Colors.white : Colors.black87),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
           TactileChipRow<int>(
             label: "RSVP Deadline",
             icon: Icons.timer_off_outlined,
@@ -1324,85 +916,203 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
               {'label': '2 hrs before', 'value': -120},
               {'label': '4 hrs before', 'value': -240},
               {'label': '24 hrs before', 'value': -1440},
-              {'label': '48 hrs before', 'value': -2880},
             ],
             selectedValue: _rsvpDeadlineOffset,
-            onSelected: (v) => setState(() => _rsvpDeadlineOffset = v),
+            onSelected: _isPast
+                ? (v) {}
+                : (v) => setState(() => _rsvpDeadlineOffset = v),
           ),
           const SizedBox(height: 24),
-          CustomInputField(
-            controller: _detailsController,
-            label: "Any other details? (Optional)",
-            hint: "e.g. Dog friendly, BYOB...",
-            prefixIcon: Icons.notes,
-            prefixIconColor: isDark ? Colors.grey.shade400 : Colors.grey,
-            maxLines: 2,
+          TactileChipRow<int>(
+            label: "Active for...",
+            icon: Icons.timelapse,
+            options: const [
+              {'label': 'A few hours', 'value': 0},
+              {'label': '1 Day', 'value': 1},
+              {'label': '2 Days', 'value': 2},
+              {'label': '3 Days', 'value': 3},
+              {'label': '4 Days', 'value': 4},
+              {'label': '5 Days', 'value': 5},
+              {'label': '1 Week', 'value': 7},
+              {'label': '10 Days', 'value': 10},
+              {'label': '2 Weeks', 'value': 14},
+            ],
+            selectedValue: _keepAliveDays,
+            onSelected: _isPast
+                ? (v) {}
+                : (v) => setState(() => _keepAliveDays = v),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDangerCard() {
-    if (!isEditing || !_isMainHost || _isPast) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 24.0),
-      child: RpgGlassCard(
-        title: "Danger Zone",
-        icon: Icons.warning_amber_rounded,
-        iconColor: Colors.red,
-        titleColor: Colors.red,
-        child: SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: _deleteEvent,
-            icon: const Icon(Icons.delete_forever, color: Colors.red),
-            label: const Text(
-              "Delete Hangout",
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Colors.red),
-              padding: const EdgeInsets.symmetric(vertical: 14),
+  Widget _buildCrewCard(bool isDark, Color primaryColor) {
+    return RpgGlassCard(
+      title: "The Crew",
+      icon: Icons.group,
+      child: Column(
+        children: [
+          TeamSelectionField(
+            inviteAll: _inviteAll,
+            selectedCircleIds: _selectedCircleIds,
+            enabled: !_isPast,
+            onChanged: (newAll, newIds) {
+              setState(() {
+                _inviteAll = newAll;
+                _selectedCircleIds = newIds;
+
+                // Clear Co-Captain if they deselect all teams
+                if (!_inviteAll && _selectedCircleIds.isEmpty) {
+                  _selectedCoHostId = null;
+                  _selectedCoHostName = null;
+                  _selectedCoHostUsername = null;
+                  _selectedCoHostAvatarUrl = null;
+                  _selectedCoHostAvatarColor = null;
+                }
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+          // RESTORED CO-CAPTAIN SELECTOR WITH AVATAR & USERNAME & LOCK
+          Opacity(
+            opacity: (_inviteAll || _selectedCircleIds.isNotEmpty) ? 1.0 : 0.5,
+            child: InkWell(
+              onTap: _isPast
+                  ? null
+                  : () {
+                      if (!_inviteAll && _selectedCircleIds.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              "Please select a Team or Entire Squad first.",
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+                      _selectCoCaptain();
+                    },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    if (_selectedCoHostId == null)
+                      Icon(Symbols.shield_person, color: primaryColor, size: 40)
+                    else
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Color(
+                          _selectedCoHostAvatarColor ?? Colors.blue.toARGB32(),
+                        ),
+                        backgroundImage: _selectedCoHostAvatarUrl != null
+                            ? CachedNetworkImageProvider(
+                                _selectedCoHostAvatarUrl!,
+                              )
+                            : null,
+                        child: _selectedCoHostAvatarUrl == null
+                            ? Text(
+                                (_selectedCoHostName ?? "?")[0].toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : null,
+                      ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Co-Captain",
+                            style: TextStyle(
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                          Text(
+                            _selectedCoHostName ?? "None Assigned",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          if (_selectedCoHostUsername != null &&
+                              _selectedCoHostUsername!.isNotEmpty)
+                            Text(
+                              "@$_selectedCoHostUsername",
+                              style: TextStyle(
+                                color: primaryColor,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: isDark
+                          ? Colors.grey.shade600
+                          : Colors.grey.shade400,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
   Widget _buildSubmitButton(Color primaryColor, String submitText) {
-    return SizedBox(
-      width: double.infinity,
-      height: 55,
-      child: ElevatedButton(
-        onPressed: _isLoading || _isPast ? null : _submitEvent,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 2,
-        ),
-        child: _isLoading
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
-              )
-            : Text(
-                submitText,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 60,
+          child: ElevatedButton(
+            onPressed: (_isPast || _isLoading) ? null : _submitEvent,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: themeProvider.onPrimaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
-      ),
+            ),
+            child: Text(
+              submitText,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+            ),
+          ),
+        ),
+        // RESTORED DELETE EVENT BUTTON
+        if (isEditing && _isMainHost) ...[
+          const SizedBox(height: 16),
+          TextButton.icon(
+            onPressed: _isPast || _isLoading ? null : _deleteEvent,
+            icon: const Icon(Icons.delete_forever, color: Colors.red),
+            label: const Text(
+              "Delete Hangout",
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -1412,7 +1122,9 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
-    final String submitText = isEditing ? "Save Changes" : "Send i's";
+
+    final String appBarTitle = isEditing ? "Manage Hangout" : "Create Hangout";
+    final String submitText = isEditing ? "Save Changes" : "Deploy Hangout";
 
     Widget lockdownBanner = _isPast
         ? Container(
@@ -1446,7 +1158,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          isEditing ? "Edit Hangout" : "Create Hangout",
+          appBarTitle,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
@@ -1455,61 +1167,64 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
           decoration: BoxDecoration(gradient: themeProvider.appGradient),
         ),
       ),
-      body: SafeArea(
-        child: _isLoading && !isEditing
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.opaque,
+        child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isLandscape ? 32.0 : 20.0,
-                    vertical: 24.0,
-                  ),
-                  child: Form(
-                    key: _formKey,
+            : Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
                     child: isLandscape
-                        ? Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        // --- LANDSCAPE LAYOUT ---
+                        ? Column(
                             children: [
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    lockdownBanner,
-                                    BannerPicker(
-                                      existingImageUrl: isEditing
-                                          ? widget.eventData!['bannerUrl']
-                                          : null,
-                                      isPast: _isPast,
-                                      onImageChanged: (path, removed) {
-                                        setState(() {
-                                          _bannerImagePath = path;
-                                          _removeBanner = removed;
-                                        });
-                                      },
+                              if (_isPast) lockdownBanner,
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        BannerPicker(
+                                          existingImageUrl: isEditing
+                                              ? widget.eventData!['bannerUrl']
+                                              : null,
+                                          isPast: _isPast,
+                                          onImageChanged: (path, removed) {
+                                            setState(() {
+                                              _bannerImagePath = path;
+                                              _removeBanner = removed;
+                                            });
+                                          },
+                                        ),
+                                        _buildVitalsCard(isDark, primaryColor),
+                                        _buildCrewCard(isDark, primaryColor),
+                                        _buildSubmitButton(
+                                          primaryColor,
+                                          submitText,
+                                        ),
+                                      ],
                                     ),
-                                    _buildVitalsCard(isDark, primaryColor),
-                                    _buildCrewCard(),
-                                    _buildDangerCard(),
-                                    const SizedBox(height: 12),
-                                    _buildSubmitButton(
-                                      primaryColor,
-                                      submitText,
+                                  ),
+                                  const SizedBox(width: 24),
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        _buildExtrasCard(isDark, primaryColor),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 24),
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    _buildExtrasCard(isDark, primaryColor),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ],
                           )
+                        // --- PORTRAIT LAYOUT ---
                         : Column(
                             children: [
-                              lockdownBanner,
+                              if (_isPast) lockdownBanner,
                               BannerPicker(
                                 existingImageUrl: isEditing
                                     ? widget.eventData!['bannerUrl']
@@ -1524,8 +1239,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                               ),
                               _buildVitalsCard(isDark, primaryColor),
                               _buildExtrasCard(isDark, primaryColor),
-                              _buildCrewCard(),
-                              _buildDangerCard(),
+                              _buildCrewCard(isDark, primaryColor),
                               const SizedBox(height: 12),
                               _buildSubmitButton(primaryColor, submitText),
                               const SizedBox(height: 40),
