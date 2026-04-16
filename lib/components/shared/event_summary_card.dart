@@ -43,6 +43,7 @@ class EventSummaryCard extends StatelessWidget {
 
     final bool isVibeCheck = data['type'] == 'vibe_check';
     final bool isPending = status == 'pending';
+    final bool isImportantDetails = data['isImportantDetails'] == true;
 
     final String? bannerUrl = data['bannerUrl'];
     final String? lastMessageSnippet = data['lastMessageSnippet'];
@@ -255,14 +256,48 @@ class EventSummaryCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
                             children: [
+                              if (isImportantDetails)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withValues(alpha: 0.8),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.priority_high,
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        "READ DETAILS",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.2,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               if (isVibeCheck)
                                 Container(
-                                  margin: const EdgeInsets.only(
-                                    bottom: 6,
-                                    right: 8,
-                                  ),
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
                                     vertical: 4,
@@ -299,7 +334,6 @@ class EventSummaryCard extends StatelessWidget {
                                 ),
                               if (keepAliveDays > 0)
                                 Container(
-                                  margin: const EdgeInsets.only(bottom: 6),
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
                                     vertical: 4,
@@ -340,6 +374,7 @@ class EventSummaryCard extends StatelessWidget {
                                 ),
                             ],
                           ),
+                          const SizedBox(height: 6),
                           Text(
                             data['title'] ?? "Untitled Event",
                             style: const TextStyle(
@@ -608,14 +643,27 @@ class EventSummaryCard extends StatelessWidget {
                             children: [
                               Icon(statusIcon, color: statusColor, size: 12),
                               const SizedBox(width: 4),
-                              Text(
-                                statusText,
-                                style: TextStyle(
-                                  color: statusColor,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
+                              // FIX: Wrapped in Flexible to prevent Overflow
+                              Flexible(
+                                child: Text(
+                                  statusText,
+                                  style: TextStyle(
+                                    color: statusColor,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
+                              if (isImportantDetails) ...[
+                                const SizedBox(width: 6),
+                                const Icon(
+                                  Icons.priority_high,
+                                  color: Colors.red,
+                                  size: 12,
+                                ),
+                              ],
                               if (hasUnreadChat) ...[
                                 const SizedBox(width: 8),
                                 Container(
@@ -739,7 +787,9 @@ class _LastMessageSenderAvatarState extends State<LastMessageSenderAvatar> {
   }
 
   Future<void> _fetchSender() async {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     setState(() => _isLoading = true);
 
     try {
@@ -767,13 +817,17 @@ class _LastMessageSenderAvatarState extends State<LastMessageSenderAvatar> {
     } catch (e) {
       debugPrint("Error fetching last message sender: $e");
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading || _senderData == null) return const SizedBox.shrink();
+    if (_isLoading || _senderData == null) {
+      return const SizedBox.shrink();
+    }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? Colors.grey.shade900 : Colors.grey.shade100;
