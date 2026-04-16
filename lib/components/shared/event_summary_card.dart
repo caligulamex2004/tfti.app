@@ -42,7 +42,6 @@ class EventSummaryCard extends StatelessWidget {
     final bool isStartingSoon = item['isStartingSoon'] ?? false;
     final bool isHappeningNow = item['isHappeningNow'];
     final String status = item['status'];
-    //final bool isHidden = inviteData['isHidden'] ?? false;
 
     final bool isVibeCheck = data['type'] == 'vibe_check';
     final bool isPending = status == 'pending';
@@ -587,7 +586,8 @@ class EventSummaryCard extends StatelessWidget {
                               lastMessageSnippet.isNotEmpty)
                             LastMessageSenderAvatar(
                               eventId: eventId,
-                              lastMessageAt: data['lastMessageAt'] as Timestamp,
+                              lastMessageAt:
+                                  data['lastMessageAt'] as Timestamp?,
                             ),
                         ],
                       ),
@@ -598,7 +598,6 @@ class EventSummaryCard extends StatelessWidget {
       ),
     );
 
-    // The Original Compact Landscape Card
     Widget cardToRender;
     if (isLandscape && !isHorizontal) {
       cardToRender = Container(
@@ -827,7 +826,7 @@ class EventSummaryCard extends StatelessWidget {
 
 class LastMessageSenderAvatar extends StatefulWidget {
   final String eventId;
-  final Timestamp lastMessageAt;
+  final Timestamp? lastMessageAt;
 
   const LastMessageSenderAvatar({
     super.key,
@@ -878,10 +877,11 @@ class _LastMessageSenderAvatarState extends State<LastMessageSenderAvatar> {
               .collection('users')
               .doc(senderId)
               .get();
-          if (userDoc.exists && mounted)
+          if (userDoc.exists && mounted) {
             setState(
               () => _senderData = userDoc.data() as Map<String, dynamic>,
             );
+          }
         }
       }
     } catch (e) {
