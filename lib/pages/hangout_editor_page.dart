@@ -16,6 +16,7 @@ import '../components/forms/date_time_row.dart';
 import '../components/forms/team_selection_field.dart';
 import '../components/forms/co_captain_selector.dart';
 import '../components/forms/location_input_field.dart';
+import '../components/forms/important_details_toggle.dart'; // NEW COMPONENT IMPORTED
 
 class HangoutEditorPage extends StatefulWidget {
   final String? eventId;
@@ -535,7 +536,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             validator: (val) => val == null || val.isEmpty ? 'Required' : null,
           ),
           const SizedBox(height: 16),
-          // NEW COMPONENT IMPORTED
           LocationInputField(controller: _locController, isPast: _isPast),
           const SizedBox(height: 16),
           DateTimeRow(
@@ -566,54 +566,13 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             enabled: !_isPast,
           ),
           const SizedBox(height: 16),
-          InkWell(
-            onTap: _isPast
-                ? null
-                : () => setState(
-                    () => _isImportantDetails = !_isImportantDetails,
-                  ),
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: _isImportantDetails
-                      ? Colors.red
-                      : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
-                  width: _isImportantDetails ? 2 : 1,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    _isImportantDetails
-                        ? Icons.gpp_maybe
-                        : Icons.gpp_maybe_outlined,
-                    color: _isImportantDetails
-                        ? Colors.red
-                        : (isDark
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade600),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    "Important Details",
-                    style: TextStyle(
-                      fontWeight: _isImportantDetails
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                      color: _isImportantDetails
-                          ? Colors.red
-                          : (isDark ? Colors.white : Colors.black87),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+
+          ImportantDetailsToggle(
+            isImportant: _isImportantDetails,
+            isPast: _isPast,
+            onChanged: (val) => setState(() => _isImportantDetails = val),
           ),
+
           const SizedBox(height: 24),
           TactileChipRow<int>(
             label: "RSVP Deadline",
