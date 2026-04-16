@@ -767,10 +767,12 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                       (g) => g['uid'] == uid,
                       orElse: () => {
                         'displayName': 'Unknown',
+                        'tag': '',
                         'avatarColor': Colors.blue.toARGB32(),
                       },
                     );
                     final name = guest['displayName'];
+                    final tag = guest['tag'];
                     final String? avatarUrl = guest['avatarUrl'];
                     final color = Color(
                       guest['avatarColor'] ?? Colors.blue.toARGB32(),
@@ -797,6 +799,18 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                         name,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
+                      // FIX: Added the username subtitle
+                      subtitle: tag.isNotEmpty
+                          ? Text(
+                              "@$tag",
+                              style: TextStyle(
+                                color: isDark
+                                    ? Colors.grey.shade400
+                                    : Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
+                            )
+                          : null,
                       trailing: Text(
                         emoji,
                         style: const TextStyle(fontSize: 24),
@@ -833,55 +847,73 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                "Read by",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const Divider(height: 1),
-            if (readBy.isEmpty)
+      builder: (ctx) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
               const Padding(
-                padding: EdgeInsets.all(32.0),
-                child: Text("No one has read this yet."),
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  "Read by",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ),
-            ...readBy.map((guest) {
-              final String? avatarUrl = guest['avatarUrl'];
-              final color = Color(
-                guest['avatarColor'] ?? Colors.blue.toARGB32(),
-              );
-              final name = guest['displayName'];
-              return ListTile(
-                leading: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: color,
-                  backgroundImage: avatarUrl != null
-                      ? CachedNetworkImageProvider(avatarUrl)
-                      : null,
-                  child: avatarUrl == null
+              const Divider(height: 1),
+              if (readBy.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: Text("No one has read this yet."),
+                ),
+              ...readBy.map((guest) {
+                final String? avatarUrl = guest['avatarUrl'];
+                final color = Color(
+                  guest['avatarColor'] ?? Colors.blue.toARGB32(),
+                );
+                final name = guest['displayName'];
+                final tag = guest['tag'];
+
+                return ListTile(
+                  leading: CircleAvatar(
+                    radius: 16,
+                    backgroundColor: color,
+                    backgroundImage: avatarUrl != null
+                        ? CachedNetworkImageProvider(avatarUrl)
+                        : null,
+                    child: avatarUrl == null
+                        ? Text(
+                            name[0].toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          )
+                        : null,
+                  ),
+                  title: Text(
+                    name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  // FIX: Added the username subtitle
+                  subtitle: tag != null && tag.isNotEmpty
                       ? Text(
-                          name[0].toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
+                          "@$tag",
+                          style: TextStyle(
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
                             fontSize: 12,
                           ),
                         )
                       : null,
-                ),
-                title: Text(
-                  name,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -932,7 +964,6 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                 final messages = snapshot.data!.docs;
 
                 // --- PRE-CALCULATE FACE PILES ---
-                // Maps messageId -> List of guests who read it as their LATEST message
                 Map<String, List<Map<String, dynamic>>> latestReadReceipts = {};
 
                 for (var guest in _eventGuests) {
@@ -942,15 +973,13 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                       final data = doc.data() as Map<String, dynamic>;
                       final msgTime = data['timestamp'] as Timestamp?;
 
-                      // Find the FIRST message (newest) that this user has read
                       if (msgTime != null &&
                           lastRead.seconds >= msgTime.seconds) {
-                        // Don't show a read receipt if they sent the message
                         if (guest['uid'] != data['senderId']) {
                           latestReadReceipts[doc.id] ??= [];
                           latestReadReceipts[doc.id]!.add(guest);
                         }
-                        break; // Stop looking! Only pin the face to the newest one.
+                        break;
                       }
                     }
                   }
@@ -971,7 +1000,7 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                         data['senderId'] ==
                         FirebaseAuth.instance.currentUser?.uid;
 
-                    // NORMALIZER: Cleanses bad data from old schema versions
+                    // NORMALIZER
                     final rawReactions = Map<String, dynamic>.from(
                       data['reactions'] ?? {},
                     );
@@ -979,7 +1008,6 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                       rawReactions,
                     );
 
-                    // Fetch the pre-calculated read receipts for THIS message only
                     final readBy = latestReadReceipts[doc.id] ?? [];
 
                     return MessageBubble(
