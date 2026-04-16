@@ -11,12 +11,11 @@ import '../utils/theme_provider.dart';
 import '../components/shared/rpg_glass_card.dart';
 import '../components/shared/banner_picker.dart';
 import '../components/forms/custom_input_field.dart';
-import '../components/forms/tactile_chip_row.dart';
 import '../components/forms/date_time_row.dart';
 import '../components/forms/team_selection_field.dart';
 import '../components/forms/co_captain_selector.dart';
 import '../components/forms/location_input_field.dart';
-import '../components/forms/important_details_toggle.dart'; // NEW COMPONENT IMPORTED
+import '../components/forms/extras_form_card.dart';
 
 class HangoutEditorPage extends StatefulWidget {
   final String? eventId;
@@ -550,71 +549,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     );
   }
 
-  Widget _buildExtrasCard(bool isDark, Color primaryColor) {
-    return RpgGlassCard(
-      title: "The Extras",
-      icon: Icons.auto_awesome,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CustomInputField(
-            controller: _detailsController,
-            label: "Details / Description",
-            prefixIcon: Icons.notes,
-            prefixIconColor: isDark ? Colors.grey.shade400 : Colors.grey,
-            maxLines: 3,
-            enabled: !_isPast,
-          ),
-          const SizedBox(height: 16),
-
-          ImportantDetailsToggle(
-            isImportant: _isImportantDetails,
-            isPast: _isPast,
-            onChanged: (val) => setState(() => _isImportantDetails = val),
-          ),
-
-          const SizedBox(height: 24),
-          TactileChipRow<int>(
-            label: "RSVP Deadline",
-            icon: Icons.timer_off_outlined,
-            options: const [
-              {'label': 'On time', 'value': 0},
-              {'label': '30 mins before', 'value': -30},
-              {'label': '1 hr before', 'value': -60},
-              {'label': '2 hrs before', 'value': -120},
-              {'label': '4 hrs before', 'value': -240},
-              {'label': '24 hrs before', 'value': -1440},
-            ],
-            selectedValue: _rsvpDeadlineOffset,
-            onSelected: _isPast
-                ? (v) {}
-                : (v) => setState(() => _rsvpDeadlineOffset = v),
-          ),
-          const SizedBox(height: 24),
-          TactileChipRow<int>(
-            label: "Active for...",
-            icon: Icons.timelapse,
-            options: const [
-              {'label': 'A few hours', 'value': 0},
-              {'label': '1 Day', 'value': 1},
-              {'label': '2 Days', 'value': 2},
-              {'label': '3 Days', 'value': 3},
-              {'label': '4 Days', 'value': 4},
-              {'label': '5 Days', 'value': 5},
-              {'label': '1 Week', 'value': 7},
-              {'label': '10 Days', 'value': 10},
-              {'label': '2 Weeks', 'value': 14},
-            ],
-            selectedValue: _keepAliveDays,
-            onSelected: _isPast
-                ? (v) {}
-                : (v) => setState(() => _keepAliveDays = v),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildCrewCard(bool isDark, Color primaryColor) {
     return RpgGlassCard(
       title: "The Crew",
@@ -797,7 +731,30 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                   Expanded(
                                     child: Column(
                                       children: [
-                                        _buildExtrasCard(isDark, primaryColor),
+                                        ExtrasFormCard(
+                                          detailsController: _detailsController,
+                                          isPast: _isPast,
+                                          isImportantDetails:
+                                              _isImportantDetails,
+                                          rsvpDeadlineOffset:
+                                              _rsvpDeadlineOffset,
+                                          keepAliveDays: _keepAliveDays,
+                                          onImportantChanged: (val) {
+                                            setState(() {
+                                              _isImportantDetails = val;
+                                            });
+                                          },
+                                          onRsvpChanged: (val) {
+                                            setState(() {
+                                              _rsvpDeadlineOffset = val;
+                                            });
+                                          },
+                                          onKeepAliveChanged: (val) {
+                                            setState(() {
+                                              _keepAliveDays = val;
+                                            });
+                                          },
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -821,7 +778,28 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                 },
                               ),
                               _buildVitalsCard(isDark, primaryColor),
-                              _buildExtrasCard(isDark, primaryColor),
+                              ExtrasFormCard(
+                                detailsController: _detailsController,
+                                isPast: _isPast,
+                                isImportantDetails: _isImportantDetails,
+                                rsvpDeadlineOffset: _rsvpDeadlineOffset,
+                                keepAliveDays: _keepAliveDays,
+                                onImportantChanged: (val) {
+                                  setState(() {
+                                    _isImportantDetails = val;
+                                  });
+                                },
+                                onRsvpChanged: (val) {
+                                  setState(() {
+                                    _rsvpDeadlineOffset = val;
+                                  });
+                                },
+                                onKeepAliveChanged: (val) {
+                                  setState(() {
+                                    _keepAliveDays = val;
+                                  });
+                                },
+                              ),
                               _buildCrewCard(isDark, primaryColor),
                               const SizedBox(height: 12),
                               _buildSubmitButton(primaryColor, submitText),
