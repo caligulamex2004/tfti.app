@@ -18,13 +18,13 @@ class MessageBubble extends StatelessWidget {
   final Timestamp currentMsgTime;
   final bool isMe;
   final String? myUid;
-  final Map<String, dynamic> reactions;
+  final Map<String, List<String>> reactions;
   final List<Map<String, dynamic>> readBy;
   final List<Map<String, dynamic>> eventGuests;
 
   final VoidCallback onOptionsTap;
   final VoidCallback onReadByTap;
-  final Function(Map<String, dynamic>) onReactionsTap;
+  final Function(Map<String, List<String>>) onReactionsTap;
 
   const MessageBubble({
     super.key,
@@ -103,12 +103,15 @@ class MessageBubble extends StatelessWidget {
       String displayText = fullTag;
 
       try {
-        final guest = eventGuests.firstWhere(
-          (g) => (g['tag'] as String).toLowerCase() == tagWithoutAt,
-        );
+        // FIX: Cross reference against the REAL username/tag
+        final guest = eventGuests.firstWhere((g) {
+          final String realTag = g['tag'] ?? '';
+          return realTag.toLowerCase() == tagWithoutAt;
+        });
+
         if (mentionedUids.contains(guest['uid'])) {
           isRealMention = true;
-          displayText = "@${guest['name']}";
+          displayText = "@${guest['displayName']}";
           if (guest['uid'] == myUid) isMentioningMe = true;
         }
       } catch (_) {}
@@ -166,13 +169,17 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildReactionsWidget(BuildContext context, bool isDark) {
-    Map<String, int> counts = {};
-    for (var emoji in reactions.values) {
-      counts[emoji as String] = (counts[emoji] ?? 0) + 1;
-    }
+    List<String> displayEmojis = [];
+    int total = 0;
 
-    List<String> displayEmojis = counts.keys.toList();
-    int total = reactions.length;
+    reactions.forEach((emoji, usersList) {
+      if (usersList.isNotEmpty) {
+        displayEmojis.add(emoji);
+        total += usersList.length;
+      }
+    });
+
+    if (displayEmojis.isEmpty) return const SizedBox.shrink();
 
     return GestureDetector(
       onTap: () => onReactionsTap(reactions),
@@ -219,6 +226,9 @@ class MessageBubble extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: readBy.map((guest) {
         final String? avatarUrl = guest['avatarUrl'];
+        final int colorValue = guest['avatarColor'] ?? Colors.blue.toARGB32();
+        final String name = guest['displayName'] ?? '?';
+
         return Container(
           margin: const EdgeInsets.only(left: 2),
           decoration: BoxDecoration(
@@ -230,13 +240,13 @@ class MessageBubble extends StatelessWidget {
           ),
           child: CircleAvatar(
             radius: 7,
-            backgroundColor: Color(guest['color']),
+            backgroundColor: Color(colorValue),
             backgroundImage: avatarUrl != null
                 ? CachedNetworkImageProvider(avatarUrl)
                 : null,
             child: avatarUrl == null
                 ? Text(
-                    guest['name'][0].toUpperCase(),
+                    name.isNotEmpty ? name[0].toUpperCase() : '?',
                     style: const TextStyle(
                       fontSize: 8,
                       color: Colors.white,

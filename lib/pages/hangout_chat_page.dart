@@ -1,10 +1,14 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 
 // --- UTILS & COMPONENTS ---
 import '../utils/theme_provider.dart';
@@ -31,81 +35,498 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
   final _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
 
-  bool _isUploadingImage = false;
-  Map<String, dynamic>? _eventData;
+  String? _mentionQuery;
   List<Map<String, dynamic>> _eventGuests = [];
+  bool _isUploadingImage = false;
+  bool _isMuted = false;
+
+  StreamSubscription<QuerySnapshot>? _invitationsSub;
+  StreamSubscription<DocumentSnapshot>? _eventSub;
+  Map<String, dynamic>? _eventData;
 
   @override
   void initState() {
     super.initState();
-    _loadEventData();
-    _loadGuests();
+    _listenToEventData();
+    _listenToInvitations();
+    _messageController.addListener(_onTextChanged);
     _markChatAsRead();
   }
 
   @override
   void dispose() {
+    _messageController.removeListener(_onTextChanged);
     _messageController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
+    _invitationsSub?.cancel();
+    _eventSub?.cancel();
     super.dispose();
   }
 
-  // --- DATABASE SYNC METHODS ---
-
-  Future<void> _loadEventData() async {
-    final doc = await FirebaseFirestore.instance
-        .collection('events')
-        .doc(widget.eventId)
-        .get();
-    if (doc.exists && mounted) {
-      setState(() => _eventData = doc.data());
-    }
+  // --- DATA NORMALIZER (SELF-HEALS OLD FIRESTORE BUGS) ---
+  Map<String, List<String>> _normalizeReactions(Map<String, dynamic> raw) {
+    Map<String, List<String>> normalized = {};
+    raw.forEach((key, value) {
+      if (value is List) {
+        // Modern Format: { "🔥": ["uid1", "uid2"] }
+        normalized[key] = List<String>.from(value);
+      } else if (value is String) {
+        // Legacy Format: { "uid1": "🔥" }
+        final String emoji = value;
+        final String uid = key;
+        if (!normalized.containsKey(emoji)) {
+          normalized[emoji] = [];
+        }
+        if (!normalized[emoji]!.contains(uid)) {
+          normalized[emoji]!.add(uid);
+        }
+      }
+    });
+    return normalized;
   }
 
-  Future<void> _loadGuests() async {
-    final snap = await FirebaseFirestore.instance
+  // --- REAL-TIME LISTENERS ---
+
+  void _listenToEventData() {
+    _eventSub = FirebaseFirestore.instance
+        .collection('events')
+        .doc(widget.eventId)
+        .snapshots()
+        .listen((doc) {
+          if (doc.exists && mounted) {
+            setState(() {
+              _eventData = doc.data() as Map<String, dynamic>;
+            });
+          }
+        });
+  }
+
+  void _listenToInvitations() {
+    _invitationsSub = FirebaseFirestore.instance
         .collection('events')
         .doc(widget.eventId)
         .collection('invitations')
-        .get();
-    List<Map<String, dynamic>> guests = [];
+        .snapshots()
+        .listen((snapshot) async {
+          List<Map<String, dynamic>> guests = [];
+          final currentUser = FirebaseAuth.instance.currentUser;
 
-    for (var doc in snap.docs) {
-      final uid = doc.id;
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
-      if (userDoc.exists) {
-        final userData = userDoc.data()!;
-        guests.add({
-          'uid': uid,
-          'name': userData['displayName'] ?? 'Unknown',
-          'tag': userData['username'] ?? '',
-          'avatarUrl': userData['avatarUrl'],
-          'color': userData['avatarColor'] ?? Colors.blue.toARGB32(),
+          for (var doc in snapshot.docs) {
+            final data = doc.data();
+            if (currentUser != null && doc.id == currentUser.uid) {
+              if (mounted) {
+                setState(() {
+                  _isMuted = data['isMuted'] ?? false;
+                });
+              }
+            }
+            try {
+              final userDoc = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(doc.id)
+                  .get();
+              if (userDoc.exists) {
+                final userData = userDoc.data() as Map<String, dynamic>;
+                final String displayName = userData['displayName'] ?? 'Unknown';
+
+                // FIX: Retrieve the real username, or provide a clean fallback
+                final String realUsername =
+                    userData['username'] ??
+                    displayName.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+
+                guests.add({
+                  'uid': doc.id,
+                  'displayName': displayName,
+                  'tag': realUsername,
+                  'avatarUrl': userData['avatarUrl'],
+                  'avatarColor':
+                      userData['avatarColor'] ?? Colors.blue.toARGB32(),
+                  'status': data['status'],
+                  'lastReadChat': data['lastReadChat'],
+                });
+              }
+            } catch (e) {
+              debugPrint("Error fetching user data for chat guest: $e");
+            }
+          }
+
+          if (mounted) {
+            setState(() {
+              _eventGuests = guests;
+            });
+          }
         });
-      }
-    }
-    if (mounted) setState(() => _eventGuests = guests);
   }
 
-  Future<void> _markChatAsRead() async {
+  // --- MUTE & READ RECEIPTS ---
+
+  Future<void> _toggleMute() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+
+    HapticFeedback.lightImpact();
+    setState(() => _isMuted = !_isMuted);
 
     await FirebaseFirestore.instance
         .collection('events')
         .doc(widget.eventId)
         .collection('invitations')
         .doc(user.uid)
-        .set({
-          'lastReadChat': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        .update({'isMuted': _isMuted});
   }
 
-  // --- ACTION METHODS ---
+  Future<void> _markChatAsRead() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    await FirebaseFirestore.instance
+        .collection('events')
+        .doc(widget.eventId)
+        .collection('invitations')
+        .doc(user.uid)
+        .update({'lastReadChat': FieldValue.serverTimestamp()});
+  }
+
+  // --- MENTIONS LOGIC ---
+
+  void _onTextChanged() {
+    final text = _messageController.text;
+    final cursorPosition = _messageController.selection.base.offset;
+
+    if (cursorPosition >= 0 && cursorPosition <= text.length) {
+      final textBeforeCursor = text.substring(0, cursorPosition);
+      final words = textBeforeCursor.split(RegExp(r'\s+'));
+      final lastWord = words.isNotEmpty ? words.last : '';
+
+      if (lastWord.startsWith('@')) {
+        setState(() {
+          _mentionQuery = lastWord.substring(1).toLowerCase();
+        });
+        return;
+      }
+    }
+
+    if (_mentionQuery != null) {
+      setState(() => _mentionQuery = null);
+    }
+  }
+
+  void _insertMention(String usernameTag) {
+    final text = _messageController.text;
+    final cursorPosition = _messageController.selection.base.offset;
+    final textBeforeCursor = text.substring(0, cursorPosition);
+    final textAfterCursor = text.substring(cursorPosition);
+
+    final words = textBeforeCursor.split(RegExp(r'\s+'));
+    words.removeLast(); // Remove the partial query (e.g. '@jo')
+
+    // FIX: We insert the real '@username' with NO spaces so the Regex handles it cleanly
+    final newTextBeforeCursor = words.isEmpty
+        ? '@$usernameTag '
+        : '${words.join(' ')} @$usernameTag ';
+
+    _messageController.text = newTextBeforeCursor + textAfterCursor;
+    _messageController.selection = TextSelection.fromPosition(
+      TextPosition(offset: newTextBeforeCursor.length),
+    );
+
+    setState(() => _mentionQuery = null);
+    _focusNode.requestFocus();
+  }
+
+  Widget _buildMentionsList() {
+    if (_mentionQuery == null) return const SizedBox.shrink();
+
+    final filteredGuests = _eventGuests.where((g) {
+      final name = (g['displayName'] as String).toLowerCase();
+      final tag = (g['tag'] as String).toLowerCase();
+      return (name.contains(_mentionQuery!) || tag.contains(_mentionQuery!)) &&
+          g['status'] != 'declined';
+    }).toList();
+
+    if (filteredGuests.isEmpty) return const SizedBox.shrink();
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 200),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: ListView.builder(
+        shrinkWrap: true,
+        itemCount: filteredGuests.length,
+        itemBuilder: (context, index) {
+          final guest = filteredGuests[index];
+          final String name = guest['displayName'];
+          final String tag = guest['tag'];
+          final String? avatarUrl = guest['avatarUrl'];
+          final Color avatarColor = Color(guest['avatarColor']);
+
+          return ListTile(
+            leading: CircleAvatar(
+              radius: 16,
+              backgroundColor: avatarColor,
+              backgroundImage: avatarUrl != null
+                  ? CachedNetworkImageProvider(avatarUrl)
+                  : null,
+              child: avatarUrl == null
+                  ? Text(
+                      name[0].toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
+                  : null,
+            ),
+            title: Text(
+              name,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              "@$tag",
+              style: TextStyle(
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                fontSize: 12,
+              ),
+            ),
+            // FIX: Pass the real username 'tag' down to the insert function
+            onTap: () => _insertMention(tag),
+          );
+        },
+      ),
+    );
+  }
+
+  // --- QUICK ACTIONS LOGIC ---
+
+  void _triggerMentionAction() {
+    final text = _messageController.text;
+    if (!text.endsWith('@')) {
+      _messageController.text = text.isEmpty ? '@' : '$text @';
+    }
+    _focusNode.requestFocus();
+  }
+
+  void _sendOmw() {
+    _messageController.text = "On my way! 🏃‍♂️💨";
+    _sendMessage();
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile == null) return;
+
+    setState(() => _isUploadingImage = true);
+    try {
+      final File file = File(pickedFile.path);
+      final bytes = await file.readAsBytes();
+      final compressedBytes = await FlutterImageCompress.compressWithList(
+        bytes,
+        minWidth: 800,
+        minHeight: 800,
+        quality: 80,
+      );
+
+      final String fileName =
+          'chat_images/${widget.eventId}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final Reference ref = FirebaseStorage.instance.ref().child(fileName);
+      await ref.putData(
+        compressedBytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+      final String downloadUrl = await ref.getDownloadURL();
+
+      await _sendMessage(imageUrl: downloadUrl);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Image upload failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingImage = false);
+    }
+  }
+
+  void _showDibsSheet() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final currentUser = FirebaseAuth.instance.currentUser!;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  "Squad Needs",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('events')
+                      .doc(widget.eventId)
+                      .collection('roles')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final roles = snapshot.data!.docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return data['claimedByUid'] == null;
+                    }).toList();
+
+                    if (roles.isEmpty) {
+                      return const Center(
+                        child: Text("Everything is covered! 🎉"),
+                      );
+                    }
+
+                    return ListView.builder(
+                      itemCount: roles.length,
+                      itemBuilder: (context, index) {
+                        final roleDoc = roles[index];
+                        final roleData = roleDoc.data() as Map<String, dynamic>;
+                        return ListTile(
+                          leading: Icon(Icons.pan_tool, color: primaryColor),
+                          title: Text(
+                            roleData['title'],
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          trailing: ElevatedButton(
+                            onPressed: () async {
+                              HapticFeedback.mediumImpact();
+                              Navigator.pop(ctx);
+
+                              final userDoc = await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(currentUser.uid)
+                                  .get();
+                              final myName =
+                                  userDoc.data()?['displayName'] ?? "Someone";
+
+                              await roleDoc.reference.update({
+                                'claimedByUid': currentUser.uid,
+                                'claimedByName': myName,
+                              });
+
+                              _messageController.text =
+                                  "I call dibs on bringing: ${roleData['title']}!";
+                              _sendMessage();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryColor,
+                              foregroundColor: Colors.white,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            child: const Text("Claim"),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showBringItemDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("I'm bringing..."),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(hintText: "e.g. A pack of sodas"),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () async {
+              final text = controller.text.trim();
+              if (text.isEmpty) return;
+              Navigator.pop(ctx);
+
+              final currentUser = FirebaseAuth.instance.currentUser!;
+              final userDoc = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(currentUser.uid)
+                  .get();
+              final myName = userDoc.data()?['displayName'] ?? "Someone";
+
+              await FirebaseFirestore.instance
+                  .collection('events')
+                  .doc(widget.eventId)
+                  .collection('roles')
+                  .add({
+                    'title': text,
+                    'createdAt': FieldValue.serverTimestamp(),
+                    'addedBy': currentUser.uid,
+                    'claimedByUid': currentUser.uid,
+                    'claimedByName': myName,
+                  });
+
+              _messageController.text = "I'm bringing: $text!";
+              _sendMessage();
+            },
+            child: const Text(
+              "Announce",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- CHAT LOGIC ---
 
   Future<void> _sendMessage({String? imageUrl}) async {
     final text = _messageController.text.trim();
@@ -115,121 +536,366 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
     if (user == null) return;
 
     _messageController.clear();
+    setState(() => _mentionQuery = null);
 
-    // Find Mentions
-    final RegExp mentionRegex = RegExp(r"\B@[a-zA-Z0-9_]+");
-    final matches = mentionRegex.allMatches(text);
-    List<String> mentionedUids = [];
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final userData = userDoc.data() as Map<String, dynamic>;
 
-    for (var match in matches) {
-      final tagWithoutAt = match.group(0)!.substring(1).toLowerCase();
-      try {
-        final guest = _eventGuests.firstWhere(
-          (g) => (g['tag'] as String).toLowerCase() == tagWithoutAt,
-        );
-        mentionedUids.add(guest['uid']);
-      } catch (_) {}
-    }
+      List<String> mentionedUids = [];
+      final words = text.split(RegExp(r'\s+'));
+      for (var word in words) {
+        if (word.startsWith('@')) {
+          final queryName = word
+              .substring(1)
+              .toLowerCase()
+              .replaceAll(RegExp(r'[^\w\s]'), '');
+          for (var guest in _eventGuests) {
+            // FIX: Strict match the username tag
+            final tag = (guest['tag'] as String).toLowerCase();
+            if (tag == queryName) {
+              mentionedUids.add(guest['uid']);
+            }
+          }
+        }
+      }
 
-    final batch = FirebaseFirestore.instance.batch();
-    final eventRef = FirebaseFirestore.instance
-        .collection('events')
-        .doc(widget.eventId);
-    final msgRef = eventRef.collection('messages').doc();
+      await FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.eventId)
+          .collection('messages')
+          .add({
+            'senderId': user.uid,
+            'senderName': userData['displayName'] ?? 'Unknown',
+            'senderAvatarUrl': userData['avatarUrl'],
+            'senderColor': userData['avatarColor'] ?? Colors.blue.toARGB32(),
+            'text': text,
+            'imageUrl': imageUrl,
+            'timestamp': FieldValue.serverTimestamp(),
+            'mentionedUids': mentionedUids.toSet().toList(), // Unique IDs
+          });
 
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
-    final userData = userDoc.data() ?? {};
+      await FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.eventId)
+          .update({
+            'lastMessageAt': FieldValue.serverTimestamp(),
+            'lastMessageSnippet': imageUrl != null
+                ? '📷 Image'
+                : text.substring(0, text.length > 30 ? 30 : text.length),
+          });
 
-    batch.set(msgRef, {
-      'text': text,
-      'imageUrl': imageUrl,
-      'senderId': user.uid,
-      'senderName': userData['displayName'] ?? 'Someone',
-      'senderColor': userData['avatarColor'] ?? Colors.blue.toARGB32(),
-      'senderAvatarUrl': userData['avatarUrl'],
-      'timestamp': FieldValue.serverTimestamp(),
-      'mentionedUids': mentionedUids,
-      'reactions': {},
-      'readBy': [user.uid],
-    });
-
-    batch.update(eventRef, {
-      'lastMessageAt': FieldValue.serverTimestamp(),
-      'lastMessageSnippet': imageUrl != null ? '📷 Image' : text,
-      'lastMessageMentions': mentionedUids,
-    });
-
-    await batch.commit();
-    _markChatAsRead();
-
-    if (_scrollController.hasClients) {
       _scrollController.animateTo(
-        0,
+        0.0,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
-    }
-  }
 
-  Future<void> _pickAndUploadImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile == null) return;
-
-    setState(() => _isUploadingImage = true);
-
-    try {
-      final File file = File(pickedFile.path);
-      final bytes = await file.readAsBytes();
-      final compressedBytes = await FlutterImageCompress.compressWithList(
-        bytes,
-        minWidth: 800,
-        minHeight: 800,
-        quality: 75,
-      );
-
-      final String fileName =
-          'chat_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final ref = FirebaseStorage.instance.ref().child(
-        'chat_images/${widget.eventId}/$fileName',
-      );
-
-      await ref.putData(
-        compressedBytes,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-      final url = await ref.getDownloadURL();
-
-      await _sendMessage(imageUrl: url);
+      _markChatAsRead();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Upload failed: $e")));
-      }
-    } finally {
-      if (mounted) setState(() => _isUploadingImage = false);
+      debugPrint("Error sending message: $e");
     }
   }
 
-  // --- QUICK ACTION HANDLERS ---
+  // --- MESSAGE OPTIONS & REACTIONS ---
 
-  void _insertText(String textToInsert) {
-    final currentText = _messageController.text;
-    _messageController.text = currentText.isEmpty
-        ? textToInsert
-        : "$currentText $textToInsert";
-    _focusNode.requestFocus();
+  void _showMessageOptions(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final isMe = data['senderId'] == FirebaseAuth.instance.currentUser?.uid;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.add_reaction_outlined),
+              title: const Text("Add Reaction"),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showEmojiPicker(doc);
+              },
+            ),
+            if (data['text'] != null && (data['text'] as String).isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.copy),
+                title: const Text("Copy Text"),
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: data['text']));
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Copied to clipboard")),
+                  );
+                },
+              ),
+            if (isMe)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text(
+                  "Delete Message",
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await doc.reference.delete();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEmojiPicker(DocumentSnapshot doc) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      builder: (ctx) {
+        return SafeArea(
+          child: SizedBox(
+            height: 300,
+            child: EmojiPicker(
+              onEmojiSelected: (category, emoji) async {
+                Navigator.pop(ctx);
+                final user = FirebaseAuth.instance.currentUser;
+                if (user == null) return;
+
+                final docRef = FirebaseFirestore.instance
+                    .collection('events')
+                    .doc(widget.eventId)
+                    .collection('messages')
+                    .doc(doc.id);
+
+                await FirebaseFirestore.instance.runTransaction((
+                  transaction,
+                ) async {
+                  final freshDoc = await transaction.get(docRef);
+                  if (!freshDoc.exists) return;
+
+                  final data = freshDoc.data() as Map<String, dynamic>;
+                  final rawReactions = Map<String, dynamic>.from(
+                    data['reactions'] ?? {},
+                  );
+                  final normalized = _normalizeReactions(rawReactions);
+
+                  bool userAlreadyHadThisEmoji = false;
+
+                  // Force ONE reaction per user total
+                  normalized.forEach((key, list) {
+                    if (key == emoji.emoji && list.contains(user.uid)) {
+                      userAlreadyHadThisEmoji = true;
+                    }
+                    list.remove(user.uid);
+                  });
+
+                  normalized.removeWhere((key, list) => list.isEmpty);
+
+                  if (!userAlreadyHadThisEmoji) {
+                    if (!normalized.containsKey(emoji.emoji)) {
+                      normalized[emoji.emoji] = [];
+                    }
+                    normalized[emoji.emoji]!.add(user.uid);
+                  }
+
+                  transaction.update(docRef, {'reactions': normalized});
+                });
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showReactionsDetailsSheet(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final rawReactions = Map<String, dynamic>.from(data['reactions'] ?? {});
+    final reactions = _normalizeReactions(rawReactions);
+
+    if (reactions.isEmpty) return;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                "Reactions",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const Divider(height: 1),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: reactions.entries.expand((entry) {
+                  final emoji = entry.key;
+                  final uids = entry.value;
+
+                  return uids.map((uid) {
+                    final guest = _eventGuests.firstWhere(
+                      (g) => g['uid'] == uid,
+                      orElse: () => {
+                        'displayName': 'Unknown',
+                        'avatarColor': Colors.blue.toARGB32(),
+                      },
+                    );
+                    final name = guest['displayName'];
+                    final String? avatarUrl = guest['avatarUrl'];
+                    final color = Color(
+                      guest['avatarColor'] ?? Colors.blue.toARGB32(),
+                    );
+
+                    return ListTile(
+                      leading: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: color,
+                        backgroundImage: avatarUrl != null
+                            ? CachedNetworkImageProvider(avatarUrl)
+                            : null,
+                        child: avatarUrl == null
+                            ? Text(
+                                name[0].toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                              )
+                            : null,
+                      ),
+                      title: Text(
+                        name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      trailing: Text(
+                        emoji,
+                        style: const TextStyle(fontSize: 24),
+                      ),
+                    );
+                  }).toList();
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showReadBySheet(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final msgTime = data['timestamp'] as Timestamp?;
+    if (msgTime == null) return;
+
+    List<Map<String, dynamic>> readBy = [];
+    for (var guest in _eventGuests) {
+      if (guest['uid'] != data['senderId']) {
+        final lastRead = guest['lastReadChat'] as Timestamp?;
+        if (lastRead != null && lastRead.seconds >= msgTime.seconds) {
+          readBy.add(guest);
+        }
+      }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                "Read by",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const Divider(height: 1),
+            if (readBy.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(32.0),
+                child: Text("No one has read this yet."),
+              ),
+            ...readBy.map((guest) {
+              final String? avatarUrl = guest['avatarUrl'];
+              final color = Color(
+                guest['avatarColor'] ?? Colors.blue.toARGB32(),
+              );
+              final name = guest['displayName'];
+              return ListTile(
+                leading: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: color,
+                  backgroundImage: avatarUrl != null
+                      ? CachedNetworkImageProvider(avatarUrl)
+                      : null,
+                  child: avatarUrl == null
+                      ? Text(
+                          name[0].toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
+                        )
+                      : null,
+                ),
+                title: Text(
+                  name,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -243,13 +909,20 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
         flexibleSpace: Container(
           decoration: BoxDecoration(gradient: themeProvider.appGradient),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _isMuted ? Icons.notifications_off : Icons.notifications,
+            ),
+            onPressed: _toggleMute,
+            tooltip: _isMuted ? "Unmute Chat" : "Mute Chat",
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // 1. Pinned Header
           if (_eventData != null) PinnedContextCard(eventData: _eventData!),
 
-          // 2. Chat Stream
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -259,9 +932,6 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                   .orderBy('timestamp', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const Center(child: Text("Error loading chat."));
-                }
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
@@ -272,54 +942,62 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                   controller: _scrollController,
                   reverse: true,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 16,
+                    horizontal: 16,
+                    vertical: 8,
                   ),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    final msg = messages[index].data() as Map<String, dynamic>;
+                    final doc = messages[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    final isMe =
+                        data['senderId'] ==
+                        FirebaseAuth.instance.currentUser?.uid;
 
-                    // Decode Read Receipts
-                    List<String> readByUids = List<String>.from(
-                      msg['readBy'] ?? [],
+                    // NORMALIZER: Cleanses bad data from old schema versions
+                    final rawReactions = Map<String, dynamic>.from(
+                      data['reactions'] ?? {},
                     );
-                    List<Map<String, dynamic>> readByProfiles = [];
-                    for (String uid in readByUids) {
-                      if (uid == msg['senderId'] || uid == user?.uid) continue;
-                      try {
-                        final g = _eventGuests.firstWhere(
-                          (g) => g['uid'] == uid,
-                        );
-                        readByProfiles.add(g);
-                      } catch (_) {}
+                    final normalizedReactions = _normalizeReactions(
+                      rawReactions,
+                    );
+
+                    // Calculate real-time Read Receipts
+                    List<Map<String, dynamic>> readBy = [];
+                    final msgTime = data['timestamp'] as Timestamp?;
+                    if (msgTime != null) {
+                      for (var guest in _eventGuests) {
+                        if (guest['uid'] != data['senderId']) {
+                          final lastRead = guest['lastReadChat'] as Timestamp?;
+                          if (lastRead != null &&
+                              lastRead.seconds >= msgTime.seconds) {
+                            readBy.add(guest);
+                          }
+                        }
+                      }
                     }
 
                     return MessageBubble(
-                      messageId: messages[index].id,
-                      text: msg['text'] ?? '',
-                      imageUrl: msg['imageUrl'],
-                      senderName: msg['senderName'] ?? 'Unknown',
-                      senderColor: msg['senderColor'] ?? Colors.blue.toARGB32(),
-                      senderId: msg['senderId'] ?? '',
-                      senderAvatarUrl: msg['senderAvatarUrl'],
-                      mentionedUids: List<dynamic>.from(
-                        msg['mentionedUids'] ?? [],
+                      messageId: doc.id,
+                      text: data['text'] ?? '',
+                      imageUrl: data['imageUrl'],
+                      senderName: data['senderName'] ?? 'Unknown',
+                      senderColor:
+                          data['senderColor'] ?? Colors.blue.toARGB32(),
+                      senderId: data['senderId'],
+                      senderAvatarUrl: data['senderAvatarUrl'],
+                      mentionedUids: List<String>.from(
+                        data['mentionedUids'] ?? [],
                       ),
-                      currentMsgTime: msg['timestamp'] ?? Timestamp.now(),
-                      isMe: msg['senderId'] == user?.uid,
-                      myUid: user?.uid,
-                      reactions: msg['reactions'] ?? {},
-                      readBy: readByProfiles,
+                      currentMsgTime: data['timestamp'] ?? Timestamp.now(),
+                      isMe: isMe,
+                      myUid: FirebaseAuth.instance.currentUser?.uid,
+                      reactions: normalizedReactions,
+                      readBy: readBy,
                       eventGuests: _eventGuests,
-                      onOptionsTap: () {
-                        // TODO: Implement Delete/Copy dialog
-                      },
-                      onReadByTap: () {
-                        // TODO: Implement Mark as unread/Read list
-                      },
-                      onReactionsTap: (reactions) {
-                        // TODO: Implement Reaction Viewer
-                      },
+                      onOptionsTap: () => _showMessageOptions(doc),
+                      onReadByTap: () => _showReadBySheet(doc),
+                      onReactionsTap: (reactions) =>
+                          _showReactionsDetailsSheet(doc),
                     );
                   },
                 );
@@ -327,44 +1005,32 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
             ),
           ),
 
-          // 3. Quick Actions
+          // Mentions Pop-up Overlay
+          _buildMentionsList(),
+
           ChatQuickActions(
-            onMention: () => _insertText("@"),
-            onPhoto: _pickAndUploadImage,
-            onOmw: () => _insertText("I'm on my way! 🚗"),
-            onDibs: () => _insertText("I call dibs on "),
-            onBringItem: () => _insertText("I'm bringing "),
+            onMention: _triggerMentionAction,
+            onPhoto: _pickImage,
+            onOmw: _sendOmw,
+            onDibs: _showDibsSheet,
+            onBringItem: _showBringItemDialog,
           ),
 
-          // 4. Input Field
+          // The Input Field
           Container(
-            padding: EdgeInsets.only(
-              left: 12,
-              right: 12,
-              top: 8,
-              bottom: MediaQuery.of(context).padding.bottom > 0
-                  ? MediaQuery.of(context).padding.bottom
-                  : 12,
-            ),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
-                  offset: const Offset(0, -2),
+                  offset: const Offset(0, -5),
                 ),
               ],
             ),
             child: Row(
               children: [
-                IconButton(
-                  icon: Icon(
-                    Icons.add_photo_alternate,
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                  ),
-                  onPressed: _isUploadingImage ? null : _pickAndUploadImage,
-                ),
                 Expanded(
                   child: TextField(
                     controller: _messageController,
@@ -373,12 +1039,7 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                     maxLines: 4,
                     minLines: 1,
                     decoration: InputDecoration(
-                      hintText: "Send a message...",
-                      hintStyle: TextStyle(
-                        color: isDark
-                            ? Colors.grey.shade500
-                            : Colors.grey.shade400,
-                      ),
+                      hintText: "Type a message...",
                       filled: true,
                       fillColor: isDark
                           ? Colors.grey.shade900
