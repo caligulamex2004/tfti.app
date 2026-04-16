@@ -85,7 +85,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
       if (_scrollController.hasClients) {
         bool isCollapsed = _scrollController.offset > 140;
         if (isCollapsed != _isAppBarCollapsed) {
-          setState(() => _isAppBarCollapsed = isCollapsed);
+          setState(() {
+            _isAppBarCollapsed = isCollapsed;
+          });
         }
       }
     });
@@ -101,7 +103,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
 
   Future<void> _markDetailsAsViewed() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      return;
+    }
     await FirebaseFirestore.instance
         .collection('events')
         .doc(widget.eventId)
@@ -125,7 +129,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
 
   Future<void> _rsvp(String status) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      return;
+    }
 
     final eventRef = FirebaseFirestore.instance
         .collection('events')
@@ -153,7 +159,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
             .collection('users')
             .doc(user.uid)
             .get();
-        if (userDoc.data()?['autoExportCalendar'] == true) _pushToCalendar();
+        if (userDoc.data()?['autoExportCalendar'] == true) {
+          _pushToCalendar();
+        }
       } catch (e) {
         debugPrint("Error checking calendar preference: $e");
       }
@@ -167,7 +175,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
     String guestName,
   ) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      return;
+    }
 
     try {
       await FirebaseFirestore.instance
@@ -193,7 +203,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
 
   Future<void> _reportUser(String reportedUid, String reportedName) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      return;
+    }
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final confirm = await showDialog<bool>(
@@ -219,7 +231,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
       ),
     );
 
-    if (confirm != true) return;
+    if (confirm != true) {
+      return;
+    }
 
     try {
       await FirebaseFirestore.instance.collection('reports').add({
@@ -275,7 +289,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
             .doc(uid)
             .get();
 
-        if (!userSnap.exists) return null;
+        if (!userSnap.exists) {
+          return null;
+        }
         final userData = userSnap.data() as Map<String, dynamic>;
 
         return {
@@ -320,7 +336,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
       int weightA = statusWeight[a['status']] ?? 3;
       int weightB = statusWeight[b['status']] ?? 3;
 
-      if (weightA != weightB) return weightA.compareTo(weightB);
+      if (weightA != weightB) {
+        return weightA.compareTo(weightB);
+      }
       return (a['displayName'] as String).toLowerCase().compareTo(
         (b['displayName'] as String).toLowerCase(),
       );
@@ -332,7 +350,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
   void _pushToCalendar() {
     final data = widget.eventData;
     final Timestamp? ts = data['time'];
-    if (ts == null) return;
+    if (ts == null) {
+      return;
+    }
 
     final DateTime startTime = ts.toDate();
     final DateTime endTime = startTime.add(const Duration(hours: 2));
@@ -354,7 +374,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
   Widget _buildAlertBanner(BuildContext context, Map<String, dynamic> data) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final change = data['latestCriticalChange'] as Map<String, dynamic>?;
-    if (change == null) return const SizedBox.shrink();
+    if (change == null) {
+      return const SizedBox.shrink();
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -717,7 +739,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
   @override
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return const SizedBox();
+    if (currentUser == null) {
+      return const SizedBox();
+    }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
@@ -753,6 +777,8 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                     final inviteDocs = crewSnap.data?.docs ?? [];
 
                     final bool isVibeCheck = data['type'] == 'vibe_check';
+                    final bool isImportantDetails =
+                        data['isImportantDetails'] == true;
                     final bool isMainHost = data['hostId'] == currentUser.uid;
                     final bool isCoHost = data['coHostId'] == currentUser.uid;
                     final bool canEdit = isMainHost || isCoHost;
@@ -1701,47 +1727,112 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              if (isVibeCheck)
-                                                Container(
-                                                  margin: const EdgeInsets.only(
-                                                    bottom: 8,
-                                                  ),
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 10,
-                                                        vertical: 4,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.black
-                                                        .withValues(alpha: 0.3),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          20,
-                                                        ),
-                                                  ),
-                                                  child: const Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        Symbols.earthquake,
-                                                        color: Colors.white,
-                                                        size: 14,
-                                                      ),
-                                                      SizedBox(width: 6),
-                                                      Text(
-                                                        "VIBE CHECK",
-                                                        style: TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 10,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          letterSpacing: 1.5,
+                                              Wrap(
+                                                spacing: 8,
+                                                runSpacing: 8,
+                                                children: [
+                                                  if (isImportantDetails)
+                                                    Container(
+                                                      margin:
+                                                          const EdgeInsets.only(
+                                                            bottom: 8,
+                                                          ),
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 10,
+                                                            vertical: 4,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.red
+                                                            .withValues(
+                                                              alpha: 0.8,
+                                                            ),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              20,
+                                                            ),
+                                                        border: Border.all(
+                                                          color: Colors.white
+                                                              .withValues(
+                                                                alpha: 0.5,
+                                                              ),
                                                         ),
                                                       ),
-                                                    ],
-                                                  ),
-                                                ),
+                                                      child: const Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Icon(
+                                                            Icons.priority_high,
+                                                            color: Colors.white,
+                                                            size: 14,
+                                                          ),
+                                                          SizedBox(width: 6),
+                                                          Text(
+                                                            "READ DETAILS",
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontSize: 10,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              letterSpacing:
+                                                                  1.5,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  if (isVibeCheck)
+                                                    Container(
+                                                      margin:
+                                                          const EdgeInsets.only(
+                                                            bottom: 8,
+                                                          ),
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 10,
+                                                            vertical: 4,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.black
+                                                            .withValues(
+                                                              alpha: 0.3,
+                                                            ),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              20,
+                                                            ),
+                                                      ),
+                                                      child: const Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Icon(
+                                                            Symbols.earthquake,
+                                                            color: Colors.white,
+                                                            size: 14,
+                                                          ),
+                                                          SizedBox(width: 6),
+                                                          Text(
+                                                            "VIBE CHECK",
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontSize: 10,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              letterSpacing:
+                                                                  1.5,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
                                               Text(
                                                 data['title'] ??
                                                     "Untitled Event",
