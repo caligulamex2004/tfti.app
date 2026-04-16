@@ -15,7 +15,7 @@ import '../components/forms/tactile_chip_row.dart';
 import '../components/forms/date_time_row.dart';
 import '../components/forms/team_selection_field.dart';
 import '../components/forms/co_captain_selector.dart';
-import 'places_search_page.dart';
+import '../components/forms/location_input_field.dart';
 
 class HangoutEditorPage extends StatefulWidget {
   final String? eventId;
@@ -54,15 +54,12 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
   String? _bannerImagePath;
   bool _removeBanner = false;
 
-  // --- RESTORED LOGIC STATE ---
+  // Co-Captain State
   String? _selectedCoHostId;
   String? _selectedCoHostName;
   String? _selectedCoHostUsername;
   String? _selectedCoHostAvatarUrl;
   int? _selectedCoHostAvatarColor;
-
-  bool _isLocFavorite = false;
-  String? _favoriteDocId;
 
   @override
   void initState() {
@@ -120,10 +117,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             ),
           );
       _isPast = (data['isPast'] == true) || DateTime.now().isAfter(endTime);
-
-      if (_locController.text.isNotEmpty) {
-        _checkFavoriteStatus();
-      }
     } else {
       // --- CREATE MODE INITIALIZATION ---
       _isMainHost = true;
@@ -140,123 +133,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     }
   }
 
-  // --- RESTORED LOCATION LOGIC ---
-  Future<void> _checkFavoriteStatus() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || _locController.text.isEmpty) {
-      return;
-    }
-
-    final query = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('favorite_places')
-        .where('address', isEqualTo: _locController.text)
-        .limit(1)
-        .get();
-
-    if (mounted) {
-      setState(() {
-        _isLocFavorite = query.docs.isNotEmpty;
-        _favoriteDocId = query.docs.isNotEmpty ? query.docs.first.id : null;
-      });
-    }
-  }
-
-  Future<void> _toggleFavoriteStatus() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || _locController.text.isEmpty) {
-      return;
-    }
-
-    HapticFeedback.lightImpact();
-
-    if (_isLocFavorite && _favoriteDocId != null) {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('favorite_places')
-          .doc(_favoriteDocId)
-          .delete();
-
-      setState(() {
-        _isLocFavorite = false;
-        _favoriteDocId = null;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Removed from Goated Places")),
-        );
-      }
-    } else {
-      final isDark = Theme.of(context).brightness == Brightness.dark;
-      final defaultName = _locController.text.split(',').first;
-      final nameController = TextEditingController(text: defaultName);
-
-      final confirmedName = await showDialog<String>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text("Save Goated Place"),
-          content: TextField(
-            controller: nameController,
-            autofocus: true,
-            textCapitalization: TextCapitalization.words,
-            decoration: InputDecoration(
-              hintText: "Give this spot a name...",
-              filled: true,
-              fillColor: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text("Cancel"),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, nameController.text.trim()),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.primary,
-              ),
-              child: const Text(
-                "Save",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-      );
-
-      if (confirmedName == null || confirmedName.isEmpty) {
-        return;
-      }
-
-      final docRef = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('favorite_places')
-          .add({
-            'name': confirmedName,
-            'address': _locController.text,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-
-      setState(() {
-        _isLocFavorite = true;
-        _favoriteDocId = docRef.id;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Added to Goated Places! 🐐")),
-        );
-      }
-    }
-  }
-
-  // --- RESTORED DELETE LOGIC ---
+  // --- DELETE LOGIC ---
   Future<void> _deleteEvent() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -368,21 +245,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     _locController.dispose();
     _detailsController.dispose();
     super.dispose();
-  }
-
-  Future<void> _selectLocation() async {
-    final selectedAddress = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const PlacesSearchPage(showFavorites: true),
-      ),
-    );
-    if (selectedAddress != null && mounted) {
-      setState(() {
-        _locController.text = selectedAddress;
-      });
-      _checkFavoriteStatus();
-    }
   }
 
   Future<void> _submitEvent() async {
@@ -673,36 +535,8 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             validator: (val) => val == null || val.isEmpty ? 'Required' : null,
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: CustomInputField(
-                  controller: _locController,
-                  label: "Location",
-                  hint: "Tap to search address...",
-                  prefixIcon: Icons.location_on,
-                  prefixIconColor: isDark ? Colors.redAccent : Colors.red,
-                  readOnly: true,
-                  enabled: !_isPast,
-                  onTap: _isPast ? null : _selectLocation,
-                  validator: (val) =>
-                      val == null || val.isEmpty ? 'Required' : null,
-                ),
-              ),
-              if (_locController.text.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(left: 8.0),
-                  child: IconButton(
-                    icon: Icon(
-                      _isLocFavorite ? Icons.star : Icons.star_border,
-                      color: Colors.amber,
-                      size: 32,
-                    ),
-                    onPressed: _isPast ? null : _toggleFavoriteStatus,
-                  ),
-                ),
-            ],
-          ),
+          // NEW COMPONENT IMPORTED
+          LocationInputField(controller: _locController, isPast: _isPast),
           const SizedBox(height: 16),
           DateTimeRow(
             selectedDate: _selectedDate,
