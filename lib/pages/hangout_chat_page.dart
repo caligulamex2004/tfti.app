@@ -69,10 +69,8 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
     Map<String, List<String>> normalized = {};
     raw.forEach((key, value) {
       if (value is List) {
-        // Modern Format: { "🔥": ["uid1", "uid2"] }
         normalized[key] = List<String>.from(value);
       } else if (value is String) {
-        // Legacy Format: { "uid1": "🔥" }
         final String emoji = value;
         final String uid = key;
         if (!normalized.containsKey(emoji)) {
@@ -130,7 +128,6 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                 final userData = userDoc.data() as Map<String, dynamic>;
                 final String displayName = userData['displayName'] ?? 'Unknown';
 
-                // FIX: Retrieve the real username, or provide a clean fallback
                 final String realUsername =
                     userData['username'] ??
                     displayName.toLowerCase().replaceAll(RegExp(r'\s+'), '');
@@ -218,9 +215,8 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
     final textAfterCursor = text.substring(cursorPosition);
 
     final words = textBeforeCursor.split(RegExp(r'\s+'));
-    words.removeLast(); // Remove the partial query (e.g. '@jo')
+    words.removeLast();
 
-    // FIX: We insert the real '@username' with NO spaces so the Regex handles it cleanly
     final newTextBeforeCursor = words.isEmpty
         ? '@$usernameTag '
         : '${words.join(' ')} @$usernameTag ';
@@ -304,7 +300,6 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                 fontSize: 12,
               ),
             ),
-            // FIX: Pass the real username 'tag' down to the insert function
             onTap: () => _insertMention(tag),
           );
         },
@@ -448,7 +443,7 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                               });
 
                               _messageController.text =
-                                  "I call dibs on bringing: ${roleData['title']}!";
+                                  "I call dibs on ${roleData['title']}! 🙋";
                               _sendMessage();
                             },
                             style: ElevatedButton.styleFrom(
@@ -513,7 +508,7 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                     'claimedByName': myName,
                   });
 
-              _messageController.text = "I'm bringing: $text!";
+              _messageController.text = "I'm bringing $text! 🛒";
               _sendMessage();
             },
             child: const Text(
@@ -554,7 +549,6 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
               .toLowerCase()
               .replaceAll(RegExp(r'[^\w\s]'), '');
           for (var guest in _eventGuests) {
-            // FIX: Strict match the username tag
             final tag = (guest['tag'] as String).toLowerCase();
             if (tag == queryName) {
               mentionedUids.add(guest['uid']);
@@ -699,7 +693,6 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
 
                   bool userAlreadyHadThisEmoji = false;
 
-                  // Force ONE reaction per user total
                   normalized.forEach((key, list) {
                     if (key == emoji.emoji && list.contains(user.uid)) {
                       userAlreadyHadThisEmoji = true;
@@ -938,6 +931,31 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
 
                 final messages = snapshot.data!.docs;
 
+                // --- PRE-CALCULATE FACE PILES ---
+                // Maps messageId -> List of guests who read it as their LATEST message
+                Map<String, List<Map<String, dynamic>>> latestReadReceipts = {};
+
+                for (var guest in _eventGuests) {
+                  final lastRead = guest['lastReadChat'] as Timestamp?;
+                  if (lastRead != null) {
+                    for (var doc in messages) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final msgTime = data['timestamp'] as Timestamp?;
+
+                      // Find the FIRST message (newest) that this user has read
+                      if (msgTime != null &&
+                          lastRead.seconds >= msgTime.seconds) {
+                        // Don't show a read receipt if they sent the message
+                        if (guest['uid'] != data['senderId']) {
+                          latestReadReceipts[doc.id] ??= [];
+                          latestReadReceipts[doc.id]!.add(guest);
+                        }
+                        break; // Stop looking! Only pin the face to the newest one.
+                      }
+                    }
+                  }
+                }
+
                 return ListView.builder(
                   controller: _scrollController,
                   reverse: true,
@@ -961,20 +979,8 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                       rawReactions,
                     );
 
-                    // Calculate real-time Read Receipts
-                    List<Map<String, dynamic>> readBy = [];
-                    final msgTime = data['timestamp'] as Timestamp?;
-                    if (msgTime != null) {
-                      for (var guest in _eventGuests) {
-                        if (guest['uid'] != data['senderId']) {
-                          final lastRead = guest['lastReadChat'] as Timestamp?;
-                          if (lastRead != null &&
-                              lastRead.seconds >= msgTime.seconds) {
-                            readBy.add(guest);
-                          }
-                        }
-                      }
-                    }
+                    // Fetch the pre-calculated read receipts for THIS message only
+                    final readBy = latestReadReceipts[doc.id] ?? [];
 
                     return MessageBubble(
                       messageId: doc.id,
