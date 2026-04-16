@@ -24,33 +24,6 @@ class _HomePageState extends State<HomePage> {
   bool _showHidden = false;
   FeedFilter _selectedFilter = FeedFilter.thisWeek;
 
-  Future<void> _quickRSVP(String eventId, String status) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    await FirebaseFirestore.instance
-        .collection('events')
-        .doc(eventId)
-        .collection('invitations')
-        .doc(user.uid)
-        .set({
-          'uid': user.uid,
-          'status': status,
-          'respondedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-
-    if (mounted) {
-      final msg = status == 'going' ? "You're in! 🎉" : "You're missing out...";
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          duration: const Duration(seconds: 1),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
   Future<void> _toggleHideStatus(String eventId, bool currentlyHidden) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -199,7 +172,6 @@ class _HomePageState extends State<HomePage> {
         HapticFeedback.heavyImpact();
         _toggleHideStatus(eventId, isHidden);
       },
-      onQuickRSVP: _quickRSVP,
       onHostTap: (hostId, hostData) =>
           _handleHostTap(hostId, hostData, goatedUids, blockedUids),
     );

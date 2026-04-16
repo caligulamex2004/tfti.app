@@ -30,6 +30,8 @@ class _SquadPageState extends State<SquadPage> {
   String _statusMessage = "";
   bool _sortByScore = true;
 
+  final Set<String> _removedFriendUids = {};
+
   @override
   void dispose() {
     _phoneController.dispose();
@@ -889,7 +891,13 @@ class _SquadPageState extends State<SquadPage> {
                 if (!friendsSnap.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final List<Map<String, dynamic>> friends = friendsSnap.data!;
+
+                // Filter out optimistically removed friends immediately
+                final List<Map<String, dynamic>> friends = friendsSnap.data!
+                    .where(
+                      (friend) => !_removedFriendUids.contains(friend['uid']),
+                    )
+                    .toList();
 
                 if (friends.isEmpty) {
                   return Center(
@@ -1113,29 +1121,47 @@ class _SquadPageState extends State<SquadPage> {
                                       ),
                                     );
                                   },
-                                  onDismissed: (direction) async {
-                                    try {
-                                      await FirebaseFirestore.instance
-                                          .collection('users')
-                                          .doc(myUid)
-                                          .collection('friends')
-                                          .doc(uid)
-                                          .delete();
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              "$displayName was removed from your squad.",
+                                  onDismissed: (direction) {
+                                    // Instantly hide the friend from the UI locally
+                                    setState(() {
+                                      _removedFriendUids.add(uid);
+                                    });
+
+                                    // Capture the ScaffoldMessenger before the async gap
+                                    final messenger = ScaffoldMessenger.of(
+                                      context,
+                                    );
+
+                                    // Run the database delete in the background
+                                    FirebaseFirestore.instance
+                                        .collection('users')
+                                        .doc(myUid)
+                                        .collection('friends')
+                                        .doc(uid)
+                                        .delete()
+                                        .then((_) {
+                                          // Safely use the captured messenger without needing context
+                                          messenger.showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                "$displayName was removed from your squad.",
+                                              ),
+                                              behavior:
+                                                  SnackBarBehavior.floating,
                                             ),
-                                            behavior: SnackBarBehavior.floating,
-                                          ),
-                                        );
-                                      }
-                                    } catch (e) {
-                                      debugPrint("Error removing friend: $e");
-                                    }
+                                          );
+                                        })
+                                        .catchError((e) {
+                                          debugPrint(
+                                            "Error removing friend: $e",
+                                          );
+                                          // Optional fallback: put them back if it fails
+                                          if (mounted) {
+                                            setState(() {
+                                              _removedFriendUids.remove(uid);
+                                            });
+                                          }
+                                        });
                                   },
                                   child: Container(
                                     decoration: BoxDecoration(

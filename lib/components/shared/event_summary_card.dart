@@ -13,7 +13,6 @@ class EventSummaryCard extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
-  final Function(String, String) onQuickRSVP;
   final Function(String hostId, Map<String, dynamic> hostData)? onHostTap;
 
   const EventSummaryCard({
@@ -25,7 +24,6 @@ class EventSummaryCard extends StatelessWidget {
     required this.isSelected,
     required this.onTap,
     required this.onLongPress,
-    required this.onQuickRSVP,
     this.onHostTap,
   });
 
@@ -101,8 +99,8 @@ class EventSummaryCard extends StatelessWidget {
       statusIcon = isVibeCheck ? Icons.how_to_vote : Symbols.mail;
     }
 
-    final Timestamp? lastMsgTime = data['lastMessageAt'];
-    final Timestamp? lastReadTime = inviteData['lastReadChat'];
+    final Timestamp? lastMsgTime = data['lastMessageAt'] as Timestamp?;
+    final Timestamp? lastReadTime = inviteData['lastReadChat'] as Timestamp?;
     bool hasUnreadChat =
         lastMsgTime != null &&
         (lastReadTime == null || lastMsgTime.seconds > lastReadTime.seconds);
@@ -457,84 +455,34 @@ class EventSummaryCard extends StatelessWidget {
                   horizontal: 16,
                   vertical: 12,
                 ),
-                child: isHorizontal && isPending
-                    ? (isVibeCheck
-                          ? Row(
-                              children: [
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      HapticFeedback.lightImpact();
-                                      onTap();
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: primaryColor,
-                                      foregroundColor:
-                                          themeProvider.onPrimaryColor,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      "Vote Now",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            )
-                          : Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: () =>
-                                        onQuickRSVP(eventId, 'declined'),
-                                    style: OutlinedButton.styleFrom(
-                                      side: BorderSide(
-                                        color: Colors.red.withValues(
-                                          alpha: 0.5,
-                                        ),
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      "Decline",
-                                      style: TextStyle(
-                                        color: Colors.red,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      HapticFeedback.mediumImpact();
-                                      onQuickRSVP(eventId, 'going');
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: primaryColor,
-                                      foregroundColor:
-                                          themeProvider.onPrimaryColor,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      "I'm In!",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ))
+                child: isPending
+                    // Clean, animated Call to Action instead of dangerous inline buttons
+                    ? Row(
+                        children: [
+                          Icon(
+                            isVibeCheck ? Icons.how_to_vote : Symbols.mail,
+                            color: primaryColor,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            isVibeCheck
+                                ? "Tap to cast your vote"
+                                : "Tap to RSVP",
+                            style: TextStyle(
+                              color: primaryColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const Spacer(),
+                          Icon(
+                            Icons.arrow_forward,
+                            color: primaryColor,
+                            size: 16,
+                          ),
+                        ],
+                      )
                     : Row(
                         children: [
                           if (hasUnreadChat)
@@ -707,74 +655,41 @@ class EventSummaryCard extends StatelessWidget {
                     ),
                   ],
                 ),
+                // Dynamic Call to Action for Landscape List
                 if (isPending) ...[
                   const SizedBox(height: 12),
-                  if (isVibeCheck)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: onTap,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryColor,
-                          foregroundColor: themeProvider.onPrimaryColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        child: const Text(
-                          "Vote Now",
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: primaryColor.withValues(alpha: 0.3),
                       ),
-                    )
-                  else
-                    Row(
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => onQuickRSVP(eventId, 'declined'),
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(
-                                color: Colors.red.withValues(alpha: 0.5),
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                            child: const Text(
-                              "Decline",
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+                        Icon(
+                          isVibeCheck ? Icons.how_to_vote : Symbols.mail,
+                          color: primaryColor,
+                          size: 16,
                         ),
                         const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              HapticFeedback.mediumImpact();
-                              onQuickRSVP(eventId, 'going');
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryColor,
-                              foregroundColor: themeProvider.onPrimaryColor,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                            child: const Text(
-                              "I'm In!",
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
+                        Text(
+                          isVibeCheck ? "Tap to Vote" : "Tap to RSVP",
+                          style: TextStyle(
+                            color: primaryColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
                           ),
                         ),
                       ],
                     ),
+                  ),
                 ],
               ],
             ),
@@ -785,42 +700,7 @@ class EventSummaryCard extends StatelessWidget {
       cardToRender = heroCard;
     }
 
-    if (isHorizontal) return cardToRender;
-
-    return Dismissible(
-      key: Key(eventId),
-      direction: isPast ? DismissDirection.none : DismissDirection.horizontal,
-      background: Container(
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 24.0),
-        margin: const EdgeInsets.only(bottom: 24),
-        decoration: BoxDecoration(
-          color: Colors.green,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: const Icon(Symbols.thumb_up, color: Colors.white, size: 36),
-      ),
-      secondaryBackground: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 24.0),
-        margin: const EdgeInsets.only(bottom: 24),
-        decoration: BoxDecoration(
-          color: Colors.red,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: const Icon(Symbols.thumb_down, color: Colors.white, size: 36),
-      ),
-      confirmDismiss: (direction) async {
-        HapticFeedback.mediumImpact();
-        if (direction == DismissDirection.startToEnd) {
-          await onQuickRSVP(eventId, 'going');
-        } else if (direction == DismissDirection.endToStart) {
-          await onQuickRSVP(eventId, 'declined');
-        }
-        return false;
-      },
-      child: cardToRender,
-    );
+    return cardToRender;
   }
 }
 
