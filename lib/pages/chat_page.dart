@@ -17,21 +17,17 @@ import '../components/chat/mentions_overlay.dart';
 import '../components/chat/chat_action_dialogs.dart';
 import '../components/chat/chat_feed.dart';
 
-class HangoutChatPage extends StatefulWidget {
+class ChatPage extends StatefulWidget {
   final String eventId;
   final String eventTitle;
 
-  const HangoutChatPage({
-    super.key,
-    required this.eventId,
-    required this.eventTitle,
-  });
+  const ChatPage({super.key, required this.eventId, required this.eventTitle});
 
   @override
-  State<HangoutChatPage> createState() => _HangoutChatPageState();
+  State<ChatPage> createState() => _ChatPageState();
 }
 
-class _HangoutChatPageState extends State<HangoutChatPage> {
+class _ChatPageState extends State<ChatPage> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();

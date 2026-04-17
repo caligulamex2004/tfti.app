@@ -1628,7 +1628,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                               onPressed: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => HangoutChatPage(
+                                  builder: (context) => ChatPage(
                                     eventId: widget.eventId,
                                     eventTitle: data['title'] ?? "Chat",
                                   ),

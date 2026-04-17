@@ -439,8 +439,7 @@ Future<void> handleNotificationRouting(Map<String, dynamic> data) async {
     if (type == 'chat' || type == 'chat_mention') {
       navigatorKey.currentState?.push(
         MaterialPageRoute(
-          builder: (_) =>
-              HangoutChatPage(eventId: eventId, eventTitle: eventTitle),
+          builder: (_) => ChatPage(eventId: eventId, eventTitle: eventTitle),
         ),
       );
     } else {
