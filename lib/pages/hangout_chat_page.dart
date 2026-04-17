@@ -17,6 +17,7 @@ import '../components/chat/chat_quick_actions.dart';
 import '../components/chat/message_bubble.dart';
 import '../components/chat/chat_input_field.dart';
 import '../components/chat/mentions_overlay.dart';
+import '../components/chat/chat_action_dialogs.dart';
 
 class HangoutChatPage extends StatefulWidget {
   final String eventId;
@@ -293,171 +294,31 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
   }
 
   void _showDibsSheet() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) {
-      return;
-    }
-
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 10),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text(
-                  "Squad Needs",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('events')
-                      .doc(widget.eventId)
-                      .collection('roles')
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final roles = snapshot.data!.docs.where((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      return data['claimedByUid'] == null;
-                    }).toList();
-
-                    if (roles.isEmpty) {
-                      return const Center(
-                        child: Text("Everything is covered! 🎉"),
-                      );
-                    }
-
-                    return ListView.builder(
-                      itemCount: roles.length,
-                      itemBuilder: (context, index) {
-                        final roleDoc = roles[index];
-                        final roleData = roleDoc.data() as Map<String, dynamic>;
-                        return ListTile(
-                          leading: Icon(Icons.pan_tool, color: primaryColor),
-                          title: Text(
-                            roleData['title'],
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          trailing: ElevatedButton(
-                            onPressed: () async {
-                              HapticFeedback.mediumImpact();
-                              Navigator.pop(ctx);
-
-                              final userDoc = await FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(currentUser.uid)
-                                  .get();
-                              final myName =
-                                  userDoc.data()?['displayName'] ?? "Someone";
-
-                              await roleDoc.reference.update({
-                                'claimedByUid': currentUser.uid,
-                                'claimedByName': myName,
-                              });
-
-                              _messageController.text =
-                                  "I call dibs on ${roleData['title']}! 🙋";
-                              _sendMessage();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryColor,
-                              foregroundColor: Colors.white,
-                              visualDensity: VisualDensity.compact,
-                            ),
-                            child: const Text("Claim"),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+      builder: (ctx) => SquadDibsSheet(
+        eventId: widget.eventId,
+        onClaimed: (title) {
+          _messageController.text = "I call dibs on $title! 🙋";
+          _sendMessage();
+        },
+      ),
     );
   }
 
   void _showBringItemDialog() {
-    final controller = TextEditingController();
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("I'm bringing..."),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(hintText: "e.g. A pack of sodas"),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () async {
-              final text = controller.text.trim();
-              if (text.isEmpty) {
-                return;
-              }
-              Navigator.pop(ctx);
-
-              final currentUser = FirebaseAuth.instance.currentUser;
-              if (currentUser == null) {
-                return;
-              }
-              final userDoc = await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(currentUser.uid)
-                  .get();
-              final myName = userDoc.data()?['displayName'] ?? "Someone";
-
-              await FirebaseFirestore.instance
-                  .collection('events')
-                  .doc(widget.eventId)
-                  .collection('roles')
-                  .add({
-                    'title': text,
-                    'createdAt': FieldValue.serverTimestamp(),
-                    'addedBy': currentUser.uid,
-                    'claimedByUid': currentUser.uid,
-                    'claimedByName': myName,
-                  });
-
-              _messageController.text = "I'm bringing $text! 🛒";
-              _sendMessage();
-            },
-            child: const Text(
-              "Announce",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
+      builder: (ctx) => BringItemDialog(
+        eventId: widget.eventId,
+        onAnnounce: (title) {
+          _messageController.text = "I'm bringing $title! 🛒";
+          _sendMessage();
+        },
       ),
     );
   }
