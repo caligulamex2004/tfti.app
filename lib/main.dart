@@ -11,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_app_badger/flutter_app_badger.dart';
 
 import 'pages/login_page.dart';
-import 'pages/hangout_chat_page.dart';
+import 'pages/chat_page.dart';
 import 'pages/hangout_details_page.dart';
 import 'pages/squad_page.dart';
 import 'pages/teams_page.dart';

@@ -10,7 +10,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // --- PAGES ---
-import 'hangout_chat_page.dart';
+import 'chat_page.dart';
 import 'hangout_editor_page.dart';
 import 'vibe_check_editor_page.dart';
 
