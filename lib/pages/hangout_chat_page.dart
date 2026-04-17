@@ -15,6 +15,7 @@ import '../utils/theme_provider.dart';
 import '../components/chat/pinned_context_card.dart';
 import '../components/chat/chat_quick_actions.dart';
 import '../components/chat/message_bubble.dart';
+import '../components/chat/chat_input_field.dart';
 
 class HangoutChatPage extends StatefulWidget {
   final String eventId;
@@ -160,7 +161,9 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
 
   Future<void> _toggleMute() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      return;
+    }
 
     HapticFeedback.lightImpact();
     setState(() => _isMuted = !_isMuted);
@@ -175,7 +178,9 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
 
   Future<void> _markChatAsRead() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      return;
+    }
     await FirebaseFirestore.instance
         .collection('events')
         .doc(widget.eventId)
@@ -231,7 +236,9 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
   }
 
   Widget _buildMentionsList() {
-    if (_mentionQuery == null) return const SizedBox.shrink();
+    if (_mentionQuery == null) {
+      return const SizedBox.shrink();
+    }
 
     final filteredGuests = _eventGuests.where((g) {
       final name = (g['displayName'] as String).toLowerCase();
@@ -240,7 +247,9 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
           g['status'] != 'declined';
     }).toList();
 
-    if (filteredGuests.isEmpty) return const SizedBox.shrink();
+    if (filteredGuests.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -325,7 +334,9 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile == null) return;
+    if (pickedFile == null) {
+      return;
+    }
 
     setState(() => _isUploadingImage = true);
     try {
@@ -486,7 +497,9 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
           TextButton(
             onPressed: () async {
               final text = controller.text.trim();
-              if (text.isEmpty) return;
+              if (text.isEmpty) {
+                return;
+              }
               Navigator.pop(ctx);
 
               final currentUser = FirebaseAuth.instance.currentUser!;
@@ -525,10 +538,14 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
 
   Future<void> _sendMessage({String? imageUrl}) async {
     final text = _messageController.text.trim();
-    if (text.isEmpty && imageUrl == null) return;
+    if (text.isEmpty && imageUrl == null) {
+      return;
+    }
 
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      return;
+    }
 
     _messageController.clear();
     setState(() => _mentionQuery = null);
@@ -671,7 +688,9 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
               onEmojiSelected: (category, emoji) async {
                 Navigator.pop(ctx);
                 final user = FirebaseAuth.instance.currentUser;
-                if (user == null) return;
+                if (user == null) {
+                  return;
+                }
 
                 final docRef = FirebaseFirestore.instance
                     .collection('events')
@@ -683,7 +702,9 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                   transaction,
                 ) async {
                   final freshDoc = await transaction.get(docRef);
-                  if (!freshDoc.exists) return;
+                  if (!freshDoc.exists) {
+                    return;
+                  }
 
                   final data = freshDoc.data() as Map<String, dynamic>;
                   final rawReactions = Map<String, dynamic>.from(
@@ -724,7 +745,9 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
     final rawReactions = Map<String, dynamic>.from(data['reactions'] ?? {});
     final reactions = _normalizeReactions(rawReactions);
 
-    if (reactions.isEmpty) return;
+    if (reactions.isEmpty) {
+      return;
+    }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -799,7 +822,6 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                         name,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      // FIX: Added the username subtitle
                       subtitle: tag.isNotEmpty
                           ? Text(
                               "@$tag",
@@ -829,7 +851,9 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
   void _showReadBySheet(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     final msgTime = data['timestamp'] as Timestamp?;
-    if (msgTime == null) return;
+    if (msgTime == null) {
+      return;
+    }
 
     List<Map<String, dynamic>> readBy = [];
     for (var guest in _eventGuests) {
@@ -896,7 +920,6 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                     name,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  // FIX: Added the username subtitle
                   subtitle: tag != null && tag.isNotEmpty
                       ? Text(
                           "@$tag",
@@ -919,9 +942,6 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
-
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -1050,71 +1070,11 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
             onBringItem: _showBringItemDialog,
           ),
 
-          // The Input Field
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    focusNode: _focusNode,
-                    textCapitalization: TextCapitalization.sentences,
-                    maxLines: 4,
-                    minLines: 1,
-                    decoration: InputDecoration(
-                      hintText: "Type a message...",
-                      filled: true,
-                      fillColor: isDark
-                          ? Colors.grey.shade900
-                          : Colors.grey.shade100,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _isUploadingImage
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    : Container(
-                        decoration: BoxDecoration(
-                          color: primaryColor,
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.send,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                          onPressed: () => _sendMessage(),
-                        ),
-                      ),
-              ],
-            ),
+          ChatInputField(
+            controller: _messageController,
+            focusNode: _focusNode,
+            isUploadingImage: _isUploadingImage,
+            onSend: _sendMessage,
           ),
         ],
       ),
