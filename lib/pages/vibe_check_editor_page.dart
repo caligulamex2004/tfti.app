@@ -9,8 +9,9 @@ import '../components/forms/custom_input_field.dart';
 import '../components/forms/tactile_chip_row.dart';
 import '../components/forms/date_time_row.dart';
 import '../components/forms/vibe_options_card.dart';
+import '../components/forms/team_selection_field.dart';
+import '../components/forms/vibe_host_actions_card.dart';
 import 'places_search_page.dart';
-import 'teams_page.dart'; // Needed for CircleMembersPage routing
 
 class VibeCheckEditorPage extends StatefulWidget {
   final String? eventId;
@@ -157,195 +158,6 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
     setState(() {
       (_pollOptions[index]['location'] as TextEditingController).clear();
     });
-  }
-
-  // --- RESTORED CREW LOGIC ---
-  void _showCreateCircleImpromptu() {
-    final nameController = TextEditingController();
-    final primaryColor = Theme.of(context).colorScheme.primary;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("New Team"),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          maxLength: 30,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            hintText: "e.g. Work Besties",
-            border: OutlineInputBorder(),
-            counterText: "",
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.trim().isEmpty) {
-                return;
-              }
-              final name = nameController.text.trim();
-              final user = FirebaseAuth.instance.currentUser!;
-
-              final docRef = await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user.uid)
-                  .collection('circles')
-                  .add({
-                    'name': name,
-                    'createdAt': FieldValue.serverTimestamp(),
-                  });
-
-              if (!ctx.mounted) {
-                return;
-              }
-              Navigator.pop(ctx); // Close Dialog
-
-              if (!mounted) {
-                return;
-              }
-
-              setState(() {
-                _selectedCircleIds.add(docRef.id);
-                _inviteAll = false;
-              });
-
-              Navigator.pop(context); // Close the Circle selection sheet
-
-              // Open the team builder page!
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CircleMembersPage(
-                    circleId: docRef.id,
-                    circleName: name,
-                    autoOpenAddMembers: true,
-                  ),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: themeProvider.onPrimaryColor,
-            ),
-            child: const Text("Create"),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showCircleDialog(List<DocumentSnapshot> circles) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            return AlertDialog(
-              backgroundColor: Theme.of(context).cardColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              title: const Text("Who's getting the feeler?"),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SwitchListTile(
-                      activeThumbColor: primaryColor,
-                      title: const Text(
-                        "Entire Squad",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      value: _inviteAll,
-                      onChanged: (val) {
-                        setDialogState(() {
-                          _inviteAll = val;
-                          if (val) {
-                            _selectedCircleIds.clear();
-                          }
-                        });
-                        setState(() {});
-                      },
-                    ),
-                    Divider(
-                      color: isDark
-                          ? Colors.grey.shade800
-                          : Colors.grey.shade200,
-                    ),
-                    if (circles.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Text("No teams created yet."),
-                      ),
-                    ...circles.map((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      final isChecked = _selectedCircleIds.contains(doc.id);
-                      return SwitchListTile(
-                        activeThumbColor: primaryColor,
-                        title: Text(data['name'] ?? 'Unnamed'),
-                        value: isChecked,
-                        onChanged: (val) {
-                          setDialogState(() {
-                            if (val) {
-                              _selectedCircleIds.add(doc.id);
-                              _inviteAll = false;
-                            } else {
-                              _selectedCircleIds.remove(doc.id);
-                              if (_selectedCircleIds.isEmpty) {
-                                _inviteAll = true;
-                              }
-                            }
-                          });
-                          setState(() {});
-                        },
-                      );
-                    }),
-                    const SizedBox(height: 8),
-                    Divider(
-                      color: isDark
-                          ? Colors.grey.shade800
-                          : Colors.grey.shade200,
-                    ),
-                    ListTile(
-                      leading: Icon(
-                        Icons.add_circle_outline,
-                        color: primaryColor,
-                      ),
-                      title: Text(
-                        "Create New Team",
-                        style: TextStyle(
-                          color: primaryColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      onTap: _showCreateCircleImpromptu,
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text(
-                    "Done",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
   }
 
   // --- DATABASE METHODS ---
@@ -858,56 +670,6 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
 
   // --- UI HELPER METHODS ---
 
-  // Custom Input Decoration for inline forms (restored from old logic)
-  InputDecoration _buildInputDecoration({
-    required String label,
-    String? hint,
-    required Widget prefixIcon,
-    Widget? suffixIcon,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
-    final fillColor = isDark ? Colors.grey.shade900 : Colors.grey.shade50;
-
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      labelStyle: TextStyle(
-        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-      ),
-      prefixIcon: prefixIcon,
-      suffixIcon: suffixIcon,
-      filled: true,
-      fillColor: fillColor,
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(
-          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-          width: 1,
-        ),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(
-          color: primaryColor.withValues(alpha: 0.6),
-          width: 2,
-        ),
-      ),
-      disabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(
-          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-          width: 1,
-        ),
-      ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-    );
-  }
-
   Widget _buildVitalsCard(bool isDark, Color primaryColor) {
     return RpgGlassCard(
       title: "The Vitals",
@@ -979,160 +741,18 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
   }
 
   Widget _buildCrewCard() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return const SizedBox.shrink();
-    }
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return RpgGlassCard(
       title: "The Crew",
       icon: Icons.group,
-      child: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .collection('circles')
-            .snapshots(),
-        builder: (context, snapshot) {
-          final circles = snapshot.hasData
-              ? snapshot.data!.docs.toList()
-              : <DocumentSnapshot>[];
-
-          circles.sort((a, b) {
-            final nameA =
-                (a.data() as Map<String, dynamic>)['name']
-                    ?.toString()
-                    .toLowerCase() ??
-                '';
-            final nameB =
-                (b.data() as Map<String, dynamic>)['name']
-                    ?.toString()
-                    .toLowerCase() ??
-                '';
-            return nameA.compareTo(nameB);
+      child: TeamSelectionField(
+        inviteAll: _inviteAll,
+        selectedCircleIds: _selectedCircleIds,
+        onChanged: (newAll, newIds) {
+          setState(() {
+            _inviteAll = newAll;
+            _selectedCircleIds = newIds;
           });
-
-          String targetPreviewText = "Select Squads...";
-          if (_inviteAll) {
-            targetPreviewText = "Entire Squad";
-          } else if (_selectedCircleIds.isNotEmpty) {
-            final selectedNames = circles
-                .where((c) => _selectedCircleIds.contains(c.id))
-                .map(
-                  (c) =>
-                      (c.data() as Map<String, dynamic>)['name'] ?? 'Unnamed',
-                )
-                .join(', ');
-            targetPreviewText = selectedNames.isNotEmpty
-                ? selectedNames
-                : "Selected Teams";
-          }
-
-          return InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () => _showCircleDialog(circles),
-            child: InputDecorator(
-              decoration: _buildInputDecoration(
-                label: "Update Squad List",
-                prefixIcon: Icon(
-                  Icons.people,
-                  color: isDark ? Colors.tealAccent : Colors.teal,
-                ),
-                suffixIcon: const Icon(Icons.arrow_drop_down),
-              ),
-              child: Text(
-                targetPreviewText,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          );
         },
-      ),
-    );
-  }
-
-  Widget _buildHostActionsCard(bool isDark) {
-    if (!isEditing) {
-      return const SizedBox.shrink();
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 24.0),
-      child: RpgGlassCard(
-        title: "Host Actions",
-        icon: Icons.admin_panel_settings,
-        iconColor: Colors.amber,
-        child: Column(
-          children: [
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: OutlinedButton.icon(
-                onPressed: _showConvertDialog,
-                icon: Icon(
-                  Icons.done_all,
-                  color: isDark ? Colors.greenAccent : Colors.green,
-                ),
-                label: Text(
-                  "Lock In Winner & Convert",
-                  style: TextStyle(
-                    color: isDark ? Colors.greenAccent : Colors.green,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(
-                    color: isDark
-                        ? Colors.greenAccent.withValues(alpha: 0.5)
-                        : Colors.green.withValues(alpha: 0.5),
-                    width: 1.5,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: OutlinedButton.icon(
-                onPressed: _deleteVibeCheck,
-                icon: Icon(
-                  Icons.delete,
-                  color: isDark ? Colors.redAccent : Colors.red,
-                ),
-                label: Text(
-                  "Delete Vibe Check",
-                  style: TextStyle(
-                    color: isDark ? Colors.redAccent : Colors.red,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(
-                    color: isDark
-                        ? Colors.redAccent.withValues(alpha: 0.5)
-                        : Colors.red.withValues(alpha: 0.5),
-                    width: 1.5,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1209,7 +829,11 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                               _buildVitalsCard(isDark, primaryColor),
                               _buildExtrasCard(isDark, primaryColor),
                               _buildCrewCard(),
-                              _buildHostActionsCard(isDark),
+                              VibeHostActionsCard(
+                                isEditing: isEditing,
+                                onConvert: _showConvertDialog,
+                                onDelete: _deleteVibeCheck,
+                              ),
                               const SizedBox(height: 12),
                               submitButton,
                             ],
@@ -1219,7 +843,6 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                         Expanded(
                           child: Column(
                             children: [
-                              // NEW COMPONENT IMPORTED
                               VibeOptionsCard(
                                 pollOptions: _pollOptions,
                                 onAddOption: _addOption,
@@ -1235,7 +858,6 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                   : Column(
                       children: [
                         _buildVitalsCard(isDark, primaryColor),
-                        // NEW COMPONENT IMPORTED
                         VibeOptionsCard(
                           pollOptions: _pollOptions,
                           onAddOption: _addOption,
@@ -1245,7 +867,11 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                         ),
                         _buildExtrasCard(isDark, primaryColor),
                         _buildCrewCard(),
-                        _buildHostActionsCard(isDark),
+                        VibeHostActionsCard(
+                          isEditing: isEditing,
+                          onConvert: _showConvertDialog,
+                          onDelete: _deleteVibeCheck,
+                        ),
                         const SizedBox(height: 12),
                         submitButton,
                         const SizedBox(height: 40),
