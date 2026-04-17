@@ -2,11 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 
 import '../utils/theme_provider.dart';
+import '../utils/auth_service.dart';
 import '../components/auth/auth_ui_components.dart';
 
 class LoginPage extends StatefulWidget {
@@ -64,92 +63,6 @@ class _LoginPageState extends State<LoginPage> {
         });
       }
     });
-  }
-
-  Future<void> _saveDeviceToken(User user) async {
-    try {
-      final token = await FirebaseMessaging.instance.getToken();
-
-      if (token != null) {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-          'fcmToken': token,
-          'lastLogin': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-
-        debugPrint("✅ FCM Token saved successfully");
-      }
-    } catch (e) {
-      debugPrint("❌ Error saving FCM token: $e");
-    }
-  }
-
-  Future<void> _ensureUserDocExists(
-    User user,
-    String enteredName,
-    String enteredUsername,
-  ) async {
-    final userDoc = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid);
-    final docSnapshot = await userDoc.get();
-
-    String finalName = enteredName;
-    if (finalName.isEmpty) {
-      finalName = user.phoneNumber ?? "Unknown User";
-    }
-
-    if (!docSnapshot.exists) {
-      // BRAND NEW USER: Run a transaction to safely claim username and create profile
-      String cleanUsername = enteredUsername.trim().toLowerCase();
-      if (cleanUsername.startsWith('@')) {
-        cleanUsername = cleanUsername.substring(1);
-      }
-
-      try {
-        await FirebaseFirestore.instance.runTransaction((transaction) async {
-          final usernameRef = FirebaseFirestore.instance
-              .collection('usernames')
-              .doc(cleanUsername);
-          final nameDoc = await transaction.get(usernameRef);
-
-          // Failsafe: If the username was snatched between the pre-flight check and SMS entry
-          if (nameDoc.exists) {
-            cleanUsername =
-                "${cleanUsername}_${DateTime.now().millisecondsSinceEpoch.toString().substring(9)}";
-            final fallbackRef = FirebaseFirestore.instance
-                .collection('usernames')
-                .doc(cleanUsername);
-            transaction.set(fallbackRef, {'uid': user.uid});
-          } else {
-            transaction.set(usernameRef, {'uid': user.uid});
-          }
-
-          transaction.set(userDoc, {
-            'uid': user.uid,
-            'phoneNumber': user.phoneNumber,
-            'displayName': finalName,
-            'username': cleanUsername,
-            'avatarColor': Colors.blue.toARGB32(),
-            'createdAt': FieldValue.serverTimestamp(),
-            'agreedToToS': _agreedToToS,
-            'agreedToPrivacy': _agreedToPrivacy,
-          }, SetOptions(merge: true));
-        });
-
-        await user.updateDisplayName(finalName);
-      } catch (e) {
-        debugPrint("Error creating user and claiming username: $e");
-      }
-    } else {
-      // EXISTING USER LOGGING IN: Just ensure phone number is patched
-      final data = docSnapshot.data();
-      if (data == null ||
-          (!data.containsKey('phone') && !data.containsKey('phoneNumber'))) {
-        await userDoc.set({
-          'phoneNumber': user.phoneNumber,
-        }, SetOptions(merge: true));
-      }
-    }
   }
 
   Future<void> _verifyPhone({bool isResend = false}) async {
@@ -212,13 +125,9 @@ class _LoginPageState extends State<LoginPage> {
       });
 
       try {
-        final query = await FirebaseFirestore.instance
-            .collection('users')
-            .where('phoneNumber', isEqualTo: _completePhoneNumber)
-            .limit(1)
-            .get();
-
-        final bool accountExists = query.docs.isNotEmpty;
+        final bool accountExists = await AuthService.checkPhoneExists(
+          _completePhoneNumber,
+        );
 
         if (_isLoginMode && !accountExists) {
           // They tried to log in, but no account exists. Bump to Sign Up.
@@ -258,16 +167,11 @@ class _LoginPageState extends State<LoginPage> {
           return;
         } else if (!_isLoginMode && !accountExists) {
           // Perfect sign up attempt! Let's do a fast pre-flight check on the username
-          String cleanName = _usernameController.text.trim().toLowerCase();
-          if (cleanName.startsWith('@')) {
-            cleanName = cleanName.substring(1);
-          }
+          final bool usernameExists = await AuthService.checkUsernameExists(
+            _usernameController.text,
+          );
 
-          final usernameDoc = await FirebaseFirestore.instance
-              .collection('usernames')
-              .doc(cleanName)
-              .get();
-          if (usernameDoc.exists) {
+          if (usernameExists) {
             setState(() {
               _isLoading = false;
             });
@@ -313,8 +217,14 @@ class _LoginPageState extends State<LoginPage> {
               .signInWithCredential(credential);
           final user = userCredential.user;
           if (user != null) {
-            await _ensureUserDocExists(user, currentName, currentUsername);
-            await _saveDeviceToken(user);
+            await AuthService.ensureUserDocExists(
+              user: user,
+              enteredName: currentName,
+              enteredUsername: currentUsername,
+              agreedToToS: _agreedToToS,
+              agreedToPrivacy: _agreedToPrivacy,
+            );
+            await AuthService.saveDeviceToken(user);
           }
         } catch (e) {
           debugPrint("Auto-verify error: $e");
@@ -372,6 +282,7 @@ class _LoginPageState extends State<LoginPage> {
     if (_otpController.text.isEmpty) {
       return;
     }
+
     setState(() {
       _isLoading = true;
     });
@@ -391,8 +302,14 @@ class _LoginPageState extends State<LoginPage> {
       final user = userCredential.user;
 
       if (user != null) {
-        await _ensureUserDocExists(user, currentName, currentUsername);
-        await _saveDeviceToken(user);
+        await AuthService.ensureUserDocExists(
+          user: user,
+          enteredName: currentName,
+          enteredUsername: currentUsername,
+          agreedToToS: _agreedToToS,
+          agreedToPrivacy: _agreedToPrivacy,
+        );
+        await AuthService.saveDeviceToken(user);
       }
     } catch (e) {
       if (!mounted) {
