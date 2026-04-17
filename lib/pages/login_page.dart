@@ -5,7 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+
 import '../utils/theme_provider.dart';
+import '../components/auth/auth_ui_components.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -16,8 +18,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _nameController = TextEditingController();
-  final _usernameController =
-      TextEditingController(); // NEW: Username controller
+  final _usernameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
 
@@ -39,7 +40,7 @@ class _LoginPageState extends State<LoginPage> {
   void dispose() {
     _timer?.cancel();
     _nameController.dispose();
-    _usernameController.dispose(); // Dispose new controller
+    _usernameController.dispose();
     _phoneController.dispose();
     _otpController.dispose();
     super.dispose();
@@ -82,7 +83,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // UPDATED: Now uses a transaction to claim the username
   Future<void> _ensureUserDocExists(
     User user,
     String enteredName,
@@ -101,8 +101,9 @@ class _LoginPageState extends State<LoginPage> {
     if (!docSnapshot.exists) {
       // BRAND NEW USER: Run a transaction to safely claim username and create profile
       String cleanUsername = enteredUsername.trim().toLowerCase();
-      if (cleanUsername.startsWith('@'))
+      if (cleanUsername.startsWith('@')) {
         cleanUsername = cleanUsername.substring(1);
+      }
 
       try {
         await FirebaseFirestore.instance.runTransaction((transaction) async {
@@ -169,7 +170,9 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       String cleanName = _usernameController.text.trim().toLowerCase();
-      if (cleanName.startsWith('@')) cleanName = cleanName.substring(1);
+      if (cleanName.startsWith('@')) {
+        cleanName = cleanName.substring(1);
+      }
 
       final regex = RegExp(r'^[a-z0-9.\-_]{3,20}$');
       if (!regex.hasMatch(cleanName)) {
@@ -204,7 +207,9 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      setState(() => _isLoading = true);
+      setState(() {
+        _isLoading = true;
+      });
 
       try {
         final query = await FirebaseFirestore.instance
@@ -254,14 +259,18 @@ class _LoginPageState extends State<LoginPage> {
         } else if (!_isLoginMode && !accountExists) {
           // Perfect sign up attempt! Let's do a fast pre-flight check on the username
           String cleanName = _usernameController.text.trim().toLowerCase();
-          if (cleanName.startsWith('@')) cleanName = cleanName.substring(1);
+          if (cleanName.startsWith('@')) {
+            cleanName = cleanName.substring(1);
+          }
 
           final usernameDoc = await FirebaseFirestore.instance
               .collection('usernames')
               .doc(cleanName)
               .get();
           if (usernameDoc.exists) {
-            setState(() => _isLoading = false);
+            setState(() {
+              _isLoading = false;
+            });
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -274,7 +283,9 @@ class _LoginPageState extends State<LoginPage> {
           }
         }
       } catch (e) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+        });
         debugPrint("Error during pre-flight check: $e");
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -285,7 +296,9 @@ class _LoginPageState extends State<LoginPage> {
       }
     }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
 
     await FirebaseAuth.instance.verifyPhoneNumber(
       phoneNumber: _completePhoneNumber,
@@ -293,7 +306,7 @@ class _LoginPageState extends State<LoginPage> {
 
       verificationCompleted: (PhoneAuthCredential credential) async {
         final currentName = _nameController.text.trim();
-        final currentUsername = _usernameController.text.trim(); // NEW
+        final currentUsername = _usernameController.text.trim();
 
         try {
           final userCredential = await FirebaseAuth.instance
@@ -309,9 +322,13 @@ class _LoginPageState extends State<LoginPage> {
       },
 
       verificationFailed: (FirebaseAuthException e) {
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+        });
         String msg = "Error ${e.code}: ${e.message}";
         if (e.code == 'invalid-phone-number') {
           msg = "That phone number doesn't look right.";
@@ -352,11 +369,15 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _signInWithOTP() async {
-    if (_otpController.text.isEmpty) return;
-    setState(() => _isLoading = true);
+    if (_otpController.text.isEmpty) {
+      return;
+    }
+    setState(() {
+      _isLoading = true;
+    });
 
     final currentName = _nameController.text.trim();
-    final currentUsername = _usernameController.text.trim(); // NEW
+    final currentUsername = _usernameController.text.trim();
 
     try {
       final credential = PhoneAuthProvider.credential(
@@ -374,50 +395,17 @@ class _LoginPageState extends State<LoginPage> {
         await _saveDeviceToken(user);
       }
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+      });
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Invalid Code. Try again.")));
     }
-  }
-
-  Widget _buildAgreementCheckbox(
-    String text,
-    bool value,
-    Function(bool?) onChanged,
-  ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
-
-    return Row(
-      children: [
-        SizedBox(
-          height: 24,
-          width: 24,
-          child: Checkbox(
-            value: value,
-            onChanged: onChanged,
-            activeColor: primaryColor,
-            side: BorderSide(
-              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              width: 1.5,
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 13,
-              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
-            ),
-          ),
-        ),
-      ],
-    );
   }
 
   @override
@@ -499,15 +487,14 @@ class _LoginPageState extends State<LoginPage> {
                           if (!_codeSent) ...[
                             // --- SIGN UP ONLY FIELDS ---
                             if (!_isLoginMode) ...[
-                              _buildTextField(
+                              AuthTextField(
                                 controller: _nameController,
                                 label: "Pick a display name",
                                 icon: Icons.person_outline,
                                 maxLength: 50,
                               ),
                               const SizedBox(height: 16),
-                              // NEW: Username Field
-                              _buildTextField(
+                              AuthTextField(
                                 controller: _usernameController,
                                 label: "Pick a username",
                                 icon: Icons.alternate_email,
@@ -559,29 +546,35 @@ class _LoginPageState extends State<LoginPage> {
                             // --- SIGN UP ONLY CHECKBOXES ---
                             if (!_isLoginMode) ...[
                               const SizedBox(height: 16),
-                              _buildAgreementCheckbox(
-                                "I agree to the Terms of Service",
-                                _agreedToToS,
-                                (val) =>
-                                    setState(() => _agreedToToS = val ?? false),
+                              AuthCheckbox(
+                                text: "I agree to the Terms of Service",
+                                value: _agreedToToS,
+                                onChanged: (val) {
+                                  setState(() {
+                                    _agreedToToS = val ?? false;
+                                  });
+                                },
                               ),
                               const SizedBox(height: 8),
-                              _buildAgreementCheckbox(
-                                "I agree to the Privacy Policy",
-                                _agreedToPrivacy,
-                                (val) => setState(
-                                  () => _agreedToPrivacy = val ?? false,
-                                ),
+                              AuthCheckbox(
+                                text: "I agree to the Privacy Policy",
+                                value: _agreedToPrivacy,
+                                onChanged: (val) {
+                                  setState(() {
+                                    _agreedToPrivacy = val ?? false;
+                                  });
+                                },
                               ),
                             ],
 
                             const SizedBox(height: 24),
 
                             // --- DYNAMIC BUTTON ---
-                            _buildButton(
+                            AuthButton(
                               text: _isLoginMode
                                   ? "Get Login Code"
                                   : "Sign Up & Get Login Code",
+                              isLoading: _isLoading,
                               onPressed:
                                   (!_isLoginMode &&
                                       (!_agreedToToS || !_agreedToPrivacy))
@@ -625,15 +618,16 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ] else ...[
                             // --- OTP VERIFICATION UI ---
-                            _buildTextField(
+                            AuthTextField(
                               controller: _otpController,
                               label: "6-Digit Code",
                               icon: Icons.lock_outline,
                               isNumber: true,
                             ),
                             const SizedBox(height: 24),
-                            _buildButton(
+                            AuthButton(
                               text: "Verify & Enter",
+                              isLoading: _isLoading,
                               onPressed: _signInWithOTP,
                             ),
                             const SizedBox(height: 16),
@@ -654,11 +648,13 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             const SizedBox(height: 8),
                             TextButton(
-                              onPressed: () => setState(() {
-                                _codeSent = false;
-                                _isLoading = false;
-                                _timer?.cancel();
-                              }),
+                              onPressed: () {
+                                setState(() {
+                                  _codeSent = false;
+                                  _isLoading = false;
+                                  _timer?.cancel();
+                                });
+                              },
                               child: const Text("Change Phone Number"),
                             ),
                           ],
@@ -671,87 +667,6 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  // UPDATED: Now supports prefix text and max lengths cleanly
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    bool isNumber = false,
-    String? prefixText,
-    int? maxLength,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
-
-    return TextField(
-      controller: controller,
-      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-      maxLength: maxLength,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(
-          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-        ),
-        prefixIcon: Icon(icon, color: primaryColor),
-        prefixText: prefixText,
-        prefixStyle: TextStyle(
-          color: primaryColor,
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
-        ),
-        filled: true,
-        fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 16),
-        counterText: "", // Hides the max length counter natively
-      ),
-    );
-  }
-
-  Widget _buildButton({
-    required String text,
-    required VoidCallback? onPressed,
-  }) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
-
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
-          foregroundColor: themeProvider.onPrimaryColor,
-          disabledBackgroundColor: primaryColor.withValues(alpha: 0.3),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: onPressed == null ? 0 : 2,
-        ),
-        child: _isLoading
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: themeProvider.onPrimaryColor,
-                  strokeWidth: 2,
-                ),
-              )
-            : Text(
-                text,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
       ),
     );
   }
