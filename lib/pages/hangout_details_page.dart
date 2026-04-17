@@ -18,12 +18,12 @@ import '../utils/theme_provider.dart';
 import '../components/details/swipe_rsvp_widget.dart';
 import '../components/details/vibe_check_poll_ui.dart';
 import '../components/details/vote_tally_sheet.dart';
-import '../components/forms/squad_needs_sheet.dart';
 import '../components/shared/user_profile_sheet.dart';
 import '../components/details/details_bottom_sheets.dart';
 import '../components/shared/info_card.dart';
-import '../components/details/critical_alert_banner.dart';
 import '../components/details/event_vitals_card.dart';
+import '../components/details/event_details_card.dart';
+import '../components/details/event_squad_needs_card.dart';
 
 class HangoutDetailsPage extends StatefulWidget {
   final String eventId;
@@ -470,7 +470,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                   : Colors.white);
                         final String location = data['location'] ?? 'TBD';
 
-                        // --- THE CLEANED UP VITALS CARD ---
+                        // --- THE VITALS CARD ---
                         final vitalsCardWidget = EventVitalsCard(
                           eventTime: dt,
                           keepAliveDays: keepAliveDays,
@@ -480,150 +480,20 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                           onMapTap: () => _openMap(location),
                         );
 
-                        final String? details =
-                            data['details'] ?? data['description'];
-                        Widget detailsCardWidget = const SizedBox.shrink();
-                        if ((details != null && details.isNotEmpty) ||
-                            data.containsKey('latestCriticalChange')) {
-                          detailsCardWidget = InfoCard(
-                            title: "The Details",
-                            icon: Icons.notes,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (data.containsKey(
-                                  'latestCriticalChange',
-                                )) ...[
-                                  CriticalAlertBanner(
-                                    changeData: data['latestCriticalChange'],
-                                  ),
-                                  const SizedBox(height: 8),
-                                ],
-                                if (details != null && details.isNotEmpty)
-                                  GestureDetector(
-                                    onTap: () {
-                                      showModalBottomSheet(
-                                        context: context,
-                                        isScrollControlled: true,
-                                        backgroundColor: Theme.of(
-                                          context,
-                                        ).scaffoldBackgroundColor,
-                                        shape: const RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.vertical(
-                                            top: Radius.circular(20),
-                                          ),
-                                        ),
-                                        builder: (ctx) =>
-                                            FullDetailsSheet(details: details),
-                                      );
-                                    },
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          details,
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            height: 1.5,
-                                            color: isDark
-                                                ? Colors.grey.shade300
-                                                : Colors.grey.shade800,
-                                          ),
-                                          maxLines: 4,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        if (details.length > 150 ||
-                                            details.contains('\n'))
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              top: 8.0,
-                                            ),
-                                            child: Text(
-                                              "Read more",
-                                              style: TextStyle(
-                                                color: primaryColor,
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          );
-                        }
+                        // --- THE DETAILS CARD ---
+                        final detailsCardWidget = EventDetailsCard(
+                          details: data['details'] ?? data['description'],
+                          latestCriticalChange: data['latestCriticalChange'],
+                        );
 
-                        Widget squadNeedsCardWidget = const SizedBox.shrink();
-                        if (rolesDocs.isNotEmpty) {
-                          squadNeedsCardWidget = InfoCard(
-                            title: "Squad Needs",
-                            icon: Icons.check_box_outlined,
-                            child: InkWell(
-                              onTap: () {
-                                showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).scaffoldBackgroundColor,
-                                  shape: const RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.vertical(
-                                      top: Radius.circular(24),
-                                    ),
-                                  ),
-                                  builder: (ctx) => SquadNeedsSheet(
-                                    eventId: widget.eventId,
-                                    hostId: data['hostId'],
-                                    isPast: isPast,
-                                  ),
-                                );
-                              },
-                              borderRadius: BorderRadius.circular(16),
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: primaryColor.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: primaryColor.withValues(alpha: 0.3),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.pan_tool,
-                                      color: primaryColor,
-                                      size: 24,
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Text(
-                                        canEdit
-                                            ? "Manage items you need help with"
-                                            : "See what the captain needs!",
-                                        style: TextStyle(
-                                          color: isDark
-                                              ? Colors.white
-                                              : Colors.black87,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                    Icon(
-                                      Icons.arrow_forward_ios,
-                                      size: 16,
-                                      color: primaryColor,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        }
+                        // --- THE SQUAD NEEDS CARD ---
+                        final squadNeedsCardWidget = EventSquadNeedsCard(
+                          hasRoles: rolesDocs.isNotEmpty,
+                          canEdit: canEdit,
+                          eventId: widget.eventId,
+                          hostId: data['hostId'],
+                          isPast: isPast,
+                        );
 
                         Widget rsvpCardWidget;
                         if (isVibeCheck) {
