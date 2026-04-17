@@ -8,6 +8,7 @@ import '../components/shared/rpg_glass_card.dart';
 import '../components/forms/custom_input_field.dart';
 import '../components/forms/tactile_chip_row.dart';
 import '../components/forms/date_time_row.dart';
+import '../components/forms/vibe_options_card.dart';
 import 'places_search_page.dart';
 import 'teams_page.dart'; // Needed for CircleMembersPage routing
 
@@ -129,7 +130,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
   }
 
   void _removeOption(int index) {
-    if (_pollOptions.length <= 2) return;
+    if (_pollOptions.length <= 2) {
+      return;
+    }
     setState(() {
       (_pollOptions[index]['title'] as TextEditingController).dispose();
       (_pollOptions[index]['location'] as TextEditingController).dispose();
@@ -148,6 +151,12 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
             selectedAddress;
       });
     }
+  }
+
+  void _clearOptionLocation(int index) {
+    setState(() {
+      (_pollOptions[index]['location'] as TextEditingController).clear();
+    });
   }
 
   // --- RESTORED CREW LOGIC ---
@@ -177,7 +186,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
           ),
           ElevatedButton(
             onPressed: () async {
-              if (nameController.text.trim().isEmpty) return;
+              if (nameController.text.trim().isEmpty) {
+                return;
+              }
               final name = nameController.text.trim();
               final user = FirebaseAuth.instance.currentUser!;
 
@@ -190,10 +201,14 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                     'createdAt': FieldValue.serverTimestamp(),
                   });
 
-              if (!ctx.mounted) return;
+              if (!ctx.mounted) {
+                return;
+              }
               Navigator.pop(ctx); // Close Dialog
 
-              if (!mounted) return;
+              if (!mounted) {
+                return;
+              }
 
               setState(() {
                 _selectedCircleIds.add(docRef.id);
@@ -254,7 +269,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                       onChanged: (val) {
                         setDialogState(() {
                           _inviteAll = val;
-                          if (val) _selectedCircleIds.clear();
+                          if (val) {
+                            _selectedCircleIds.clear();
+                          }
                         });
                         setState(() {});
                       },
@@ -283,7 +300,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                               _inviteAll = false;
                             } else {
                               _selectedCircleIds.remove(doc.id);
-                              if (_selectedCircleIds.isEmpty) _inviteAll = true;
+                              if (_selectedCircleIds.isEmpty) {
+                                _inviteAll = true;
+                              }
                             }
                           });
                           setState(() {});
@@ -332,7 +351,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
   // --- DATABASE METHODS ---
 
   Future<void> _submitVibeCheck() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     // Validate Vibe Options
     int validOptions = 0;
@@ -369,7 +390,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
 
     setState(() => _isLoading = true);
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      return;
+    }
 
     try {
       final newDateTime = DateTime(
@@ -570,7 +593,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
         ).showSnackBar(SnackBar(content: Text("Error: $e")));
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -615,7 +640,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
 
         await eventRef.delete();
 
-        if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+        if (mounted) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -623,7 +650,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
           ).showSnackBar(SnackBar(content: Text('Error: $e')));
         }
       } finally {
-        if (mounted) setState(() => _isLoading = false);
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     }
   }
@@ -640,7 +669,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
           .get();
       for (var doc in invitesSnap.docs) {
         final data = doc.data();
-        if (data['status'] == 'declined') continue;
+        if (data['status'] == 'declined') {
+          continue;
+        }
         final votes = List<String>.from(data['votes'] ?? []);
         for (String optId in votes) {
           voteCounts[optId] = (voteCounts[optId] ?? 0) + 1;
@@ -650,7 +681,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       debugPrint("Error fetching votes: $e");
     }
 
-    if (mounted) setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
 
     List<Map<String, dynamic>> validOptions = [];
     for (int i = 0; i < _pollOptions.length; i++) {
@@ -690,7 +723,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       (a, b) => (b['votes'] as int).compareTo(a['votes'] as int),
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     showDialog(
@@ -768,7 +803,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       ),
     );
 
-    if (confirm != true) return;
+    if (confirm != true) {
+      return;
+    }
     setState(() => _isLoading = true);
 
     try {
@@ -789,7 +826,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       final invitesSnap = await eventRef.collection('invitations').get();
       for (var doc in invitesSnap.docs) {
         final data = doc.data();
-        if (data['status'] == 'declined') continue;
+        if (data['status'] == 'declined') {
+          continue;
+        }
 
         final votes = List<String>.from(data['votes'] ?? []);
         String newStatus = votes.contains(option['id']) ? 'going' : 'pending';
@@ -801,7 +840,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       }
 
       await batch.commit();
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -809,7 +850,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -876,7 +919,12 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
             label: "What's the vibe?",
             hint: "e.g. Sunday Funday, Post-Work Drinks",
             prefixIcon: Symbols.campaign,
-            validator: (v) => v!.isEmpty ? "Required" : null,
+            validator: (v) {
+              if (v!.isEmpty) {
+                return "Required";
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 16),
           DateTimeRow(
@@ -889,150 +937,6 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
               setState(() => _selectedTime = t);
             },
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOptionsCard(bool isDark, Color primaryColor) {
-    return RpgGlassCard(
-      title: "Vibe Options",
-      icon: Icons.format_list_bulleted,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Pick some ideas and let the crew decide! You can always update the options later if plans change.",
-            style: TextStyle(
-              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _pollOptions.length,
-            itemBuilder: (context, index) {
-              return Card(
-                elevation: 0,
-                color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
-                margin: const EdgeInsets.only(bottom: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            "Option ${index + 1}",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white70 : Colors.black87,
-                            ),
-                          ),
-                          if (index > 1)
-                            IconButton(
-                              icon: const Icon(
-                                Icons.close,
-                                color: Colors.red,
-                                size: 20,
-                              ),
-                              onPressed: () => _removeOption(index),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller:
-                            _pollOptions[index]['title']
-                                as TextEditingController,
-                        maxLength: 30,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: InputDecoration(
-                          hintText: "Activity (e.g. Disc Golf)",
-                          counterText: "",
-                          filled: true,
-                          fillColor: Theme.of(context).cardColor,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller:
-                            _pollOptions[index]['location']
-                                as TextEditingController,
-                        readOnly: true,
-                        onTap: () => _selectOptionLocation(index),
-                        maxLength: 100,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: InputDecoration(
-                          hintText: "Tap to search address... (Optional)",
-                          counterText: "",
-                          filled: true,
-                          fillColor: Theme.of(context).cardColor,
-                          prefixIcon: const Icon(Icons.location_on, size: 18),
-                          suffixIcon:
-                              (_pollOptions[index]['location']
-                                      as TextEditingController)
-                                  .text
-                                  .isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.close, size: 18),
-                                  onPressed: () => setState(
-                                    () =>
-                                        (_pollOptions[index]['location']
-                                                as TextEditingController)
-                                            .clear(),
-                                  ),
-                                )
-                              : null,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-          if (_pollOptions.length < 5)
-            Center(
-              child: TextButton.icon(
-                onPressed: _addOption,
-                icon: Icon(Icons.add_circle, color: primaryColor),
-                label: Text(
-                  "Add another option",
-                  style: TextStyle(
-                    color: primaryColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -1076,7 +980,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
 
   Widget _buildCrewCard() {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return const SizedBox.shrink();
+    if (user == null) {
+      return const SizedBox.shrink();
+    }
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return RpgGlassCard(
@@ -1152,7 +1058,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
   }
 
   Widget _buildHostActionsCard(bool isDark) {
-    if (!isEditing) return const SizedBox.shrink();
+    if (!isEditing) {
+      return const SizedBox.shrink();
+    }
 
     return Padding(
       padding: const EdgeInsets.only(top: 24.0),
@@ -1310,7 +1218,16 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                         const SizedBox(width: 24),
                         Expanded(
                           child: Column(
-                            children: [_buildOptionsCard(isDark, primaryColor)],
+                            children: [
+                              // NEW COMPONENT IMPORTED
+                              VibeOptionsCard(
+                                pollOptions: _pollOptions,
+                                onAddOption: _addOption,
+                                onRemoveOption: _removeOption,
+                                onSelectLocation: _selectOptionLocation,
+                                onClearLocation: _clearOptionLocation,
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -1318,7 +1235,14 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                   : Column(
                       children: [
                         _buildVitalsCard(isDark, primaryColor),
-                        _buildOptionsCard(isDark, primaryColor),
+                        // NEW COMPONENT IMPORTED
+                        VibeOptionsCard(
+                          pollOptions: _pollOptions,
+                          onAddOption: _addOption,
+                          onRemoveOption: _removeOption,
+                          onSelectLocation: _selectOptionLocation,
+                          onClearLocation: _clearOptionLocation,
+                        ),
                         _buildExtrasCard(isDark, primaryColor),
                         _buildCrewCard(),
                         _buildHostActionsCard(isDark),
