@@ -28,7 +28,7 @@ Map<String, List<String>> normalizeReactions(Map<String, dynamic> raw) {
 // --- MESSAGE OPTIONS SHEET ---
 class MessageOptionsSheet extends StatelessWidget {
   final DocumentSnapshot doc;
-  final String eventId; // REQUIRED FOR REPORTS
+  final String eventId;
   final VoidCallback onAddReaction;
 
   const MessageOptionsSheet({
@@ -38,11 +38,79 @@ class MessageOptionsSheet extends StatelessWidget {
     required this.onAddReaction,
   });
 
+  Future<void> _handleQuickReaction(
+    BuildContext context,
+    String emojiString,
+  ) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return;
+    }
+
+    Navigator.pop(context); // Close the sheet immediately for snappy UX
+
+    final docRef = FirebaseFirestore.instance
+        .collection('events')
+        .doc(eventId)
+        .collection('messages')
+        .doc(doc.id);
+
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final freshDoc = await transaction.get(docRef);
+      if (!freshDoc.exists) {
+        return;
+      }
+
+      final data = freshDoc.data() as Map<String, dynamic>;
+      final rawReactions = Map<String, dynamic>.from(data['reactions'] ?? {});
+      final normalized = normalizeReactions(rawReactions);
+
+      bool userAlreadyHadThisEmoji = false;
+
+      // Remove user from all existing reactions (enforcing 1 reaction per user per message)
+      normalized.forEach((key, list) {
+        if (key == emojiString && list.contains(user.uid)) {
+          userAlreadyHadThisEmoji = true;
+        }
+        list.remove(user.uid);
+      });
+
+      normalized.removeWhere((key, list) => list.isEmpty);
+
+      // If they tapped a new emoji (or one they didn't already have), add it
+      if (!userAlreadyHadThisEmoji) {
+        if (!normalized.containsKey(emojiString)) {
+          normalized[emojiString] = [];
+        }
+        normalized[emojiString]!.add(user.uid);
+      }
+
+      transaction.update(docRef, {'reactions': normalized});
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final data = doc.data() as Map<String, dynamic>;
-    final isMe = data['senderId'] == FirebaseAuth.instance.currentUser?.uid;
+    final user = FirebaseAuth.instance.currentUser;
+    final isMe = data['senderId'] == user?.uid;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    final quickEmojis = ['❤️', '👍', '😂', '😲', '🔥'];
+
+    // Determine user's current reaction to highlight it
+    final rawReactions = Map<String, dynamic>.from(data['reactions'] ?? {});
+    final normalized = normalizeReactions(rawReactions);
+    String? myCurrentEmoji;
+
+    if (user != null) {
+      normalized.forEach((key, list) {
+        if (list.contains(user.uid)) {
+          myCurrentEmoji = key;
+        }
+      });
+    }
 
     return SafeArea(
       child: Column(
@@ -57,15 +125,58 @@ class MessageOptionsSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: 16),
-          ListTile(
-            leading: const Icon(Icons.add_reaction_outlined),
-            title: const Text("Add Reaction"),
-            onTap: () {
-              Navigator.pop(context); // Close this sheet
-              onAddReaction(); // Open the Emoji Picker
-            },
+
+          // --- QUICK EMOJIS ROW ---
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: 16.0,
+              horizontal: 16.0,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                ...quickEmojis.map((emoji) {
+                  final isSelected = myCurrentEmoji == emoji;
+                  return GestureDetector(
+                    onTap: () => _handleQuickReaction(context, emoji),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? primaryColor.withValues(alpha: 0.2)
+                            : Colors.transparent,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(emoji, style: const TextStyle(fontSize: 28)),
+                    ),
+                  );
+                }),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context); // Close options sheet
+                    onAddReaction(); // Open full emoji picker
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade200,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.add,
+                      color: isDark ? Colors.white : Colors.black87,
+                      size: 26,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
+          const Divider(height: 1),
+
+          // --- STANDARD OPTIONS ---
           if (data['text'] != null && (data['text'] as String).isNotEmpty)
             ListTile(
               leading: const Icon(Icons.copy),
@@ -79,7 +190,6 @@ class MessageOptionsSheet extends StatelessWidget {
               },
             ),
 
-          // --- IS ME: DELETE ---
           if (isMe)
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
@@ -93,7 +203,6 @@ class MessageOptionsSheet extends StatelessWidget {
               },
             ),
 
-          // --- NOT ME: REPORT ---
           if (!isMe)
             ListTile(
               leading: const Icon(Icons.flag_outlined, color: Colors.red),
@@ -102,7 +211,6 @@ class MessageOptionsSheet extends StatelessWidget {
                 style: TextStyle(color: Colors.red),
               ),
               onTap: () async {
-                // Show the dialog FIRST while context is still actively mounted
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
@@ -132,13 +240,11 @@ class MessageOptionsSheet extends StatelessWidget {
                   return;
                 }
 
-                // If confirmed, pop the bottom sheet to get it out of the way
                 if (context.mounted) {
                   Navigator.pop(context);
                 }
 
                 try {
-                  final user = FirebaseAuth.instance.currentUser;
                   if (user == null) {
                     return;
                   }
