@@ -28,11 +28,13 @@ Map<String, List<String>> normalizeReactions(Map<String, dynamic> raw) {
 // --- MESSAGE OPTIONS SHEET ---
 class MessageOptionsSheet extends StatelessWidget {
   final DocumentSnapshot doc;
+  final String eventId; // REQUIRED FOR REPORTS
   final VoidCallback onAddReaction;
 
   const MessageOptionsSheet({
     super.key,
     required this.doc,
+    required this.eventId,
     required this.onAddReaction,
   });
 
@@ -76,6 +78,8 @@ class MessageOptionsSheet extends StatelessWidget {
                 );
               },
             ),
+
+          // --- IS ME: DELETE ---
           if (isMe)
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
@@ -86,6 +90,88 @@ class MessageOptionsSheet extends StatelessWidget {
               onTap: () async {
                 Navigator.pop(context);
                 await doc.reference.delete();
+              },
+            ),
+
+          // --- NOT ME: REPORT ---
+          if (!isMe)
+            ListTile(
+              leading: const Icon(Icons.flag_outlined, color: Colors.red),
+              title: const Text(
+                "Report Message",
+                style: TextStyle(color: Colors.red),
+              ),
+              onTap: () async {
+                // Show the dialog FIRST while context is still actively mounted
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text("Report Message?"),
+                    content: const Text(
+                      "Flag this content as offensive or inappropriate? Our team will review it.",
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text("Cancel"),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: TextButton.styleFrom(
+                          foregroundColor: isDark
+                              ? Colors.redAccent
+                              : Colors.red,
+                        ),
+                        child: const Text("Report"),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm != true) {
+                  return;
+                }
+
+                // If confirmed, pop the bottom sheet to get it out of the way
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
+
+                try {
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user == null) {
+                    return;
+                  }
+
+                  await FirebaseFirestore.instance.collection('reports').add({
+                    'eventId': eventId,
+                    'messageId': doc.id,
+                    'messageText': data['text'] ?? '',
+                    'offenderId': data['senderId'],
+                    'reportedBy': user.uid,
+                    'reportedAt': FieldValue.serverTimestamp(),
+                    'status': 'pending',
+                  });
+
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text(
+                          "Report sent. Thank you for keeping TFTI safe.",
+                        ),
+                        backgroundColor: isDark
+                            ? Colors.green.shade700
+                            : Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Error sending report.")),
+                    );
+                  }
+                }
               },
             ),
         ],
