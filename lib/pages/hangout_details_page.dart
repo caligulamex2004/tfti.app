@@ -15,15 +15,11 @@ import 'vibe_check_editor_page.dart';
 // --- UTILS & COMPONENTS ---
 import '../utils/phone_formatter.dart';
 import '../utils/theme_provider.dart';
-import '../components/details/swipe_rsvp_widget.dart';
-import '../components/details/vibe_check_poll_ui.dart';
-import '../components/details/vote_tally_sheet.dart';
-import '../components/shared/user_profile_sheet.dart';
-import '../components/details/details_bottom_sheets.dart';
-import '../components/shared/info_card.dart';
-import '../components/details/event_vitals_card.dart';
+import '../components/details/event_crew_card.dart';
 import '../components/details/event_details_card.dart';
+import '../components/details/event_rsvp_card.dart';
 import '../components/details/event_squad_needs_card.dart';
+import '../components/details/event_vitals_card.dart';
 
 class HangoutDetailsPage extends StatefulWidget {
   final String eventId;
@@ -171,7 +167,6 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
   }
 
   Future<void> _addFriend(
-    BuildContext context,
     String guestUid,
     String guestPhone,
     String guestName,
@@ -193,7 +188,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
             'addedAt': FieldValue.serverTimestamp(),
           });
 
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("$guestName joined your squad!")),
         );
@@ -470,7 +465,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                   : Colors.white);
                         final String location = data['location'] ?? 'TBD';
 
-                        // --- THE VITALS CARD ---
+                        // --- DECLARATIVE COMPONENTS IN ACTION ---
                         final vitalsCardWidget = EventVitalsCard(
                           eventTime: dt,
                           keepAliveDays: keepAliveDays,
@@ -480,13 +475,11 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                           onMapTap: () => _openMap(location),
                         );
 
-                        // --- THE DETAILS CARD ---
                         final detailsCardWidget = EventDetailsCard(
                           details: data['details'] ?? data['description'],
                           latestCriticalChange: data['latestCriticalChange'],
                         );
 
-                        // --- THE SQUAD NEEDS CARD ---
                         final squadNeedsCardWidget = EventSquadNeedsCard(
                           hasRoles: rolesDocs.isNotEmpty,
                           canEdit: canEdit,
@@ -495,421 +488,28 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                           isPast: isPast,
                         );
 
-                        Widget rsvpCardWidget;
-                        if (isVibeCheck) {
-                          rsvpCardWidget = InfoCard(
-                            title: "Cast Your Vote",
-                            icon: Icons.how_to_vote,
-                            onIconTap: () async {
-                              if (_cachedCrewFuture != null) {
-                                final guests = await _cachedCrewFuture!;
-                                if (context.mounted) {
-                                  showModalBottomSheet(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    backgroundColor: Theme.of(
-                                      context,
-                                    ).scaffoldBackgroundColor,
-                                    shape: const RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.vertical(
-                                        top: Radius.circular(24),
-                                      ),
-                                    ),
-                                    builder: (ctx) => VoteTallySheet(
-                                      options: data['pollOptions'] ?? [],
-                                      guests: guests,
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (myStatus != 'going' && !isMainHost)
-                                  Container(
-                                    margin: const EdgeInsets.only(bottom: 16),
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.withValues(
-                                        alpha: 0.1,
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: Colors.orange.withValues(
-                                          alpha: 0.5,
-                                        ),
-                                      ),
-                                    ),
-                                    child: const Row(
-                                      children: [
-                                        Icon(
-                                          Icons.info_outline,
-                                          color: Colors.orange,
-                                          size: 20,
-                                        ),
-                                        SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            "Swipe 'LET'S GO' below to cast your vote!",
-                                            style: TextStyle(
-                                              color: Colors.orange,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                VibeCheckPollUI(
-                                  eventId: widget.eventId,
-                                  eventData: data,
-                                  myInviteData: myInviteData,
-                                  myUid: currentUser.uid,
-                                  isHost: isMainHost,
-                                  isLocked: isPast,
-                                ),
-                                const SizedBox(height: 24),
-                                SwipeRsvpWidget(
-                                  key: ValueKey(myStatus),
-                                  currentStatus: myStatus,
-                                  isLocked: isPast,
-                                  onRsvp: _rsvp,
-                                ),
-                              ],
-                            ),
-                          );
-                        } else {
-                          rsvpCardWidget = InfoCard(
-                            title: "In or Out?",
-                            icon: Icons.thumbs_up_down,
-                            child: SwipeRsvpWidget(
-                              key: ValueKey(myStatus),
-                              currentStatus: myStatus,
-                              isLocked: isPast,
-                              onRsvp: _rsvp,
-                            ),
-                          );
-                        }
+                        final rsvpCardWidget = EventRsvpCard(
+                          isVibeCheck: isVibeCheck,
+                          eventId: widget.eventId,
+                          eventData: data,
+                          myInviteData: myInviteData,
+                          myStatus: myStatus,
+                          myUid: currentUser.uid,
+                          isMainHost: isMainHost,
+                          isPast: isPast,
+                          cachedCrewFuture: _cachedCrewFuture,
+                          onRsvp: _rsvp,
+                        );
 
-                        Widget crewCardWidget;
-                        if (inviteDocs.isEmpty) {
-                          crewCardWidget = const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 20),
-                            child: Text("No invitations found."),
-                          );
-                        } else {
-                          crewCardWidget = FutureBuilder<List<Map<String, dynamic>>>(
-                            future: _cachedCrewFuture,
-                            builder: (context, sortedSnap) {
-                              if (sortedSnap.hasError) {
-                                return const Padding(
-                                  padding: EdgeInsets.all(20),
-                                  child: Center(
-                                    child: Text(
-                                      "Connection lost. Please reopen the event.",
-                                      style: TextStyle(color: Colors.red),
-                                    ),
-                                  ),
-                                );
-                              }
-                              if (!sortedSnap.hasData) {
-                                return const Center(
-                                  child: CircularProgressIndicator(),
-                                );
-                              }
-                              final guests = sortedSnap.data!;
-                              final seenGuests = guests
-                                  .where(
-                                    (g) =>
-                                        g['hasSeen'] == true &&
-                                        g['uid'] != currentUser.uid,
-                                  )
-                                  .toList();
-
-                              return InfoCard(
-                                title: "The Crew",
-                                icon: Icons.group,
-                                onIconTap: seenGuests.isNotEmpty
-                                    ? () {
-                                        showModalBottomSheet(
-                                          context: context,
-                                          isScrollControlled: true,
-                                          backgroundColor: Theme.of(
-                                            context,
-                                          ).scaffoldBackgroundColor,
-                                          shape: const RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.vertical(
-                                              top: Radius.circular(24),
-                                            ),
-                                          ),
-                                          builder: (ctx) => SeenBySheet(
-                                            seenGuests: seenGuests,
-                                          ),
-                                        );
-                                      }
-                                    : null,
-                                child: ListView.builder(
-                                  padding: EdgeInsets.zero,
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: guests.length,
-                                  itemBuilder: (context, index) {
-                                    final guest = guests[index];
-                                    final String status = guest['status'];
-                                    final String guestUid = guest['uid'];
-
-                                    IconData badgeIcon = status == 'going'
-                                        ? Icons.check_circle
-                                        : (status == 'declined'
-                                              ? Icons.cancel
-                                              : Icons.hourglass_empty);
-                                    Color badgeColor = status == 'going'
-                                        ? Colors.green
-                                        : (status == 'declined'
-                                              ? Colors.red
-                                              : (isDark
-                                                    ? Colors.grey.shade400
-                                                    : Colors.grey.shade700));
-
-                                    return StreamBuilder<DocumentSnapshot>(
-                                      stream: FirebaseFirestore.instance
-                                          .collection('users')
-                                          .doc(currentUser.uid)
-                                          .collection('friends')
-                                          .doc(guestUid)
-                                          .snapshots(),
-                                      builder: (context, friendSnap) {
-                                        bool showAddButton =
-                                            (guestUid != currentUser.uid) &&
-                                            !(friendSnap.hasData &&
-                                                friendSnap.data!.exists);
-                                        bool isGoated =
-                                            friendSnap.hasData &&
-                                                friendSnap.data!.exists
-                                            ? (friendSnap.data!.data()
-                                                      as Map<
-                                                        String,
-                                                        dynamic
-                                                      >)['isGoated'] ==
-                                                  true
-                                            : false;
-
-                                        return InkWell(
-                                          onTap: () {
-                                            showModalBottomSheet(
-                                              context: context,
-                                              isScrollControlled: true,
-                                              backgroundColor: Theme.of(
-                                                context,
-                                              ).scaffoldBackgroundColor,
-                                              shape:
-                                                  const RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.vertical(
-                                                          top: Radius.circular(
-                                                            24,
-                                                          ),
-                                                        ),
-                                                  ),
-                                              builder: (ctx) =>
-                                                  UserProfileSheet(
-                                                    userData: guest,
-                                                    showAddButton:
-                                                        showAddButton,
-                                                    isGoated: isGoated,
-                                                    currentUserId:
-                                                        currentUser.uid,
-                                                    onAddFriend:
-                                                        (uid, phone, name) =>
-                                                            _addFriend(
-                                                              context,
-                                                              uid,
-                                                              phone,
-                                                              name,
-                                                            ),
-                                                    onReportUser: (uid, name) =>
-                                                        _reportUser(uid, name),
-                                                  ),
-                                            );
-                                          },
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 10,
-                                              horizontal: 8,
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                Stack(
-                                                  clipBehavior: Clip.none,
-                                                  children: [
-                                                    Container(
-                                                      decoration: BoxDecoration(
-                                                        shape: BoxShape.circle,
-                                                        boxShadow: [
-                                                          BoxShadow(
-                                                            color:
-                                                                Color(
-                                                                  guest['avatarColor'],
-                                                                ).withValues(
-                                                                  alpha: 0.4,
-                                                                ),
-                                                            blurRadius: 8,
-                                                            spreadRadius: 1,
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      child: CircleAvatar(
-                                                        backgroundColor: Color(
-                                                          guest['avatarColor'],
-                                                        ),
-                                                        radius: 22,
-                                                        backgroundImage:
-                                                            guest['avatarUrl'] !=
-                                                                null
-                                                            ? CachedNetworkImageProvider(
-                                                                guest['avatarUrl'],
-                                                              )
-                                                            : null,
-                                                        child:
-                                                            guest['avatarUrl'] ==
-                                                                null
-                                                            ? Text(
-                                                                guest['displayName'][0]
-                                                                    .toUpperCase(),
-                                                                style: const TextStyle(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                ),
-                                                              )
-                                                            : null,
-                                                      ),
-                                                    ),
-                                                    Positioned(
-                                                      top: -5,
-                                                      right: -10,
-                                                      child: Container(
-                                                        padding:
-                                                            const EdgeInsets.all(
-                                                              2,
-                                                            ),
-                                                        decoration:
-                                                            BoxDecoration(
-                                                              color: Theme.of(
-                                                                context,
-                                                              ).cardColor,
-                                                              shape: BoxShape
-                                                                  .circle,
-                                                            ),
-                                                        child: Icon(
-                                                          badgeIcon,
-                                                          size: 18,
-                                                          color: badgeColor,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                const SizedBox(width: 16),
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Row(
-                                                        children: [
-                                                          Flexible(
-                                                            child: Text(
-                                                              guest['displayName'],
-                                                              style: const TextStyle(
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                                fontSize: 16,
-                                                              ),
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                            ),
-                                                          ),
-                                                          if (guestUid ==
-                                                              data['hostId'])
-                                                            const Padding(
-                                                              padding:
-                                                                  EdgeInsets.only(
-                                                                    left: 6,
-                                                                  ),
-                                                              child: Icon(
-                                                                Symbols.crown,
-                                                                size: 18,
-                                                                color: Colors
-                                                                    .amber,
-                                                              ),
-                                                            ),
-                                                          if (guestUid ==
-                                                              data['coHostId'])
-                                                            const Padding(
-                                                              padding:
-                                                                  EdgeInsets.only(
-                                                                    left: 6,
-                                                                  ),
-                                                              child: Icon(
-                                                                Symbols
-                                                                    .military_tech,
-                                                                size: 16,
-                                                                color: Colors
-                                                                    .amber,
-                                                              ),
-                                                            ),
-                                                        ],
-                                                      ),
-                                                      if ((guest['username'] ??
-                                                              "")
-                                                          .isNotEmpty)
-                                                        Text(
-                                                          "@${guest['username']}",
-                                                          style: TextStyle(
-                                                            color: primaryColor,
-                                                            fontSize: 13,
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                          ),
-                                                        ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                if (showAddButton)
-                                                  IconButton(
-                                                    icon: Icon(
-                                                      Icons.person_add_alt_1,
-                                                      color: primaryColor,
-                                                    ),
-                                                    onPressed: () => _addFriend(
-                                                      context,
-                                                      guestUid,
-                                                      guest['phone'],
-                                                      guest['displayName'],
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    );
-                                  },
-                                ),
-                              );
-                            },
-                          );
-                        }
+                        final crewCardWidget = EventCrewCard(
+                          inviteDocsEmpty: inviteDocs.isEmpty,
+                          cachedCrewFuture: _cachedCrewFuture,
+                          currentUserId: currentUser.uid,
+                          hostId: data['hostId'],
+                          coHostId: data['coHostId'],
+                          onAddFriend: _addFriend,
+                          onReportUser: _reportUser,
+                        );
 
                         Timestamp? lastReadTime = myInviteData['lastReadChat'];
                         bool hasUnread = false;
