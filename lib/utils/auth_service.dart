@@ -1,7 +1,53 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
+
+// --- AUTH PHONE FIELD ---
+class AuthPhoneField extends StatelessWidget {
+  final TextEditingController controller;
+  final Function(String) onChanged;
+
+  const AuthPhoneField({
+    super.key,
+    required this.controller,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return IntlPhoneField(
+      controller: controller,
+      initialCountryCode: 'US',
+      dropdownIconPosition: IconPosition.trailing,
+      dropdownIcon: Icon(
+        Icons.arrow_drop_down,
+        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+      ),
+      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+      decoration: InputDecoration(
+        labelText: "Phone Number",
+        labelStyle: TextStyle(
+          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+        ),
+        filled: true,
+        fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: 16,
+        ),
+      ),
+      onChanged: (phone) => onChanged(phone.completeNumber),
+    );
+  }
+}
 
 class AuthService {
   static Future<void> saveDeviceToken(User user) async {

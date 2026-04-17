@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl_phone_field/intl_phone_field.dart';
 
 import '../utils/theme_provider.dart';
 import '../utils/auth_service.dart';
@@ -422,41 +421,10 @@ class _LoginPageState extends State<LoginPage> {
                             ],
 
                             // --- PHONE FIELD (BOTH MODES) ---
-                            IntlPhoneField(
+                            AuthPhoneField(
                               controller: _phoneController,
-                              initialCountryCode: 'US',
-                              dropdownIconPosition: IconPosition.trailing,
-                              dropdownIcon: Icon(
-                                Icons.arrow_drop_down,
-                                color: isDark
-                                    ? Colors.grey.shade400
-                                    : Colors.grey.shade600,
-                              ),
-                              style: TextStyle(
-                                color: isDark ? Colors.white : Colors.black87,
-                              ),
-                              decoration: InputDecoration(
-                                labelText: "Phone Number",
-                                labelStyle: TextStyle(
-                                  color: isDark
-                                      ? Colors.grey.shade400
-                                      : Colors.grey.shade600,
-                                ),
-                                filled: true,
-                                fillColor: isDark
-                                    ? Colors.grey.shade800
-                                    : Colors.grey.shade100,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                  horizontal: 16,
-                                ),
-                              ),
-                              onChanged: (phone) {
-                                _completePhoneNumber = phone.completeNumber;
+                              onChanged: (completeNumber) {
+                                _completePhoneNumber = completeNumber;
                               },
                             ),
 
