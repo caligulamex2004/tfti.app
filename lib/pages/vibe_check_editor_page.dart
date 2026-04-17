@@ -9,7 +9,7 @@ import '../components/forms/custom_input_field.dart';
 import '../components/forms/tactile_chip_row.dart';
 import '../components/forms/date_time_row.dart';
 import '../components/forms/vibe_options_card.dart';
-import '../components/forms/team_selection_field.dart';
+import '../components/forms/crew_form_card.dart';
 import '../components/forms/vibe_host_actions_card.dart';
 import 'places_search_page.dart';
 
@@ -41,6 +41,13 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
   List<String> _selectedCircleIds = [];
   int _rsvpDeadlineOffset = -60; // Default: 1 hour before
 
+  // Co-Captain State (Restored for Vibe Checks!)
+  String? _selectedCoHostId;
+  String? _selectedCoHostName;
+  String? _selectedCoHostUsername;
+  String? _selectedCoHostAvatarUrl;
+  int? _selectedCoHostAvatarColor;
+
   // Dynamic list of poll options holding the ID and the text controllers
   final List<Map<String, dynamic>> _pollOptions = [];
 
@@ -63,6 +70,26 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       _rsvpDeadlineOffset = data['rsvpDeadline'] ?? -60;
       _inviteAll = data['inviteAll'] ?? true;
       _selectedCircleIds = List<String>.from(data['invitedCircles'] ?? []);
+
+      _selectedCoHostId = data['coHostId'];
+      _selectedCoHostName = data['coHostName'];
+
+      // Fetch Co-Host Avatar & Username silently if one exists
+      if (_selectedCoHostId != null) {
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(_selectedCoHostId)
+            .get()
+            .then((doc) {
+              if (mounted && doc.exists) {
+                setState(() {
+                  _selectedCoHostUsername = doc.data()?['username'];
+                  _selectedCoHostAvatarUrl = doc.data()?['avatarUrl'];
+                  _selectedCoHostAvatarColor = doc.data()?['avatarColor'];
+                });
+              }
+            });
+      }
 
       final List<dynamic> existingOptions = data['pollOptions'] ?? [];
       for (var opt in existingOptions) {
@@ -200,7 +227,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return;
@@ -236,6 +265,8 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
           'rsvpDeadline': _rsvpDeadlineOffset,
           'inviteAll': _inviteAll,
           'invitedCircles': _selectedCircleIds,
+          'coHostId': _selectedCoHostId,
+          'coHostName': _selectedCoHostName,
           'lastUpdatedAt': FieldValue.serverTimestamp(),
         };
 
@@ -344,7 +375,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
               ),
             );
           }
-          setState(() => _isLoading = false);
+          setState(() {
+            _isLoading = false;
+          });
           return;
         }
 
@@ -355,6 +388,8 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
           'lockedOptionId': null,
           'isTieBreakerNeeded': false,
           'hostId': user.uid,
+          'coHostId': _selectedCoHostId,
+          'coHostName': _selectedCoHostName,
           'title': _titleController.text.trim(),
           'details': _detailsController.text.trim(),
           'time': Timestamp.fromDate(newDateTime),
@@ -406,7 +441,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -434,7 +471,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
     );
 
     if (confirm == true) {
-      setState(() => _isLoading = true);
+      setState(() {
+        _isLoading = true;
+      });
       try {
         final eventRef = FirebaseFirestore.instance
             .collection('events')
@@ -463,14 +502,18 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
         }
       } finally {
         if (mounted) {
-          setState(() => _isLoading = false);
+          setState(() {
+            _isLoading = false;
+          });
         }
       }
     }
   }
 
   Future<void> _showConvertDialog() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
 
     Map<String, int> voteCounts = {};
     try {
@@ -494,7 +537,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
     }
 
     if (mounted) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+      });
     }
 
     List<Map<String, dynamic>> validOptions = [];
@@ -618,7 +663,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
     if (confirm != true) {
       return;
     }
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       final batch = FirebaseFirestore.instance.batch();
@@ -663,7 +710,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -693,10 +742,14 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
             selectedDate: _selectedDate,
             selectedTime: _selectedTime,
             onDateChanged: (d) {
-              setState(() => _selectedDate = d);
+              setState(() {
+                _selectedDate = d;
+              });
             },
             onTimeChanged: (t) {
-              setState(() => _selectedTime = t);
+              setState(() {
+                _selectedTime = t;
+              });
             },
           ),
         ],
@@ -724,7 +777,11 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
               {'label': '48 hrs before', 'value': -2880},
             ],
             selectedValue: _rsvpDeadlineOffset,
-            onSelected: (v) => setState(() => _rsvpDeadlineOffset = v),
+            onSelected: (v) {
+              setState(() {
+                _rsvpDeadlineOffset = v;
+              });
+            },
           ),
           const SizedBox(height: 24),
           CustomInputField(
@@ -736,23 +793,6 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
             maxLines: 2,
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildCrewCard() {
-    return RpgGlassCard(
-      title: "The Crew",
-      icon: Icons.group,
-      child: TeamSelectionField(
-        inviteAll: _inviteAll,
-        selectedCircleIds: _selectedCircleIds,
-        onChanged: (newAll, newIds) {
-          setState(() {
-            _inviteAll = newAll;
-            _selectedCircleIds = newIds;
-          });
-        },
       ),
     );
   }
@@ -828,7 +868,48 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                             children: [
                               _buildVitalsCard(isDark, primaryColor),
                               _buildExtrasCard(isDark, primaryColor),
-                              _buildCrewCard(),
+                              CrewFormCard(
+                                isPast: false,
+                                inviteAll: _inviteAll,
+                                selectedCircleIds: _selectedCircleIds,
+                                coHostId: _selectedCoHostId,
+                                coHostName: _selectedCoHostName,
+                                coHostUsername: _selectedCoHostUsername,
+                                coHostAvatarUrl: _selectedCoHostAvatarUrl,
+                                coHostAvatarColor: _selectedCoHostAvatarColor,
+                                onTeamChanged: (newAll, newIds) {
+                                  setState(() {
+                                    _inviteAll = newAll;
+                                    _selectedCircleIds = newIds;
+
+                                    if (!_inviteAll &&
+                                        _selectedCircleIds.isEmpty) {
+                                      _selectedCoHostId = null;
+                                      _selectedCoHostName = null;
+                                      _selectedCoHostUsername = null;
+                                      _selectedCoHostAvatarUrl = null;
+                                      _selectedCoHostAvatarColor = null;
+                                    }
+                                  });
+                                },
+                                onCoCaptainChanged:
+                                    (
+                                      id,
+                                      name,
+                                      username,
+                                      avatarUrl,
+                                      avatarColor,
+                                    ) {
+                                      setState(() {
+                                        _selectedCoHostId = id;
+                                        _selectedCoHostName = name;
+                                        _selectedCoHostUsername = username;
+                                        _selectedCoHostAvatarUrl = avatarUrl;
+                                        _selectedCoHostAvatarColor =
+                                            avatarColor;
+                                      });
+                                    },
+                              ),
                               VibeHostActionsCard(
                                 isEditing: isEditing,
                                 onConvert: _showConvertDialog,
@@ -866,7 +947,40 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                           onClearLocation: _clearOptionLocation,
                         ),
                         _buildExtrasCard(isDark, primaryColor),
-                        _buildCrewCard(),
+                        CrewFormCard(
+                          isPast: false,
+                          inviteAll: _inviteAll,
+                          selectedCircleIds: _selectedCircleIds,
+                          coHostId: _selectedCoHostId,
+                          coHostName: _selectedCoHostName,
+                          coHostUsername: _selectedCoHostUsername,
+                          coHostAvatarUrl: _selectedCoHostAvatarUrl,
+                          coHostAvatarColor: _selectedCoHostAvatarColor,
+                          onTeamChanged: (newAll, newIds) {
+                            setState(() {
+                              _inviteAll = newAll;
+                              _selectedCircleIds = newIds;
+
+                              if (!_inviteAll && _selectedCircleIds.isEmpty) {
+                                _selectedCoHostId = null;
+                                _selectedCoHostName = null;
+                                _selectedCoHostUsername = null;
+                                _selectedCoHostAvatarUrl = null;
+                                _selectedCoHostAvatarColor = null;
+                              }
+                            });
+                          },
+                          onCoCaptainChanged:
+                              (id, name, username, avatarUrl, avatarColor) {
+                                setState(() {
+                                  _selectedCoHostId = id;
+                                  _selectedCoHostName = name;
+                                  _selectedCoHostUsername = username;
+                                  _selectedCoHostAvatarUrl = avatarUrl;
+                                  _selectedCoHostAvatarColor = avatarColor;
+                                });
+                              },
+                        ),
                         VibeHostActionsCard(
                           isEditing: isEditing,
                           onConvert: _showConvertDialog,
