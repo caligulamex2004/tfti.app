@@ -7,8 +7,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 
 // --- UTILS & COMPONENTS ---
 import '../utils/theme_provider.dart';
@@ -18,6 +16,7 @@ import '../components/chat/message_bubble.dart';
 import '../components/chat/chat_input_field.dart';
 import '../components/chat/mentions_overlay.dart';
 import '../components/chat/chat_action_dialogs.dart';
+import '../components/chat/message_action_sheets.dart';
 
 class HangoutChatPage extends StatefulWidget {
   final String eventId;
@@ -65,26 +64,6 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
     _invitationsSub?.cancel();
     _eventSub?.cancel();
     super.dispose();
-  }
-
-  // --- DATA NORMALIZER (SELF-HEALS OLD FIRESTORE BUGS) ---
-  Map<String, List<String>> _normalizeReactions(Map<String, dynamic> raw) {
-    Map<String, List<String>> normalized = {};
-    raw.forEach((key, value) {
-      if (value is List) {
-        normalized[key] = List<String>.from(value);
-      } else if (value is String) {
-        final String emoji = value;
-        final String uid = key;
-        if (!normalized.containsKey(emoji)) {
-          normalized[emoji] = [];
-        }
-        if (!normalized[emoji]!.contains(uid)) {
-          normalized[emoji]!.add(uid);
-        }
-      }
-    });
-    return normalized;
   }
 
   // --- REAL-TIME LISTENERS ---
@@ -400,335 +379,6 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
     }
   }
 
-  // --- MESSAGE OPTIONS & REACTIONS ---
-
-  void _showMessageOptions(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    final isMe = data['senderId'] == FirebaseAuth.instance.currentUser?.uid;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 10),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.add_reaction_outlined),
-              title: const Text("Add Reaction"),
-              onTap: () {
-                Navigator.pop(ctx);
-                _showEmojiPicker(doc);
-              },
-            ),
-            if (data['text'] != null && (data['text'] as String).isNotEmpty)
-              ListTile(
-                leading: const Icon(Icons.copy),
-                title: const Text("Copy Text"),
-                onTap: () {
-                  Clipboard.setData(ClipboardData(text: data['text']));
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Copied to clipboard")),
-                  );
-                },
-              ),
-            if (isMe)
-              ListTile(
-                leading: const Icon(Icons.delete_outline, color: Colors.red),
-                title: const Text(
-                  "Delete Message",
-                  style: TextStyle(color: Colors.red),
-                ),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  await doc.reference.delete();
-                },
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showEmojiPicker(DocumentSnapshot doc) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      builder: (ctx) {
-        return SafeArea(
-          child: SizedBox(
-            height: 300,
-            child: EmojiPicker(
-              onEmojiSelected: (category, emoji) async {
-                Navigator.pop(ctx);
-                final user = FirebaseAuth.instance.currentUser;
-                if (user == null) {
-                  return;
-                }
-
-                final docRef = FirebaseFirestore.instance
-                    .collection('events')
-                    .doc(widget.eventId)
-                    .collection('messages')
-                    .doc(doc.id);
-
-                await FirebaseFirestore.instance.runTransaction((
-                  transaction,
-                ) async {
-                  final freshDoc = await transaction.get(docRef);
-                  if (!freshDoc.exists) {
-                    return;
-                  }
-
-                  final data = freshDoc.data() as Map<String, dynamic>;
-                  final rawReactions = Map<String, dynamic>.from(
-                    data['reactions'] ?? {},
-                  );
-                  final normalized = _normalizeReactions(rawReactions);
-
-                  bool userAlreadyHadThisEmoji = false;
-
-                  normalized.forEach((key, list) {
-                    if (key == emoji.emoji && list.contains(user.uid)) {
-                      userAlreadyHadThisEmoji = true;
-                    }
-                    list.remove(user.uid);
-                  });
-
-                  normalized.removeWhere((key, list) => list.isEmpty);
-
-                  if (!userAlreadyHadThisEmoji) {
-                    if (!normalized.containsKey(emoji.emoji)) {
-                      normalized[emoji.emoji] = [];
-                    }
-                    normalized[emoji.emoji]!.add(user.uid);
-                  }
-
-                  transaction.update(docRef, {'reactions': normalized});
-                });
-              },
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showReactionsDetailsSheet(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    final rawReactions = Map<String, dynamic>.from(data['reactions'] ?? {});
-    final reactions = _normalizeReactions(rawReactions);
-
-    if (reactions.isEmpty) {
-      return;
-    }
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 10),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                "Reactions",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const Divider(height: 1),
-            Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                children: reactions.entries.expand((entry) {
-                  final emoji = entry.key;
-                  final uids = entry.value;
-
-                  return uids.map((uid) {
-                    final guest = _eventGuests.firstWhere(
-                      (g) => g['uid'] == uid,
-                      orElse: () => {
-                        'displayName': 'Unknown',
-                        'tag': '',
-                        'avatarColor': Colors.blue.toARGB32(),
-                      },
-                    );
-                    final name = guest['displayName'];
-                    final tag = guest['tag'];
-                    final String? avatarUrl = guest['avatarUrl'];
-                    final color = Color(
-                      guest['avatarColor'] ?? Colors.blue.toARGB32(),
-                    );
-
-                    return ListTile(
-                      leading: CircleAvatar(
-                        radius: 16,
-                        backgroundColor: color,
-                        backgroundImage: avatarUrl != null
-                            ? CachedNetworkImageProvider(avatarUrl)
-                            : null,
-                        child: avatarUrl == null
-                            ? Text(
-                                name[0].toUpperCase(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                ),
-                              )
-                            : null,
-                      ),
-                      title: Text(
-                        name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: tag.isNotEmpty
-                          ? Text(
-                              "@$tag",
-                              style: TextStyle(
-                                color: isDark
-                                    ? Colors.grey.shade400
-                                    : Colors.grey.shade600,
-                                fontSize: 12,
-                              ),
-                            )
-                          : null,
-                      trailing: Text(
-                        emoji,
-                        style: const TextStyle(fontSize: 24),
-                      ),
-                    );
-                  }).toList();
-                }).toList(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showReadBySheet(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    final msgTime = data['timestamp'] as Timestamp?;
-    if (msgTime == null) {
-      return;
-    }
-
-    List<Map<String, dynamic>> readBy = [];
-    for (var guest in _eventGuests) {
-      if (guest['uid'] != data['senderId']) {
-        final lastRead = guest['lastReadChat'] as Timestamp?;
-        if (lastRead != null && lastRead.seconds >= msgTime.seconds) {
-          readBy.add(guest);
-        }
-      }
-    }
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text(
-                  "Read by",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const Divider(height: 1),
-              if (readBy.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(32.0),
-                  child: Text("No one has read this yet."),
-                ),
-              ...readBy.map((guest) {
-                final String? avatarUrl = guest['avatarUrl'];
-                final color = Color(
-                  guest['avatarColor'] ?? Colors.blue.toARGB32(),
-                );
-                final name = guest['displayName'];
-                final tag = guest['tag'];
-
-                return ListTile(
-                  leading: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: color,
-                    backgroundImage: avatarUrl != null
-                        ? CachedNetworkImageProvider(avatarUrl)
-                        : null,
-                    child: avatarUrl == null
-                        ? Text(
-                            name[0].toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                            ),
-                          )
-                        : null,
-                  ),
-                  title: Text(
-                    name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: tag != null && tag.isNotEmpty
-                      ? Text(
-                          "@$tag",
-                          style: TextStyle(
-                            color: isDark
-                                ? Colors.grey.shade400
-                                : Colors.grey.shade600,
-                            fontSize: 12,
-                          ),
-                        )
-                      : null,
-                );
-              }),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -809,11 +459,11 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                         data['senderId'] ==
                         FirebaseAuth.instance.currentUser?.uid;
 
-                    // NORMALIZER
+                    // NORMALIZER HELPER NOW IMPORTED FROM message_action_sheets.dart
                     final rawReactions = Map<String, dynamic>.from(
                       data['reactions'] ?? {},
                     );
-                    final normalizedReactions = _normalizeReactions(
+                    final normalizedReactions = normalizeReactions(
                       rawReactions,
                     );
 
@@ -837,10 +487,70 @@ class _HangoutChatPageState extends State<HangoutChatPage> {
                       reactions: normalizedReactions,
                       readBy: readBy,
                       eventGuests: _eventGuests,
-                      onOptionsTap: () => _showMessageOptions(doc),
-                      onReadByTap: () => _showReadBySheet(doc),
-                      onReactionsTap: (reactions) =>
-                          _showReactionsDetailsSheet(doc),
+
+                      // DELEGATING ALL ACTIONS TO OUR NEW BOTTOM SHEETS
+                      onOptionsTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).scaffoldBackgroundColor,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(20),
+                            ),
+                          ),
+                          builder: (ctx) => MessageOptionsSheet(
+                            doc: doc,
+                            onAddReaction: () {
+                              showModalBottomSheet(
+                                context: context,
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).scaffoldBackgroundColor,
+                                builder: (ctx2) => MessageEmojiPickerSheet(
+                                  doc: doc,
+                                  eventId: widget.eventId,
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                      onReadByTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).scaffoldBackgroundColor,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(20),
+                            ),
+                          ),
+                          builder: (ctx) => MessageReadBySheet(
+                            doc: doc,
+                            eventGuests: _eventGuests,
+                          ),
+                        );
+                      },
+                      onReactionsTap: (reactions) {
+                        showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).scaffoldBackgroundColor,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(20),
+                            ),
+                          ),
+                          builder: (ctx) => MessageReactionsSheet(
+                            doc: doc,
+                            eventGuests: _eventGuests,
+                          ),
+                        );
+                      },
                     );
                   },
                 );
