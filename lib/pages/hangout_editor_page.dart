@@ -11,6 +11,8 @@ import '../components/shared/banner_picker.dart';
 import '../components/forms/extras_form_card.dart';
 import '../components/forms/vitals_form_card.dart';
 import '../components/forms/crew_form_card.dart';
+import '../components/forms/lockdown_banner.dart';
+import '../components/forms/editor_action_buttons.dart';
 
 class HangoutEditorPage extends StatefulWidget {
   final String? eventId;
@@ -513,80 +515,13 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     }
   }
 
-  // --- UI HELPER METHODS ---
-
-  Widget _buildSubmitButton(Color primaryColor, String submitText) {
-    return Column(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          height: 60,
-          child: ElevatedButton(
-            onPressed: (_isPast || _isLoading) ? null : _submitEvent,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: themeProvider.onPrimaryColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-            child: Text(
-              submitText,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-            ),
-          ),
-        ),
-        if (isEditing && _isMainHost) ...[
-          const SizedBox(height: 16),
-          TextButton.icon(
-            onPressed: _isPast || _isLoading ? null : _deleteEvent,
-            icon: const Icon(Icons.delete_forever, color: Colors.red),
-            label: const Text(
-              "Delete Hangout",
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
     final String appBarTitle = isEditing ? "Manage Hangout" : "Create Hangout";
     final String submitText = isEditing ? "Save Changes" : "Deploy Hangout";
-
-    Widget lockdownBanner = _isPast
-        ? Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 24),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.red.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.red.withValues(alpha: 0.5)),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.lock, color: Colors.red),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    "This hangout has already passed. It can no longer be edited.",
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          )
-        : const SizedBox.shrink();
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -614,7 +549,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                     child: isLandscape
                         ? Column(
                             children: [
-                              if (_isPast) lockdownBanner,
+                              LockdownBanner(isPast: _isPast),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -698,9 +633,14 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                                 });
                                               },
                                         ),
-                                        _buildSubmitButton(
-                                          primaryColor,
-                                          submitText,
+                                        EditorActionButtons(
+                                          isEditing: isEditing,
+                                          isMainHost: _isMainHost,
+                                          isPast: _isPast,
+                                          isLoading: _isLoading,
+                                          submitText: submitText,
+                                          onSubmit: _submitEvent,
+                                          onDelete: _deleteEvent,
                                         ),
                                       ],
                                     ),
@@ -742,7 +682,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                           )
                         : Column(
                             children: [
-                              if (_isPast) lockdownBanner,
+                              LockdownBanner(isPast: _isPast),
                               BannerPicker(
                                 existingImageUrl: isEditing
                                     ? widget.eventData!['bannerUrl']
@@ -837,7 +777,15 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                     },
                               ),
                               const SizedBox(height: 12),
-                              _buildSubmitButton(primaryColor, submitText),
+                              EditorActionButtons(
+                                isEditing: isEditing,
+                                isMainHost: _isMainHost,
+                                isPast: _isPast,
+                                isLoading: _isLoading,
+                                submitText: submitText,
+                                onSubmit: _submitEvent,
+                                onDelete: _deleteEvent,
+                              ),
                               const SizedBox(height: 40),
                             ],
                           ),
