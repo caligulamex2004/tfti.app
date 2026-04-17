@@ -21,6 +21,8 @@ import '../components/details/vote_tally_sheet.dart';
 import '../components/forms/squad_needs_sheet.dart';
 import '../components/shared/user_profile_sheet.dart';
 import '../components/details/details_bottom_sheets.dart';
+import '../components/shared/info_card.dart';
+import '../components/details/critical_alert_banner.dart';
 
 class HangoutDetailsPage extends StatefulWidget {
   final String eventId;
@@ -368,129 +370,6 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
     );
   }
 
-  // --- UI HELPERS ---
-
-  Widget _buildAlertBanner(BuildContext context, Map<String, dynamic> data) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final change = data['latestCriticalChange'] as Map<String, dynamic>?;
-    if (change == null) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "HEADS UP: ${change['field'] ?? 'Details'} Changed!",
-                  style: const TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "Was: ${change['original'] ?? ''}\nNow: ${change['new'] ?? ''}",
-                  style: TextStyle(
-                    color: isDark ? Colors.red.shade200 : Colors.red.shade900,
-                    fontSize: 13,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoCard({
-    required String title,
-    required IconData icon,
-    required Widget child,
-    Widget? trailing,
-    VoidCallback? onIconTap,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 24, left: 20, right: 20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-          width: 1,
-        ),
-        boxShadow: [
-          if (!isDark)
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-            child: Row(
-              children: [
-                Material(
-                  color: primaryColor.withValues(alpha: 0.15),
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    onTap: onIconTap,
-                    customBorder: const CircleBorder(),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Icon(icon, color: primaryColor, size: 20),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                ),
-                ?trailing,
-              ],
-            ),
-          ),
-          Divider(
-            height: 1,
-            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-          ),
-          Padding(padding: const EdgeInsets.all(20), child: child),
-        ],
-      ),
-    );
-  }
-
   // --- BUILD METHDOD ---
 
   @override
@@ -590,7 +469,8 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                   : Colors.white);
                         final String location = data['location'] ?? 'TBD';
 
-                        final vitalsCardWidget = _buildInfoCard(
+                        // --- NEW: InfoCard COMPONENT REPLACES _buildInfoCard ---
+                        final vitalsCardWidget = InfoCard(
                           title: "The Vitals",
                           icon: Icons.calendar_month,
                           onIconTap: _pushToCalendar,
@@ -819,7 +699,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                         Widget detailsCardWidget = const SizedBox.shrink();
                         if ((details != null && details.isNotEmpty) ||
                             data.containsKey('latestCriticalChange')) {
-                          detailsCardWidget = _buildInfoCard(
+                          detailsCardWidget = InfoCard(
                             title: "The Details",
                             icon: Icons.notes,
                             child: Column(
@@ -828,7 +708,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                 if (data.containsKey(
                                   'latestCriticalChange',
                                 )) ...[
-                                  _buildAlertBanner(context, data),
+                                  CriticalAlertBanner(
+                                    changeData: data['latestCriticalChange'],
+                                  ),
                                   const SizedBox(height: 8),
                                 ],
                                 if (details != null && details.isNotEmpty)
@@ -890,7 +772,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
 
                         Widget squadNeedsCardWidget = const SizedBox.shrink();
                         if (rolesDocs.isNotEmpty) {
-                          squadNeedsCardWidget = _buildInfoCard(
+                          squadNeedsCardWidget = InfoCard(
                             title: "Squad Needs",
                             icon: Icons.check_box_outlined,
                             child: InkWell(
@@ -959,7 +841,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
 
                         Widget rsvpCardWidget;
                         if (isVibeCheck) {
-                          rsvpCardWidget = _buildInfoCard(
+                          rsvpCardWidget = InfoCard(
                             title: "Cast Your Vote",
                             icon: Icons.how_to_vote,
                             onIconTap: () async {
@@ -1042,7 +924,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                             ),
                           );
                         } else {
-                          rsvpCardWidget = _buildInfoCard(
+                          rsvpCardWidget = InfoCard(
                             title: "In or Out?",
                             icon: Icons.thumbs_up_down,
                             child: SwipeRsvpWidget(
@@ -1089,7 +971,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                   )
                                   .toList();
 
-                              return _buildInfoCard(
+                              return InfoCard(
                                 title: "The Crew",
                                 icon: Icons.group,
                                 onIconTap: seenGuests.isNotEmpty
