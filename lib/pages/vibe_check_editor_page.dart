@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../utils/theme_provider.dart';
-import '../components/shared/rpg_glass_card.dart';
-import '../components/forms/custom_input_field.dart';
-import '../components/forms/tactile_chip_row.dart';
-import '../components/forms/date_time_row.dart';
 import '../components/forms/vibe_options_card.dart';
 import '../components/forms/crew_form_card.dart';
 import '../components/forms/vibe_host_actions_card.dart';
+import '../components/forms/vitals_form_card.dart';
+import '../components/forms/extras_form_card.dart';
 import 'places_search_page.dart';
 
 class VibeCheckEditorPage extends StatefulWidget {
@@ -41,7 +38,7 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
   List<String> _selectedCircleIds = [];
   int _rsvpDeadlineOffset = -60; // Default: 1 hour before
 
-  // Co-Captain State (Restored for Vibe Checks!)
+  // Co-Captain State
   String? _selectedCoHostId;
   String? _selectedCoHostName;
   String? _selectedCoHostUsername;
@@ -717,89 +714,8 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
     }
   }
 
-  // --- UI HELPER METHODS ---
-
-  Widget _buildVitalsCard(bool isDark, Color primaryColor) {
-    return RpgGlassCard(
-      title: "The Vitals",
-      icon: Icons.push_pin,
-      child: Column(
-        children: [
-          CustomInputField(
-            controller: _titleController,
-            label: "What's the vibe?",
-            hint: "e.g. Sunday Funday, Post-Work Drinks",
-            prefixIcon: Symbols.campaign,
-            validator: (v) {
-              if (v!.isEmpty) {
-                return "Required";
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-          DateTimeRow(
-            selectedDate: _selectedDate,
-            selectedTime: _selectedTime,
-            onDateChanged: (d) {
-              setState(() {
-                _selectedDate = d;
-              });
-            },
-            onTimeChanged: (t) {
-              setState(() {
-                _selectedTime = t;
-              });
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildExtrasCard(bool isDark, Color primaryColor) {
-    return RpgGlassCard(
-      title: "The Extras",
-      icon: Icons.auto_awesome,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TactileChipRow<int>(
-            label: "Voting Deadline",
-            icon: Icons.timer_off_outlined,
-            options: const [
-              {'label': 'On time', 'value': 0},
-              {'label': '30 mins before', 'value': -30},
-              {'label': '1 hr before', 'value': -60},
-              {'label': '2 hrs before', 'value': -120},
-              {'label': '4 hrs before', 'value': -240},
-              {'label': '24 hrs before', 'value': -1440},
-              {'label': '48 hrs before', 'value': -2880},
-            ],
-            selectedValue: _rsvpDeadlineOffset,
-            onSelected: (v) {
-              setState(() {
-                _rsvpDeadlineOffset = v;
-              });
-            },
-          ),
-          const SizedBox(height: 24),
-          CustomInputField(
-            controller: _detailsController,
-            label: "Any other details? (Optional)",
-            hint: "e.g. Dog friendly, BYOB...",
-            prefixIcon: Icons.notes,
-            prefixIconColor: isDark ? Colors.grey.shade400 : Colors.grey,
-            maxLines: 2,
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
@@ -866,8 +782,38 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                         Expanded(
                           child: Column(
                             children: [
-                              _buildVitalsCard(isDark, primaryColor),
-                              _buildExtrasCard(isDark, primaryColor),
+                              VitalsFormCard(
+                                titleController: _titleController,
+                                isPast: false,
+                                selectedDate: _selectedDate,
+                                selectedTime: _selectedTime,
+                                onDateChanged: (d) {
+                                  setState(() {
+                                    _selectedDate = d;
+                                  });
+                                },
+                                onTimeChanged: (t) {
+                                  setState(() {
+                                    _selectedTime = t;
+                                  });
+                                },
+                                titleLabel: "What's the vibe?",
+                                titleHint: "e.g. Sunday Funday, Happy Hour",
+                              ),
+                              ExtrasFormCard(
+                                detailsController: _detailsController,
+                                isPast: false,
+                                rsvpDeadlineOffset: _rsvpDeadlineOffset,
+                                onRsvpChanged: (val) {
+                                  setState(() {
+                                    _rsvpDeadlineOffset = val;
+                                  });
+                                },
+                                detailsLabel: "Any other details? (Optional)",
+                                detailsHint: "e.g. Dog friendly, BYOB...",
+                                rsvpLabel: "Voting Deadline",
+                                show48HourOption: true,
+                              ),
                               CrewFormCard(
                                 isPast: false,
                                 inviteAll: _inviteAll,
@@ -938,7 +884,24 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                     )
                   : Column(
                       children: [
-                        _buildVitalsCard(isDark, primaryColor),
+                        VitalsFormCard(
+                          titleController: _titleController,
+                          isPast: false,
+                          selectedDate: _selectedDate,
+                          selectedTime: _selectedTime,
+                          onDateChanged: (d) {
+                            setState(() {
+                              _selectedDate = d;
+                            });
+                          },
+                          onTimeChanged: (t) {
+                            setState(() {
+                              _selectedTime = t;
+                            });
+                          },
+                          titleLabel: "What's the vibe?",
+                          titleHint: "e.g. Sunday Funday, Happy Hour",
+                        ),
                         VibeOptionsCard(
                           pollOptions: _pollOptions,
                           onAddOption: _addOption,
@@ -946,7 +909,20 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                           onSelectLocation: _selectOptionLocation,
                           onClearLocation: _clearOptionLocation,
                         ),
-                        _buildExtrasCard(isDark, primaryColor),
+                        ExtrasFormCard(
+                          detailsController: _detailsController,
+                          isPast: false,
+                          rsvpDeadlineOffset: _rsvpDeadlineOffset,
+                          onRsvpChanged: (val) {
+                            setState(() {
+                              _rsvpDeadlineOffset = val;
+                            });
+                          },
+                          detailsLabel: "Any other details? (Optional)",
+                          detailsHint: "e.g. Dog friendly, BYOB...",
+                          rsvpLabel: "Voting Deadline",
+                          show48HourOption: true,
+                        ),
                         CrewFormCard(
                           isPast: false,
                           inviteAll: _inviteAll,

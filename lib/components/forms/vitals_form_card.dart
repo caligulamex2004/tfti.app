@@ -30,7 +30,7 @@ class VitalsFormCard extends StatelessWidget {
     required this.onDateChanged,
     required this.onTimeChanged,
     this.cardTitle = "The Vitals",
-    this.titleLabel = "Hangout Title",
+    this.titleLabel = "Let's do...",
     this.titleHint = "e.g. Bonfire & Chill",
   });
 
