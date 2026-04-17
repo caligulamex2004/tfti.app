@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../utils/theme_provider.dart';
 import '../components/forms/vibe_options_card.dart';
 import '../components/forms/crew_form_card.dart';
 import '../components/forms/vibe_host_actions_card.dart';
 import '../components/forms/vitals_form_card.dart';
 import '../components/forms/extras_form_card.dart';
+import '../utils/event_service.dart';
+import '../utils/theme_provider.dart';
 import 'places_search_page.dart';
 
 class VibeCheckEditorPage extends StatefulWidget {
@@ -445,68 +446,6 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
     }
   }
 
-  Future<void> _deleteVibeCheck() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Vibe Check?'),
-        content: const Text(
-          'This will permanently delete the feeler, the votes, and the chat history.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      setState(() {
-        _isLoading = true;
-      });
-      try {
-        final eventRef = FirebaseFirestore.instance
-            .collection('events')
-            .doc(widget.eventId);
-
-        final invitations = await eventRef.collection('invitations').get();
-        for (var doc in invitations.docs) {
-          await doc.reference.delete();
-        }
-
-        final messages = await eventRef.collection('messages').get();
-        for (var doc in messages.docs) {
-          await doc.reference.delete();
-        }
-
-        await eventRef.delete();
-
-        if (mounted) {
-          Navigator.of(context).popUntil((route) => route.isFirst);
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error: $e')));
-        }
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
-      }
-    }
-  }
-
   Future<void> _showConvertDialog() async {
     setState(() {
       _isLoading = true;
@@ -859,7 +798,17 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                               VibeHostActionsCard(
                                 isEditing: isEditing,
                                 onConvert: _showConvertDialog,
-                                onDelete: _deleteVibeCheck,
+                                onDelete: () =>
+                                    EventService.deleteEventWithConfirmation(
+                                      context: context,
+                                      eventId: widget.eventId!,
+                                      isVibeCheck: true,
+                                      onLoadingChanged: (val) {
+                                        setState(() {
+                                          _isLoading = val;
+                                        });
+                                      },
+                                    ),
                               ),
                               const SizedBox(height: 12),
                               submitButton,
@@ -960,7 +909,17 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                         VibeHostActionsCard(
                           isEditing: isEditing,
                           onConvert: _showConvertDialog,
-                          onDelete: _deleteVibeCheck,
+                          onDelete: () =>
+                              EventService.deleteEventWithConfirmation(
+                                context: context,
+                                eventId: widget.eventId!,
+                                isVibeCheck: true,
+                                onLoadingChanged: (val) {
+                                  setState(() {
+                                    _isLoading = val;
+                                  });
+                                },
+                              ),
                         ),
                         const SizedBox(height: 12),
                         submitButton,

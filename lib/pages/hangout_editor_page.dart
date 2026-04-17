@@ -6,13 +6,14 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../utils/theme_provider.dart';
 import '../components/shared/banner_picker.dart';
 import '../components/forms/extras_form_card.dart';
 import '../components/forms/vitals_form_card.dart';
 import '../components/forms/crew_form_card.dart';
 import '../components/forms/lockdown_banner.dart';
 import '../components/forms/editor_action_buttons.dart';
+import '../utils/event_service.dart';
+import '../utils/theme_provider.dart';
 
 class HangoutEditorPage extends StatefulWidget {
   final String? eventId;
@@ -127,112 +128,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
 
       _selectedDate = rounded;
       _selectedTime = TimeOfDay.fromDateTime(rounded);
-    }
-  }
-
-  // --- DELETE LOGIC ---
-  Future<void> _deleteEvent() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Delete Hangout?"),
-        content: const Text(
-          "Are you sure you want to permanently delete this hangout? This action cannot be undone.",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text(
-              "Delete",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      setState(() {
-        _isLoading = true;
-      });
-      try {
-        final eventRef = FirebaseFirestore.instance
-            .collection('events')
-            .doc(widget.eventId);
-
-        final batch = FirebaseFirestore.instance.batch();
-
-        // Subcollection 1: Invitations
-        final invitesSnap = await eventRef.collection('invitations').get();
-        for (var doc in invitesSnap.docs) {
-          batch.delete(doc.reference);
-        }
-
-        // Subcollection 2: Messages
-        final messagesSnap = await eventRef.collection('messages').get();
-        for (var doc in messagesSnap.docs) {
-          batch.delete(doc.reference);
-        }
-
-        // Subcollection 3: Roles
-        final rolesSnap = await eventRef.collection('roles').get();
-        for (var doc in rolesSnap.docs) {
-          batch.delete(doc.reference);
-        }
-
-        // Finally: Delete the main event document
-        batch.delete(eventRef);
-
-        await batch.commit();
-
-        // Remove banner image if it exists to save storage space
-        try {
-          await FirebaseStorage.instance
-              .ref()
-              .child('event_banners/${widget.eventId}/banner.jpg')
-              .delete();
-        } catch (_) {}
-
-        // Cleanup all chat images in the chat_images folder
-        try {
-          final chatImagesRef = FirebaseStorage.instance.ref().child(
-            'chat_images/${widget.eventId}',
-          );
-          final listResult = await chatImagesRef.listAll();
-          for (var item in listResult.items) {
-            await item.delete();
-          }
-        } catch (_) {}
-
-        if (mounted) {
-          // Capture the messenger and pop all the way to the Home Page!
-          final messenger = ScaffoldMessenger.of(context);
-          Navigator.popUntil(context, (route) => route.isFirst);
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text("Hangout deleted permanently."),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("Error deleting: $e")));
-        }
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
-      }
     }
   }
 
@@ -640,7 +535,17 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                           isLoading: _isLoading,
                                           submitText: submitText,
                                           onSubmit: _submitEvent,
-                                          onDelete: _deleteEvent,
+                                          onDelete: () =>
+                                              EventService.deleteEventWithConfirmation(
+                                                context: context,
+                                                eventId: widget.eventId!,
+                                                isVibeCheck: false,
+                                                onLoadingChanged: (val) {
+                                                  setState(() {
+                                                    _isLoading = val;
+                                                  });
+                                                },
+                                              ),
                                         ),
                                       ],
                                     ),
@@ -784,7 +689,17 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                 isLoading: _isLoading,
                                 submitText: submitText,
                                 onSubmit: _submitEvent,
-                                onDelete: _deleteEvent,
+                                onDelete: () =>
+                                    EventService.deleteEventWithConfirmation(
+                                      context: context,
+                                      eventId: widget.eventId!,
+                                      isVibeCheck: false,
+                                      onLoadingChanged: (val) {
+                                        setState(() {
+                                          _isLoading = val;
+                                        });
+                                      },
+                                    ),
                               ),
                               const SizedBox(height: 40),
                             ],
