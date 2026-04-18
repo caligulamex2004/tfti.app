@@ -69,22 +69,32 @@ class TcgProfileCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(icon, size: 14, color: color),
-                  const SizedBox(width: 6),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: isDark
-                          ? Colors.grey.shade300
-                          : Colors.grey.shade800,
-                    ),
-                  ),
-                ],
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(icon, size: 14, color: color),
+                    // --- OMIT TEXT IN LANDSCAPE ---
+                    if (!isLandscape) ...[
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: isDark
+                                ? Colors.grey.shade300
+                                : Colors.grey.shade800,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Text(
                 "Lvl. $level",
                 style: TextStyle(
@@ -218,7 +228,11 @@ class TcgProfileCard extends StatelessWidget {
               ),
             ),
           ),
-          if (isGoated) const Text("🐐", style: TextStyle(fontSize: 22)),
+          // --- ADDED PADDING TO GOAT ICON ---
+          if (isGoated) ...[
+            const SizedBox(width: 8),
+            const Text("🐐", style: TextStyle(fontSize: 22)),
+          ],
         ],
       ),
     );
@@ -394,10 +408,12 @@ class TcgProfileCard extends StatelessWidget {
                             decoration: plateDecoration,
                             child: metaWidget,
                           ),
-                          Positioned(bottom: -28, child: hpManaPill),
+                          // --- PREVENT CLIPPING BY FIXING POSITION OFFSET ---
+                          Positioned(bottom: -42, child: hpManaPill),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      // Gives the pill room to hang without clipping the bounds
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
@@ -439,10 +455,12 @@ class TcgProfileCard extends StatelessWidget {
                       decoration: plateDecoration,
                       child: metaWidget,
                     ),
-                    Positioned(bottom: -28, child: hpManaPill),
+                    // --- PREVENT CLIPPING BY FIXING POSITION OFFSET ---
+                    Positioned(bottom: -42, child: hpManaPill),
                   ],
                 ),
-                const SizedBox(height: 12),
+                // Gives the pill room to hang without clipping the bounds
+                const SizedBox(height: 24),
               ],
             ),
     );
