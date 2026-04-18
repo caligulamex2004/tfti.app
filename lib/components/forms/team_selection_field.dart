@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../pages/teams_page.dart';
+import '../../pages/team_members_page.dart';
 
 // This encapsulates the complex StreamBuilder, the Teams Dialog, and the
 // Impromptu Team Creation logic.
@@ -93,7 +93,7 @@ class _TeamSelectionFieldState extends State<TeamSelectionField> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => CircleMembersPage(
+                  builder: (context) => TeamMembersPage(
                     // Use your actual Teams Page Class
                     circleId: docRef.id,
                     circleName: nameController.text.trim(),
