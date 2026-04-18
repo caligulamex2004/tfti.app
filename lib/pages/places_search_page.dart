@@ -178,7 +178,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
       appBar: AppBar(
         title: const Text("Search Places"),
         centerTitle: true,
-        foregroundColor: themeProvider.onPrimaryColor,
+        foregroundColor: Colors.white,
         flexibleSpace: Container(
           decoration: BoxDecoration(gradient: themeProvider.appGradient),
         ),
