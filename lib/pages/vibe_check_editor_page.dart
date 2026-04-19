@@ -254,6 +254,95 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
             : 240;
         final newEndTime = newDateTime.add(Duration(minutes: durationMinutes));
 
+        // --- THE MISSING CRITICAL CHANGE DETECTOR FOR VIBE CHECKS ---
+        List<String> changedFields = [];
+        List<String> oldValues = [];
+        List<String> newValues = [];
+
+        // Helper to format dates cleanly
+        String formatDateTime(DateTime dt) {
+          final months = [
+            'Jan',
+            'Feb',
+            'Mar',
+            'Apr',
+            'May',
+            'Jun',
+            'Jul',
+            'Aug',
+            'Sep',
+            'Oct',
+            'Nov',
+            'Dec',
+          ];
+          final hour = dt.hour > 12
+              ? dt.hour - 12
+              : (dt.hour == 0 ? 12 : dt.hour);
+          final min = dt.minute.toString().padLeft(2, '0');
+          final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+          return '${months[dt.month - 1]} ${dt.day}, $hour:$min $ampm';
+        }
+
+        // Helper to format options dynamically
+        String formatOptions(List<dynamic> opts) {
+          return opts
+              .map((opt) {
+                if (opt is! Map) return '';
+                final title = opt['title'] ?? 'Option';
+                final loc = opt['location'];
+                if (loc != null &&
+                    loc.toString().trim().isNotEmpty &&
+                    loc != 'TBD') {
+                  return '$title ($loc)';
+                }
+                return title.toString();
+              })
+              .join(", ");
+        }
+
+        // 1. Check Date/Time
+        final oldTimeTs = widget.eventData!['time'] as Timestamp?;
+        if (oldTimeTs != null) {
+          final oldDt = oldTimeTs.toDate();
+          if (oldDt.year != newDateTime.year ||
+              oldDt.month != newDateTime.month ||
+              oldDt.day != newDateTime.day ||
+              oldDt.hour != newDateTime.hour ||
+              oldDt.minute != newDateTime.minute) {
+            changedFields.add("Time");
+            oldValues.add(formatDateTime(oldDt));
+            newValues.add(formatDateTime(newDateTime));
+          }
+        }
+
+        // 2. Check Poll Options for changes
+        final oldOptions =
+            widget.eventData!['pollOptions'] as List<dynamic>? ?? [];
+        bool optionsChanged = false;
+
+        if (oldOptions.length != finalPollOptions.length) {
+          optionsChanged = true;
+        } else {
+          for (int i = 0; i < oldOptions.length; i++) {
+            final oldTitle = oldOptions[i]['title'] ?? '';
+            final newTitle = finalPollOptions[i]['title'] ?? '';
+            final oldLoc = oldOptions[i]['location'] ?? 'TBD';
+            final newLoc = finalPollOptions[i]['location'] ?? 'TBD';
+
+            if (oldTitle != newTitle || oldLoc != newLoc) {
+              optionsChanged = true;
+              break;
+            }
+          }
+        }
+
+        if (optionsChanged) {
+          changedFields.add("Options");
+          oldValues.add(formatOptions(oldOptions));
+          newValues.add(formatOptions(finalPollOptions));
+        }
+        // -------------------------------------------------------------
+
         final Map<String, dynamic> updateData = {
           'title': _titleController.text.trim(),
           'details': _detailsController.text.trim(),
@@ -267,6 +356,16 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
           'coHostName': _selectedCoHostName,
           'lastUpdatedAt': FieldValue.serverTimestamp(),
         };
+
+        // 3. Attach compound banner payload if needed
+        if (changedFields.isNotEmpty) {
+          updateData['latestCriticalChange'] = {
+            'field': changedFields.join(" & "),
+            'original': oldValues.join(" | "),
+            'new': newValues.join(" | "),
+            'timestamp': FieldValue.serverTimestamp(),
+          };
+        }
 
         // Dynamic Invite Sync
         final friendsSnapshot = await FirebaseFirestore.instance
