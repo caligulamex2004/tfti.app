@@ -11,15 +11,15 @@ class EventDetailsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Exact match to original logic
+    // 1. Exact match to original event_details_page.dart logic
     final String? details = eventData['details'] ?? eventData['description'];
-    final bool hasDetails = details != null && details.isNotEmpty;
-    final bool hasChange =
-        eventData.containsKey('latestCriticalChange') &&
-        eventData['latestCriticalChange'] != null;
+    final bool hasDetailsCondition = details != null && details.isNotEmpty;
+    final bool hasCriticalChangeCondition = eventData.containsKey(
+      'latestCriticalChange',
+    );
 
-    // 2. If no details and no alert, hide the card entirely
-    if (!hasDetails && !hasChange) {
+    // 2. If neither exist, hide the card entirely
+    if (!hasDetailsCondition && !hasCriticalChangeCondition) {
       return const SizedBox.shrink();
     }
 
@@ -32,14 +32,14 @@ class EventDetailsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 3. Render banner if there is a change
-          if (hasChange) ...[
+          // 3. Render banner if the key exists (regardless of details text)
+          if (hasCriticalChangeCondition) ...[
             CriticalAlertBanner(eventData: eventData),
-            if (hasDetails) const SizedBox(height: 8),
+            const SizedBox(height: 8),
           ],
 
           // 4. Render details text if it exists
-          if (hasDetails)
+          if (hasDetailsCondition)
             GestureDetector(
               onTap: () {
                 showModalBottomSheet(

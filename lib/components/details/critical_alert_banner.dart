@@ -7,14 +7,20 @@ class CriticalAlertBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Exact match to original logic
-    final change = eventData['latestCriticalChange'] as Map<String, dynamic>?;
-
-    if (change == null) {
-      return const SizedBox.shrink();
-    }
-
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // 1. Exact match from the working event_details_page.dart
+    final change = eventData['latestCriticalChange'];
+    if (change == null) return const SizedBox.shrink();
+
+    // 2. Safe cast to prevent dynamic Map crashes
+    final Map<String, dynamic> safeChange = Map<String, dynamic>.from(
+      change as Map,
+    );
+
+    final field = safeChange['field'] ?? 'Details';
+    final original = safeChange['original'] ?? '';
+    final newValue = safeChange['new'] ?? '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -34,7 +40,7 @@ class CriticalAlertBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "HEADS UP: ${change['field'] ?? 'Details'} Changed!",
+                  "HEADS UP: $field Changed!",
                   style: const TextStyle(
                     color: Colors.red,
                     fontWeight: FontWeight.bold,
@@ -43,7 +49,7 @@ class CriticalAlertBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "Was: ${change['original'] ?? ''}\nNow: ${change['new'] ?? ''}",
+                  "Was: $original\nNow: $newValue",
                   style: TextStyle(
                     color: isDark ? Colors.red.shade200 : Colors.red.shade900,
                     fontSize: 13,

@@ -179,6 +179,76 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
         };
 
         if (_isMainHost) {
+          // --- THE MISSING CRITICAL CHANGE DETECTOR ---
+          List<String> changedFields = [];
+          List<String> oldValues = [];
+          List<String> newValues = [];
+
+          // Helper to format dates cleanly for the alert banner
+          String formatDateTime(DateTime dt) {
+            final months = [
+              'Jan',
+              'Feb',
+              'Mar',
+              'Apr',
+              'May',
+              'Jun',
+              'Jul',
+              'Aug',
+              'Sep',
+              'Oct',
+              'Nov',
+              'Dec',
+            ];
+            final hour = dt.hour > 12
+                ? dt.hour - 12
+                : (dt.hour == 0 ? 12 : dt.hour);
+            final min = dt.minute.toString().padLeft(2, '0');
+            final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+            return '${months[dt.month - 1]} ${dt.day}, $hour:$min $ampm';
+          }
+
+          // 1. Check Date/Time
+          final oldTimeTs = widget.eventData!['time'] as Timestamp?;
+          if (oldTimeTs != null) {
+            final oldDt = oldTimeTs.toDate();
+            // Compare down to the minute
+            if (oldDt.year != newDateTime.year ||
+                oldDt.month != newDateTime.month ||
+                oldDt.day != newDateTime.day ||
+                oldDt.hour != newDateTime.hour ||
+                oldDt.minute != newDateTime.minute) {
+              changedFields.add("Time");
+              oldValues.add(formatDateTime(oldDt));
+              newValues.add(formatDateTime(newDateTime));
+            }
+          }
+
+          // 2. Check Location
+          final oldLoc = (widget.eventData!['location'] ?? '')
+              .toString()
+              .trim();
+          final newLoc = _locController.text.trim();
+          if (oldLoc != newLoc) {
+            changedFields.add("Location");
+            oldValues.add(oldLoc.isEmpty ? "TBD" : oldLoc);
+            newValues.add(newLoc.isEmpty ? "TBD" : newLoc);
+          }
+
+          // 3. Create the compound banner payload!
+          if (changedFields.isNotEmpty) {
+            updateData['latestCriticalChange'] = {
+              'field': changedFields.join(" & "), // e.g. "Time & Location"
+              'original': oldValues.join(" | "), // e.g. "Jan 1, 1:00 PM | TBD"
+              'new': newValues.join(
+                " | ",
+              ), // e.g. "Jan 2, 2:00 PM | Central Park"
+              'timestamp': FieldValue.serverTimestamp(),
+            };
+          }
+          // ---------------------------------------------
+
+          // Standard updates
           updateData['title'] = _titleController.text.trim();
           updateData['location'] = _locController.text.trim();
           updateData['details'] = _detailsController.text.trim();
