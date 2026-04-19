@@ -366,7 +366,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
     );
   }
 
-  // --- BUILD METHDOD ---
+  // --- BUILD METHOD ---
 
   @override
   Widget build(BuildContext context) {
@@ -476,8 +476,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                         );
 
                         final detailsCardWidget = EventDetailsCard(
-                          details: data['details'] ?? data['description'],
-                          latestCriticalChange: data['latestCriticalChange'],
+                          eventData: data,
                         );
 
                         final squadNeedsCardWidget = EventSquadNeedsCard(

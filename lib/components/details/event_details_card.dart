@@ -5,14 +5,21 @@ import 'critical_alert_banner.dart';
 import 'details_bottom_sheets.dart';
 
 class EventDetailsCard extends StatelessWidget {
-  final String? details;
-  final Map<String, dynamic>? latestCriticalChange;
+  final Map<String, dynamic> eventData;
 
-  const EventDetailsCard({super.key, this.details, this.latestCriticalChange});
+  const EventDetailsCard({super.key, required this.eventData});
 
   @override
   Widget build(BuildContext context) {
-    if ((details == null || details!.isEmpty) && latestCriticalChange == null) {
+    // 1. Exact match to original logic
+    final String? details = eventData['details'] ?? eventData['description'];
+    final bool hasDetails = details != null && details.isNotEmpty;
+    final bool hasChange =
+        eventData.containsKey('latestCriticalChange') &&
+        eventData['latestCriticalChange'] != null;
+
+    // 2. If no details and no alert, hide the card entirely
+    if (!hasDetails && !hasChange) {
       return const SizedBox.shrink();
     }
 
@@ -25,11 +32,14 @@ class EventDetailsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (latestCriticalChange != null) ...[
-            CriticalAlertBanner(changeData: latestCriticalChange!),
-            const SizedBox(height: 8),
+          // 3. Render banner if there is a change
+          if (hasChange) ...[
+            CriticalAlertBanner(eventData: eventData),
+            if (hasDetails) const SizedBox(height: 8),
           ],
-          if (details != null && details!.isNotEmpty)
+
+          // 4. Render details text if it exists
+          if (hasDetails)
             GestureDetector(
               onTap: () {
                 showModalBottomSheet(
@@ -41,14 +51,14 @@ class EventDetailsCard extends StatelessWidget {
                       top: Radius.circular(20),
                     ),
                   ),
-                  builder: (ctx) => FullDetailsSheet(details: details!),
+                  builder: (ctx) => FullDetailsSheet(details: details),
                 );
               },
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    details!,
+                    details,
                     style: TextStyle(
                       fontSize: 15,
                       height: 1.5,
@@ -59,7 +69,7 @@ class EventDetailsCard extends StatelessWidget {
                     maxLines: 4,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (details!.length > 150 || details!.contains('\n'))
+                  if (details.length > 150 || details.contains('\n'))
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: Text(
