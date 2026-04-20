@@ -246,7 +246,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text(
-              "Report sent. Thank you for keeping TFTI safe.",
+              "Report sent. Thank you for keeping tfti safe.",
             ),
             backgroundColor: isDark ? Colors.green.shade700 : Colors.green,
           ),

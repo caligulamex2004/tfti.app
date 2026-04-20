@@ -263,7 +263,7 @@ class MessageOptionsSheet extends StatelessWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: const Text(
-                          "Report sent. Thank you for keeping TFTI safe.",
+                          "Report sent. Thank you for keeping tfti safe.",
                         ),
                         backgroundColor: isDark
                             ? Colors.green.shade700
