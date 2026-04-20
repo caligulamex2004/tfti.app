@@ -616,11 +616,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 children: [
-                  _buildAutomationSection(
-                    isDark,
-                    primaryColor,
-                    user,
-                  ), // <-- Added here
+                  _buildAutomationSection(isDark, primaryColor, user),
                   const SizedBox(height: 24),
                   _buildNotificationsSection(isDark, primaryColor, user),
                   const SizedBox(height: 24),
