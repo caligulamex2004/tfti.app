@@ -441,7 +441,8 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                           doc.id.hashCode ^
                           (d['status']?.hashCode ?? 0) ^
                           (d['respondedAt']?.hashCode ?? 0) ^
-                          (d['lastViewedAt']?.hashCode ?? 0);
+                          (d['lastViewedAt']?.hashCode ?? 0) ^
+                          (d['votes']?.toString().hashCode ?? 0);
                     }
 
                     if (_cachedCrewFuture == null ||
@@ -465,7 +466,6 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                   : Colors.white);
                         final String location = data['location'] ?? 'TBD';
 
-                        // --- DECLARATIVE COMPONENTS IN ACTION ---
                         final vitalsCardWidget = EventVitalsCard(
                           eventTime: dt,
                           keepAliveDays: keepAliveDays,
