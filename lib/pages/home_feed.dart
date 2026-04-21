@@ -427,21 +427,27 @@ class _HomePageState extends State<HomePage> {
                       ),
                     );
 
-                    if (actionNeededEvents.isEmpty &&
-                        agendaEvents.isEmpty &&
-                        pastEvents.isEmpty &&
-                        declinedEvents.isEmpty &&
-                        hiddenEvents.isEmpty) {
-                      return Column(
-                        children: [
-                          FeedFilterBar(
-                            selectedFilter: _selectedFilter,
-                            onFilterChanged: (f) =>
-                                setState(() => _selectedFilter = f),
-                          ),
-                          const Expanded(child: EmptyFeedState()),
-                        ],
-                      );
+                    String filterText = "";
+                    switch (_selectedFilter) {
+                      case FeedFilter.thisWeek:
+                        filterText = " this week";
+                        break;
+                      case FeedFilter.nextWeek:
+                        filterText = " next week";
+                        break;
+                      case FeedFilter.thisMonth:
+                        filterText = " this month";
+                        break;
+                      case FeedFilter.nextMonth:
+                        filterText = " next month";
+                        break;
+                      case FeedFilter.goated:
+                        filterText = " with your Goated friends";
+                        break;
+                      case FeedFilter.all:
+                      default:
+                        filterText = "";
+                        break;
                     }
 
                     return Column(
@@ -544,11 +550,11 @@ class _HomePageState extends State<HomePage> {
                                     child: ListView(
                                       scrollDirection: Axis.horizontal,
                                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                                      children: const [
+                                      children: [
                                         ContextualEmptyCard(
                                           icon: Icons.check_circle_outline,
                                           title: "You're all caught up!",
-                                          message: "You have no pending invites.",
+                                          message: "You have no pending invites$filterText.",
                                         ),
                                       ],
                                     ),
@@ -604,11 +610,11 @@ class _HomePageState extends State<HomePage> {
                                     child: ListView(
                                       scrollDirection: Axis.horizontal,
                                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                                      children: const [
+                                      children: [
                                         ContextualEmptyCard(
                                           icon: Icons.celebration,
                                           title: "Nothing on the agenda.",
-                                          message: "Your agenda is looking a bit empty... Tap the + to host a hangout!",
+                                          message: "Your agenda is looking a bit empty$filterText... Tap the + to host a hangout!",
                                         ),
                                       ],
                                     ),
