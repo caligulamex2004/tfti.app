@@ -10,6 +10,8 @@ import '../components/shared/event_summary_card.dart';
 import '../components/feed/feed_filter_bar.dart';
 import '../components/feed/home_action_fab.dart';
 import '../components/feed/empty_feed_states.dart';
+import '../components/feed/feed_skeleton.dart';
+import '../components/feed/contextual_empty_card.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -237,7 +239,7 @@ class _HomePageState extends State<HomePage> {
                     if (eventSnapshot.connectionState ==
                             ConnectionState.waiting &&
                         !eventSnapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
+                      return FeedSkeleton(isLandscape: isLandscape);
                     }
                     if (!eventSnapshot.hasData ||
                         eventSnapshot.data!.docs.isEmpty) {
@@ -474,26 +476,27 @@ class _HomePageState extends State<HomePage> {
                                 ),
                               ),
 
-                              if (actionNeededEvents.isNotEmpty) ...[
-                                SliverToBoxAdapter(
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(
-                                      left: 20,
-                                      bottom: 12,
-                                    ),
-                                    child: Text(
-                                      "Action Needed",
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark
-                                            ? Colors.grey.shade400
-                                            : Colors.grey.shade600,
-                                        letterSpacing: 0.5,
-                                      ),
+                              // --- ACTION NEEDED ---
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 20,
+                                    bottom: 12,
+                                  ),
+                                  child: Text(
+                                    "Action Needed",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark
+                                          ? Colors.grey.shade400
+                                          : Colors.grey.shade600,
+                                      letterSpacing: 0.5,
                                     ),
                                   ),
                                 ),
+                              ),
+                              if (actionNeededEvents.isNotEmpty)
                                 if (isLandscape)
                                   SliverPadding(
                                     padding: const EdgeInsets.symmetric(
@@ -533,32 +536,49 @@ class _HomePageState extends State<HomePage> {
                                             ),
                                       ),
                                     ),
-                                  ),
-                                const SliverToBoxAdapter(
-                                  child: SizedBox(height: 24),
-                                ),
-                              ],
-
-                              if (agendaEvents.isNotEmpty) ...[
+                                  )
+                              else
                                 SliverToBoxAdapter(
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(
-                                      left: 20,
-                                      bottom: 12,
-                                    ),
-                                    child: Text(
-                                      "The Agenda",
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark
-                                            ? Colors.grey.shade400
-                                            : Colors.grey.shade600,
-                                        letterSpacing: 0.5,
-                                      ),
+                                  child: SizedBox(
+                                    height: 310,
+                                    child: ListView(
+                                      scrollDirection: Axis.horizontal,
+                                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                                      children: const [
+                                        ContextualEmptyCard(
+                                          icon: Icons.check_circle_outline,
+                                          title: "You're all caught up!",
+                                          message: "You have no pending invites.",
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
+                              const SliverToBoxAdapter(
+                                child: SizedBox(height: 24),
+                              ),
+
+                              // --- THE AGENDA ---
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 20,
+                                    bottom: 12,
+                                  ),
+                                  child: Text(
+                                    "The Agenda",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark
+                                          ? Colors.grey.shade400
+                                          : Colors.grey.shade600,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              if (agendaEvents.isNotEmpty)
                                 SliverPadding(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 16,
@@ -576,8 +596,27 @@ class _HomePageState extends State<HomePage> {
                                       childCount: agendaEvents.length,
                                     ),
                                   ),
+                                )
+                              else
+                                SliverToBoxAdapter(
+                                  child: SizedBox(
+                                    height: 310,
+                                    child: ListView(
+                                      scrollDirection: Axis.horizontal,
+                                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                                      children: const [
+                                        ContextualEmptyCard(
+                                          icon: Icons.celebration,
+                                          title: "Nothing on the agenda.",
+                                          message: "Your agenda is looking a bit empty... Tap the + to host a hangout!",
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                              ],
+                              const SliverToBoxAdapter(
+                                child: SizedBox(height: 24),
+                              ),
 
                               if (declinedEvents.isNotEmpty) ...[
                                 SliverToBoxAdapter(
