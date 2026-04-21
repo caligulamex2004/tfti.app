@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'saved_places_page.dart';
 import '../utils/theme_provider.dart';
+import '../components/shared/shared_sliver_app_bar.dart';
 
 class PreferencesPage extends StatefulWidget {
   const PreferencesPage({super.key});
@@ -560,34 +562,76 @@ class _PreferencesPageState extends State<PreferencesPage> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: const Text(
-          'Preferences',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        foregroundColor: Colors.white,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(gradient: themeProvider.appGradient),
-        ),
-      ),
       body: isLandscape
           ? Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   flex: 50,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      children: [
-                        _buildAutomationSection(
-                          isDark,
-                          primaryColor,
-                          user,
-                        ), // <-- Added here
-                        const SizedBox(height: 24),
-                        _buildNotificationsSection(isDark, primaryColor, user),
+                  child: Scaffold(
+                    backgroundColor: Colors.transparent,
+                    body: CustomScrollView(
+                      slivers: [
+                        SliverAppBar(
+                          pinned: true,
+                          toolbarHeight: 56,
+                          primary: true,
+                          backgroundColor: isDark 
+                              ? Colors.black.withValues(alpha: 0.6) 
+                              : Colors.white.withValues(alpha: 0.7),
+                          automaticallyImplyLeading: false,
+                          title: null,
+                          actions: null,
+                          flexibleSpace: ClipRect(
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
+                              child: SafeArea(
+                                bottom: false,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  child: Row(
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.arrow_back),
+                                        onPressed: () => Navigator.pop(context),
+                                        color: isDark ? Colors.white : Colors.black87,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Text(
+                                          "Preferences", 
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold, 
+                                            fontSize: 18,
+                                            color: isDark ? Colors.white : Colors.black87,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              children: [
+                                _buildAutomationSection(
+                                  isDark,
+                                  primaryColor,
+                                  user,
+                                ),
+                                const SizedBox(height: 24),
+                                _buildNotificationsSection(isDark, primaryColor, user),
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -599,33 +643,54 @@ class _PreferencesPageState extends State<PreferencesPage> {
                 ),
                 Expanded(
                   flex: 50,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      children: [
-                        _buildAppearanceSection(isDark, primaryColor),
-                        const SizedBox(height: 24),
-                        _buildLocationSection(isDark),
+                  child: Scaffold(
+                    backgroundColor: Colors.transparent,
+                    body: CustomScrollView(
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(24.0, 56.0, 24.0, 24.0),
+                            child: Column(
+                              children: [
+                                _buildAppearanceSection(isDark, primaryColor),
+                                const SizedBox(height: 24),
+                                _buildLocationSection(isDark),
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
               ],
             )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                children: [
-                  _buildAutomationSection(isDark, primaryColor, user),
-                  const SizedBox(height: 24),
-                  _buildNotificationsSection(isDark, primaryColor, user),
-                  const SizedBox(height: 24),
-                  _buildAppearanceSection(isDark, primaryColor),
-                  const SizedBox(height: 24),
-                  _buildLocationSection(isDark),
-                  const SizedBox(height: 40), // Bottom padding
-                ],
-              ),
+          : CustomScrollView(
+              slivers: [
+                const SharedSliverAppBar(
+                  title: "Preferences",
+                  collapsedTitle: "Preferences",
+                  expandedHeight: 140.0,
+                  hasBackButton: true,
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      children: [
+                        _buildAutomationSection(isDark, primaryColor, user),
+                        const SizedBox(height: 24),
+                        _buildNotificationsSection(isDark, primaryColor, user),
+                        const SizedBox(height: 24),
+                        _buildAppearanceSection(isDark, primaryColor),
+                        const SizedBox(height: 24),
+                        _buildLocationSection(isDark),
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
     );
   }
