@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../utils/theme_provider.dart';
+import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/teams/team_avatar_stack.dart';
 import 'team_members_page.dart';
 
@@ -509,157 +510,181 @@ class _TeamsPageState extends State<TeamsPage> {
         }
         final circles = snapshot.data!.docs;
 
-        if (circles.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.supervised_user_circle_outlined,
-                    size: 64,
-                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade400,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "No Teams Yet",
-                  style: TextStyle(
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Create one to group your friends!",
-                  style: TextStyle(
-                    color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
+        return CustomScrollView(
+          slivers: [
+            SharedSliverAppBar(
+              title: "Teams",
+              collapsedTitle: "Teams",
+              expandedHeight: isLandscape ? 56.0 : 140.0,
+              hasBackButton: false,
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: Center(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 0,
+                        ),
+                      ),
+                      onPressed: _handleCreateTeamTap,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text(
+                        "Create",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-          );
-        }
-
-        return ListView.builder(
-          padding: EdgeInsets.symmetric(
-            horizontal: isLandscape ? 8.0 : 16.0,
-            vertical: 16.0,
-          ),
-          itemCount: circles.length,
-          itemBuilder: (context, index) {
-            final data = circles[index].data() as Map<String, dynamic>;
-            final circleId = circles[index].id;
-            final circleName = data['name'] ?? 'Circle';
-            final isSelected = isLandscape && _selectedCircleId == circleId;
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () {
-                  if (isLandscape) {
-                    setState(() {
-                      _selectedCircleId = circleId;
-                      _selectedCircleName = circleName;
-                      _autoOpenNewCircle = false;
-                    });
-                  } else {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => TeamMembersPage(
-                          circleId: circleId,
-                          circleName: circleName,
-                        ),
-                      ),
-                    );
-                  }
-                },
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isLandscape ? 12.0 : 16.0,
-                    vertical: 12.0,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? primaryColor.withValues(alpha: 0.1)
-                        : Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isSelected
-                          ? primaryColor
-                          : (isDark
-                                ? Colors.grey.shade800
-                                : Colors.grey.shade200),
-                      width: isSelected ? 2 : 1,
-                    ),
-                    boxShadow: [
-                      if (!isDark && !isSelected)
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                    ],
-                  ),
-                  child: Row(
+            if (circles.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // IMPORTED COMPONENT
-                      TeamAvatarStack(myUid: user.uid, circleId: circleId),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          circleName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: isSelected
-                                ? FontWeight.w900
-                                : FontWeight.bold,
-                          ),
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.supervised_user_circle_outlined,
+                          size: 64,
+                          color: isDark ? Colors.grey.shade700 : Colors.grey.shade400,
                         ),
                       ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.more_vert,
-                          color: isDark
-                              ? Colors.grey.shade500
-                              : Colors.grey.shade600,
+                      const SizedBox(height: 16),
+                      Text(
+                        "No Teams Yet",
+                        style: TextStyle(
+                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
-                        onPressed: () =>
-                            _showTeamOptionsSheet(circleId, circleName),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Create one to group your friends!",
+                        style: TextStyle(
+                          color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
+                        ),
                       ),
                     ],
                   ),
                 ),
+              )
+            else
+              SliverPadding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isLandscape ? 8.0 : 16.0,
+                  vertical: 16.0,
+                ),
+                sliver: SliverList.builder(
+                  itemCount: circles.length,
+                  itemBuilder: (context, index) {
+                    final data = circles[index].data() as Map<String, dynamic>;
+                    final circleId = circles[index].id;
+                    final circleName = data['name'] ?? 'Circle';
+                    final isSelected = isLandscape && _selectedCircleId == circleId;
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12.0),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () {
+                          if (isLandscape) {
+                            setState(() {
+                              _selectedCircleId = circleId;
+                              _selectedCircleName = circleName;
+                              _autoOpenNewCircle = false;
+                            });
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => TeamMembersPage(
+                                  circleId: circleId,
+                                  circleName: circleName,
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isLandscape ? 12.0 : 16.0,
+                            vertical: 12.0,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? primaryColor.withValues(alpha: 0.1)
+                                : Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isSelected
+                                  ? primaryColor
+                                  : (isDark
+                                        ? Colors.grey.shade800
+                                        : Colors.grey.shade200),
+                              width: isSelected ? 2 : 1,
+                            ),
+                            boxShadow: [
+                              if (!isDark && !isSelected)
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.03),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              TeamAvatarStack(myUid: user.uid, circleId: circleId),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  circleName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w900
+                                        : FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.more_vert,
+                                  color: isDark
+                                      ? Colors.grey.shade500
+                                      : Colors.grey.shade600,
+                                ),
+                                onPressed: () =>
+                                    _showTeamOptionsSheet(circleId, circleName),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
-            );
-          },
+          ],
         );
       },
     );
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: const Text(
-          "Teams",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        foregroundColor: Colors.white,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(gradient: themeProvider.appGradient),
-        ),
-      ),
       body: isLandscape
           ? Row(
               children: [
@@ -668,13 +693,6 @@ class _TeamsPageState extends State<TeamsPage> {
                   child: Scaffold(
                     backgroundColor: Colors.transparent,
                     body: listContent,
-                    floatingActionButton: FloatingActionButton(
-                      onPressed: _handleCreateTeamTap,
-                      backgroundColor: primaryColor,
-                      foregroundColor: themeProvider.onPrimaryColor,
-                      heroTag: "btn_create_circle",
-                      child: const Icon(Icons.add),
-                    ),
                   ),
                 ),
                 VerticalDivider(
@@ -699,13 +717,6 @@ class _TeamsPageState extends State<TeamsPage> {
           : Scaffold(
               backgroundColor: Colors.transparent,
               body: listContent,
-              floatingActionButton: FloatingActionButton(
-                onPressed: _handleCreateTeamTap,
-                backgroundColor: primaryColor,
-                foregroundColor: themeProvider.onPrimaryColor,
-                heroTag: "btn_create_circle",
-                child: const Icon(Icons.add),
-              ),
             ),
     );
   }

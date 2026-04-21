@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../utils/theme_provider.dart';
+import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/shared/user_profile_sheet.dart';
 
 class TeamMembersPage extends StatefulWidget {
@@ -24,6 +25,8 @@ class TeamMembersPage extends StatefulWidget {
 }
 
 class _TeamMembersPageState extends State<TeamMembersPage> {
+  bool _sortByScore = true;
+
   @override
   void initState() {
     super.initState();
@@ -54,11 +57,25 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
         }
       }),
     );
-    profiles.sort(
-      (a, b) => (a['displayName'] ?? '').toString().toLowerCase().compareTo(
-        (b['displayName'] ?? '').toString().toLowerCase(),
-      ),
-    );
+    if (_sortByScore) {
+      profiles.sort((a, b) {
+        final double scoreA = ((a['hp'] ?? 0) * 0.6) + ((a['mana'] ?? 0) * 0.4);
+        final double scoreB = ((b['hp'] ?? 0) * 0.6) + ((b['mana'] ?? 0) * 0.4);
+        int result = scoreB.compareTo(scoreA);
+        if (result == 0) {
+          return (a['displayName'] ?? '').toString().toLowerCase().compareTo(
+            (b['displayName'] ?? '').toString().toLowerCase(),
+          );
+        }
+        return result;
+      });
+    } else {
+      profiles.sort(
+        (a, b) => (a['displayName'] ?? '').toString().toLowerCase().compareTo(
+          (b['displayName'] ?? '').toString().toLowerCase(),
+        ),
+      );
+    }
     return profiles;
   }
 
@@ -108,6 +125,7 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
   Future<void> _showAddMembersBottomSheet() async {
     final user = FirebaseAuth.instance.currentUser;
     final primaryColor = Theme.of(context).colorScheme.primary;
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
@@ -348,6 +366,7 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
     final user = FirebaseAuth.instance.currentUser;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -373,109 +392,143 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
               final profiles = profileSnap.data!;
               return CustomScrollView(
                 slivers: [
-                  SliverAppBar(
-                    expandedHeight: 200,
-                    pinned: true,
-                    stretch: true,
-                    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                    foregroundColor: Colors.white,
-                    flexibleSpace: FlexibleSpaceBar(
-                      stretchModes: const [StretchMode.zoomBackground],
-                      background: Container(
-                        decoration: BoxDecoration(
-                          gradient: themeProvider.appGradient,
+                  SharedSliverAppBar(
+                    title: widget.circleName,
+                    collapsedTitle: widget.circleName,
+                    expandedHeight: isLandscape ? 56.0 : 200.0,
+                    hasBackButton: ModalRoute.of(context)?.canPop ?? false,
+                    actions: [
+                      Padding(
+                        padding: EdgeInsets.only(
+                          right: isLandscape ? 4.0 : 16.0,
                         ),
-                        child: SafeArea(
-                          child: Padding(
-                            padding: const EdgeInsets.only(
-                              left: 20,
-                              right: 20,
-                              bottom: 20,
-                              top: 40,
+                        child: Center(
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.white.withValues(alpha: 0.2),
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isLandscape ? 8 : 16,
+                                vertical: 0,
+                              ),
                             ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.circleName,
-                                  style: const TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                    height: 1.1,
-                                    letterSpacing: -0.5,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.people,
-                                      color: Colors.white.withValues(
-                                        alpha: 0.8,
-                                      ),
-                                      size: 16,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      "${profiles.length} Members",
-                                      style: TextStyle(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.9,
-                                        ),
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    InkWell(
-                                      onTap: _showAddMembersBottomSheet,
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.2,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        child: const Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              Icons.person_add,
-                                              color: Colors.white,
-                                              size: 16,
-                                            ),
-                                            SizedBox(width: 6),
-                                            Text(
-                                              "Add",
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                            onPressed: _showAddMembersBottomSheet,
+                            icon: const Icon(Icons.person_add, size: 18),
+                            label: const Text(
+                              "Add",
+                              style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),
                       ),
+                    ],
+                    bottomContent: Row(
+                      children: [
+                        Icon(
+                          Icons.people,
+                          color: Colors.white.withValues(alpha: 0.8),
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          "${profiles.length} Members",
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (!isLandscape)
+                          InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              setState(() => _sortByScore = !_sortByScore);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _sortByScore ? Icons.leaderboard : Icons.sort_by_alpha,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _sortByScore ? "Ranked" : "A-Z",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
+
+                  if (isLandscape)
+                    SliverAppBar(
+                      pinned: true,
+                      toolbarHeight: 48,
+                      primary: false,
+                      backgroundColor: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.95),
+                      automaticallyImplyLeading: false,
+                      elevation: 0,
+                      scrolledUnderElevation: 0,
+                      flexibleSpace: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Team Members (${profiles.length})",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                              ),
+                            ),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                setState(() => _sortByScore = !_sortByScore);
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      _sortByScore ? Icons.leaderboard : Icons.sort_by_alpha,
+                                      size: 16,
+                                      color: primaryColor,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      _sortByScore ? "Ranked" : "A-Z",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: primaryColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
                   if (profiles.isEmpty)
                     SliverFillRemaining(
@@ -541,6 +594,38 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                               profile['avatarColor'] is int
                               ? Color(profile['avatarColor'])
                               : Colors.blue;
+
+                          Widget? rankIcon;
+                          if (_sortByScore) {
+                            if (index == 0) {
+                              rankIcon = const Padding(
+                                padding: EdgeInsets.only(right: 6.0),
+                                child: Icon(
+                                  Icons.workspace_premium,
+                                  color: Colors.amber,
+                                  size: 22,
+                                ),
+                              );
+                            } else if (index == 1) {
+                              rankIcon = Padding(
+                                padding: const EdgeInsets.only(right: 6.0),
+                                child: Icon(
+                                  Icons.workspace_premium,
+                                  color: Colors.grey.shade400,
+                                  size: 22,
+                                ),
+                              );
+                            } else if (index == 2) {
+                              rankIcon = const Padding(
+                                padding: EdgeInsets.only(right: 6.0),
+                                child: Icon(
+                                  Icons.workspace_premium,
+                                  color: Color(0xFFCD7F32),
+                                  size: 22,
+                                ),
+                              );
+                            }
+                          }
 
                           return Padding(
                             padding: const EdgeInsets.symmetric(
@@ -685,18 +770,25 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              Text(
-                                                displayName,
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.w900,
-                                                  fontSize: 17,
-                                                  letterSpacing: -0.3,
-                                                  color: isDark
-                                                      ? Colors.white
-                                                      : Colors.black87,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
+                                              Row(
+                                                children: [
+                                                  if (rankIcon != null) rankIcon,
+                                                  Flexible(
+                                                    child: Text(
+                                                      displayName,
+                                                      style: TextStyle(
+                                                        fontWeight: FontWeight.w900,
+                                                        fontSize: 17,
+                                                        letterSpacing: -0.3,
+                                                        color: isDark
+                                                            ? Colors.white
+                                                            : Colors.black87,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                               if (username.isNotEmpty ||
                                                   statusText.isNotEmpty)

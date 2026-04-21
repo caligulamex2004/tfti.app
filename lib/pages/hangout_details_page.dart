@@ -20,6 +20,7 @@ import '../components/details/event_details_card.dart';
 import '../components/details/event_rsvp_card.dart';
 import '../components/details/event_squad_needs_card.dart';
 import '../components/details/event_vitals_card.dart';
+import '../components/shared/shared_sliver_app_bar.dart';
 
 class HangoutDetailsPage extends StatefulWidget {
   final String eventId;
@@ -37,7 +38,6 @@ class HangoutDetailsPage extends StatefulWidget {
 
 class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
   final ScrollController _scrollController = ScrollController();
-  bool _isAppBarCollapsed = false;
 
   late Stream<DocumentSnapshot> _eventStream;
   late Stream<QuerySnapshot> _rolesStream;
@@ -78,17 +78,6 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
     }
 
     _markDetailsAsViewed();
-
-    _scrollController.addListener(() {
-      if (_scrollController.hasClients) {
-        bool isCollapsed = _scrollController.offset > 140;
-        if (isCollapsed != _isAppBarCollapsed) {
-          setState(() {
-            _isAppBarCollapsed = isCollapsed;
-          });
-        }
-      }
-    });
   }
 
   @override
@@ -459,11 +448,6 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                       builder: (context, constraints) {
                         final bool useTwoColumns =
                             isLandscape || constraints.maxWidth > 600;
-                        final Color appBarIconColor = isDark
-                            ? Colors.white
-                            : (_isAppBarCollapsed
-                                  ? Colors.grey.shade700
-                                  : Colors.white);
                         final String location = data['location'] ?? 'TBD';
 
                         final vitalsCardWidget = EventVitalsCard(
@@ -569,26 +553,19 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                           body: CustomScrollView(
                             controller: _scrollController,
                             slivers: [
-                              SliverAppBar(
+                              SharedSliverAppBar(
+                                title: data['title'] ?? "Untitled Event",
+                                collapsedTitle: data['title'] ?? "Untitled Event",
                                 expandedHeight: hasBanner
                                     ? (isLandscape
                                           ? 220.0
                                           : MediaQuery.of(context).size.height *
                                                 0.55)
                                     : (isLandscape ? 180.0 : 240.0),
-                                pinned: true,
-                                stretch: true,
-                                backgroundColor: Theme.of(
-                                  context,
-                                ).scaffoldBackgroundColor,
-                                foregroundColor: appBarIconColor,
                                 actions: [
                                   if (canEdit)
                                     IconButton(
-                                      icon: Icon(
-                                        Icons.edit,
-                                        color: appBarIconColor,
-                                      ),
+                                      icon: const Icon(Icons.edit),
                                       onPressed: () => Navigator.push(
                                         context,
                                         MaterialPageRoute(
@@ -605,246 +582,163 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                       ),
                                     ),
                                 ],
-                                flexibleSpace: FlexibleSpaceBar(
-                                  stretchModes: const [
-                                    StretchMode.zoomBackground,
-                                  ],
-                                  background: Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          gradient: themeProvider.appGradient,
-                                        ),
-                                      ),
-                                      if (hasBanner) ...[
-                                        CachedNetworkImage(
-                                          imageUrl: data['bannerUrl'],
-                                          fit: BoxFit.cover,
-                                        ),
-                                        Container(
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              begin: Alignment.topCenter,
-                                              end: Alignment.bottomCenter,
-                                              colors: [
-                                                Colors.transparent,
-                                                Colors.black.withValues(
-                                                  alpha: 0.8,
-                                                ),
-                                              ],
+                                background: hasBanner
+                                    ? Stack(
+                                        fit: StackFit.expand,
+                                        children: [
+                                          CachedNetworkImage(
+                                            imageUrl: data['bannerUrl'],
+                                            fit: BoxFit.cover,
+                                          ),
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                                colors: [
+                                                  Colors.transparent,
+                                                  Colors.black.withValues(
+                                                    alpha: 0.8,
+                                                  ),
+                                                ],
+                                              ),
                                             ),
+                                          ),
+                                        ],
+                                      )
+                                    : null,
+                                topBadges: (isImportantDetails || isVibeCheck)
+                                    ? Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
+                                          if (isImportantDetails)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.red
+                                                    .withValues(alpha: 0.8),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                                border: Border.all(
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.5),
+                                                ),
+                                              ),
+                                              child: const Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.priority_high,
+                                                    color: Colors.white,
+                                                    size: 14,
+                                                  ),
+                                                  SizedBox(width: 6),
+                                                  Text(
+                                                    "READ DETAILS",
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.bold,
+                                                      letterSpacing: 1.5,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          if (isVibeCheck)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black
+                                                    .withValues(alpha: 0.3),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              child: const Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Symbols.earthquake,
+                                                    color: Colors.white,
+                                                    size: 14,
+                                                  ),
+                                                  SizedBox(width: 6),
+                                                  Text(
+                                                    "VIBE CHECK",
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.bold,
+                                                      letterSpacing: 1.5,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                        ],
+                                      )
+                                    : null,
+                                bottomContent: FutureBuilder<DocumentSnapshot>(
+                                  future: FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(data['hostId'])
+                                      .get(),
+                                  builder: (context, hostSnap) {
+                                    if (!hostSnap.hasData ||
+                                        !hostSnap.data!.exists) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    final hostData = hostSnap.data!.data()
+                                        as Map<String, dynamic>;
+                                    return Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 12,
+                                          backgroundColor: Color(
+                                            hostData['avatarColor'] ??
+                                                Colors.blue.toARGB32(),
+                                          ),
+                                          backgroundImage:
+                                              hostData['avatarUrl'] != null
+                                                  ? CachedNetworkImageProvider(
+                                                      hostData['avatarUrl'],
+                                                    )
+                                                  : null,
+                                          child: hostData['avatarUrl'] == null
+                                              ? Text(
+                                                  (hostData['displayName'] ?? "S")[0]
+                                                      .toUpperCase(),
+                                                  style: const TextStyle(
+                                                    fontSize: 10,
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                )
+                                              : null,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          "${hostData['displayName'] ?? 'Someone'} is captain",
+                                          style: TextStyle(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.9,
+                                            ),
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
                                           ),
                                         ),
                                       ],
-                                      SafeArea(
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(
-                                            left: 20,
-                                            right: 20,
-                                            bottom: 40,
-                                            top: 40,
-                                          ),
-                                          child: Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.end,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Wrap(
-                                                spacing: 8,
-                                                runSpacing: 8,
-                                                children: [
-                                                  if (isImportantDetails)
-                                                    Container(
-                                                      margin:
-                                                          const EdgeInsets.only(
-                                                            bottom: 8,
-                                                          ),
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 10,
-                                                            vertical: 4,
-                                                          ),
-                                                      decoration: BoxDecoration(
-                                                        color: Colors.red
-                                                            .withValues(
-                                                              alpha: 0.8,
-                                                            ),
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              20,
-                                                            ),
-                                                        border: Border.all(
-                                                          color: Colors.white
-                                                              .withValues(
-                                                                alpha: 0.5,
-                                                              ),
-                                                        ),
-                                                      ),
-                                                      child: const Row(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          Icon(
-                                                            Icons.priority_high,
-                                                            color: Colors.white,
-                                                            size: 14,
-                                                          ),
-                                                          SizedBox(width: 6),
-                                                          Text(
-                                                            "READ DETAILS",
-                                                            style: TextStyle(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontSize: 10,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                              letterSpacing:
-                                                                  1.5,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  if (isVibeCheck)
-                                                    Container(
-                                                      margin:
-                                                          const EdgeInsets.only(
-                                                            bottom: 8,
-                                                          ),
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 10,
-                                                            vertical: 4,
-                                                          ),
-                                                      decoration: BoxDecoration(
-                                                        color: Colors.black
-                                                            .withValues(
-                                                              alpha: 0.3,
-                                                            ),
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              20,
-                                                            ),
-                                                      ),
-                                                      child: const Row(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          Icon(
-                                                            Symbols.earthquake,
-                                                            color: Colors.white,
-                                                            size: 14,
-                                                          ),
-                                                          SizedBox(width: 6),
-                                                          Text(
-                                                            "VIBE CHECK",
-                                                            style: TextStyle(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontSize: 10,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                              letterSpacing:
-                                                                  1.5,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                              Text(
-                                                data['title'] ??
-                                                    "Untitled Event",
-                                                style: const TextStyle(
-                                                  fontSize: 32,
-                                                  fontWeight: FontWeight.w900,
-                                                  color: Colors.white,
-                                                  height: 1.1,
-                                                  letterSpacing: -0.5,
-                                                ),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              const SizedBox(height: 12),
-                                              FutureBuilder<DocumentSnapshot>(
-                                                future: FirebaseFirestore
-                                                    .instance
-                                                    .collection('users')
-                                                    .doc(data['hostId'])
-                                                    .get(),
-                                                builder: (context, hostSnap) {
-                                                  if (!hostSnap.hasData ||
-                                                      !hostSnap.data!.exists) {
-                                                    return const SizedBox.shrink();
-                                                  }
-                                                  final hostData =
-                                                      hostSnap.data!.data()
-                                                          as Map<
-                                                            String,
-                                                            dynamic
-                                                          >;
-                                                  return Row(
-                                                    children: [
-                                                      CircleAvatar(
-                                                        radius: 12,
-                                                        backgroundColor: Color(
-                                                          hostData['avatarColor'] ??
-                                                              Colors.blue
-                                                                  .toARGB32(),
-                                                        ),
-                                                        backgroundImage:
-                                                            hostData['avatarUrl'] !=
-                                                                null
-                                                            ? CachedNetworkImageProvider(
-                                                                hostData['avatarUrl'],
-                                                              )
-                                                            : null,
-                                                        child:
-                                                            hostData['avatarUrl'] ==
-                                                                null
-                                                            ? Text(
-                                                                (hostData['displayName'] ??
-                                                                        "S")[0]
-                                                                    .toUpperCase(),
-                                                                style: const TextStyle(
-                                                                  fontSize: 10,
-                                                                  color: Colors
-                                                                      .white,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                ),
-                                                              )
-                                                            : null,
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                      Text(
-                                                        "${hostData['displayName'] ?? 'Someone'} is captain",
-                                                        style: TextStyle(
-                                                          color: Colors.white
-                                                              .withValues(
-                                                                alpha: 0.9,
-                                                              ),
-                                                          fontSize: 14,
-                                                          fontWeight:
-                                                              FontWeight.w500,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  );
-                                                },
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                    );
+                                  },
                                 ),
                               ),
                               SliverToBoxAdapter(
