@@ -8,11 +8,11 @@ import 'hangout_details_page.dart';
 import '../components/shared/user_profile_sheet.dart';
 import '../components/shared/event_summary_card.dart';
 import '../components/feed/feed_filter_bar.dart';
-import '../components/feed/home_action_fab.dart';
 import '../components/feed/empty_feed_states.dart';
 import '../components/feed/feed_skeleton.dart';
 import '../components/feed/contextual_empty_card.dart';
 import '../components/feed/carousel_feed_list.dart';
+import '../components/feed/feed_sliver_app_bar.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -194,10 +194,19 @@ class _HomePageState extends State<HomePage> {
           .snapshots(),
       builder: (context, userSnap) {
         List<String> blockedUids = [];
+        String firstName = "there";
         if (userSnap.hasData && userSnap.data!.exists) {
           final userData = userSnap.data!.data() as Map<String, dynamic>?;
-          if (userData != null && userData['blockedUids'] != null) {
-            blockedUids = List<String>.from(userData['blockedUids']);
+          if (userData != null) {
+            if (userData['blockedUids'] != null) {
+              blockedUids = List<String>.from(userData['blockedUids']);
+            }
+            if (userData['displayName'] != null) {
+              final String name = userData['displayName'] as String;
+              if (name.trim().isNotEmpty) {
+                firstName = name.trim().split(' ')[0];
+              }
+            }
           }
         }
 
@@ -451,39 +460,21 @@ class _HomePageState extends State<HomePage> {
                         break;
                     }
 
-                    return Column(
-                      children: [
-                        FeedFilterBar(
-                          selectedFilter: _selectedFilter,
-                          onFilterChanged: (f) =>
-                              setState(() => _selectedFilter = f),
+                    return CustomScrollView(
+                      slivers: [
+                        FeedSliverAppBar(firstName: firstName),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: FeedFilterBar(
+                              selectedFilter: _selectedFilter,
+                              onFilterChanged: (f) =>
+                                  setState(() => _selectedFilter = f),
+                            ),
+                          ),
                         ),
-                        Expanded(
-                          child: CustomScrollView(
-                            slivers: [
-                              SliverToBoxAdapter(
-                                child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    20,
-                                    20,
-                                    20,
-                                    16,
-                                  ),
-                                  child: Text(
-                                    "the i's",
-                                    style: TextStyle(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: -1.0,
-                                      color: isDark
-                                          ? Colors.white
-                                          : Colors.black87,
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              // --- ACTION NEEDED ---
+                        
+                        // --- ACTION NEEDED ---
                               SliverToBoxAdapter(
                                 child: Padding(
                                   padding: const EdgeInsets.only(
@@ -825,10 +816,7 @@ class _HomePageState extends State<HomePage> {
                                 ),
                               ],
                             ],
-                          ),
-                        ),
-                      ],
-                    );
+                          );
                   },
                 );
               },
@@ -839,17 +827,6 @@ class _HomePageState extends State<HomePage> {
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          "thanks for the invite",
-          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0),
-        ),
-        centerTitle: true,
-        foregroundColor: Colors.white,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(gradient: themeProvider.appGradient),
-        ),
-      ),
       body: isLandscape
           ? Row(
               children: [
@@ -858,7 +835,6 @@ class _HomePageState extends State<HomePage> {
                   child: Scaffold(
                     backgroundColor: Colors.transparent,
                     body: feedContent,
-                    floatingActionButton: const HomeActionFab(),
                   ),
                 ),
                 VerticalDivider(
@@ -881,7 +857,6 @@ class _HomePageState extends State<HomePage> {
           : Scaffold(
               backgroundColor: Colors.transparent,
               body: feedContent,
-              floatingActionButton: const HomeActionFab(),
             ),
     );
   }
