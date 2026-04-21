@@ -113,7 +113,8 @@ class EventSummaryCard extends StatelessWidget {
       width: isHorizontal ? safeHorizontalWidth : double.infinity,
       margin: EdgeInsets.only(
         bottom: isHorizontal ? 0 : 24,
-        right: isHorizontal ? 16 : 0,
+        right: isHorizontal ? 8 : 0,
+        left: isHorizontal ? 8 : 0,
       ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),

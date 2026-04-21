@@ -12,6 +12,7 @@ import '../components/feed/home_action_fab.dart';
 import '../components/feed/empty_feed_states.dart';
 import '../components/feed/feed_skeleton.dart';
 import '../components/feed/contextual_empty_card.dart';
+import '../components/feed/carousel_feed_list.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -526,11 +527,7 @@ class _HomePageState extends State<HomePage> {
                                   SliverToBoxAdapter(
                                     child: SizedBox(
                                       height: 310,
-                                      child: ListView.builder(
-                                        scrollDirection: Axis.horizontal,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 20,
-                                        ),
+                                      child: CarouselFeedList(
                                         itemCount: actionNeededEvents.length,
                                         itemBuilder: (context, index) =>
                                             _buildEventSummaryCardWrapper(
@@ -667,11 +664,7 @@ class _HomePageState extends State<HomePage> {
                                   SliverToBoxAdapter(
                                     child: SizedBox(
                                       height: 310,
-                                      child: ListView.builder(
-                                        scrollDirection: Axis.horizontal,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 20,
-                                        ),
+                                      child: CarouselFeedList(
                                         itemCount: declinedEvents.length,
                                         itemBuilder: (context, index) =>
                                             _buildEventSummaryCardWrapper(
@@ -732,11 +725,7 @@ class _HomePageState extends State<HomePage> {
                                   SliverToBoxAdapter(
                                     child: SizedBox(
                                       height: 310,
-                                      child: ListView.builder(
-                                        scrollDirection: Axis.horizontal,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 20,
-                                        ),
+                                      child: CarouselFeedList(
                                         itemCount: pastEvents.length,
                                         itemBuilder: (context, index) =>
                                             _buildEventSummaryCardWrapper(
@@ -812,11 +801,7 @@ class _HomePageState extends State<HomePage> {
                                         ),
                                         child: SizedBox(
                                           height: 310,
-                                          child: ListView.builder(
-                                            scrollDirection: Axis.horizontal,
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 20,
-                                            ),
+                                          child: CarouselFeedList(
                                             itemCount: hiddenEvents.length,
                                             itemBuilder: (context, index) =>
                                                 _buildEventSummaryCardWrapper(
