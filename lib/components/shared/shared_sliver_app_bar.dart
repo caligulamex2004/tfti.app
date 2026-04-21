@@ -31,7 +31,7 @@ class SharedSliverAppBar extends StatelessWidget {
     return SliverAppBar(
       expandedHeight: expandedHeight,
       pinned: true,
-      stretch: true,
+      stretch: false,
       backgroundColor: isDark
           ? Colors.black.withValues(alpha: 0.6)
           : Colors.white.withValues(alpha: 0.7),

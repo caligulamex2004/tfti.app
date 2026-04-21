@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -12,7 +13,7 @@ import '../components/squad/friend_list_feed.dart';
 import '../components/squad/contact_import_sheet.dart';
 import '../services/contact_service.dart';
 import '../utils/phone_formatter.dart';
-import '../utils/theme_provider.dart';
+import '../components/shared/shared_sliver_app_bar.dart';
 
 class SquadPage extends StatefulWidget {
   const SquadPage({super.key});
@@ -352,49 +353,89 @@ class _SquadPageState extends State<SquadPage> {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape = MediaQuery.of(context).size.width > 600;
 
+    final List<Widget> appBarActions = [
+      IconButton(
+        icon: const Icon(Icons.qr_code_scanner),
+        tooltip: "Scan QR",
+        onPressed: _openScanner,
+      ),
+      IconButton(
+        icon: const Icon(Icons.import_contacts),
+        tooltip: "Import Contacts",
+        onPressed: _importContacts,
+      ),
+      const SizedBox(width: 8),
+    ];
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: const Text(
-          "The Squad",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        foregroundColor: Colors.white,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(gradient: themeProvider.appGradient),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.qr_code_scanner),
-            tooltip: "Scan QR",
-            onPressed: _openScanner,
-          ),
-          IconButton(
-            icon: const Icon(Icons.import_contacts),
-            tooltip: "Import Contacts",
-            onPressed: _importContacts,
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: isLandscape
           ? Row(
               children: [
                 Expanded(
                   flex: 40,
-                  child: SingleChildScrollView(
-                    child: AddFriendSection(
-                      isDark: isDark,
-                      primaryColor: primaryColor,
-                      isAddingByUsername: _isAddingByUsername,
-                      usernameController: _usernameController,
-                      phoneController: _phoneController,
-                      statusMessage: _statusMessage,
-                      onToggleInputType: (val) =>
-                          setState(() => _isAddingByUsername = val),
-                      onPhoneChanged: (val) => _completePhoneNumber = val,
-                      onSubmit: _addFriend,
+                  child: Scaffold(
+                    backgroundColor: Colors.transparent,
+                    body: CustomScrollView(
+                      slivers: [
+                        SliverAppBar(
+                          pinned: true,
+                          toolbarHeight: 56,
+                          primary: true,
+                          backgroundColor: isDark 
+                              ? Colors.black.withValues(alpha: 0.6) 
+                              : Colors.white.withValues(alpha: 0.7),
+                          automaticallyImplyLeading: false,
+                          title: null,
+                          actions: null,
+                          flexibleSpace: ClipRect(
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
+                              child: SafeArea(
+                                bottom: false,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          "The Squad", 
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold, 
+                                            fontSize: 18,
+                                            color: isDark ? Colors.white : Colors.black87,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: appBarActions,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: AddFriendSection(
+                            isDark: isDark,
+                            primaryColor: primaryColor,
+                            isAddingByUsername: _isAddingByUsername,
+                            usernameController: _usernameController,
+                            phoneController: _phoneController,
+                            statusMessage: _statusMessage,
+                            onToggleInputType: (val) =>
+                                setState(() => _isAddingByUsername = val),
+                            onPhoneChanged: (val) => _completePhoneNumber = val,
+                            onSubmit: _addFriend,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -411,6 +452,14 @@ class _SquadPageState extends State<SquadPage> {
                     primaryColor: primaryColor,
                     sortByScore: _sortByScore,
                     removedFriendUids: _removedFriendUids,
+                    headerSlivers: const [
+                      SharedSliverAppBar(
+                        title: "Squad List",
+                        collapsedTitle: "Squad List",
+                        expandedHeight: 56.0,
+                        hasBackButton: false,
+                      ),
+                    ],
                     onToggleSort: () {
                       HapticFeedback.lightImpact();
                       setState(() => _sortByScore = !_sortByScore);
@@ -422,37 +471,43 @@ class _SquadPageState extends State<SquadPage> {
                 ),
               ],
             )
-          : Column(
-              children: [
-                AddFriendSection(
-                  isDark: isDark,
-                  primaryColor: primaryColor,
-                  isAddingByUsername: _isAddingByUsername,
-                  usernameController: _usernameController,
-                  phoneController: _phoneController,
-                  statusMessage: _statusMessage,
-                  onToggleInputType: (val) =>
-                      setState(() => _isAddingByUsername = val),
-                  onPhoneChanged: (val) => _completePhoneNumber = val,
-                  onSubmit: _addFriend,
+          : FriendListFeed(
+              myUid: myUid,
+              isDark: isDark,
+              primaryColor: primaryColor,
+              sortByScore: _sortByScore,
+              removedFriendUids: _removedFriendUids,
+              headerSlivers: [
+                SharedSliverAppBar(
+                  title: "The Squad",
+                  collapsedTitle: "The Squad",
+                  expandedHeight: 140.0,
+                  hasBackButton: false,
+                  actions: appBarActions,
                 ),
-                Expanded(
-                  child: FriendListFeed(
-                    myUid: myUid,
+                SliverToBoxAdapter(
+                  child: AddFriendSection(
                     isDark: isDark,
                     primaryColor: primaryColor,
-                    sortByScore: _sortByScore,
-                    removedFriendUids: _removedFriendUids,
-                    onToggleSort: () {
-                      HapticFeedback.lightImpact();
-                      setState(() => _sortByScore = !_sortByScore);
-                    },
-                    onFriendRemoved: (uid) {
-                      setState(() => _removedFriendUids.add(uid));
-                    },
+                    useGradient: !isLandscape,
+                    isAddingByUsername: _isAddingByUsername,
+                    usernameController: _usernameController,
+                    phoneController: _phoneController,
+                    statusMessage: _statusMessage,
+                    onToggleInputType: (val) =>
+                        setState(() => _isAddingByUsername = val),
+                    onPhoneChanged: (val) => _completePhoneNumber = val,
+                    onSubmit: _addFriend,
                   ),
                 ),
               ],
+              onToggleSort: () {
+                HapticFeedback.lightImpact();
+                setState(() => _sortByScore = !_sortByScore);
+              },
+              onFriendRemoved: (uid) {
+                setState(() => _removedFriendUids.add(uid));
+              },
             ),
     );
   }

@@ -115,7 +115,7 @@ class FeedSliverAppBar extends StatelessWidget {
     return SliverAppBar(
       expandedHeight: isLandscape ? 56.0 : 140.0,
       pinned: true,
-      stretch: true,
+      stretch: false,
       backgroundColor: isDark 
           ? Colors.black.withValues(alpha: 0.6) 
           : Colors.white.withValues(alpha: 0.7),

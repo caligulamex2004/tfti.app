@@ -12,6 +12,7 @@ class FriendListFeed extends StatelessWidget {
   final Set<String> removedFriendUids;
   final VoidCallback onToggleSort;
   final Function(String) onFriendRemoved;
+  final List<Widget> headerSlivers;
 
   const FriendListFeed({
     super.key,
@@ -22,6 +23,7 @@ class FriendListFeed extends StatelessWidget {
     required this.removedFriendUids,
     required this.onToggleSort,
     required this.onFriendRemoved,
+    this.headerSlivers = const [],
   });
 
   Future<List<Map<String, dynamic>>> _fetchAndSortFriends(
@@ -69,6 +71,7 @@ class FriendListFeed extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
@@ -108,87 +111,105 @@ class FriendListFeed extends StatelessWidget {
                     .toList();
 
                 if (friends.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.person_add_alt_1,
-                          size: 60,
-                          color: isDark
-                              ? Colors.grey.shade700
-                              : Colors.grey.shade300,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          "Your squad is empty.",
-                          style: TextStyle(
-                            color: isDark
-                                ? Colors.grey.shade400
-                                : Colors.grey.shade600,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                  return CustomScrollView(
+                    slivers: [
+                      ...headerSlivers,
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.person_add_alt_1,
+                                size: 60,
+                                color: isDark
+                                    ? Colors.grey.shade700
+                                    : Colors.grey.shade300,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                "Your squad is empty.",
+                                style: TextStyle(
+                                  color: isDark
+                                      ? Colors.grey.shade400
+                                      : Colors.grey.shade600,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   );
                 }
 
-                return Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 8,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            "Squad List (${friends.length})",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: isDark
-                                  ? Colors.grey.shade400
-                                  : Colors.grey.shade600,
-                            ),
-                          ),
-                          InkWell(
-                            borderRadius: BorderRadius.circular(12),
-                            onTap: onToggleSort,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8.0,
-                                vertical: 4.0,
+                return CustomScrollView(
+                  slivers: [
+                    ...headerSlivers,
+                    SliverAppBar(
+                      pinned: true,
+                      toolbarHeight: 48,
+                      primary: false,
+                      backgroundColor: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.95),
+                      automaticallyImplyLeading: false,
+                      elevation: 0,
+                      scrolledUnderElevation: 0,
+                      flexibleSpace: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Squad List (${friends.length})",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: isDark
+                                    ? Colors.grey.shade400
+                                    : Colors.grey.shade600,
                               ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    sortByScore
-                                        ? Icons.leaderboard
-                                        : Icons.sort_by_alpha,
-                                    size: 16,
-                                    color: primaryColor,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    sortByScore ? "Ranked" : "A-Z",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
+                            ),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: onToggleSort,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8.0,
+                                  vertical: 4.0,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      sortByScore
+                                          ? Icons.leaderboard
+                                          : Icons.sort_by_alpha,
+                                      size: 16,
                                       color: primaryColor,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      sortByScore ? "Ranked" : "A-Z",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: primaryColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 12),
+                    SliverPadding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      sliver: SliverList.builder(
                         itemCount: friends.length,
                         itemBuilder: (context, index) {
                           final Map<String, dynamic> friendInitData =

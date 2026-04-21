@@ -7,6 +7,7 @@ import '../../utils/theme_provider.dart';
 class AddFriendSection extends StatelessWidget {
   final bool isDark;
   final Color primaryColor;
+  final bool useGradient;
   final bool isAddingByUsername;
   final TextEditingController usernameController;
   final TextEditingController phoneController;
@@ -19,6 +20,7 @@ class AddFriendSection extends StatelessWidget {
     super.key,
     required this.isDark,
     required this.primaryColor,
+    this.useGradient = false,
     required this.isAddingByUsername,
     required this.usernameController,
     required this.phoneController,
@@ -38,7 +40,8 @@ class AddFriendSection extends StatelessWidget {
         bottom: 4.0,
       ),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: useGradient ? null : Theme.of(context).cardColor,
+        gradient: useGradient ? themeProvider.appGradient : null,
         boxShadow: [
           if (!isDark)
             BoxShadow(
@@ -57,7 +60,7 @@ class AddFriendSection extends StatelessWidget {
               fontWeight: FontWeight.w900,
               fontSize: 22,
               letterSpacing: -0.5,
-              color: isDark ? Colors.white : Colors.black87,
+              color: (useGradient || isDark) ? Colors.white : Colors.black87,
             ),
           ),
           const SizedBox(height: 12),
