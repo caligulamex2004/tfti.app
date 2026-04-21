@@ -22,8 +22,6 @@ class ContextualEmptyCard extends StatelessWidget {
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     return Container(
-      width: 260,
-      margin: const EdgeInsets.only(right: 16),
       decoration: BoxDecoration(
         color: isDark ? Colors.grey.shade900.withOpacity(0.5) : Colors.grey.shade50.withOpacity(0.8),
         borderRadius: BorderRadius.circular(24),

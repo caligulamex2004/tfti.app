@@ -535,17 +535,23 @@ class _HomePageState extends State<HomePage> {
                                 SliverToBoxAdapter(
                                   child: SizedBox(
                                     height: 310,
-                                    child: ListView(
-                                      scrollDirection: Axis.horizontal,
-                                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                                      children: [
-                                        ContextualEmptyCard(
+                                    child: isLandscape
+                                        ? CarouselFeedList(
+                                            itemCount: 1,
+                                            itemBuilder: (context, index) => ContextualEmptyCard(
                                           icon: Icons.check_circle_outline,
                                           title: "You're all caught up!",
                                           message: "You have no pending invites$filterText.",
                                         ),
-                                      ],
-                                    ),
+                                          )
+                                        : Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                                            child: ContextualEmptyCard(
+                                              icon: Icons.check_circle_outline,
+                                              title: "You're all caught up!",
+                                              message: "You have no pending invites$filterText.",
+                                            ),
+                                          ),
                                   ),
                                 ),
                               const SliverToBoxAdapter(
@@ -595,17 +601,23 @@ class _HomePageState extends State<HomePage> {
                                 SliverToBoxAdapter(
                                   child: SizedBox(
                                     height: 310,
-                                    child: ListView(
-                                      scrollDirection: Axis.horizontal,
-                                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                                      children: [
-                                        ContextualEmptyCard(
+                                    child: isLandscape
+                                        ? CarouselFeedList(
+                                            itemCount: 1,
+                                            itemBuilder: (context, index) => ContextualEmptyCard(
                                           icon: Icons.celebration,
                                           title: "Nothing on the agenda.",
                                           message: "Your agenda is looking a bit empty$filterText... Tap the + to host a hangout!",
                                         ),
-                                      ],
-                                    ),
+                                          )
+                                        : Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                                            child: ContextualEmptyCard(
+                                              icon: Icons.celebration,
+                                              title: "Nothing on the agenda.",
+                                              message: "Your agenda is looking a bit empty$filterText... Tap the + to host a hangout!",
+                                            ),
+                                          ),
                                   ),
                                 ),
                               const SliverToBoxAdapter(

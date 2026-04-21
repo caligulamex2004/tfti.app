@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 class CarouselFeedList extends StatefulWidget {
   final int itemCount;
   final Widget Function(BuildContext, int) itemBuilder;
+  final double viewportFraction;
 
   const CarouselFeedList({
     super.key,
     required this.itemCount,
     required this.itemBuilder,
+    this.viewportFraction = 0.85,
   });
 
   @override
@@ -21,8 +23,8 @@ class _CarouselFeedListState extends State<CarouselFeedList> {
   @override
   void initState() {
     super.initState();
-    // 0.85 viewport means the center card takes up 85% of the screen width.
-    _pageController = PageController(viewportFraction: 0.85);
+    // Use the provided viewportFraction
+    _pageController = PageController(viewportFraction: widget.viewportFraction);
     _pageController.addListener(() {
       setState(() {
         _currentPage = _pageController.page ?? 0.0;

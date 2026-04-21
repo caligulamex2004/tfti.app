@@ -100,6 +100,7 @@ class FeedSliverAppBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
     
     final hour = DateTime.now().hour;
     String greeting;
@@ -112,7 +113,7 @@ class FeedSliverAppBar extends StatelessWidget {
     }
 
     return SliverAppBar(
-      expandedHeight: 140.0,
+      expandedHeight: isLandscape ? 56.0 : 140.0,
       pinned: true,
       stretch: true,
       backgroundColor: isDark 
@@ -164,8 +165,9 @@ class FeedSliverAppBar extends StatelessWidget {
             builder: (context, constraints) {
               final double topPadding = MediaQuery.of(context).padding.top;
               final double collapsedHeight = kToolbarHeight + topPadding;
-              final double expandRatio = ((constraints.maxHeight - collapsedHeight) / 
-                                        (140.0 - collapsedHeight)).clamp(0.0, 1.0);
+              final double expandRatio = isLandscape 
+                  ? 0.0 
+                  : ((constraints.maxHeight - collapsedHeight) / (140.0 - collapsedHeight)).clamp(0.0, 1.0);
               
               final double expandedOpacity = (expandRatio - 0.5).clamp(0.0, 0.5) * 2.0;
               final double collapsedOpacity = (0.5 - expandRatio).clamp(0.0, 0.5) * 2.0;
@@ -193,24 +195,25 @@ class FeedSliverAppBar extends StatelessWidget {
                   ),
                   
                   // Collapsed Title
-                  Align(
-                    alignment: Alignment.bottomLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0, left: 20.0),
-                      child: Opacity(
-                        opacity: collapsedOpacity,
-                        child: Text(
-                          "thanks for the invite",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.0,
-                            fontSize: 18,
-                            color: isDark ? Colors.white : Colors.black87,
+                  if (!isLandscape)
+                    Align(
+                      alignment: Alignment.bottomLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0, left: 20.0),
+                        child: Opacity(
+                          opacity: collapsedOpacity,
+                          child: Text(
+                            "thanks for the invite",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.0,
+                              fontSize: 18,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
 
                   // Expanded Personalized Greeting
                   Positioned(
