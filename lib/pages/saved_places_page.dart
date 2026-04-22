@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../utils/theme_provider.dart';
+import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/places/goated_place_card.dart';
 import 'places_search_page.dart';
 
@@ -191,6 +191,9 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
     if (user == null) return const SizedBox.shrink();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -237,153 +240,100 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
 
           return CustomScrollView(
             slivers: [
-              SliverAppBar(
-                expandedHeight: 200,
-                pinned: true,
-                stretch: true,
-                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                foregroundColor: Colors.white,
-                flexibleSpace: FlexibleSpaceBar(
-                  stretchModes: const [StretchMode.zoomBackground],
-                  background: Container(
-                    decoration: BoxDecoration(
-                      gradient: themeProvider.appGradient,
+              SharedSliverAppBar(
+                title: "Favorite Places",
+                collapsedTitle: "Favorite Places",
+                expandedHeight: isLandscape ? 56.0 : 200.0,
+                hasBackButton: ModalRoute.of(context)?.canPop ?? false,
+                actions: [
+                  Padding(
+                    padding: EdgeInsets.only(
+                      right: isLandscape ? 4.0 : 16.0,
                     ),
-                    child: SafeArea(
-                      child: Padding(
-                        padding: const EdgeInsets.only(
-                          left: 20,
-                          right: 20,
-                          bottom: 20,
-                          top: 40,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "Favorite Places",
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                height: 1.1,
-                                letterSpacing: -0.5,
+                    child: Center(
+                      child: InkWell(
+                        onTap: _addNewPlace,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: primaryColor.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.add_location_alt, color: primaryColor, size: 16),
+                              const SizedBox(width: 6),
+                              Text(
+                                "Add",
+                                style: TextStyle(
+                                  color: primaryColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.star,
-                                  color: Colors.white.withValues(alpha: 0.8),
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  "${sortedPlaces.length} Saved",
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-
-                                const SizedBox(width: 12),
-
-                                // --- Sort Toggle ---
-                                if (sortedPlaces.isNotEmpty)
-                                  InkWell(
-                                    onTap: () {
-                                      HapticFeedback.lightImpact();
-                                      setState(
-                                        () => _sortAlphabetically =
-                                            !_sortAlphabetically,
-                                      );
-                                    },
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.15,
-                                        ),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            _sortAlphabetically
-                                                ? Icons.sort_by_alpha
-                                                : Icons.access_time,
-                                            color: Colors.white,
-                                            size: 14,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            _sortAlphabetically
-                                                ? "A-Z"
-                                                : "Newest",
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-
-                                const Spacer(),
-
-                                InkWell(
-                                  onTap: _addNewPlace,
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.add_location_alt,
-                                          color: Colors.white,
-                                          size: 16,
-                                        ),
-                                        SizedBox(width: 6),
-                                        Text(
-                                          "Add",
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
+                ],
+                bottomContent: Row(
+                  children: [
+                    Icon(
+                      Icons.star,
+                      color: primaryColor.withValues(alpha: 0.8),
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      "${sortedPlaces.length} Saved",
+                      style: TextStyle(
+                        color: primaryColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (!isLandscape && sortedPlaces.isNotEmpty)
+                      InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          setState(() => _sortAlphabetically = !_sortAlphabetically);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: primaryColor.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _sortAlphabetically ? Icons.sort_by_alpha : Icons.access_time,
+                                size: 14,
+                                color: primaryColor,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _sortAlphabetically ? "A-Z" : "Newest",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: primaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
 
