@@ -552,6 +552,24 @@ class _TeamsPageState extends State<TeamsPage> {
                   ),
                 ),
               ],
+              bottomContent: Row(
+                children: [
+                  Icon(
+                    Symbols.circles,
+                    color: primaryColor.withValues(alpha: 0.8),
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    "${circles.length} ${circles.length == 1 ? 'Team' : 'Teams'}",
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
             if (circles.isEmpty)
               SliverFillRemaining(
