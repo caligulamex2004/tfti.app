@@ -16,7 +16,7 @@ import 'package:image_cropper/image_cropper.dart';
 import '../components/shared/tcg_profile_card.dart';
 import '../utils/phone_formatter.dart';
 import 'preferences_page.dart';
-import '../utils/theme_provider.dart';
+import '../components/shared/shared_sliver_app_bar.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class AccountPage extends StatefulWidget {
@@ -550,7 +550,7 @@ class _AccountPageState extends State<AccountPage> {
                                     child: Text(
                                       package.storeProduct.priceString,
                                       style: TextStyle(
-                                        color: themeProvider.onPrimaryColor,
+                                        color: Theme.of(context).colorScheme.onPrimary,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -1453,67 +1453,115 @@ class _AccountPageState extends State<AccountPage> {
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: const Text(
-          "Account",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        foregroundColor: Colors.white,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(gradient: themeProvider.appGradient),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.qr_code, size: 26),
-            tooltip: "Show QR Code",
-            onPressed: _showMyQrCode,
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : isLandscape
-          ? Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final qrAction = Padding(
+      padding: EdgeInsets.only(right: isLandscape ? 4.0 : 16.0),
+      child: Center(
+        child: InkWell(
+          onTap: _showMyQrCode,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 6,
+            ),
+            decoration: BoxDecoration(
+              color: primaryColor.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  flex: 50,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      children: [
-                        _buildTcgPreviewCard(isDark, primaryColor),
-                        const SizedBox(height: 24),
-                        _buildEditControls(isDark, primaryColor),
-                      ],
-                    ),
-                  ),
-                ),
-                VerticalDivider(
-                  width: 1,
-                  thickness: 1,
-                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
-                ),
-                Expanded(
-                  flex: 50,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      children: [
-                        _buildSettingsCard(isDark),
-                        const SizedBox(height: 24),
-                        _buildDangerCard(isDark),
-                      ],
-                    ),
+                Icon(Icons.qr_code, color: primaryColor, size: 16),
+                const SizedBox(width: 6),
+                Text(
+                  "QR",
+                  style: TextStyle(
+                    color: primaryColor,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
-            )
-          : SingleChildScrollView(
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (isLandscape) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 50,
+              child: CustomScrollView(
+                slivers: [
+                  SharedSliverAppBar(
+                    title: "Account",
+                    collapsedTitle: "Account",
+                    expandedHeight: 56.0,
+                    hasBackButton: ModalRoute.of(context)?.canPop ?? false,
+                    actions: [qrAction],
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        children: [
+                          _buildTcgPreviewCard(isDark, primaryColor),
+                          const SizedBox(height: 24),
+                          _buildEditControls(isDark, primaryColor),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            VerticalDivider(
+              width: 1,
+              thickness: 1,
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+            ),
+            Expanded(
+              flex: 50,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  children: [
+                    _buildSettingsCard(isDark),
+                    const SizedBox(height: 24),
+                    _buildDangerCard(isDark),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: CustomScrollView(
+        slivers: [
+          SharedSliverAppBar(
+            title: "Account",
+            collapsedTitle: "Account",
+            expandedHeight: 140.0,
+            hasBackButton: ModalRoute.of(context)?.canPop ?? false,
+            actions: [qrAction],
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 children: [
@@ -1528,6 +1576,9 @@ class _AccountPageState extends State<AccountPage> {
                 ],
               ),
             ),
+          ),
+        ],
+      ),
     );
   }
 }
