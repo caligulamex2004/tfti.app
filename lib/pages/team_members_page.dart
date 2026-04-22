@@ -403,20 +403,32 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                           right: isLandscape ? 4.0 : 16.0,
                         ),
                         child: Center(
-                          child: FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.white.withValues(alpha: 0.2),
-                              foregroundColor: Colors.white,
-                              padding: EdgeInsets.symmetric(
-                                horizontal: isLandscape ? 8 : 16,
-                                vertical: 0,
+                          child: InkWell(
+                            onTap: _showAddMembersBottomSheet,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
                               ),
-                            ),
-                            onPressed: _showAddMembersBottomSheet,
-                            icon: const Icon(Icons.person_add, size: 18),
-                            label: const Text(
-                              "Add",
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                              decoration: BoxDecoration(
+                                color: primaryColor.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.person_add, color: primaryColor, size: 16),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    "Add",
+                                    style: TextStyle(
+                                      color: primaryColor,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -426,14 +438,14 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                       children: [
                         Icon(
                           Icons.people,
-                          color: Colors.white.withValues(alpha: 0.8),
+                          color: primaryColor.withValues(alpha: 0.8),
                           size: 16,
                         ),
                         const SizedBox(width: 6),
                         Text(
                           "${profiles.length} Members",
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
+                            color: primaryColor,
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
@@ -449,7 +461,7 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
+                                color: primaryColor.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Row(
@@ -458,15 +470,15 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                   Icon(
                                     _sortByScore ? Icons.leaderboard : Icons.sort_by_alpha,
                                     size: 14,
-                                    color: Colors.white,
+                                    color: primaryColor,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
                                     _sortByScore ? "Ranked" : "A-Z",
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12,
-                                      color: Colors.white,
+                                      color: primaryColor,
                                     ),
                                   ),
                                 ],

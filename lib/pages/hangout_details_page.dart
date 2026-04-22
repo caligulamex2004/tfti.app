@@ -556,6 +556,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                               SharedSliverAppBar(
                                 title: data['title'] ?? "Untitled Event",
                                 collapsedTitle: data['title'] ?? "Untitled Event",
+                                expandedTitleColor: Colors.white,
                                 expandedHeight: hasBanner
                                     ? (isLandscape
                                           ? 220.0

@@ -2,17 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
-import '../utils/theme_provider.dart';
 import 'hangout_details_page.dart';
+import 'hangout_editor_page.dart';
+import 'vibe_check_editor_page.dart';
 import '../components/shared/user_profile_sheet.dart';
 import '../components/shared/event_summary_card.dart';
+import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/feed/feed_filter_bar.dart';
 import '../components/feed/empty_feed_states.dart';
 import '../components/feed/feed_skeleton.dart';
 import '../components/feed/contextual_empty_card.dart';
 import '../components/feed/carousel_feed_list.dart';
-import '../components/feed/feed_sliver_app_bar.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -26,6 +28,89 @@ class _HomePageState extends State<HomePage> {
   Map<String, dynamic>? _selectedEventData;
   bool _showHidden = false;
   FeedFilter _selectedFilter = FeedFilter.thisWeek;
+
+  void _showAddMenu() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: Icon(
+                  Icons.how_to_vote,
+                  size: 28,
+                  color: primaryColor,
+                ),
+                title: const Text(
+                  "Hangout",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                subtitle: const Text("Let the squad know what's happening."),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const HangoutEditorPage(),
+                    ),
+                  );
+                },
+              ),
+              Divider(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+              ListTile(
+                leading: Icon(
+                  Symbols.earthquake,
+                  size: 28,
+                  color: primaryColor,
+                ),
+                title: const Text(
+                  "Vibe Check",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                subtitle: const Text("Give options and let the squad decide."),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const VibeCheckEditorPage(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Future<void> _toggleHideStatus(String eventId, bool currentlyHidden) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -184,6 +269,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
@@ -457,9 +543,63 @@ class _HomePageState extends State<HomePage> {
                         break;
                     }
 
+                    final hour = DateTime.now().hour;
+                    String greeting;
+                    if (hour < 12) {
+                      greeting = "Good morning";
+                    } else if (hour < 17) {
+                      greeting = "Good afternoon";
+                    } else {
+                      greeting = "Good evening";
+                    }
+
                     return CustomScrollView(
                       slivers: [
-                        FeedSliverAppBar(firstName: firstName),
+                        SharedSliverAppBar(
+                          title: "the i's",
+                          collapsedTitle: "thanks for the invite",
+                          subtitle: "$greeting, $firstName",
+                          expandedHeight: isLandscape ? 56.0 : 140.0,
+                          hasBackButton: false,
+                          actions: [
+                            Padding(
+                              padding: const EdgeInsets.only(right: 16.0),
+                              child: Center(
+                                child: InkWell(
+                                  onTap: () {
+                                    HapticFeedback.lightImpact();
+                                    _showAddMenu();
+                                  },
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: primaryColor.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.add, color: primaryColor, size: 16),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          "Create",
+                                          style: TextStyle(
+                                            color: primaryColor,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                         SliverToBoxAdapter(
                           child: Padding(
                             padding: const EdgeInsets.only(bottom: 8.0),

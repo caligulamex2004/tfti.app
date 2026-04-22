@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../../utils/theme_provider.dart';
 
 class SharedSliverAppBar extends StatelessWidget {
   final String title;
@@ -10,7 +9,9 @@ class SharedSliverAppBar extends StatelessWidget {
   final List<Widget> Function(double expandRatio)? actionsBuilder;
   final Widget? background;
   final Widget? topBadges;
+  final String? subtitle;
   final Widget? bottomContent;
+  final Color? expandedTitleColor;
   final bool hasBackButton;
 
   const SharedSliverAppBar({
@@ -22,13 +23,17 @@ class SharedSliverAppBar extends StatelessWidget {
     this.actionsBuilder,
     this.background,
     this.topBadges,
+    this.subtitle,
     this.bottomContent,
+    this.expandedTitleColor,
     this.hasBackButton = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final Color titleColor = expandedTitleColor ?? (isDark ? Colors.white : Colors.black87);
 
     return SliverAppBar(
       expandedHeight: expandedHeight,
@@ -75,7 +80,16 @@ class SharedSliverAppBar extends StatelessWidget {
                     child: background ??
                         Container(
                           decoration: BoxDecoration(
-                            gradient: themeProvider.appGradient,
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                primaryColor.withValues(alpha: 0.15),
+                                isDark
+                                    ? Colors.black.withValues(alpha: 0.1)
+                                    : Colors.white.withValues(alpha: 0.1),
+                              ],
+                            ),
                           ),
                         ),
                   ),
@@ -120,12 +134,23 @@ class SharedSliverAppBar extends StatelessWidget {
                             topBadges!,
                             const SizedBox(height: 8),
                           ],
+                          if (subtitle != null) ...[
+                            Text(
+                              subtitle!,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                          ],
                           Text(
                             title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 32,
                               fontWeight: FontWeight.w900,
-                              color: Colors.white,
+                              color: titleColor,
                               height: 1.1,
                               letterSpacing: -0.5,
                             ),

@@ -517,46 +517,41 @@ class _TeamsPageState extends State<TeamsPage> {
               collapsedTitle: "Teams",
               expandedHeight: isLandscape ? 56.0 : 140.0,
               hasBackButton: false,
-              actions: null,
-              actionsBuilder: (expandRatio) {
-                final collapsedT = (0.5 - expandRatio).clamp(0.0, 0.5) * 2.0;
-                final bgColor = Color.lerp(
-                  Colors.white.withValues(alpha: 0.2),
-                  (isDark ? Colors.white : Colors.black).withValues(alpha: 0.1),
-                  collapsedT,
-                )!;
-                final fgColor = Color.lerp(
-                  Colors.white,
-                  isDark ? Colors.white : Colors.black87,
-                  collapsedT,
-                )!;
-                return [
-                  Padding(
-                    padding: const EdgeInsets.only(right: 16.0),
-                    child: Center(
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: bgColor,
-                          foregroundColor: fgColor,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 0,
-                          ),
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: Center(
+                    child: InkWell(
+                      onTap: _handleCreateTeamTap,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
                         ),
-                        onPressed: _handleCreateTeamTap,
-                        icon: Icon(Icons.add, size: 18, color: fgColor),
-                        label: Text(
-                          "Create",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: fgColor,
-                          ),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add, color: primaryColor, size: 16),
+                            const SizedBox(width: 6),
+                            Text(
+                              "Create",
+                              style: TextStyle(
+                                color: primaryColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ),
-                ];
-              },
+                ),
+              ],
             ),
             if (circles.isEmpty)
               SliverFillRemaining(
