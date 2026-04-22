@@ -7,6 +7,7 @@ class SharedSliverAppBar extends StatelessWidget {
   final String collapsedTitle;
   final double expandedHeight;
   final List<Widget>? actions;
+  final List<Widget> Function(double expandRatio)? actionsBuilder;
   final Widget? background;
   final Widget? topBadges;
   final Widget? bottomContent;
@@ -18,6 +19,7 @@ class SharedSliverAppBar extends StatelessWidget {
     required this.collapsedTitle,
     required this.expandedHeight,
     this.actions,
+    this.actionsBuilder,
     this.background,
     this.topBadges,
     this.bottomContent,
@@ -39,7 +41,7 @@ class SharedSliverAppBar extends StatelessWidget {
       iconTheme: IconThemeData(
         color: isDark ? Colors.white : Colors.black87,
       ),
-      actions: actions,
+      actions: actionsBuilder != null ? null : actions,
       flexibleSpace: ClipRect(
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
@@ -61,6 +63,8 @@ class SharedSliverAppBar extends StatelessWidget {
                   (expandRatio - 0.5).clamp(0.0, 0.5) * 2.0;
               final double collapsedOpacity =
                   (0.5 - expandRatio).clamp(0.0, 0.5) * 2.0;
+
+              final builtActions = actionsBuilder?.call(expandRatio);
 
               return Stack(
                 fit: StackFit.expand,
@@ -136,6 +140,17 @@ class SharedSliverAppBar extends StatelessWidget {
                       ),
                     ),
                   ),
+
+                  // Dynamic actions (positioned in the collapsed toolbar area)
+                  if (builtActions != null)
+                    Positioned(
+                      right: 0 + rightPadding,
+                      bottom: 8.0,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: builtActions,
+                      ),
+                    ),
                 ],
               );
             },

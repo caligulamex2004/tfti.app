@@ -517,29 +517,46 @@ class _TeamsPageState extends State<TeamsPage> {
               collapsedTitle: "Teams",
               expandedHeight: isLandscape ? 56.0 : 140.0,
               hasBackButton: false,
-              actions: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 16.0),
-                  child: Center(
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.white.withValues(alpha: 0.2),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 0,
+              actions: null,
+              actionsBuilder: (expandRatio) {
+                final collapsedT = (0.5 - expandRatio).clamp(0.0, 0.5) * 2.0;
+                final bgColor = Color.lerp(
+                  Colors.white.withValues(alpha: 0.2),
+                  (isDark ? Colors.white : Colors.black).withValues(alpha: 0.1),
+                  collapsedT,
+                )!;
+                final fgColor = Color.lerp(
+                  Colors.white,
+                  isDark ? Colors.white : Colors.black87,
+                  collapsedT,
+                )!;
+                return [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16.0),
+                    child: Center(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: bgColor,
+                          foregroundColor: fgColor,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 0,
+                          ),
                         ),
-                      ),
-                      onPressed: _handleCreateTeamTap,
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text(
-                        "Create",
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                        onPressed: _handleCreateTeamTap,
+                        icon: Icon(Icons.add, size: 18, color: fgColor),
+                        label: Text(
+                          "Create",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: fgColor,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ];
+              },
             ),
             if (circles.isEmpty)
               SliverFillRemaining(

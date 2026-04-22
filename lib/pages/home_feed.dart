@@ -251,10 +251,6 @@ class _HomePageState extends State<HomePage> {
                         !eventSnapshot.hasData) {
                       return FeedSkeleton(isLandscape: isLandscape);
                     }
-                    if (!eventSnapshot.hasData ||
-                        eventSnapshot.data!.docs.isEmpty) {
-                      return const EmptyFeedState();
-                    }
 
                     final now = DateTime.now();
                     final int daysSinceMonday = now.weekday - 1;
@@ -315,7 +311,8 @@ class _HomePageState extends State<HomePage> {
                     List<Map<String, dynamic>> pastEvents = [];
                     List<Map<String, dynamic>> hiddenEvents = [];
 
-                    for (var eventDoc in eventSnapshot.data!.docs) {
+                    final eventDocs = eventSnapshot.data?.docs ?? [];
+                    for (var eventDoc in eventDocs) {
                       final eventId = eventDoc.id;
                       final eventData = eventDoc.data() as Map<String, dynamic>;
                       final String hostId = eventData['hostId'] ?? '';
