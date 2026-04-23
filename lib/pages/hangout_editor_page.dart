@@ -11,6 +11,7 @@ import '../components/forms/extras_form_card.dart';
 import '../components/forms/vitals_form_card.dart';
 import '../components/forms/crew_form_card.dart';
 import '../components/forms/lockdown_banner.dart';
+import '../components/forms/squad_needs_form_card.dart';
 import '../components/forms/editor_action_buttons.dart';
 import '../utils/event_service.dart';
 import '../utils/theme_provider.dart';
@@ -648,6 +649,12 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                             });
                                           },
                                         ),
+                                        if (isEditing)
+                                          SquadNeedsFormCard(
+                                            eventId: widget.eventId!,
+                                            hostId: FirebaseAuth.instance.currentUser!.uid,
+                                            isPast: _isPast,
+                                          ),
                                       ],
                                     ),
                                   ),
@@ -709,6 +716,12 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                   });
                                 },
                               ),
+                              if (isEditing)
+                                SquadNeedsFormCard(
+                                  eventId: widget.eventId!,
+                                  hostId: FirebaseAuth.instance.currentUser!.uid,
+                                  isPast: _isPast,
+                                ),
                               CrewFormCard(
                                 isPast: _isPast,
                                 inviteAll: _inviteAll,
