@@ -179,127 +179,120 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
           'lastUpdatedAt': FieldValue.serverTimestamp(),
         };
 
+        // --- CRITICAL CHANGE DETECTOR (host & co-host) ---
+        List<String> changedFields = [];
+        List<String> oldValues = [];
+        List<String> newValues = [];
+
+        String formatDateTime(DateTime dt) {
+          final months = [
+            'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+          ];
+          final hour = dt.hour > 12
+              ? dt.hour - 12
+              : (dt.hour == 0 ? 12 : dt.hour);
+          final min = dt.minute.toString().padLeft(2, '0');
+          final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+          return '${months[dt.month - 1]} ${dt.day}, $hour:$min $ampm';
+        }
+
+        final oldTimeTs = widget.eventData!['time'] as Timestamp?;
+        if (oldTimeTs != null) {
+          final oldDt = oldTimeTs.toDate();
+          if (oldDt.year != newDateTime.year ||
+              oldDt.month != newDateTime.month ||
+              oldDt.day != newDateTime.day ||
+              oldDt.hour != newDateTime.hour ||
+              oldDt.minute != newDateTime.minute) {
+            changedFields.add("Time");
+            oldValues.add(formatDateTime(oldDt));
+            newValues.add(formatDateTime(newDateTime));
+          }
+        }
+
+        final oldLoc = (widget.eventData!['location'] ?? '')
+            .toString()
+            .trim();
+        final newLoc = _locController.text.trim();
+        if (oldLoc != newLoc) {
+          changedFields.add("Location");
+          oldValues.add(oldLoc.isEmpty ? "TBD" : oldLoc);
+          newValues.add(newLoc.isEmpty ? "TBD" : newLoc);
+        }
+
+        if (changedFields.isNotEmpty) {
+          updateData['latestCriticalChange'] = {
+            'field': changedFields.join(" & "),
+            'original': oldValues.join(" | "),
+            'new': newValues.join(" | "),
+            'timestamp': FieldValue.serverTimestamp(),
+          };
+        }
+
+        // --- Standard updates (host & co-host) ---
+        updateData['title'] = _titleController.text.trim();
+        updateData['location'] = _locController.text.trim();
+        updateData['details'] = _detailsController.text.trim();
+        updateData['time'] = Timestamp.fromDate(newDateTime);
+        updateData['endTime'] = Timestamp.fromDate(newEndTime);
+        updateData['isImportantDetails'] = _isImportantDetails;
+        updateData['rsvpDeadline'] = _rsvpDeadlineOffset;
+        updateData['keepAliveDays'] = _keepAliveDays;
+
+        if (_removeBanner) {
+          updateData['bannerUrl'] = FieldValue.delete();
+          try {
+            await FirebaseStorage.instance
+                .ref()
+                .child('event_banners/${widget.eventId}/banner.jpg')
+                .delete();
+          } catch (_) {}
+        } else if (_bannerImagePath != null) {
+          try {
+            final File file = File(_bannerImagePath!);
+            final Uint8List bytes = await file.readAsBytes();
+            final Uint8List compressedBytes =
+                await FlutterImageCompress.compressWithList(
+                  bytes,
+                  minWidth: 1280,
+                  minHeight: 720,
+                  quality: 75,
+                );
+            final ref = FirebaseStorage.instance.ref().child(
+              'event_banners/${widget.eventId}/banner.jpg',
+            );
+            await ref.putData(
+              compressedBytes,
+              SettableMetadata(contentType: 'image/jpeg'),
+            );
+            updateData['bannerUrl'] = await ref.getDownloadURL();
+          } catch (e) {
+            debugPrint("Failed to upload new banner: $e");
+          }
+        }
+
+        // --- INVITATION ROSTER MANAGEMENT ---
+        final friendsSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('friends')
+            .get();
+
+        final currentInvitesSnap = await eventRef
+            .collection('invitations')
+            .get();
+        final Set<String> currentlyInvitedIds = currentInvitesSnap.docs
+            .map((d) => d.id)
+            .toSet();
+
         if (_isMainHost) {
-          // --- THE MISSING CRITICAL CHANGE DETECTOR ---
-          List<String> changedFields = [];
-          List<String> oldValues = [];
-          List<String> newValues = [];
-
-          // Helper to format dates cleanly for the alert banner
-          String formatDateTime(DateTime dt) {
-            final months = [
-              'Jan',
-              'Feb',
-              'Mar',
-              'Apr',
-              'May',
-              'Jun',
-              'Jul',
-              'Aug',
-              'Sep',
-              'Oct',
-              'Nov',
-              'Dec',
-            ];
-            final hour = dt.hour > 12
-                ? dt.hour - 12
-                : (dt.hour == 0 ? 12 : dt.hour);
-            final min = dt.minute.toString().padLeft(2, '0');
-            final ampm = dt.hour >= 12 ? 'PM' : 'AM';
-            return '${months[dt.month - 1]} ${dt.day}, $hour:$min $ampm';
-          }
-
-          // 1. Check Date/Time
-          final oldTimeTs = widget.eventData!['time'] as Timestamp?;
-          if (oldTimeTs != null) {
-            final oldDt = oldTimeTs.toDate();
-            // Compare down to the minute
-            if (oldDt.year != newDateTime.year ||
-                oldDt.month != newDateTime.month ||
-                oldDt.day != newDateTime.day ||
-                oldDt.hour != newDateTime.hour ||
-                oldDt.minute != newDateTime.minute) {
-              changedFields.add("Time");
-              oldValues.add(formatDateTime(oldDt));
-              newValues.add(formatDateTime(newDateTime));
-            }
-          }
-
-          // 2. Check Location
-          final oldLoc = (widget.eventData!['location'] ?? '')
-              .toString()
-              .trim();
-          final newLoc = _locController.text.trim();
-          if (oldLoc != newLoc) {
-            changedFields.add("Location");
-            oldValues.add(oldLoc.isEmpty ? "TBD" : oldLoc);
-            newValues.add(newLoc.isEmpty ? "TBD" : newLoc);
-          }
-
-          // 3. Create the compound banner payload!
-          if (changedFields.isNotEmpty) {
-            updateData['latestCriticalChange'] = {
-              'field': changedFields.join(" & "), // e.g. "Time & Location"
-              'original': oldValues.join(" | "), // e.g. "Jan 1, 1:00 PM | TBD"
-              'new': newValues.join(
-                " | ",
-              ), // e.g. "Jan 2, 2:00 PM | Central Park"
-              'timestamp': FieldValue.serverTimestamp(),
-            };
-          }
-          // ---------------------------------------------
-
-          // Standard updates
-          updateData['title'] = _titleController.text.trim();
-          updateData['location'] = _locController.text.trim();
-          updateData['details'] = _detailsController.text.trim();
-          updateData['time'] = Timestamp.fromDate(newDateTime);
-          updateData['endTime'] = Timestamp.fromDate(newEndTime);
-          updateData['isImportantDetails'] = _isImportantDetails;
-          updateData['rsvpDeadline'] = _rsvpDeadlineOffset;
-          updateData['keepAliveDays'] = _keepAliveDays;
+          // Host: full roster control (add + remove) & co-captain assignment
           updateData['inviteAll'] = _inviteAll;
           updateData['invitedCircles'] = _selectedCircleIds;
           updateData['coHostId'] = _selectedCoHostId;
           updateData['coHostName'] = _selectedCoHostName;
 
-          if (_removeBanner) {
-            updateData['bannerUrl'] = FieldValue.delete();
-            try {
-              await FirebaseStorage.instance
-                  .ref()
-                  .child('event_banners/${widget.eventId}/banner.jpg')
-                  .delete();
-            } catch (_) {}
-          } else if (_bannerImagePath != null) {
-            try {
-              final File file = File(_bannerImagePath!);
-              final Uint8List bytes = await file.readAsBytes();
-              final Uint8List compressedBytes =
-                  await FlutterImageCompress.compressWithList(
-                    bytes,
-                    minWidth: 1280,
-                    minHeight: 720,
-                    quality: 75,
-                  );
-              final ref = FirebaseStorage.instance.ref().child(
-                'event_banners/${widget.eventId}/banner.jpg',
-              );
-              await ref.putData(
-                compressedBytes,
-                SettableMetadata(contentType: 'image/jpeg'),
-              );
-              updateData['bannerUrl'] = await ref.getDownloadURL();
-            } catch (e) {
-              debugPrint("Failed to upload new banner: $e");
-            }
-          }
-
-          final friendsSnapshot = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .collection('friends')
-              .get();
           Set<String> newIntendedIds = {};
           Set<String> oldIntendedIds = {};
           final bool oldInviteAll = widget.eventData!['inviteAll'] ?? true;
@@ -321,13 +314,6 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             }
           }
 
-          final currentInvitesSnap = await eventRef
-              .collection('invitations')
-              .get();
-          final Set<String> currentlyInvitedIds = currentInvitesSnap.docs
-              .map((d) => d.id)
-              .toSet();
-
           Set<String> toAdd = newIntendedIds.difference(currentlyInvitedIds);
           Set<String> toRemove = oldIntendedIds.difference(newIntendedIds);
           toRemove.remove(widget.eventData!['hostId']);
@@ -346,9 +332,39 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             }
           }
           if (toRemove.isNotEmpty) {
-            updateData['visibleTo'] = FieldValue.arrayRemove(toRemove.toList());
+            updateData['visibleTo'] =
+                FieldValue.arrayRemove(toRemove.toList());
             for (String uid in toRemove) {
               batch.delete(eventRef.collection('invitations').doc(uid));
+            }
+          }
+        } else {
+          // Co-host: additive-only invitations from their own squad
+          // Cannot remove existing guests or reassign co-captain
+          Set<String> coHostIntendedIds = {};
+
+          for (var friendDoc in friendsSnapshot.docs) {
+            final friendCircles = List<String>.from(
+              friendDoc.data()['circles'] ?? [],
+            );
+            if (_inviteAll ||
+                _selectedCircleIds.any((id) => friendCircles.contains(id))) {
+              coHostIntendedIds.add(friendDoc.id);
+            }
+          }
+
+          Set<String> toAdd =
+              coHostIntendedIds.difference(currentlyInvitedIds);
+
+          if (toAdd.isNotEmpty) {
+            updateData['visibleTo'] = FieldValue.arrayUnion(toAdd.toList());
+            for (String uid in toAdd) {
+              batch.set(eventRef.collection('invitations').doc(uid), {
+                'uid': uid,
+                'role': 'guest',
+                'status': 'pending',
+                'sentAt': FieldValue.serverTimestamp(),
+              });
             }
           }
         }
