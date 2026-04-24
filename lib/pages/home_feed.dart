@@ -56,17 +56,10 @@ class _HomePageState extends State<HomePage> {
               ),
               const SizedBox(height: 20),
               ListTile(
-                leading: Icon(
-                  Icons.how_to_vote,
-                  size: 28,
-                  color: primaryColor,
-                ),
+                leading: Icon(Icons.how_to_vote, size: 28, color: primaryColor),
                 title: const Text(
                   "Hangout",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 subtitle: const Text("Let the squad know what's happening."),
                 onTap: () {
@@ -79,7 +72,9 @@ class _HomePageState extends State<HomePage> {
                   );
                 },
               ),
-              Divider(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+              Divider(
+                color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+              ),
               ListTile(
                 leading: Icon(
                   Symbols.earthquake,
@@ -88,10 +83,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 title: const Text(
                   "Vibe Check",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 subtitle: const Text("Give options and let the squad decide."),
                 onTap: () {
@@ -538,7 +530,6 @@ class _HomePageState extends State<HomePage> {
                         filterText = " with your Goated friends";
                         break;
                       case FeedFilter.all:
-                      default:
                         filterText = "";
                         break;
                     }
@@ -577,13 +568,19 @@ class _HomePageState extends State<HomePage> {
                                       vertical: 6,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: primaryColor.withValues(alpha: 0.2),
+                                      color: primaryColor.withValues(
+                                        alpha: 0.2,
+                                      ),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.add, color: primaryColor, size: 16),
+                                        Icon(
+                                          Icons.add,
+                                          color: primaryColor,
+                                          size: 16,
+                                        ),
                                         const SizedBox(width: 6),
                                         Text(
                                           "Create",
@@ -610,362 +607,357 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
                         ),
-                        
+
                         // --- ACTION NEEDED ---
-                              SliverToBoxAdapter(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(
-                                    left: 20,
-                                    bottom: 12,
-                                  ),
-                                  child: Text(
-                                    "Action Needed",
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark
-                                          ? Colors.grey.shade400
-                                          : Colors.grey.shade600,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.only(
+                              left: 20,
+                              bottom: 12,
+                            ),
+                            child: Text(
+                              "Action Needed",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: isDark
+                                    ? Colors.grey.shade400
+                                    : Colors.grey.shade600,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (actionNeededEvents.isNotEmpty)
+                          if (isLandscape)
+                            SliverPadding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              sliver: SliverList(
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, index) =>
+                                      _buildEventSummaryCardWrapper(
+                                        actionNeededEvents[index],
+                                        isLandscape,
+                                        false,
+                                        goatedUids,
+                                        blockedUids,
+                                      ),
+                                  childCount: actionNeededEvents.length,
                                 ),
                               ),
-                              if (actionNeededEvents.isNotEmpty)
-                                if (isLandscape)
-                                  SliverPadding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                    ),
-                                    sliver: SliverList(
-                                      delegate: SliverChildBuilderDelegate(
-                                        (context, index) =>
-                                            _buildEventSummaryCardWrapper(
-                                              actionNeededEvents[index],
-                                              isLandscape,
-                                              false,
-                                              goatedUids,
-                                              blockedUids,
-                                            ),
-                                        childCount: actionNeededEvents.length,
+                            )
+                          else
+                            SliverToBoxAdapter(
+                              child: SizedBox(
+                                height: 310,
+                                child: CarouselFeedList(
+                                  itemCount: actionNeededEvents.length,
+                                  itemBuilder: (context, index) =>
+                                      _buildEventSummaryCardWrapper(
+                                        actionNeededEvents[index],
+                                        isLandscape,
+                                        true,
+                                        goatedUids,
+                                        blockedUids,
+                                      ),
+                                ),
+                              ),
+                            )
+                        else
+                          SliverToBoxAdapter(
+                            child: SizedBox(
+                              height: 310,
+                              child: isLandscape
+                                  ? CarouselFeedList(
+                                      itemCount: 1,
+                                      itemBuilder: (context, index) =>
+                                          ContextualEmptyCard(
+                                            icon: Icons.check_circle_outline,
+                                            title: "You're all caught up!",
+                                            message:
+                                                "You have no pending invites$filterText.",
+                                          ),
+                                    )
+                                  : Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                      ),
+                                      child: ContextualEmptyCard(
+                                        icon: Icons.check_circle_outline,
+                                        title: "You're all caught up!",
+                                        message:
+                                            "You have no pending invites$filterText.",
                                       ),
                                     ),
-                                  )
-                                else
-                                  SliverToBoxAdapter(
-                                    child: SizedBox(
-                                      height: 310,
-                                      child: CarouselFeedList(
-                                        itemCount: actionNeededEvents.length,
-                                        itemBuilder: (context, index) =>
-                                            _buildEventSummaryCardWrapper(
-                                              actionNeededEvents[index],
-                                              isLandscape,
-                                              true,
-                                              goatedUids,
-                                              blockedUids,
-                                            ),
+                            ),
+                          ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+                        // --- THE AGENDA ---
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.only(
+                              left: 20,
+                              bottom: 12,
+                            ),
+                            child: Text(
+                              "The Agenda",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: isDark
+                                    ? Colors.grey.shade400
+                                    : Colors.grey.shade600,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (agendaEvents.isNotEmpty)
+                          SliverPadding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) =>
+                                    _buildEventSummaryCardWrapper(
+                                      agendaEvents[index],
+                                      isLandscape,
+                                      false,
+                                      goatedUids,
+                                      blockedUids,
+                                    ),
+                                childCount: agendaEvents.length,
+                              ),
+                            ),
+                          )
+                        else
+                          SliverToBoxAdapter(
+                            child: SizedBox(
+                              height: 310,
+                              child: isLandscape
+                                  ? CarouselFeedList(
+                                      itemCount: 1,
+                                      itemBuilder: (context, index) =>
+                                          ContextualEmptyCard(
+                                            icon: Icons.celebration,
+                                            title: "Nothing on the agenda.",
+                                            message:
+                                                "Your agenda is looking a bit empty$filterText... Tap the + to host a hangout!",
+                                          ),
+                                    )
+                                  : Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                      ),
+                                      child: ContextualEmptyCard(
+                                        icon: Icons.celebration,
+                                        title: "Nothing on the agenda.",
+                                        message:
+                                            "Your agenda is looking a bit empty$filterText... Tap the + to host a hangout!",
                                       ),
                                     ),
-                                  )
-                              else
-                                SliverToBoxAdapter(
+                            ),
+                          ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+                        if (declinedEvents.isNotEmpty) ...[
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                left: 20,
+                                top: 12,
+                                bottom: 12,
+                              ),
+                              child: Text(
+                                "Not Going",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark
+                                      ? Colors.grey.shade600
+                                      : Colors.grey.shade400,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (isLandscape)
+                            SliverPadding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              sliver: SliverList(
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, index) =>
+                                      _buildEventSummaryCardWrapper(
+                                        declinedEvents[index],
+                                        isLandscape,
+                                        false,
+                                        goatedUids,
+                                        blockedUids,
+                                      ),
+                                  childCount: declinedEvents.length,
+                                ),
+                              ),
+                            )
+                          else
+                            SliverToBoxAdapter(
+                              child: SizedBox(
+                                height: 310,
+                                child: CarouselFeedList(
+                                  itemCount: declinedEvents.length,
+                                  itemBuilder: (context, index) =>
+                                      _buildEventSummaryCardWrapper(
+                                        declinedEvents[index],
+                                        isLandscape,
+                                        true,
+                                        goatedUids,
+                                        blockedUids,
+                                      ),
+                                ),
+                              ),
+                            ),
+                          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                        ],
+
+                        if (pastEvents.isNotEmpty) ...[
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                left: 20,
+                                top: 12,
+                                bottom: 12,
+                              ),
+                              child: Text(
+                                "Past Hangouts",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark
+                                      ? Colors.grey.shade600
+                                      : Colors.grey.shade400,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (isLandscape)
+                            SliverPadding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              sliver: SliverList(
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, index) =>
+                                      _buildEventSummaryCardWrapper(
+                                        pastEvents[index],
+                                        isLandscape,
+                                        false,
+                                        goatedUids,
+                                        blockedUids,
+                                      ),
+                                  childCount: pastEvents.length,
+                                ),
+                              ),
+                            )
+                          else
+                            SliverToBoxAdapter(
+                              child: SizedBox(
+                                height: 310,
+                                child: CarouselFeedList(
+                                  itemCount: pastEvents.length,
+                                  itemBuilder: (context, index) =>
+                                      _buildEventSummaryCardWrapper(
+                                        pastEvents[index],
+                                        isLandscape,
+                                        true,
+                                        goatedUids,
+                                        blockedUids,
+                                      ),
+                                ),
+                              ),
+                            ),
+                          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                        ],
+
+                        if (hiddenEvents.isNotEmpty) ...[
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                              child: TextButton.icon(
+                                onPressed: () =>
+                                    setState(() => _showHidden = !_showHidden),
+                                icon: Icon(
+                                  _showHidden
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: Colors.grey,
+                                ),
+                                label: Text(
+                                  _showHidden
+                                      ? "Hide Archived Events"
+                                      : "View Hidden Events (${hiddenEvents.length})",
+                                  style: const TextStyle(color: Colors.grey),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (_showHidden)
+                            if (isLandscape)
+                              SliverPadding(
+                                padding: const EdgeInsets.only(
+                                  left: 16,
+                                  right: 16,
+                                  bottom: 100,
+                                ),
+                                sliver: SliverList(
+                                  delegate: SliverChildBuilderDelegate(
+                                    (context, index) =>
+                                        _buildEventSummaryCardWrapper(
+                                          hiddenEvents[index],
+                                          isLandscape,
+                                          false,
+                                          goatedUids,
+                                          blockedUids,
+                                        ),
+                                    childCount: hiddenEvents.length,
+                                  ),
+                                ),
+                              )
+                            else
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(bottom: 100),
                                   child: SizedBox(
                                     height: 310,
-                                    child: isLandscape
-                                        ? CarouselFeedList(
-                                            itemCount: 1,
-                                            itemBuilder: (context, index) => ContextualEmptyCard(
-                                          icon: Icons.check_circle_outline,
-                                          title: "You're all caught up!",
-                                          message: "You have no pending invites$filterText.",
-                                        ),
-                                          )
-                                        : Padding(
-                                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                                            child: ContextualEmptyCard(
-                                              icon: Icons.check_circle_outline,
-                                              title: "You're all caught up!",
-                                              message: "You have no pending invites$filterText.",
-                                            ),
-                                          ),
-                                  ),
-                                ),
-                              const SliverToBoxAdapter(
-                                child: SizedBox(height: 24),
-                              ),
-
-                              // --- THE AGENDA ---
-                              SliverToBoxAdapter(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(
-                                    left: 20,
-                                    bottom: 12,
-                                  ),
-                                  child: Text(
-                                    "The Agenda",
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark
-                                          ? Colors.grey.shade400
-                                          : Colors.grey.shade600,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              if (agendaEvents.isNotEmpty)
-                                SliverPadding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                  ),
-                                  sliver: SliverList(
-                                    delegate: SliverChildBuilderDelegate(
-                                      (context, index) =>
+                                    child: CarouselFeedList(
+                                      itemCount: hiddenEvents.length,
+                                      itemBuilder: (context, index) =>
                                           _buildEventSummaryCardWrapper(
-                                            agendaEvents[index],
+                                            hiddenEvents[index],
                                             isLandscape,
-                                            false,
+                                            true,
                                             goatedUids,
                                             blockedUids,
                                           ),
-                                      childCount: agendaEvents.length,
-                                    ),
-                                  ),
-                                )
-                              else
-                                SliverToBoxAdapter(
-                                  child: SizedBox(
-                                    height: 310,
-                                    child: isLandscape
-                                        ? CarouselFeedList(
-                                            itemCount: 1,
-                                            itemBuilder: (context, index) => ContextualEmptyCard(
-                                          icon: Icons.celebration,
-                                          title: "Nothing on the agenda.",
-                                          message: "Your agenda is looking a bit empty$filterText... Tap the + to host a hangout!",
-                                        ),
-                                          )
-                                        : Padding(
-                                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                                            child: ContextualEmptyCard(
-                                              icon: Icons.celebration,
-                                              title: "Nothing on the agenda.",
-                                              message: "Your agenda is looking a bit empty$filterText... Tap the + to host a hangout!",
-                                            ),
-                                          ),
-                                  ),
-                                ),
-                              const SliverToBoxAdapter(
-                                child: SizedBox(height: 24),
-                              ),
-
-                              if (declinedEvents.isNotEmpty) ...[
-                                SliverToBoxAdapter(
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(
-                                      left: 20,
-                                      top: 12,
-                                      bottom: 12,
-                                    ),
-                                    child: Text(
-                                      "Not Going",
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark
-                                            ? Colors.grey.shade600
-                                            : Colors.grey.shade400,
-                                      ),
                                     ),
                                   ),
                                 ),
-                                if (isLandscape)
-                                  SliverPadding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                    ),
-                                    sliver: SliverList(
-                                      delegate: SliverChildBuilderDelegate(
-                                        (context, index) =>
-                                            _buildEventSummaryCardWrapper(
-                                              declinedEvents[index],
-                                              isLandscape,
-                                              false,
-                                              goatedUids,
-                                              blockedUids,
-                                            ),
-                                        childCount: declinedEvents.length,
-                                      ),
-                                    ),
-                                  )
-                                else
-                                  SliverToBoxAdapter(
-                                    child: SizedBox(
-                                      height: 310,
-                                      child: CarouselFeedList(
-                                        itemCount: declinedEvents.length,
-                                        itemBuilder: (context, index) =>
-                                            _buildEventSummaryCardWrapper(
-                                              declinedEvents[index],
-                                              isLandscape,
-                                              true,
-                                              goatedUids,
-                                              blockedUids,
-                                            ),
-                                      ),
-                                    ),
-                                  ),
-                                const SliverToBoxAdapter(
-                                  child: SizedBox(height: 24),
-                                ),
-                              ],
-
-                              if (pastEvents.isNotEmpty) ...[
-                                SliverToBoxAdapter(
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(
-                                      left: 20,
-                                      top: 12,
-                                      bottom: 12,
-                                    ),
-                                    child: Text(
-                                      "Past Hangouts",
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark
-                                            ? Colors.grey.shade600
-                                            : Colors.grey.shade400,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                if (isLandscape)
-                                  SliverPadding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                    ),
-                                    sliver: SliverList(
-                                      delegate: SliverChildBuilderDelegate(
-                                        (context, index) =>
-                                            _buildEventSummaryCardWrapper(
-                                              pastEvents[index],
-                                              isLandscape,
-                                              false,
-                                              goatedUids,
-                                              blockedUids,
-                                            ),
-                                        childCount: pastEvents.length,
-                                      ),
-                                    ),
-                                  )
-                                else
-                                  SliverToBoxAdapter(
-                                    child: SizedBox(
-                                      height: 310,
-                                      child: CarouselFeedList(
-                                        itemCount: pastEvents.length,
-                                        itemBuilder: (context, index) =>
-                                            _buildEventSummaryCardWrapper(
-                                              pastEvents[index],
-                                              isLandscape,
-                                              true,
-                                              goatedUids,
-                                              blockedUids,
-                                            ),
-                                      ),
-                                    ),
-                                  ),
-                                const SliverToBoxAdapter(
-                                  child: SizedBox(height: 24),
-                                ),
-                              ],
-
-                              if (hiddenEvents.isNotEmpty) ...[
-                                SliverToBoxAdapter(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 20,
-                                      vertical: 12,
-                                    ),
-                                    child: TextButton.icon(
-                                      onPressed: () => setState(
-                                        () => _showHidden = !_showHidden,
-                                      ),
-                                      icon: Icon(
-                                        _showHidden
-                                            ? Icons.visibility_off
-                                            : Icons.visibility,
-                                        color: Colors.grey,
-                                      ),
-                                      label: Text(
-                                        _showHidden
-                                            ? "Hide Archived Events"
-                                            : "View Hidden Events (${hiddenEvents.length})",
-                                        style: const TextStyle(
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                if (_showHidden)
-                                  if (isLandscape)
-                                    SliverPadding(
-                                      padding: const EdgeInsets.only(
-                                        left: 16,
-                                        right: 16,
-                                        bottom: 100,
-                                      ),
-                                      sliver: SliverList(
-                                        delegate: SliverChildBuilderDelegate(
-                                          (context, index) =>
-                                              _buildEventSummaryCardWrapper(
-                                                hiddenEvents[index],
-                                                isLandscape,
-                                                false,
-                                                goatedUids,
-                                                blockedUids,
-                                              ),
-                                          childCount: hiddenEvents.length,
-                                        ),
-                                      ),
-                                    )
-                                  else
-                                    SliverToBoxAdapter(
-                                      child: Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 100,
-                                        ),
-                                        child: SizedBox(
-                                          height: 310,
-                                          child: CarouselFeedList(
-                                            itemCount: hiddenEvents.length,
-                                            itemBuilder: (context, index) =>
-                                                _buildEventSummaryCardWrapper(
-                                                  hiddenEvents[index],
-                                                  isLandscape,
-                                                  true,
-                                                  goatedUids,
-                                                  blockedUids,
-                                                ),
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                else
-                                  const SliverToBoxAdapter(
-                                    child: SizedBox(height: 100),
-                                  ),
-                              ] else ...[
-                                const SliverToBoxAdapter(
-                                  child: SizedBox(height: 100),
-                                ),
-                              ],
-                            ],
-                          );
+                              )
+                          else
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: 100),
+                            ),
+                        ] else ...[
+                          const SliverToBoxAdapter(
+                            child: SizedBox(height: 100),
+                          ),
+                        ],
+                      ],
+                    );
                   },
                 );
               },
@@ -1003,10 +995,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             )
-          : Scaffold(
-              backgroundColor: Colors.transparent,
-              body: feedContent,
-            ),
+          : Scaffold(backgroundColor: Colors.transparent, body: feedContent),
     );
   }
 }

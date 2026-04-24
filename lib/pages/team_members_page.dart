@@ -125,7 +125,6 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
   Future<void> _showAddMembersBottomSheet() async {
     final user = FirebaseAuth.instance.currentUser;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
@@ -366,7 +365,8 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
     final user = FirebaseAuth.instance.currentUser;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -418,7 +418,11 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.person_add, color: primaryColor, size: 16),
+                                  Icon(
+                                    Icons.person_add,
+                                    color: primaryColor,
+                                    size: 16,
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
                                     "Add",
@@ -459,7 +463,10 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                               setState(() => _sortByScore = !_sortByScore);
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
                               decoration: BoxDecoration(
                                 color: primaryColor.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(12),
@@ -468,7 +475,9 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    _sortByScore ? Icons.leaderboard : Icons.sort_by_alpha,
+                                    _sortByScore
+                                        ? Icons.leaderboard
+                                        : Icons.sort_by_alpha,
                                     size: 14,
                                     color: primaryColor,
                                   ),
@@ -494,12 +503,17 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                       pinned: true,
                       toolbarHeight: 48,
                       primary: false,
-                      backgroundColor: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.95),
+                      backgroundColor: Theme.of(
+                        context,
+                      ).scaffoldBackgroundColor.withValues(alpha: 0.95),
                       automaticallyImplyLeading: false,
                       elevation: 0,
                       scrolledUnderElevation: 0,
                       flexibleSpace: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 8,
+                        ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -507,7 +521,9 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                               "Team Members (${profiles.length})",
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                color: isDark
+                                    ? Colors.grey.shade400
+                                    : Colors.grey.shade600,
                               ),
                             ),
                             InkWell(
@@ -517,11 +533,16 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                 setState(() => _sortByScore = !_sortByScore);
                               },
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8.0,
+                                  vertical: 4.0,
+                                ),
                                 child: Row(
                                   children: [
                                     Icon(
-                                      _sortByScore ? Icons.leaderboard : Icons.sort_by_alpha,
+                                      _sortByScore
+                                          ? Icons.leaderboard
+                                          : Icons.sort_by_alpha,
                                       size: 16,
                                       color: primaryColor,
                                     ),
@@ -784,12 +805,13 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                             children: [
                                               Row(
                                                 children: [
-                                                  if (rankIcon != null) rankIcon,
+                                                  ?rankIcon,
                                                   Flexible(
                                                     child: Text(
                                                       displayName,
                                                       style: TextStyle(
-                                                        fontWeight: FontWeight.w900,
+                                                        fontWeight:
+                                                            FontWeight.w900,
                                                         fontSize: 17,
                                                         letterSpacing: -0.3,
                                                         color: isDark
@@ -797,7 +819,8 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                                             : Colors.black87,
                                                       ),
                                                       maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
                                                     ),
                                                   ),
                                                 ],

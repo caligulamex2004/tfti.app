@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
-import '../utils/theme_provider.dart';
 
 class OnboardingTutorial extends StatefulWidget {
   final VoidCallback onComplete;
@@ -50,7 +49,7 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
       // Use a premium gradient background
       body: Container(
         decoration: BoxDecoration(
-          gradient: isDark 
+          gradient: isDark
               ? LinearGradient(
                   colors: [Colors.grey.shade900, Colors.black],
                   begin: Alignment.topLeft,
@@ -71,12 +70,15 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
                 child: TextButton(
                   onPressed: _finishTutorial,
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                   ),
                   child: Text(
                     "Skip",
                     style: TextStyle(
-                      color: isDark ? Colors.white54 : Colors.black54, 
+                      color: isDark ? Colors.white54 : Colors.black54,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -116,16 +118,20 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
                         expansionFactor: 4,
                         spacing: 8,
                         activeDotColor: primaryColor,
-                        dotColor: primaryColor.withOpacity(0.2),
+                        dotColor: primaryColor.withValues(alpha: 0.2),
                       ),
                     ),
 
                     // Next / Let's Go Button
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 300),
-                      transitionBuilder: (Widget child, Animation<double> animation) {
-                        return ScaleTransition(scale: animation, child: child);
-                      },
+                      transitionBuilder:
+                          (Widget child, Animation<double> animation) {
+                            return ScaleTransition(
+                              scale: animation,
+                              child: child,
+                            );
+                          },
                       child: ElevatedButton(
                         key: ValueKey<int>(_currentPage),
                         onPressed: _nextPage,
@@ -133,7 +139,7 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
                           backgroundColor: primaryColor,
                           foregroundColor: Colors.white,
                           elevation: _currentPage == _totalPages - 1 ? 8 : 2,
-                          shadowColor: primaryColor.withOpacity(0.5),
+                          shadowColor: primaryColor.withValues(alpha: 0.5),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(24),
                           ),
@@ -143,7 +149,9 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
                           ),
                         ),
                         child: Text(
-                          _currentPage == _totalPages - 1 ? "Let's Go!" : "Next",
+                          _currentPage == _totalPages - 1
+                              ? "Let's Go!"
+                              : "Next",
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -205,7 +213,9 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: isDark ? Colors.grey.shade800.withOpacity(0.5) : Colors.white,
+            color: isDark
+                ? Colors.grey.shade800.withOpacity(0.5)
+                : Colors.white,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
@@ -222,7 +232,11 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Contact 1
-              _buildContactItem("John Appleseed", "(888) 555-1212", Colors.blue),
+              _buildContactItem(
+                "John Appleseed",
+                "(888) 555-1212",
+                Colors.blue,
+              ),
               const SizedBox(height: 16),
               // Contact 2
               _buildContactItem("Kate Bell", "(555) 564-8583", Colors.pink),
@@ -273,7 +287,10 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
-            Text(phone, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+            Text(
+              phone,
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
           ],
         ),
       ],
@@ -290,7 +307,9 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: isDark ? Colors.grey.shade800.withOpacity(0.5) : Colors.white,
+            color: isDark
+                ? Colors.grey.shade800.withOpacity(0.5)
+                : Colors.white,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
@@ -307,7 +326,10 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(12),
@@ -328,7 +350,10 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
               ),
               const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(12),
@@ -361,7 +386,9 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: isDark ? Colors.grey.shade800.withOpacity(0.5) : Colors.white,
+            color: isDark
+                ? Colors.grey.shade800.withOpacity(0.5)
+                : Colors.white,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
@@ -419,7 +446,7 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
                             color: primaryColor.withOpacity(0.4),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
-                          )
+                          ),
                         ],
                       ),
                       child: const Center(
@@ -461,7 +488,7 @@ class _TutorialCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Column(
@@ -469,11 +496,7 @@ class _TutorialCard extends StatelessWidget {
           const SizedBox(height: 24),
           // Illustration / Mock UI area
           Expanded(
-            child: Center(
-              child: SingleChildScrollView(
-                child: child,
-              ),
-            ),
+            child: Center(child: SingleChildScrollView(child: child)),
           ),
           const SizedBox(height: 40),
           // Text Content Area
