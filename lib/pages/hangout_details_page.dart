@@ -559,6 +559,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                 expandedTitleColor: hasBanner
                                     ? Colors.white
                                     : (isDark ? Colors.white : Colors.black87),
+                                expandedIconColor: hasBanner
+                                    ? Colors.white
+                                    : null,
                                 expandedHeight: hasBanner
                                     ? (isLandscape
                                           ? 220.0
@@ -730,13 +733,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          "${hostData['displayName'] ?? 'Someone'} is captain",
+                                          "Led by ${hostData['displayName'] ?? 'Someone'}",
                                           style: TextStyle(
-                                            color: hasBanner
-                                                ? Colors.white.withValues(
-                                                    alpha: 0.9,
-                                                  )
-                                                : primaryColor,
+                                            color: primaryColor,
                                             fontSize: 14,
                                             fontWeight: FontWeight.w500,
                                           ),

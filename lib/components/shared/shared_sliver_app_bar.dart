@@ -12,6 +12,7 @@ class SharedSliverAppBar extends StatelessWidget {
   final String? subtitle;
   final Widget? bottomContent;
   final Color? expandedTitleColor;
+  final Color? expandedIconColor;
   final bool hasBackButton;
 
   const SharedSliverAppBar({
@@ -26,6 +27,7 @@ class SharedSliverAppBar extends StatelessWidget {
     this.subtitle,
     this.bottomContent,
     this.expandedTitleColor,
+    this.expandedIconColor,
     this.hasBackButton = true,
   });
 
@@ -44,7 +46,7 @@ class SharedSliverAppBar extends StatelessWidget {
           : Colors.white.withValues(alpha: 0.7),
       elevation: 0,
       iconTheme: IconThemeData(
-        color: isDark ? Colors.white : Colors.black87,
+        color: expandedIconColor ?? (isDark ? Colors.white : Colors.black87),
       ),
       actions: actionsBuilder != null ? null : actions,
       flexibleSpace: ClipRect(
