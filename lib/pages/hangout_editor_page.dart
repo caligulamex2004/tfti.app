@@ -349,6 +349,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                   'uid': uid,
                   'role': 'guest',
                   'status': 'pending',
+                  'invitedBy': user.uid,
                   'sentAt': FieldValue.serverTimestamp(),
                 });
               }
@@ -362,26 +363,39 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             }
           }
         } else {
-          // Co-host: additive-only invitations from their own squad
-          // Cannot remove existing guests or reassign co-captain
+          // Co-host: full diff on their own scope (add + remove)
           updateData['coHostInviteAll'] = _inviteAll;
           updateData['coHostInvitedCircles'] = _selectedCircleIds;
 
-          Set<String> coHostIntendedIds = {};
+          // Compute OLD co-host scope from the stored event data
+          final bool oldCoHostInviteAll =
+              widget.eventData!['coHostInviteAll'] ?? false;
+          final List<String> oldCoHostCircles = List<String>.from(
+            widget.eventData!['coHostInvitedCircles'] ?? [],
+          );
+
+          Set<String> oldCoHostFriendIds = {};
+          Set<String> newCoHostFriendIds = {};
 
           for (var friendDoc in friendsSnapshot.docs) {
             final friendCircles = List<String>.from(
               friendDoc.data()['circles'] ?? [],
             );
+            // Was this friend in the co-host's OLD scope?
+            if (oldCoHostInviteAll ||
+                oldCoHostCircles.any((id) => friendCircles.contains(id))) {
+              oldCoHostFriendIds.add(friendDoc.id);
+            }
+            // Is this friend in the co-host's NEW scope?
             if (_inviteAll ||
                 _selectedCircleIds.any((id) => friendCircles.contains(id))) {
-              coHostIntendedIds.add(friendDoc.id);
+              newCoHostFriendIds.add(friendDoc.id);
             }
           }
 
+          // --- ADD new guests ---
           Set<String> toAdd =
-              coHostIntendedIds.difference(currentlyInvitedIds);
-
+              newCoHostFriendIds.difference(currentlyInvitedIds);
           if (toAdd.isNotEmpty) {
             updateData['visibleTo'] = FieldValue.arrayUnion(toAdd.toList());
             for (String uid in toAdd) {
@@ -389,8 +403,43 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                 'uid': uid,
                 'role': 'guest',
                 'status': 'pending',
+                'invitedBy': user.uid,
                 'sentAt': FieldValue.serverTimestamp(),
               });
+            }
+          }
+
+          // --- REMOVE guests the co-host previously added ---
+          Set<String> potentialRemoves =
+              oldCoHostFriendIds.difference(newCoHostFriendIds);
+          // Never remove the host or the co-host themselves
+          potentialRemoves.remove(widget.eventData!['hostId']);
+          potentialRemoves.remove(user.uid);
+
+          if (potentialRemoves.isNotEmpty) {
+            // Only remove invitations that the co-host themselves created
+            for (String uid in potentialRemoves) {
+              final inviteDoc = currentInvitesSnap.docs
+                  .where((d) => d.id == uid)
+                  .firstOrNull;
+              if (inviteDoc == null) continue;
+              final inviteData = inviteDoc.data();
+              if (inviteData['invitedBy'] != user.uid) continue;
+
+              batch.delete(eventRef.collection('invitations').doc(uid));
+            }
+            // Also remove from visibleTo
+            final confirmedRemoves = potentialRemoves.where((uid) {
+              final doc = currentInvitesSnap.docs
+                  .where((d) => d.id == uid)
+                  .firstOrNull;
+              if (doc == null) return false;
+              final data = doc.data();
+              return data['invitedBy'] == user.uid;
+            }).toList();
+            if (confirmedRemoves.isNotEmpty) {
+              updateData['visibleTo'] =
+                  FieldValue.arrayRemove(confirmedRemoves);
             }
           }
         }
@@ -459,6 +508,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             'uid': friendDoc.id,
             'role': 'guest',
             'status': 'pending',
+            'invitedBy': user.uid,
             'sentAt': FieldValue.serverTimestamp(),
           });
         }
@@ -468,6 +518,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
           'uid': user.uid,
           'role': 'host',
           'status': 'going',
+          'invitedBy': user.uid,
           'sentAt': FieldValue.serverTimestamp(),
         });
 

@@ -556,7 +556,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                               SharedSliverAppBar(
                                 title: data['title'] ?? "Untitled Event",
                                 collapsedTitle: data['title'] ?? "Untitled Event",
-                                expandedTitleColor: Colors.white,
+                                expandedTitleColor: hasBanner
+                                    ? Colors.white
+                                    : (isDark ? Colors.white : Colors.black87),
                                 expandedHeight: hasBanner
                                     ? (isLandscape
                                           ? 220.0
@@ -730,9 +732,11 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                         Text(
                                           "${hostData['displayName'] ?? 'Someone'} is captain",
                                           style: TextStyle(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.9,
-                                            ),
+                                            color: hasBanner
+                                                ? Colors.white.withValues(
+                                                    alpha: 0.9,
+                                                  )
+                                                : primaryColor,
                                             fontSize: 14,
                                             fontWeight: FontWeight.w500,
                                           ),
