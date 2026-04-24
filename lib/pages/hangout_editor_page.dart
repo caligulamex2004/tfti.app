@@ -6,12 +6,18 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:material_symbols_icons/symbols.dart';
+
 import '../components/shared/banner_picker.dart';
+import '../components/shared/rpg_glass_card.dart';
 import '../components/forms/extras_form_card.dart';
 import '../components/forms/vitals_form_card.dart';
 import '../components/forms/crew_form_card.dart';
 import '../components/forms/lockdown_banner.dart';
+import '../components/forms/local_squad_needs_sheet.dart';
 import '../components/forms/squad_needs_form_card.dart';
+import '../components/forms/squad_needs_sheet.dart';
+import '../components/forms/team_selection_field.dart';
 import '../components/forms/editor_action_buttons.dart';
 import '../utils/event_service.dart';
 import '../utils/theme_provider.dart';
@@ -34,6 +40,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
   bool _isLoading = false;
   late bool _isPast;
   late bool _isMainHost;
+  late bool _isCoHost;
 
   // Form Controllers
   final _titleController = TextEditingController();
@@ -53,6 +60,10 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
   String? _bannerImagePath;
   bool _removeBanner = false;
 
+  // Squad Needs (Create Mode — local list)
+  final List<String> _roles = [];
+  final _roleInputController = TextEditingController();
+
   // Co-Captain State
   String? _selectedCoHostId;
   String? _selectedCoHostName;
@@ -69,6 +80,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
       // --- EDIT MODE INITIALIZATION ---
       final data = widget.eventData!;
       _isMainHost = data['hostId'] == user?.uid;
+      _isCoHost = data['coHostId'] == user?.uid;
 
       _titleController.text = data['title'] ?? '';
       _locController.text = data['location'] ?? '';
@@ -80,8 +92,16 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
         _selectedTime = TimeOfDay.fromDateTime(dt);
       }
 
-      _inviteAll = data['inviteAll'] ?? true;
-      _selectedCircleIds = List<String>.from(data['invitedCircles'] ?? []);
+      // Co-host loads their own additive scope; main host loads the event scope
+      if (_isCoHost && !_isMainHost) {
+        _inviteAll = data['coHostInviteAll'] ?? false;
+        _selectedCircleIds = List<String>.from(
+          data['coHostInvitedCircles'] ?? [],
+        );
+      } else {
+        _inviteAll = data['inviteAll'] ?? true;
+        _selectedCircleIds = List<String>.from(data['invitedCircles'] ?? []);
+      }
       _rsvpDeadlineOffset = data['rsvpDeadline'] ?? 0;
       _keepAliveDays = data['keepAliveDays'] ?? 0;
       _isImportantDetails = data['isImportantDetails'] ?? false;
@@ -119,6 +139,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     } else {
       // --- CREATE MODE INITIALIZATION ---
       _isMainHost = true;
+      _isCoHost = false;
       _isPast = false;
 
       // Smart Default: Round up to the next 15 minute mark
@@ -137,11 +158,13 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     _titleController.dispose();
     _locController.dispose();
     _detailsController.dispose();
+    _roleInputController.dispose();
     super.dispose();
   }
 
   Future<void> _submitEvent() async {
-    if (!_formKey.currentState!.validate()) {
+    // Co-host view has no Form wrapper, so currentState may be null
+    if (_formKey.currentState != null && !_formKey.currentState!.validate()) {
       return;
     }
     setState(() {
@@ -341,6 +364,9 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
         } else {
           // Co-host: additive-only invitations from their own squad
           // Cannot remove existing guests or reassign co-captain
+          updateData['coHostInviteAll'] = _inviteAll;
+          updateData['coHostInvitedCircles'] = _selectedCircleIds;
+
           Set<String> coHostIntendedIds = {};
 
           for (var friendDoc in friendsSnapshot.docs) {
@@ -445,6 +471,17 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
           'sentAt': FieldValue.serverTimestamp(),
         });
 
+        // Squad Needs (Roles) — write local list to Firestore
+        for (String roleTitle in _roles) {
+          batch.set(eventRef.collection('roles').doc(), {
+            'title': roleTitle,
+            'addedBy': user.uid,
+            'claimedByUid': null,
+            'claimedByName': null,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+
         await batch.commit();
 
         if (_bannerImagePath != null) {
@@ -497,6 +534,246 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Squad Needs — Create Mode UI
+  // ---------------------------------------------------------------------------
+
+  void _showLocalSquadNeedsSheet() {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => LocalSquadNeedsSheet(
+        roles: _roles,
+        onChanged: (updated) => setState(() {
+          _roles
+            ..clear()
+            ..addAll(updated);
+        }),
+      ),
+    );
+  }
+
+  /// The tappable chip that opens the local Squad Needs sheet (create mode).
+  /// Matches main branch create_event_page.dart styling.
+  Widget _buildSquadNeedsButton() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return RpgGlassCard(
+      title: "Squad Needs",
+      icon: Icons.check_box_outlined,
+      child: InkWell(
+        onTap: _showLocalSquadNeedsSheet,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: primaryColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.pan_tool, color: primaryColor, size: 24),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  _roles.isEmpty
+                      ? "Add items you need help with"
+                      : "${_roles.length} item${_roles.length == 1 ? '' : 's'} added",
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, size: 16, color: primaryColor),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Co-Host — Restricted Dashboard View
+  // ---------------------------------------------------------------------------
+
+  Widget _buildCoHostView() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        children: [
+          LockdownBanner(isPast: _isPast),
+          RpgGlassCard(
+            title: "Co-Captain Dashboard",
+            icon: Symbols.military_tech,
+            iconColor: Colors.teal,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Info Banner
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.teal.withValues(alpha: 0.1)
+                        : Colors.teal.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.teal.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Symbols.military_tech,
+                        color: Colors.teal,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          "You are the Co-Captain! You can manage your own crew and add Squad Needs.",
+                          style: TextStyle(
+                            color: isDark
+                                ? Colors.tealAccent
+                                : Colors.teal.shade900,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Team Selector (co-host's own scope)
+                TeamSelectionField(
+                  inviteAll: _inviteAll,
+                  selectedCircleIds: _selectedCircleIds,
+                  enabled: !_isPast,
+                  onChanged: (newAll, newIds) {
+                    setState(() {
+                      _inviteAll = newAll;
+                      _selectedCircleIds = newIds;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Squad Needs entry
+                InkWell(
+                  onTap: _isPast ? null : () {
+                    HapticFeedback.lightImpact();
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor:
+                          Theme.of(context).scaffoldBackgroundColor,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(24)),
+                      ),
+                      builder: (ctx) => SquadNeedsSheet(
+                        eventId: widget.eventId!,
+                        hostId: widget.eventData!['hostId'],
+                        isPast: _isPast,
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                      horizontal: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.grey.shade900
+                          : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark
+                            ? Colors.grey.shade800
+                            : Colors.grey.shade200,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_box_outlined, color: primaryColor),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Manage Squad Needs",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryColor,
+                                ),
+                              ),
+                              Text(
+                                "View, add, or delete your roles",
+                                style: TextStyle(
+                                  color: isDark
+                                      ? Colors.grey.shade400
+                                      : Colors.grey.shade600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 16,
+                          color: primaryColor,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Save Button (no delete for co-host)
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 60,
+            child: ElevatedButton(
+              onPressed: (_isPast || _isLoading) ? null : _submitEvent,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: themeProvider.onPrimaryColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              child: const Text(
+                "Save Changes",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              ),
+            ),
+          ),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLandscape =
@@ -523,7 +800,9 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
         behavior: HitTestBehavior.opaque,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : Padding(
+            : (isEditing && _isCoHost && !_isMainHost)
+                ? _buildCoHostView()
+                : Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Form(
                   key: _formKey,
@@ -668,9 +947,11 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                         if (isEditing)
                                           SquadNeedsFormCard(
                                             eventId: widget.eventId!,
-                                            hostId: FirebaseAuth.instance.currentUser!.uid,
+                                            hostId: widget.eventData!['hostId'],
                                             isPast: _isPast,
-                                          ),
+                                          )
+                                        else
+                                          _buildSquadNeedsButton(),
                                       ],
                                     ),
                                   ),
@@ -735,9 +1016,11 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                               if (isEditing)
                                 SquadNeedsFormCard(
                                   eventId: widget.eventId!,
-                                  hostId: FirebaseAuth.instance.currentUser!.uid,
+                                  hostId: widget.eventData!['hostId'],
                                   isPast: _isPast,
-                                ),
+                                )
+                              else
+                                _buildSquadNeedsButton(),
                               CrewFormCard(
                                 isPast: _isPast,
                                 inviteAll: _inviteAll,
