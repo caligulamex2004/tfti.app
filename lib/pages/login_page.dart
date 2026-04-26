@@ -35,8 +35,37 @@ class _LoginPageState extends State<LoginPage> {
   bool _canResend = false;
 
   @override
+  void initState() {
+    super.initState();
+    _nameController.addListener(_onTextChanged);
+    _usernameController.addListener(_onTextChanged);
+  }
+
+  void _onTextChanged() {
+    setState(() {});
+  }
+
+  bool get _isSignUpValid {
+    if (_nameController.text.trim().isEmpty) return false;
+    if (_usernameController.text.trim().isEmpty) return false;
+    
+    String cleanName = _usernameController.text.trim().toLowerCase();
+    if (cleanName.startsWith('@')) {
+      cleanName = cleanName.substring(1);
+    }
+    final regex = RegExp(r'^[a-z0-9.\-_]{3,20}$');
+    if (!regex.hasMatch(cleanName)) return false;
+
+    if (!_agreedToToS || !_agreedToPrivacy) return false;
+    
+    return true;
+  }
+
+  @override
   void dispose() {
     _timer?.cancel();
+    _nameController.removeListener(_onTextChanged);
+    _usernameController.removeListener(_onTextChanged);
     _nameController.dispose();
     _usernameController.dispose();
     _phoneController.dispose();
@@ -461,8 +490,7 @@ class _LoginPageState extends State<LoginPage> {
                                   : "Sign Up & Get Login Code",
                               isLoading: _isLoading,
                               onPressed:
-                                  (!_isLoginMode &&
-                                      (!_agreedToToS || !_agreedToPrivacy))
+                                  (!_isLoginMode && !_isSignUpValid)
                                   ? null
                                   : () => _verifyPhone(isResend: false),
                             ),
