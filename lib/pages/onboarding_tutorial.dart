@@ -187,7 +187,7 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
               child: Container(
                 padding: const EdgeInsets.all(32),
                 decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.1),
+                  color: primaryColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -214,18 +214,18 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: isDark
-                ? Colors.grey.shade800.withOpacity(0.5)
+                ? Colors.grey.shade800.withValues(alpha: 0.5)
                 : Colors.white,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
             ],
             border: Border.all(
-              color: isDark ? Colors.white12 : Colors.black.withOpacity(0.05),
+              color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05),
             ),
           ),
           child: Column(
@@ -246,9 +246,9 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.1),
+                  color: primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: primaryColor.withOpacity(0.3)),
+                  border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -276,7 +276,7 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
     return Row(
       children: [
         CircleAvatar(
-          backgroundColor: color.withOpacity(0.2),
+          backgroundColor: color.withValues(alpha: 0.2),
           child: Text(
             name[0],
             style: TextStyle(color: color, fontWeight: FontWeight.bold),
@@ -308,18 +308,18 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: isDark
-                ? Colors.grey.shade800.withOpacity(0.5)
+                ? Colors.grey.shade800.withValues(alpha: 0.5)
                 : Colors.white,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
             ],
             border: Border.all(
-              color: isDark ? Colors.white12 : Colors.black.withOpacity(0.05),
+              color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05),
             ),
           ),
           child: Column(
@@ -387,18 +387,18 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: isDark
-                ? Colors.grey.shade800.withOpacity(0.5)
+                ? Colors.grey.shade800.withValues(alpha: 0.5)
                 : Colors.white,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
             ],
             border: Border.all(
-              color: isDark ? Colors.white12 : Colors.black.withOpacity(0.05),
+              color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05),
             ),
           ),
           child: Column(
@@ -438,12 +438,12 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [primaryColor, primaryColor.withOpacity(0.8)],
+                          colors: [primaryColor, primaryColor.withValues(alpha: 0.8)],
                         ),
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: primaryColor.withOpacity(0.4),
+                            color: primaryColor.withValues(alpha: 0.4),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
