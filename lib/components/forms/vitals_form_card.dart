@@ -14,6 +14,7 @@ class VitalsFormCard extends StatelessWidget {
   final TimeOfDay selectedTime;
   final ValueChanged<DateTime> onDateChanged;
   final ValueChanged<TimeOfDay> onTimeChanged;
+  final Widget? recurringToggle;
 
   // Customizable Text Strings
   final String cardTitle;
@@ -29,6 +30,7 @@ class VitalsFormCard extends StatelessWidget {
     required this.selectedTime,
     required this.onDateChanged,
     required this.onTimeChanged,
+    this.recurringToggle,
     this.cardTitle = "The Vitals",
     this.titleLabel = "Let's do...",
     this.titleHint = "e.g. Bonfire & Chill",
@@ -69,6 +71,10 @@ class VitalsFormCard extends StatelessWidget {
             onDateChanged: onDateChanged,
             onTimeChanged: onTimeChanged,
           ),
+          
+          if (recurringToggle != null) ...[
+            recurringToggle!,
+          ]
         ],
       ),
     );

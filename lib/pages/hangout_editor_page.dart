@@ -57,6 +57,17 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
   int _keepAliveDays = 0;
   bool _isImportantDetails = false;
 
+  // Recurring Season State
+  bool _isRecurring = false;
+  String _recurringFrequency = 'weekly';
+  int _recurringInstances = 16;
+  int get _maxRecurringInstances {
+    if (_recurringFrequency == 'weekly') return 16;
+    if (_recurringFrequency == 'biweekly') return 8;
+    if (_recurringFrequency == 'monthly') return 4;
+    return 16;
+  }
+
   String? _bannerImagePath;
   bool _removeBanner = false;
 
@@ -126,6 +137,8 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             });
       }
 
+      _isRecurring = data['seasonId'] != null;
+
       // Lockdown Check
       final Timestamp? endTs = data['endTime'];
       final DateTime endTime =
@@ -151,6 +164,156 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
       _selectedDate = rounded;
       _selectedTime = TimeOfDay.fromDateTime(rounded);
     }
+  }
+
+  List<DateTime> _generateSeasonDates(DateTime start) {
+    List<DateTime> dates = [start];
+    if (!_isRecurring) return dates;
+
+    int daysToAdd = 0;
+    if (_recurringFrequency == 'weekly') {
+      daysToAdd = 7;
+    } else if (_recurringFrequency == 'biweekly') {
+      daysToAdd = 14;
+    }
+
+    DateTime current = start;
+
+    for (int i = 1; i < _recurringInstances; i++) {
+      if (_recurringFrequency == 'monthly') {
+        int newYear = current.year;
+        int newMonth = current.month + 1;
+        if (newMonth > 12) {
+          newMonth = 1;
+          newYear++;
+        }
+        int daysInNewMonth = DateTime(newYear, newMonth + 1, 0).day;
+        int newDay = current.day > daysInNewMonth ? daysInNewMonth : current.day;
+
+        current = DateTime(
+          newYear,
+          newMonth,
+          newDay,
+          current.hour,
+          current.minute,
+        );
+      } else {
+        current = current.add(Duration(days: daysToAdd));
+      }
+      dates.add(current);
+    }
+    return dates;
+  }
+
+  Widget _buildRecurringToggle() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+      ),
+      child: Column(
+        children: [
+          const Divider(height: 1),
+          SwitchListTile(
+            activeColor: primaryColor,
+            title: const Text(
+              "Turn this into a recurring Season",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              "Creates multiple hangouts automatically",
+              style: TextStyle(
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                fontSize: 12,
+              ),
+            ),
+            value: _isRecurring,
+            onChanged: (val) {
+              setState(() {
+                _isRecurring = val;
+              });
+            },
+          ),
+          if (_isRecurring)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _recurringFrequency,
+                      decoration: InputDecoration(
+                        labelText: "Frequency",
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'weekly', child: Text("Weekly")),
+                        DropdownMenuItem(value: 'biweekly', child: Text("Bi-Weekly")),
+                        DropdownMenuItem(value: 'monthly', child: Text("Monthly")),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _recurringFrequency = val;
+                            if (_recurringInstances > _maxRecurringInstances) {
+                              _recurringInstances = _maxRecurringInstances;
+                            }
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const Text(
+                        "Instances",
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.remove_circle_outline),
+                            onPressed: _recurringInstances > 2
+                                ? () {
+                                    setState(() => _recurringInstances--);
+                                  }
+                                : null,
+                            color: _recurringInstances > 2 ? primaryColor : Colors.grey,
+                          ),
+                          Text(
+                            "$_recurringInstances",
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.add_circle_outline),
+                            onPressed: _recurringInstances < _maxRecurringInstances
+                                ? () {
+                                    setState(() => _recurringInstances++);
+                                  }
+                                : null,
+                            color: _recurringInstances < _maxRecurringInstances ? primaryColor : Colors.grey,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -191,6 +354,120 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
           ? (_keepAliveDays * 24 * 60)
           : 240;
       final newEndTime = newDateTime.add(Duration(minutes: durationMinutes));
+
+      String updateScope = 'single';
+      final String? seasonId = isEditing ? widget.eventData!['seasonId'] : null;
+
+      if (isEditing && _isMainHost && seasonId != null && _isRecurring) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final scope = await showModalBottomSheet<String>(
+          context: context,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          builder: (ctx) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Update Season",
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Do you want to apply these changes to just this hangout, or to this and all future hangouts in the Season?",
+                    style: TextStyle(
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ListTile(
+                    leading: const Icon(Icons.event),
+                    title: const Text(
+                      "This hangout only",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    onTap: () => Navigator.pop(ctx, 'single'),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.update),
+                    title: const Text(
+                      "This and all future hangouts",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    onTap: () => Navigator.pop(ctx, 'future'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+        if (scope == null) {
+          setState(() => _isLoading = false);
+          return;
+        }
+        updateScope = scope;
+      }
+
+      // If user toggled OFF recurring for an existing season, we warn them it deletes future events
+      if (isEditing && _isMainHost && seasonId != null && !_isRecurring) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final confirm = await showModalBottomSheet<bool>(
+          context: context,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          builder: (ctx) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Turn Off Recurring?",
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "This will save this hangout as a single event and delete all future hangouts in the season. Continue?",
+                    style: TextStyle(
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ListTile(
+                    leading: const Icon(Icons.cancel),
+                    title: const Text(
+                      "Cancel",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    onTap: () => Navigator.pop(ctx, false),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.auto_delete, color: Colors.red),
+                    title: const Text(
+                      "Turn Off & Delete Future",
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                    ),
+                    onTap: () => Navigator.pop(ctx, true),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+        if (confirm != true) {
+          setState(() => _isLoading = false);
+          return;
+        }
+        updateScope = 'toggle_off';
+      }
 
       if (isEditing) {
         final eventRef = FirebaseFirestore.instance
@@ -444,20 +721,98 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
           }
         }
 
-        batch.update(eventRef, updateData);
-        await batch.commit();
+        // Handle Scoped Batch Updates
+        if (updateScope == 'single') {
+          batch.update(eventRef, updateData);
+          await batch.commit();
+        } else if (updateScope == 'future' && seasonId != null) {
+          final currentEventTime = widget.eventData!['time'] as Timestamp;
+          final futureEvents = await FirebaseFirestore.instance
+              .collection('events')
+              .where('seasonId', isEqualTo: seasonId)
+              .where('time', isGreaterThanOrEqualTo: currentEventTime)
+              .get();
+              
+          int opCount = 0;
+          for (var doc in futureEvents.docs) {
+            batch.update(doc.reference, updateData);
+            opCount++;
+            if (opCount > 450) {
+              await batch.commit();
+              opCount = 0;
+            }
+          }
+          if (opCount > 0) {
+            await batch.commit();
+          }
+          
+          await FirebaseFirestore.instance
+              .collection('seasons')
+              .doc(seasonId)
+              .update({
+            'title': _titleController.text.trim(),
+            'location': _locController.text.trim(),
+            'details': _detailsController.text.trim(),
+          });
+        } else if (updateScope == 'toggle_off' && seasonId != null) {
+          // Update this single event
+          updateData['seasonId'] = FieldValue.delete();
+          updateData['seasonInstance'] = FieldValue.delete();
+          updateData['seasonTotal'] = FieldValue.delete();
+          batch.update(eventRef, updateData);
+          
+          // Delete future events
+          final currentEventTime = widget.eventData!['time'] as Timestamp;
+          final futureEvents = await FirebaseFirestore.instance
+              .collection('events')
+              .where('seasonId', isEqualTo: seasonId)
+              .where('time', isGreaterThan: currentEventTime) // Strictly greater than!
+              .get();
+              
+          int opCount = 0;
+          for (var doc in futureEvents.docs) {
+            final fRef = doc.reference;
+            final inv = await fRef.collection('invitations').get();
+            for (var d in inv.docs) { batch.delete(d.reference); opCount++; }
+            
+            final msgs = await fRef.collection('messages').get();
+            for (var m in msgs.docs) { batch.delete(m.reference); opCount++; }
+            
+            final rls = await fRef.collection('roles').get();
+            for (var r in rls.docs) { batch.delete(r.reference); opCount++; }
+            
+            batch.delete(fRef);
+            opCount++;
+            
+            if (opCount > 400) {
+              await batch.commit();
+              opCount = 0;
+            }
+          }
+          if (opCount > 0) {
+            await batch.commit();
+          }
+          
+          // Delete the season parent
+          await FirebaseFirestore.instance.collection('seasons').doc(seasonId).delete();
+        }
       } else {
+        // 1. Generate the timeline! (1 date if single, up to 16 if Season)
+        final List<DateTime> eventDates = _generateSeasonDates(newDateTime);
+
         final friendsSnapshot = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .collection('friends')
             .get();
+
         Set<String> visibleToIds = {user.uid};
         Set<DocumentSnapshot> friendsToInvite = {};
 
         for (var friendDoc in friendsSnapshot.docs) {
           final data = friendDoc.data() as Map<String, dynamic>? ?? {};
           final friendCircles = List<String>.from(data['circles'] ?? []);
+
           if (_inviteAll ||
               _selectedCircleIds.any((id) => friendCircles.contains(id))) {
             friendsToInvite.add(friendDoc);
@@ -472,73 +827,142 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                 content: Text("No friends found in selected teams!"),
               ),
             );
+            setState(() => _isLoading = false);
           }
-          setState(() {
-            _isLoading = false;
-          });
           return;
         }
 
-        final batch = FirebaseFirestore.instance.batch();
-        final eventRef = FirebaseFirestore.instance.collection('events').doc();
+        // --- THE DYNAMIC BATCH ENGINE ---
+        WriteBatch batch = FirebaseFirestore.instance.batch();
+        int operationCount = 0;
 
-        batch.set(eventRef, {
-          'title': _titleController.text.trim(),
-          'location': _locController.text.trim(),
-          'details': _detailsController.text.trim(),
-          'time': Timestamp.fromDate(newDateTime),
-          'endTime': Timestamp.fromDate(newEndTime),
-          'hostId': user.uid,
-          'coHostId': _selectedCoHostId,
-          'coHostName': _selectedCoHostName,
-          'isPast': false,
-          'created_at': FieldValue.serverTimestamp(),
-          'visibleTo': visibleToIds.toList(),
-          'inviteAll': _inviteAll,
-          'invitedCircles': _selectedCircleIds,
-          'isImportantDetails': _isImportantDetails,
-          'rsvpDeadline': _rsvpDeadlineOffset,
-          'keepAliveDays': _keepAliveDays,
-          'pointsAwarded': false,
-        });
+        // Helper to prevent Firebase from crashing if we exceed 500 writes!
+        Future<void> commitBatchIfNeeded() async {
+          if (operationCount > 450) {
+            await batch.commit();
+            batch = FirebaseFirestore.instance.batch();
+            operationCount = 0;
+          }
+        }
 
-        // Add Guests
-        for (var friendDoc in friendsToInvite) {
-          batch.set(eventRef.collection('invitations').doc(friendDoc.id), {
-            'uid': friendDoc.id,
-            'role': 'guest',
-            'status': 'pending',
+        // 2. Create the Season Parent (ONLY if it's recurring!)
+        String? seasonId;
+        DocumentReference? seasonRef;
+
+        if (_isRecurring && eventDates.length > 1) {
+          seasonRef = FirebaseFirestore.instance.collection('seasons').doc();
+          seasonId = seasonRef.id;
+
+          batch.set(seasonRef, {
+            'hostId': user.uid,
+            'coHostId': _selectedCoHostId,
+            'title': _titleController.text.trim(),
+            'location': _locController.text.trim(),
+            'details': _detailsController.text.trim(),
+            'frequency': _recurringFrequency,
+            'totalInstances': eventDates.length,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+          operationCount++;
+        }
+
+        List<DocumentReference> createdEventRefs = [];
+
+        // 3. Loop through and create all the Hangouts!
+        for (int i = 0; i < eventDates.length; i++) {
+          final date = eventDates[i];
+          final eventRef = FirebaseFirestore.instance
+              .collection('events')
+              .doc();
+          createdEventRefs.add(eventRef);
+
+          // Calculate exact end time
+          int durationMinutes = _keepAliveDays > 0
+              ? (_keepAliveDays * 24 * 60)
+              : 240;
+          DateTime endTime = date.add(Duration(minutes: durationMinutes));
+
+          batch.set(eventRef, {
+            'hostId': user.uid,
+            'coHostId': _selectedCoHostId,
+            'coHostName': _selectedCoHostName,
+            'title': _titleController.text.trim(),
+            'location': _locController.text.trim(),
+            'details': _detailsController.text.trim(),
+            'time': Timestamp.fromDate(date),
+            'endTime': Timestamp.fromDate(endTime),
+            'isPast': false,
+            'created_at': FieldValue.serverTimestamp(),
+            'visibleTo': visibleToIds.toList(),
+            'inviteAll': _inviteAll,
+            'invitedCircles': _selectedCircleIds,
+            'isImportantDetails': _isImportantDetails,
+            'rsvpDeadline': _rsvpDeadlineOffset,
+            'keepAliveDays': _keepAliveDays,
+            'pointsAwarded': false,
+            'seasonId': seasonId,
+            'seasonInstance': seasonId != null ? (i + 1) : null,
+            'seasonTotal': seasonId != null ? eventDates.length : null,
+          });
+          operationCount++;
+          await commitBatchIfNeeded();
+
+          // Invitations for guests
+          for (var friendDoc in friendsToInvite) {
+            final isCoHost = friendDoc.id == _selectedCoHostId;
+            final inviteRef = eventRef
+                .collection('invitations')
+                .doc(friendDoc.id);
+
+            batch.set(inviteRef, {
+              'uid': friendDoc.id,
+              'role': isCoHost ? 'co-host' : 'guest',
+              'status': 'pending',
+              'invitedBy': user.uid,
+              'sentAt': FieldValue.serverTimestamp(),
+            });
+            operationCount++;
+          }
+          await commitBatchIfNeeded();
+
+          // Invitation for host
+          final hostRef = eventRef.collection('invitations').doc(user.uid);
+          batch.set(hostRef, {
+            'uid': user.uid,
+            'role': 'host',
+            'status': 'going',
             'invitedBy': user.uid,
             'sentAt': FieldValue.serverTimestamp(),
           });
+          operationCount++;
+          await commitBatchIfNeeded();
+
+          // Squad Needs (Roles)
+          for (String roleTitle in _roles) {
+            final roleRef = eventRef.collection('roles').doc();
+            batch.set(roleRef, {
+              'title': roleTitle,
+              'addedBy': user.uid,
+              'claimedByUid': null,
+              'claimedByName': null,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+            operationCount++;
+          }
+          await commitBatchIfNeeded();
         }
 
-        // Add Host
-        batch.set(eventRef.collection('invitations').doc(user.uid), {
-          'uid': user.uid,
-          'role': 'host',
-          'status': 'going',
-          'invitedBy': user.uid,
-          'sentAt': FieldValue.serverTimestamp(),
-        });
-
-        // Squad Needs (Roles) — write local list to Firestore
-        for (String roleTitle in _roles) {
-          batch.set(eventRef.collection('roles').doc(), {
-            'title': roleTitle,
-            'addedBy': user.uid,
-            'claimedByUid': null,
-            'claimedByName': null,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+        // Commit any remaining operations
+        if (operationCount > 0) {
+          await batch.commit();
         }
 
-        await batch.commit();
-
-        if (_bannerImagePath != null) {
+        // 4. Handle Banner Upload (We only upload the image ONCE!)
+        if (_bannerImagePath != null && createdEventRefs.isNotEmpty) {
           try {
             final File file = File(_bannerImagePath!);
             final Uint8List bytes = await file.readAsBytes();
+
             final Uint8List compressedBytes =
                 await FlutterImageCompress.compressWithList(
                   bytes,
@@ -546,17 +970,44 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                   minHeight: 720,
                   quality: 75,
                 );
-            final ref = FirebaseStorage.instance.ref().child(
-              'event_banners/${eventRef.id}/banner.jpg',
+
+            // Store image under the Season ID (if recurring) or the single event ID
+            final String storageFolderId =
+                seasonId ?? createdEventRefs.first.id;
+            final Reference ref = FirebaseStorage.instance.ref().child(
+              'event_banners/$storageFolderId/banner.jpg',
             );
-            await ref.putData(
+
+            final UploadTask uploadTask = ref.putData(
               compressedBytes,
               SettableMetadata(contentType: 'image/jpeg'),
             );
-            final downloadUrl = await ref.getDownloadURL();
-            await eventRef.update({'bannerUrl': downloadUrl});
+
+            final TaskSnapshot snapshot = await uploadTask;
+            final String downloadUrl = await snapshot.ref.getDownloadURL();
+
+            // Update the Season document
+            if (seasonRef != null) {
+              await seasonRef.update({'bannerUrl': downloadUrl});
+            }
+
+            // Fast-update ALL event documents with the shared URL
+            WriteBatch urlBatch = FirebaseFirestore.instance.batch();
+            int urlOps = 0;
+            for (var eRef in createdEventRefs) {
+              urlBatch.update(eRef, {'bannerUrl': downloadUrl});
+              urlOps++;
+              if (urlOps > 450) {
+                await urlBatch.commit();
+                urlBatch = FirebaseFirestore.instance.batch();
+                urlOps = 0;
+              }
+            }
+            if (urlOps > 0) {
+              await urlBatch.commit();
+            }
           } catch (e) {
-            debugPrint("Failed to upload banner: $e");
+            debugPrint("Failed to upload new banner: $e");
           }
         }
       }
@@ -1041,6 +1492,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                     _selectedTime = t;
                                   });
                                 },
+                                recurringToggle: _buildRecurringToggle(),
                               ),
                               ExtrasFormCard(
                                 detailsController: _detailsController,
@@ -1127,6 +1579,8 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                       context: context,
                                       eventId: widget.eventId!,
                                       isVibeCheck: false,
+                                      seasonId: isEditing ? widget.eventData!['seasonId'] : null,
+                                      eventTime: isEditing ? widget.eventData!['time'] : null,
                                       onLoadingChanged: (val) {
                                         setState(() {
                                           _isLoading = val;
