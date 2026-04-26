@@ -92,8 +92,8 @@ class AddFriendSection extends StatelessWidget {
               showSelectedIcon: false,
               style: SegmentedButton.styleFrom(
                 visualDensity: VisualDensity.compact,
-                selectedBackgroundColor: primaryColor.withValues(alpha: 0.15),
-                selectedForegroundColor: primaryColor,
+                selectedBackgroundColor: primaryColor,
+                selectedForegroundColor: themeProvider.onPrimaryColor,
               ),
             ),
           ),
