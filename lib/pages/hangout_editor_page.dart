@@ -11,6 +11,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import '../components/shared/banner_picker.dart';
 import '../components/shared/rpg_glass_card.dart';
 import '../components/forms/extras_form_card.dart';
+import '../components/forms/important_details_toggle.dart';
 import '../components/forms/vitals_form_card.dart';
 import '../components/forms/crew_form_card.dart';
 import '../components/forms/lockdown_banner.dart';
@@ -1121,42 +1122,78 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
 
   /// The tappable chip that opens the local Squad Needs sheet (create mode).
   /// Matches main branch create_event_page.dart styling.
-  Widget _buildSquadNeedsButton() {
+  Widget _buildTogglesRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: isEditing
+              ? SquadNeedsFormCard(
+                  eventId: widget.eventId!,
+                  hostId: widget.eventData!['hostId'],
+                  isPast: _isPast,
+                )
+              : _buildSquadNeedsToggleCreateMode(),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ImportantDetailsToggle(
+            isImportant: _isImportantDetails,
+            isPast: _isPast,
+            onChanged: (val) {
+              setState(() {
+                _isImportantDetails = val;
+              });
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSquadNeedsToggleCreateMode() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
 
-    return RpgGlassCard(
-      title: "Squad Needs",
-      icon: Icons.check_box_outlined,
-      child: InkWell(
-        onTap: _showLocalSquadNeedsSheet,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: primaryColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
+    return InkWell(
+      onTap: _showLocalSquadNeedsSheet,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _roles.isNotEmpty
+                ? primaryColor
+                : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+            width: _roles.isNotEmpty ? 2 : 1,
           ),
-          child: Row(
-            children: [
-              Icon(Icons.pan_tool, color: primaryColor, size: 24),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  _roles.isEmpty
-                      ? "Add items you need help with"
-                      : "${_roles.length} item${_roles.length == 1 ? '' : 's'} added",
-                  style: TextStyle(
-                    color: isDark ? Colors.white : Colors.black87,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.check_box_outlined,
+              color: _roles.isNotEmpty
+                  ? primaryColor
+                  : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                _roles.isEmpty ? "Squad Needs" : "${_roles.length} Needs",
+                style: TextStyle(
+                  fontWeight:
+                      _roles.isNotEmpty ? FontWeight.bold : FontWeight.normal,
+                  color: _roles.isNotEmpty
+                      ? primaryColor
+                      : (isDark ? Colors.white : Colors.black87),
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              Icon(Icons.arrow_forward_ios, size: 16, color: primaryColor),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1488,16 +1525,9 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                         ExtrasFormCard(
                                           detailsController: _detailsController,
                                           isPast: _isPast,
-                                          isImportantDetails:
-                                              _isImportantDetails,
                                           rsvpDeadlineOffset:
                                               _rsvpDeadlineOffset,
                                           keepAliveDays: _keepAliveDays,
-                                          onImportantChanged: (val) {
-                                            setState(() {
-                                              _isImportantDetails = val;
-                                            });
-                                          },
                                           onRsvpChanged: (val) {
                                             setState(() {
                                               _rsvpDeadlineOffset = val;
@@ -1508,15 +1538,8 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                               _keepAliveDays = val;
                                             });
                                           },
+                                          togglesRow: _buildTogglesRow(),
                                         ),
-                                        if (isEditing)
-                                          SquadNeedsFormCard(
-                                            eventId: widget.eventId!,
-                                            hostId: widget.eventData!['hostId'],
-                                            isPast: _isPast,
-                                          )
-                                        else
-                                          _buildSquadNeedsButton(),
                                       ],
                                     ),
                                   ),
@@ -1560,14 +1583,8 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                               ExtrasFormCard(
                                 detailsController: _detailsController,
                                 isPast: _isPast,
-                                isImportantDetails: _isImportantDetails,
                                 rsvpDeadlineOffset: _rsvpDeadlineOffset,
                                 keepAliveDays: _keepAliveDays,
-                                onImportantChanged: (val) {
-                                  setState(() {
-                                    _isImportantDetails = val;
-                                  });
-                                },
                                 onRsvpChanged: (val) {
                                   setState(() {
                                     _rsvpDeadlineOffset = val;
@@ -1578,15 +1595,8 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                     _keepAliveDays = val;
                                   });
                                 },
+                                togglesRow: _buildTogglesRow(),
                               ),
-                              if (isEditing)
-                                SquadNeedsFormCard(
-                                  eventId: widget.eventId!,
-                                  hostId: widget.eventData!['hostId'],
-                                  isPast: _isPast,
-                                )
-                              else
-                                _buildSquadNeedsButton(),
                               CrewFormCard(
                                 isPast: _isPast,
                                 inviteAll: _inviteAll,

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../shared/rpg_glass_card.dart';
 import 'custom_input_field.dart';
-import 'important_details_toggle.dart';
 import 'tactile_chip_row.dart';
 
 class ExtrasFormCard extends StatelessWidget {
@@ -12,10 +11,9 @@ class ExtrasFormCard extends StatelessWidget {
   final ValueChanged<int> onRsvpChanged;
 
   // Nullable Hangout-Specific Fields
-  final bool? isImportantDetails;
   final int? keepAliveDays;
-  final ValueChanged<bool>? onImportantChanged;
   final ValueChanged<int>? onKeepAliveChanged;
+  final Widget? togglesRow;
 
   // Customizable Strings & Flags
   final String cardTitle;
@@ -30,10 +28,9 @@ class ExtrasFormCard extends StatelessWidget {
     required this.isPast,
     required this.rsvpDeadlineOffset,
     required this.onRsvpChanged,
-    this.isImportantDetails,
     this.keepAliveDays,
-    this.onImportantChanged,
     this.onKeepAliveChanged,
+    this.togglesRow,
     this.cardTitle = "The Extras",
     this.detailsLabel = "Details / Description",
     this.detailsHint = "e.g. Dog friendly, BYOB...",
@@ -51,46 +48,8 @@ class ExtrasFormCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CustomInputField(
-            controller: detailsController,
-            label: detailsLabel,
-            hint: detailsHint,
-            prefixIcon: Icons.notes,
-            prefixIconColor: isDark ? Colors.grey.shade400 : Colors.grey,
-            maxLines: 3,
-            enabled: !isPast,
-          ),
-
-          // Only show if the important details toggle is requested
-          if (isImportantDetails != null && onImportantChanged != null) ...[
-            const SizedBox(height: 16),
-            ImportantDetailsToggle(
-              isImportant: isImportantDetails!,
-              isPast: isPast,
-              onChanged: onImportantChanged!,
-            ),
-          ],
-
-          const SizedBox(height: 24),
-          TactileChipRow<int>(
-            label: rsvpLabel,
-            icon: Icons.timer_off_outlined,
-            options: [
-              {'label': 'On time', 'value': 0},
-              {'label': '30 mins before', 'value': -30},
-              {'label': '1 hr before', 'value': -60},
-              {'label': '2 hrs before', 'value': -120},
-              {'label': '4 hrs before', 'value': -240},
-              {'label': '24 hrs before', 'value': -1440},
-              if (show48HourOption) {'label': '48 hrs before', 'value': -2880},
-            ],
-            selectedValue: rsvpDeadlineOffset,
-            onSelected: isPast ? (v) {} : onRsvpChanged,
-          ),
-
           // Only show if keepAlive logic is requested
           if (keepAliveDays != null && onKeepAliveChanged != null) ...[
-            const SizedBox(height: 24),
             TactileChipRow<int>(
               label: "Active for...",
               icon: Icons.timelapse,
@@ -108,6 +67,40 @@ class ExtrasFormCard extends StatelessWidget {
               selectedValue: keepAliveDays!,
               onSelected: isPast ? (v) {} : onKeepAliveChanged!,
             ),
+            const SizedBox(height: 24),
+          ],
+
+          TactileChipRow<int>(
+            label: rsvpLabel,
+            icon: Icons.timer_off_outlined,
+            options: [
+              {'label': 'On time', 'value': 0},
+              {'label': '30 mins before', 'value': -30},
+              {'label': '1 hr before', 'value': -60},
+              {'label': '2 hrs before', 'value': -120},
+              {'label': '4 hrs before', 'value': -240},
+              {'label': '24 hrs before', 'value': -1440},
+              if (show48HourOption) {'label': '48 hrs before', 'value': -2880},
+            ],
+            selectedValue: rsvpDeadlineOffset,
+            onSelected: isPast ? (v) {} : onRsvpChanged,
+          ),
+          const SizedBox(height: 24),
+
+          CustomInputField(
+            controller: detailsController,
+            label: detailsLabel,
+            hint: detailsHint,
+            prefixIcon: Icons.notes,
+            prefixIconColor: isDark ? Colors.grey.shade400 : Colors.grey,
+            maxLines: 3,
+            enabled: !isPast,
+          ),
+
+          // Render togglesRow if provided
+          if (togglesRow != null) ...[
+            const SizedBox(height: 16),
+            togglesRow!,
           ],
         ],
       ),
