@@ -280,9 +280,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                         if (val != null) {
                           setState(() {
                             _recurringFrequency = val;
-                            if (_recurringInstances > _maxRecurringInstances) {
-                              _recurringInstances = _maxRecurringInstances;
-                            }
+                            _recurringInstances = _maxRecurringInstances;
                           });
                         }
                       },
