@@ -100,7 +100,9 @@ class EventService {
 
     final successMessage = isVibeCheck
         ? "Vibe Check deleted permanently."
-        : (deleteScope == 'future' ? "Season deleted permanently." : "Hangout deleted permanently.");
+        : (deleteScope == 'future'
+              ? "Season deleted permanently."
+              : "Hangout deleted permanently.");
 
     onLoadingChanged(true);
     try {
@@ -111,13 +113,19 @@ class EventService {
         final batch = firestore.batch();
 
         final invitesSnap = await eventRef.collection('invitations').get();
-        for (var doc in invitesSnap.docs) batch.delete(doc.reference);
+        for (var doc in invitesSnap.docs) {
+          batch.delete(doc.reference);
+        }
 
         final messagesSnap = await eventRef.collection('messages').get();
-        for (var doc in messagesSnap.docs) batch.delete(doc.reference);
+        for (var doc in messagesSnap.docs) {
+          batch.delete(doc.reference);
+        }
 
         final rolesSnap = await eventRef.collection('roles').get();
-        for (var doc in rolesSnap.docs) batch.delete(doc.reference);
+        for (var doc in rolesSnap.docs) {
+          batch.delete(doc.reference);
+        }
 
         batch.delete(eventRef);
         await batch.commit();
@@ -138,7 +146,9 @@ class EventService {
             await item.delete();
           }
         } catch (_) {}
-      } else if (deleteScope == 'future' && seasonId != null && eventTime != null) {
+      } else if (deleteScope == 'future' &&
+          seasonId != null &&
+          eventTime != null) {
         final futureEvents = await firestore
             .collection('events')
             .where('seasonId', isEqualTo: seasonId)
@@ -183,7 +193,7 @@ class EventService {
           batch.delete(eventRef);
           opCount++;
           await commitIfNeeded();
-          
+
           try {
             final chatImagesRef = FirebaseStorage.instance.ref().child(
               'chat_images/${eventRef.id}',
@@ -211,10 +221,7 @@ class EventService {
         final messenger = ScaffoldMessenger.of(context);
         Navigator.popUntil(context, (route) => route.isFirst);
         messenger.showSnackBar(
-          SnackBar(
-            content: Text(successMessage),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(successMessage), backgroundColor: Colors.red),
         );
       }
     } catch (e) {

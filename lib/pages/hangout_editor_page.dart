@@ -188,7 +188,9 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
           newYear++;
         }
         int daysInNewMonth = DateTime(newYear, newMonth + 1, 0).day;
-        int newDay = current.day > daysInNewMonth ? daysInNewMonth : current.day;
+        int newDay = current.day > daysInNewMonth
+            ? daysInNewMonth
+            : current.day;
 
         current = DateTime(
           newYear,
@@ -221,7 +223,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
         children: [
           const Divider(height: 1),
           SwitchListTile(
-            activeColor: primaryColor,
+            activeThumbColor: primaryColor,
             title: const Text(
               "Turn this into a recurring Season",
               style: TextStyle(fontWeight: FontWeight.bold),
@@ -242,23 +244,37 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
           ),
           if (_isRecurring)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
               child: Row(
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _recurringFrequency,
+                      initialValue: _recurringFrequency,
                       decoration: InputDecoration(
                         labelText: "Frequency",
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                        ),
                       ),
                       items: const [
-                        DropdownMenuItem(value: 'weekly', child: Text("Weekly")),
-                        DropdownMenuItem(value: 'biweekly', child: Text("Bi-Weekly")),
-                        DropdownMenuItem(value: 'monthly', child: Text("Monthly")),
+                        DropdownMenuItem(
+                          value: 'weekly',
+                          child: Text("Weekly"),
+                        ),
+                        DropdownMenuItem(
+                          value: 'biweekly',
+                          child: Text("Bi-Weekly"),
+                        ),
+                        DropdownMenuItem(
+                          value: 'monthly',
+                          child: Text("Monthly"),
+                        ),
                       ],
                       onChanged: (val) {
                         if (val != null) {
@@ -278,7 +294,10 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                     children: [
                       const Text(
                         "Instances",
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       Row(
                         children: [
@@ -289,20 +308,28 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                     setState(() => _recurringInstances--);
                                   }
                                 : null,
-                            color: _recurringInstances > 2 ? primaryColor : Colors.grey,
+                            color: _recurringInstances > 2
+                                ? primaryColor
+                                : Colors.grey,
                           ),
                           Text(
                             "$_recurringInstances",
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
                           IconButton(
                             icon: const Icon(Icons.add_circle_outline),
-                            onPressed: _recurringInstances < _maxRecurringInstances
+                            onPressed:
+                                _recurringInstances < _maxRecurringInstances
                                 ? () {
                                     setState(() => _recurringInstances++);
                                   }
                                 : null,
-                            color: _recurringInstances < _maxRecurringInstances ? primaryColor : Colors.grey,
+                            color: _recurringInstances < _maxRecurringInstances
+                                ? primaryColor
+                                : Colors.grey,
                           ),
                         ],
                       ),
@@ -381,7 +408,9 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                   Text(
                     "Do you want to apply these changes to just this hangout, or to this and all future hangouts in the Season?",
                     style: TextStyle(
-                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -406,6 +435,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             ),
           ),
         );
+        if (!mounted) return;
         if (scope == null) {
           setState(() => _isLoading = false);
           return;
@@ -437,7 +467,9 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                   Text(
                     "This will save this hangout as a single event and delete all future hangouts in the season. Continue?",
                     style: TextStyle(
-                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -453,7 +485,10 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                     leading: const Icon(Icons.auto_delete, color: Colors.red),
                     title: const Text(
                       "Turn Off & Delete Future",
-                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     onTap: () => Navigator.pop(ctx, true),
                   ),
@@ -462,6 +497,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             ),
           ),
         );
+        if (!mounted) return;
         if (confirm != true) {
           setState(() => _isLoading = false);
           return;
@@ -486,8 +522,18 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
 
         String formatDateTime(DateTime dt) {
           final months = [
-            'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+            'Jan',
+            'Feb',
+            'Mar',
+            'Apr',
+            'May',
+            'Jun',
+            'Jul',
+            'Aug',
+            'Sep',
+            'Oct',
+            'Nov',
+            'Dec',
           ];
           final hour = dt.hour > 12
               ? dt.hour - 12
@@ -511,9 +557,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
           }
         }
 
-        final oldLoc = (widget.eventData!['location'] ?? '')
-            .toString()
-            .trim();
+        final oldLoc = (widget.eventData!['location'] ?? '').toString().trim();
         final newLoc = _locController.text.trim();
         if (oldLoc != newLoc) {
           changedFields.add("Location");
@@ -633,8 +677,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
             }
           }
           if (toRemove.isNotEmpty) {
-            updateData['visibleTo'] =
-                FieldValue.arrayRemove(toRemove.toList());
+            updateData['visibleTo'] = FieldValue.arrayRemove(toRemove.toList());
             for (String uid in toRemove) {
               batch.delete(eventRef.collection('invitations').doc(uid));
             }
@@ -671,8 +714,9 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
           }
 
           // --- ADD new guests ---
-          Set<String> toAdd =
-              newCoHostFriendIds.difference(currentlyInvitedIds);
+          Set<String> toAdd = newCoHostFriendIds.difference(
+            currentlyInvitedIds,
+          );
           if (toAdd.isNotEmpty) {
             updateData['visibleTo'] = FieldValue.arrayUnion(toAdd.toList());
             for (String uid in toAdd) {
@@ -687,8 +731,9 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
           }
 
           // --- REMOVE guests the co-host previously added ---
-          Set<String> potentialRemoves =
-              oldCoHostFriendIds.difference(newCoHostFriendIds);
+          Set<String> potentialRemoves = oldCoHostFriendIds.difference(
+            newCoHostFriendIds,
+          );
           // Never remove the host or the co-host themselves
           potentialRemoves.remove(widget.eventData!['hostId']);
           potentialRemoves.remove(user.uid);
@@ -715,8 +760,9 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
               return data['invitedBy'] == user.uid;
             }).toList();
             if (confirmedRemoves.isNotEmpty) {
-              updateData['visibleTo'] =
-                  FieldValue.arrayRemove(confirmedRemoves);
+              updateData['visibleTo'] = FieldValue.arrayRemove(
+                confirmedRemoves,
+              );
             }
           }
         }
@@ -732,7 +778,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
               .where('seasonId', isEqualTo: seasonId)
               .where('time', isGreaterThanOrEqualTo: currentEventTime)
               .get();
-              
+
           int opCount = 0;
           for (var doc in futureEvents.docs) {
             batch.update(doc.reference, updateData);
@@ -745,45 +791,57 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
           if (opCount > 0) {
             await batch.commit();
           }
-          
+
           await FirebaseFirestore.instance
               .collection('seasons')
               .doc(seasonId)
               .update({
-            'title': _titleController.text.trim(),
-            'location': _locController.text.trim(),
-            'details': _detailsController.text.trim(),
-          });
+                'title': _titleController.text.trim(),
+                'location': _locController.text.trim(),
+                'details': _detailsController.text.trim(),
+              });
         } else if (updateScope == 'toggle_off' && seasonId != null) {
           // Update this single event
           updateData['seasonId'] = FieldValue.delete();
           updateData['seasonInstance'] = FieldValue.delete();
           updateData['seasonTotal'] = FieldValue.delete();
           batch.update(eventRef, updateData);
-          
+
           // Delete future events
           final currentEventTime = widget.eventData!['time'] as Timestamp;
           final futureEvents = await FirebaseFirestore.instance
               .collection('events')
               .where('seasonId', isEqualTo: seasonId)
-              .where('time', isGreaterThan: currentEventTime) // Strictly greater than!
+              .where(
+                'time',
+                isGreaterThan: currentEventTime,
+              ) // Strictly greater than!
               .get();
-              
+
           int opCount = 0;
           for (var doc in futureEvents.docs) {
             final fRef = doc.reference;
             final inv = await fRef.collection('invitations').get();
-            for (var d in inv.docs) { batch.delete(d.reference); opCount++; }
-            
+            for (var d in inv.docs) {
+              batch.delete(d.reference);
+              opCount++;
+            }
+
             final msgs = await fRef.collection('messages').get();
-            for (var m in msgs.docs) { batch.delete(m.reference); opCount++; }
-            
+            for (var m in msgs.docs) {
+              batch.delete(m.reference);
+              opCount++;
+            }
+
             final rls = await fRef.collection('roles').get();
-            for (var r in rls.docs) { batch.delete(r.reference); opCount++; }
-            
+            for (var r in rls.docs) {
+              batch.delete(r.reference);
+              opCount++;
+            }
+
             batch.delete(fRef);
             opCount++;
-            
+
             if (opCount > 400) {
               await batch.commit();
               opCount = 0;
@@ -792,9 +850,12 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
           if (opCount > 0) {
             await batch.commit();
           }
-          
+
           // Delete the season parent
-          await FirebaseFirestore.instance.collection('seasons').doc(seasonId).delete();
+          await FirebaseFirestore.instance
+              .collection('seasons')
+              .doc(seasonId)
+              .delete();
         }
       } else {
         // 1. Generate the timeline! (1 date if single, up to 16 if Season)
@@ -1175,24 +1236,28 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
 
                 // Squad Needs entry
                 InkWell(
-                  onTap: _isPast ? null : () {
-                    HapticFeedback.lightImpact();
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor:
-                          Theme.of(context).scaffoldBackgroundColor,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.vertical(top: Radius.circular(24)),
-                      ),
-                      builder: (ctx) => SquadNeedsSheet(
-                        eventId: widget.eventId!,
-                        hostId: widget.eventData!['hostId'],
-                        isPast: _isPast,
-                      ),
-                    );
-                  },
+                  onTap: _isPast
+                      ? null
+                      : () {
+                          HapticFeedback.lightImpact();
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Theme.of(
+                              context,
+                            ).scaffoldBackgroundColor,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(24),
+                              ),
+                            ),
+                            builder: (ctx) => SquadNeedsSheet(
+                              eventId: widget.eventId!,
+                              hostId: widget.eventData!['hostId'],
+                              isPast: _isPast,
+                            ),
+                          );
+                        },
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -1303,8 +1368,8 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : (isEditing && _isCoHost && !_isMainHost)
-                ? _buildCoHostView()
-                : Padding(
+            ? _buildCoHostView()
+            : Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Form(
                   key: _formKey,
@@ -1579,8 +1644,12 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                       context: context,
                                       eventId: widget.eventId!,
                                       isVibeCheck: false,
-                                      seasonId: isEditing ? widget.eventData!['seasonId'] : null,
-                                      eventTime: isEditing ? widget.eventData!['time'] : null,
+                                      seasonId: isEditing
+                                          ? widget.eventData!['seasonId']
+                                          : null,
+                                      eventTime: isEditing
+                                          ? widget.eventData!['time']
+                                          : null,
                                       onLoadingChanged: (val) {
                                         setState(() {
                                           _isLoading = val;
