@@ -84,7 +84,13 @@ class AuthService {
       finalName = user.phoneNumber ?? "Unknown User";
     }
 
-    if (!docSnapshot.exists) {
+    final data = docSnapshot.data();
+    final isNewUser = !docSnapshot.exists ||
+        data == null ||
+        !data.containsKey('username') ||
+        !data.containsKey('createdAt');
+
+    if (isNewUser) {
       // BRAND NEW USER: Run a transaction to safely claim username and create profile
       String cleanUsername = enteredUsername.trim().toLowerCase();
       if (cleanUsername.startsWith('@')) {
@@ -128,9 +134,7 @@ class AuthService {
       }
     } else {
       // EXISTING USER LOGGING IN: Just ensure phone number is patched
-      final data = docSnapshot.data();
-      if (data == null ||
-          (!data.containsKey('phone') && !data.containsKey('phoneNumber'))) {
+      if (!data.containsKey('phone') && !data.containsKey('phoneNumber')) {
         await userDoc.set({
           'phoneNumber': user.phoneNumber,
         }, SetOptions(merge: true));
