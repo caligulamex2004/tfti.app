@@ -675,6 +675,7 @@ class _AccountPageState extends State<AccountPage> {
       debugPrint("Error checking token age: $e");
     }
 
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {

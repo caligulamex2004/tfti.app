@@ -157,6 +157,8 @@ class _LoginPageState extends State<LoginPage> {
           _completePhoneNumber,
         );
 
+        if (!mounted) return;
+
         if (_isLoginMode && !accountExists) {
           // They tried to log in, but no account exists. Bump to Sign Up.
           setState(() {
@@ -164,15 +166,13 @@ class _LoginPageState extends State<LoginPage> {
             _isLoginMode = false;
           });
 
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("No account found! Please sign up first."),
-                backgroundColor: Colors.orange,
-                duration: Duration(seconds: 4),
-              ),
-            );
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("No account found! Please sign up first."),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+            ),
+          );
           return;
         } else if (!_isLoginMode && accountExists) {
           // They tried to sign up, but an account already exists. Bump to Log In.
@@ -183,15 +183,13 @@ class _LoginPageState extends State<LoginPage> {
             _usernameController.clear();
           });
 
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Account already exists! Please log in."),
-                backgroundColor: Colors.blue,
-                duration: Duration(seconds: 4),
-              ),
-            );
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Account already exists! Please log in."),
+              backgroundColor: Colors.blue,
+              duration: Duration(seconds: 4),
+            ),
+          );
           return;
         } else if (!_isLoginMode && !accountExists) {
           // Perfect sign up attempt! Let's do a fast pre-flight check on the username
@@ -199,31 +197,30 @@ class _LoginPageState extends State<LoginPage> {
             _usernameController.text,
           );
 
+          if (!mounted) return;
+
           if (usernameExists) {
             setState(() {
               _isLoading = false;
             });
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("That username is already taken!"),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("That username is already taken!"),
+                backgroundColor: Colors.red,
+              ),
+            );
             return;
           }
         }
       } catch (e) {
+        if (!mounted) return;
         setState(() {
           _isLoading = false;
         });
         debugPrint("Error during pre-flight check: $e");
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Network error. Please try again.")),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Network error. Please try again.")),
+        );
         return;
       }
     }

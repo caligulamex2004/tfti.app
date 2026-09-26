@@ -259,7 +259,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -277,7 +277,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.15),
+                    color: iconColor.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(icon, color: iconColor, size: 24),
@@ -345,7 +345,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
               color: Theme.of(context).scaffoldBackgroundColor,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -374,7 +374,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: primaryColor.withOpacity(0.5), width: 2),
+                  borderSide: BorderSide(color: primaryColor.withValues(alpha: 0.5), width: 2),
                 ),
                 suffixIcon: _controller.text.isNotEmpty
                     ? IconButton(

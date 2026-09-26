@@ -365,17 +365,15 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                 ),
           bottomNavigationBar: isLandscape
               ? null
-              : BottomNavigationBar(
-                  type: BottomNavigationBarType.fixed,
+              : NavigationBar(
+                  selectedIndex: _selectedIndex,
+                  onDestinationSelected: _onNavTapped,
                   backgroundColor: Theme.of(context).cardColor,
-                  selectedItemColor: Theme.of(context).colorScheme.primary,
-                  unselectedItemColor: Colors.grey,
-                  showSelectedLabels: true,
-                  showUnselectedLabels: true,
-                  currentIndex: _selectedIndex,
-                  onTap: _onNavTapped,
-                  items: [
-                    BottomNavigationBarItem(
+                  indicatorColor: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.2),
+                  destinations: [
+                    NavigationDestination(
                       icon: Badge(
                         isLabelVisible: showBadge,
                         backgroundColor: Colors.redAccent,
@@ -384,15 +382,15 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                       ),
                       label: "Home",
                     ),
-                    const BottomNavigationBarItem(
+                    const NavigationDestination(
                       icon: Icon(Icons.supervised_user_circle_outlined),
                       label: "Teams",
                     ),
-                    const BottomNavigationBarItem(
+                    const NavigationDestination(
                       icon: Icon(Symbols.group),
                       label: "Squad",
                     ),
-                    const BottomNavigationBarItem(
+                    const NavigationDestination(
                       icon: Icon(Symbols.account_circle),
                       label: "Account",
                     ),

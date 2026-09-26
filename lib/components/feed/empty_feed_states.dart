@@ -45,10 +45,10 @@ class EmptyFeedState extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(40),
           decoration: BoxDecoration(
-            color: isDark ? Colors.grey.shade900.withOpacity(0.5) : Colors.grey.shade50.withOpacity(0.8),
+            color: isDark ? Colors.grey.shade900.withValues(alpha: 0.5) : Colors.grey.shade50.withValues(alpha: 0.8),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: isDark ? Colors.white12 : Colors.black.withOpacity(0.05),
+              color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05),
             ),
           ),
           child: Column(

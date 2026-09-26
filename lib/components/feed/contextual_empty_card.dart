@@ -23,10 +23,10 @@ class ContextualEmptyCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? Colors.grey.shade900.withOpacity(0.5) : Colors.grey.shade50.withOpacity(0.8),
+        color: isDark ? Colors.grey.shade900.withValues(alpha: 0.5) : Colors.grey.shade50.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: isDark ? Colors.white12 : Colors.black.withOpacity(0.05),
+          color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05),
           // We can't do a dashed border natively with just BoxDecoration without a package,
           // so we use a subtle solid border for now which looks very clean.
         ),
@@ -39,7 +39,7 @@ class ContextualEmptyCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: primaryColor.withOpacity(0.1),
+                color: primaryColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(

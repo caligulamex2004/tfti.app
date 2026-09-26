@@ -225,6 +225,7 @@ class _SquadPageState extends State<SquadPage> {
           .collection('usernames')
           .doc(input)
           .get();
+      if (!mounted) return;
       if (!usernameDoc.exists) {
         setState(() => _statusMessage = "Username @$input not found.");
         _clearStatusAfterDelay();
@@ -242,6 +243,7 @@ class _SquadPageState extends State<SquadPage> {
           .collection('users')
           .doc(targetUid)
           .get();
+      if (!mounted) return;
       final targetPhone = targetUserDoc.exists
           ? (targetUserDoc.data()?['phoneNumber'] ??
                 targetUserDoc.data()?['phone'] ??
@@ -259,6 +261,7 @@ class _SquadPageState extends State<SquadPage> {
             'addedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
 
+      if (!mounted) return;
       setState(() {
         _removedFriendUids.remove(targetUid);
         _statusMessage = "Added @$input to the squad!";
@@ -277,11 +280,9 @@ class _SquadPageState extends State<SquadPage> {
           .limit(1)
           .get();
 
+      if (!mounted) return;
       if (query.docs.isEmpty) {
         setState(() => _statusMessage = "User not found on tfti.app.");
-        if (!mounted) {
-          return;
-        }
 
         final invite = await showDialog<bool>(
           context: context,
@@ -308,6 +309,7 @@ class _SquadPageState extends State<SquadPage> {
 
         if (invite == true && mounted) {
           await _inviteViaSms(phoneToAdd);
+          if (!mounted) return;
           setState(() {
             _statusMessage = "Invite text prepared!";
             _phoneController.clear();
@@ -336,6 +338,7 @@ class _SquadPageState extends State<SquadPage> {
             'addedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
 
+      if (!mounted) return;
       setState(() {
         _removedFriendUids.remove(friendUid);
         _statusMessage = "Added ${PhoneFormatter.beautify(phoneToAdd)}!";
