@@ -17,6 +17,9 @@ import '../components/forms/squad_needs_form_card.dart';
 import '../components/forms/squad_needs_sheet.dart';
 import '../components/forms/team_selection_field.dart';
 import '../components/forms/editor_action_buttons.dart';
+import '../components/dialogs/season_dialogs.dart';
+import '../components/forms/recurring_season_toggle.dart';
+import '../models/hangout_submission_request.dart';
 import '../utils/event_service.dart';
 import '../utils/theme_provider.dart';
 
@@ -206,134 +209,50 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
   }
 
   Widget _buildRecurringToggle() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
+    return RecurringSeasonToggle(
+      isRecurring: _isRecurring,
+      recurringFrequency: _recurringFrequency,
+      recurringInstances: _recurringInstances,
+      maxRecurringInstances: _maxRecurringInstances,
+      onToggle: (val) => setState(() => _isRecurring = val),
+      onFrequencyChanged: (val) {
+        setState(() {
+          _recurringFrequency = val;
+          _recurringInstances = _maxRecurringInstances;
+        });
+      },
+      onInstancesChanged: (val) => setState(() => _recurringInstances = val),
+    );
+  }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
+  bool _hasUnsavedChanges() {
+    if (!isEditing) {
+      if (_titleController.text.trim().isNotEmpty) return true;
+      if (_locController.text.trim().isNotEmpty) return true;
+      if (_detailsController.text.trim().isNotEmpty) return true;
+      if (_bannerImagePath != null) return true;
+      if (_roles.isNotEmpty) return true;
+    }
+    return false;
+  }
+
+  Future<bool?> _showDiscardDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Discard Changes?"),
+        content: const Text(
+          "You have unsaved changes. Are you sure you want to discard them?",
         ),
-      ),
-      child: Column(
-        children: [
-          const Divider(height: 1),
-          SwitchListTile(
-            activeThumbColor: primaryColor,
-            title: const Text(
-              "Turn this into a recurring Season",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(
-              "Creates multiple hangouts automatically",
-              style: TextStyle(
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                fontSize: 12,
-              ),
-            ),
-            value: _isRecurring,
-            onChanged: (val) {
-              setState(() {
-                _isRecurring = val;
-              });
-            },
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Keep Editing"),
           ),
-          if (_isRecurring)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 8.0,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _recurringFrequency,
-                      decoration: InputDecoration(
-                        labelText: "Frequency",
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                        ),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'weekly',
-                          child: Text("Weekly"),
-                        ),
-                        DropdownMenuItem(
-                          value: 'biweekly',
-                          child: Text("Bi-Weekly"),
-                        ),
-                        DropdownMenuItem(
-                          value: 'monthly',
-                          child: Text("Monthly"),
-                        ),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _recurringFrequency = val;
-                            _recurringInstances = _maxRecurringInstances;
-                          });
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      const Text(
-                        "Instances",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.remove_circle_outline),
-                            onPressed: _recurringInstances > 2
-                                ? () {
-                                    setState(() => _recurringInstances--);
-                                  }
-                                : null,
-                            color: _recurringInstances > 2
-                                ? primaryColor
-                                : Colors.grey,
-                          ),
-                          Text(
-                            "$_recurringInstances",
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle_outline),
-                            onPressed:
-                                _recurringInstances < _maxRecurringInstances
-                                ? () {
-                                    setState(() => _recurringInstances++);
-                                  }
-                                : null,
-                            color: _recurringInstances < _maxRecurringInstances
-                                ? primaryColor
-                                : Colors.grey,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Discard", style: TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );
@@ -354,8 +273,23 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
       return;
     }
 
-    await EventService.submitHangout(
-      context: context,
+    SeasonUpdateScope updateScope = SeasonUpdateScope.single;
+    final String? seasonId = widget.eventData?['seasonId'];
+
+    if (isEditing && _isMainHost && seasonId != null && _isRecurring) {
+      final scope = await SeasonDialogs.showUpdateSeasonScope(context);
+      if (!mounted) return;
+      if (scope == null) return;
+      updateScope = scope;
+    } else if (isEditing && _isMainHost && seasonId != null && !_isRecurring) {
+      final confirm =
+          await SeasonDialogs.showTurnOffRecurringConfirmation(context);
+      if (!mounted) return;
+      if (confirm != true) return;
+      updateScope = SeasonUpdateScope.toggleOff;
+    }
+
+    final request = HangoutSubmissionRequest(
       isEditing: isEditing,
       isMainHost: _isMainHost,
       isCoHost: _isCoHost,
@@ -375,11 +309,16 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
       recurringFrequency: _recurringFrequency,
       recurringInstances: _recurringInstances,
       generateSeasonDates: _generateSeasonDates,
+      updateScope: updateScope,
       bannerImagePath: _bannerImagePath,
       removeBanner: _removeBanner,
       coHostId: _selectedCoHostId,
       coHostName: _selectedCoHostName,
       roles: _roles,
+    );
+
+    await EventService.submitHangout(
+      request: request,
       onLoadingChanged: (val) {
         if (mounted) setState(() => _isLoading = val);
       },
@@ -692,7 +631,16 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     final String appBarTitle = isEditing ? "Manage Hangout" : "Create Hangout";
     final String submitText = isEditing ? "Save Changes" : "Deploy Hangout";
 
-    return Scaffold(
+    return PopScope(
+      canPop: !_hasUnsavedChanges(),
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldPop = await _showDiscardDialog();
+        if (shouldPop == true && context.mounted) {
+          Navigator.pop(context);
+        }
+      },
+      child: Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
@@ -980,6 +928,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                 ),
               ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

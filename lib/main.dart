@@ -18,6 +18,7 @@ import 'pages/teams_page.dart';
 import 'pages/account_page.dart';
 import 'firebase_options.dart';
 import 'utils/theme_provider.dart';
+import 'services/user_cache_repository.dart';
 import 'pages/onboarding_tutorial.dart';
 import 'pages/home_feed.dart';
 
@@ -164,60 +165,35 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         .where('status', isEqualTo: 'pending')
         .snapshots()
         .listen((snap) async {
-          bool foundRealPending = false;
           final now = DateTime.now();
 
-          for (var doc in snap.docs) {
-            final data = doc.data();
-            if (data['isHidden'] == true) continue;
+          final eventIds = snap.docs
+              .where((doc) => doc.data()['isHidden'] != true)
+              .map((doc) => doc.reference.parent.parent?.id)
+              .whereType<String>()
+              .toSet();
 
-            final eventId = doc.reference.parent.parent?.id;
-            if (eventId == null) continue;
+          if (eventIds.isEmpty) {
+            if (mounted) setState(() => _hasRealPending = false);
+            return;
+          }
 
-            try {
-              // Fetch the parent event to check its actual time
-              final eventDoc = await FirebaseFirestore.instance
-                  .collection('events')
-                  .doc(eventId)
-                  .get();
-              if (!eventDoc.exists) continue;
+          final eventsMap =
+              await UserCacheRepository.instance.getEvents(eventIds);
 
-              final eventData = eventDoc.data() as Map<String, dynamic>;
+          bool foundRealPending = false;
+          for (final eventId in eventIds) {
+            final event = eventsMap[eventId];
+            if (event == null) continue;
 
-              // Use the exact same validation logic as Home Feed
-              final Timestamp? ts = eventData['time'];
-              final DateTime eventTime = ts?.toDate() ?? now;
+            final bool isPast = event.isCurrentlyPast(now);
+            final bool isPastDeadline = now.isAfter(event.rsvpDeadlineTime);
+            final bool isActuallyDeclined =
+                isPastDeadline && !event.isVibeCheck;
 
-              final Timestamp? endTs = eventData['endTime'];
-              DateTime endTime;
-              if (endTs != null) {
-                endTime = endTs.toDate();
-              } else {
-                final int keepAliveDays = eventData['keepAliveDays'] ?? 0;
-                final int durationMinutes = keepAliveDays > 0
-                    ? (keepAliveDays * 24 * 60)
-                    : 240;
-                endTime = eventTime.add(Duration(minutes: durationMinutes));
-              }
-
-              final bool dbIsPast = eventData['isPast'] == true;
-              final bool isPast = dbIsPast || now.isAfter(endTime);
-
-              final int deadlineOffset = eventData['rsvpDeadline'] ?? 0;
-              final DateTime deadlineTime = eventTime.add(
-                Duration(minutes: deadlineOffset),
-              );
-              final bool isPastDeadline = now.isAfter(deadlineTime);
-              final bool isActuallyDeclined =
-                  isPastDeadline && eventData['type'] != 'vibe_check';
-
-              // If the event is NOT past, and NOT artificially declined, it's a REAL pending invite!
-              if (!isPast && !isActuallyDeclined) {
-                foundRealPending = true;
-                break; // Found one! No need to check the rest, turn on the badge!
-              }
-            } catch (e) {
-              debugPrint("Error validating pending invite: $e");
+            if (!isPast && !isActuallyDeclined) {
+              foundRealPending = true;
+              break;
             }
           }
 

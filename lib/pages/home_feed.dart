@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
@@ -15,6 +14,12 @@ import '../components/feed/empty_feed_states.dart';
 import '../components/feed/feed_skeleton.dart';
 import '../components/feed/contextual_empty_card.dart';
 import '../components/feed/carousel_feed_list.dart';
+import '../models/feed_snapshot.dart';
+import '../services/feed_service.dart';
+import '../services/friend_service.dart';
+import '../services/user_service.dart';
+import '../utils/event_service.dart';
+import '../utils/feed_filter_utils.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -28,6 +33,29 @@ class _HomePageState extends State<HomePage> {
   Map<String, dynamic>? _selectedEventData;
   bool _showHidden = false;
   FeedFilter _selectedFilter = FeedFilter.thisWeek;
+
+  Stream<FeedSnapshot>? _feedStream;
+  String? _currentUid;
+
+  @override
+  void initState() {
+    super.initState();
+    _initFeedStream();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _initFeedStream();
+  }
+
+  void _initFeedStream() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null && uid != _currentUid) {
+      _currentUid = uid;
+      _feedStream = FeedService.feedStream(uid);
+    }
+  }
 
   void _showAddMenu() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -135,15 +163,11 @@ class _HomePageState extends State<HomePage> {
     );
 
     if (confirm == true) {
-      await FirebaseFirestore.instance
-          .collection('events')
-          .doc(eventId)
-          .collection('invitations')
-          .doc(user.uid)
-          .set({
-            'uid': user.uid,
-            'isHidden': !currentlyHidden,
-          }, SetOptions(merge: true));
+      await EventService.toggleEventHidden(
+        eventId: eventId,
+        uid: user.uid,
+        currentlyHidden: currentlyHidden,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -184,31 +208,20 @@ class _HomePageState extends State<HomePage> {
         onToggleGoated: (currentGoated) async {
           Navigator.pop(ctx);
           HapticFeedback.mediumImpact();
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .collection('friends')
-              .doc(hostId)
-              .set({'isGoated': !currentGoated}, SetOptions(merge: true));
+          await FriendService.toggleGoated(
+            myUid: user.uid,
+            friendUid: hostId,
+            isGoated: !currentGoated,
+          );
         },
         onToggleBlocked: (currentBlocked) async {
           Navigator.pop(ctx);
           HapticFeedback.heavyImpact();
-          if (currentBlocked) {
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .update({
-                  'blockedUids': FieldValue.arrayRemove([hostId]),
-                });
-          } else {
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .update({
-                  'blockedUids': FieldValue.arrayUnion([hostId]),
-                });
-          }
+          await UserService.toggleBlockUser(
+            myUid: user.uid,
+            targetUid: hostId,
+            isBlocked: !currentBlocked,
+          );
         },
       ),
     );
@@ -257,6 +270,104 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildSectionHeader(
+    String title,
+    Color color, {
+    EdgeInsets padding = const EdgeInsets.only(left: 20, bottom: 12),
+  }) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: padding,
+        child: Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: color,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventsCarouselOrList({
+    required List<Map<String, dynamic>> items,
+    required bool isLandscape,
+    required List<String> goatedUids,
+    required List<String> blockedUids,
+    bool forceVertical = false,
+    EdgeInsets landscapePadding = const EdgeInsets.symmetric(horizontal: 16),
+    double carouselBottomPadding = 0,
+  }) {
+    if (isLandscape || forceVertical) {
+      return SliverPadding(
+        padding: landscapePadding,
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) => _buildEventSummaryCardWrapper(
+              items[index],
+              isLandscape,
+              false,
+              goatedUids,
+              blockedUids,
+            ),
+            childCount: items.length,
+          ),
+        ),
+      );
+    } else {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.only(bottom: carouselBottomPadding),
+          child: SizedBox(
+            height: 310,
+            child: CarouselFeedList(
+              itemCount: items.length,
+              itemBuilder: (context, index) => _buildEventSummaryCardWrapper(
+                items[index],
+                isLandscape,
+                true,
+                goatedUids,
+                blockedUids,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildContextualEmptySliver({
+    required IconData icon,
+    required String title,
+    required String message,
+    required bool isLandscape,
+  }) {
+    return SliverToBoxAdapter(
+      child: SizedBox(
+        height: 310,
+        child: isLandscape
+            ? CarouselFeedList(
+                itemCount: 1,
+                itemBuilder: (context, index) => ContextualEmptyCard(
+                  icon: icon,
+                  title: title,
+                  message: message,
+                ),
+              )
+            : Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: ContextualEmptyCard(
+                  icon: icon,
+                  title: title,
+                  message: message,
+                ),
+              ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -265,704 +376,207 @@ class _HomePageState extends State<HomePage> {
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
-    Widget feedContent = StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user?.uid)
-          .snapshots(),
-      builder: (context, userSnap) {
-        List<String> blockedUids = [];
-        String firstName = "there";
-        if (userSnap.hasData && userSnap.data!.exists) {
-          final userData = userSnap.data!.data() as Map<String, dynamic>?;
-          if (userData != null) {
-            if (userData['blockedUids'] != null) {
-              blockedUids = List<String>.from(userData['blockedUids']);
-            }
-            if (userData['displayName'] != null) {
-              final String name = userData['displayName'] as String;
-              if (name.trim().isNotEmpty) {
-                firstName = name.trim().split(' ')[0];
-              }
-            }
-          }
+    final Widget feedContent = StreamBuilder<FeedSnapshot>(
+      stream: _feedStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return FeedSkeleton(isLandscape: isLandscape);
         }
 
-        return StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .doc(user?.uid)
-              .collection('friends')
-              .where('isGoated', isEqualTo: true)
-              .snapshots(),
-          builder: (context, friendsSnap) {
-            List<String> goatedUids = [];
-            if (friendsSnap.hasData) {
-              goatedUids = friendsSnap.data!.docs.map((doc) => doc.id).toList();
-            }
+        final feedSnapshot = snapshot.data ?? FeedSnapshot.empty;
+        final filtered = FeedFilterUtils.filterAndBucket(
+          events: feedSnapshot.events,
+          myInvitesMap: feedSnapshot.myInvitesMap,
+          blockedUids: feedSnapshot.blockedUids,
+          goatedUids: feedSnapshot.goatedUids,
+          currentUserId: user?.uid ?? '',
+          filter: _selectedFilter,
+        );
 
-            return StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collectionGroup('invitations')
-                  .where('uid', isEqualTo: user?.uid)
-                  .snapshots(),
-              builder: (context, inviteSnapshot) {
-                Map<String, Map<String, dynamic>> myInvitesMap = {};
-                if (inviteSnapshot.hasData) {
-                  for (var doc in inviteSnapshot.data!.docs) {
-                    final eventId = doc.reference.parent.parent?.id;
-                    if (eventId != null) {
-                      myInvitesMap[eventId] =
-                          doc.data() as Map<String, dynamic>;
-                    }
-                  }
-                }
+        final filterText = FeedFilterUtils.getFilterSubtitle(_selectedFilter);
+        final greeting = FeedFilterUtils.getGreeting();
 
-                return StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('events')
-                      .where('visibleTo', arrayContains: user?.uid)
-                      .snapshots(),
-                  builder: (context, eventSnapshot) {
-                    if (eventSnapshot.connectionState ==
-                            ConnectionState.waiting &&
-                        !eventSnapshot.hasData) {
-                      return FeedSkeleton(isLandscape: isLandscape);
-                    }
-
-                    final now = DateTime.now();
-                    final int daysSinceMonday = now.weekday - 1;
-                    final startOfThisWeek = DateTime(
-                      now.year,
-                      now.month,
-                      now.day - daysSinceMonday,
-                    );
-                    final int daysToSunday = 7 - now.weekday;
-                    final endOfThisWeek = DateTime(
-                      now.year,
-                      now.month,
-                      now.day + daysToSunday,
-                      23,
-                      59,
-                      59,
-                    );
-
-                    final startOfNextWeek = endOfThisWeek.add(
-                      const Duration(seconds: 1),
-                    );
-                    final endOfNextWeek = startOfNextWeek.add(
-                      const Duration(
-                        days: 6,
-                        hours: 23,
-                        minutes: 59,
-                        seconds: 59,
-                      ),
-                    );
-
-                    final startOfThisMonth = DateTime(now.year, now.month, 1);
-                    final endOfThisMonth = DateTime(
-                      now.year,
-                      now.month + 1,
-                      0,
-                      23,
-                      59,
-                      59,
-                    );
-
-                    final startOfNextMonth = DateTime(
-                      now.year,
-                      now.month + 1,
-                      1,
-                    );
-                    final endOfNextMonth = DateTime(
-                      now.year,
-                      now.month + 2,
-                      0,
-                      23,
-                      59,
-                      59,
-                    );
-
-                    List<Map<String, dynamic>> actionNeededEvents = [];
-                    List<Map<String, dynamic>> agendaEvents = [];
-                    List<Map<String, dynamic>> declinedEvents = [];
-                    List<Map<String, dynamic>> pastEvents = [];
-                    List<Map<String, dynamic>> hiddenEvents = [];
-
-                    final eventDocs = eventSnapshot.data?.docs ?? [];
-                    for (var eventDoc in eventDocs) {
-                      final eventId = eventDoc.id;
-                      final eventData = eventDoc.data() as Map<String, dynamic>;
-                      final String hostId = eventData['hostId'] ?? '';
-
-                      if (blockedUids.contains(hostId)) continue;
-                      if (_selectedFilter == FeedFilter.goated &&
-                          !goatedUids.contains(hostId)) {
-                        continue;
-                      }
-
-                      final Timestamp? ts = eventData['time'];
-                      final DateTime eventTime = ts?.toDate() ?? now;
-
-                      if (_selectedFilter == FeedFilter.thisWeek &&
-                          (eventTime.isBefore(startOfThisWeek) ||
-                              eventTime.isAfter(endOfThisWeek))) {
-                        continue;
-                      } else if (_selectedFilter == FeedFilter.nextWeek &&
-                          (eventTime.isBefore(startOfNextWeek) ||
-                              eventTime.isAfter(endOfNextWeek))) {
-                        continue;
-                      } else if (_selectedFilter == FeedFilter.thisMonth &&
-                          (eventTime.isBefore(startOfThisMonth) ||
-                              eventTime.isAfter(endOfThisMonth))) {
-                        continue;
-                      } else if (_selectedFilter == FeedFilter.nextMonth &&
-                          (eventTime.isBefore(startOfNextMonth) ||
-                              eventTime.isAfter(endOfNextMonth))) {
-                        continue;
-                      }
-
-                      final bool isMyEvent = hostId == user?.uid;
-                      final inviteData = myInvitesMap[eventId] ?? {};
-                      String status =
-                          inviteData['status'] ??
-                          (isMyEvent ? 'going' : 'pending');
-                      final bool isHidden = inviteData['isHidden'] ?? false;
-
-                      final int deadlineOffset = eventData['rsvpDeadline'] ?? 0;
-                      final DateTime deadlineTime = eventTime.add(
-                        Duration(minutes: deadlineOffset),
-                      );
-                      if (status == 'pending' &&
-                          now.isAfter(deadlineTime) &&
-                          eventData['type'] != 'vibe_check') {
-                        status = 'declined';
-                      }
-
-                      final Timestamp? endTs = eventData['endTime'];
-                      DateTime endTime;
-                      if (endTs != null) {
-                        endTime = endTs.toDate();
-                      } else {
-                        final int keepAliveDays =
-                            eventData['keepAliveDays'] ?? 0;
-                        final int durationMinutes = keepAliveDays > 0
-                            ? (keepAliveDays * 24 * 60)
-                            : 240;
-                        endTime = eventTime.add(
-                          Duration(minutes: durationMinutes),
-                        );
-                      }
-
-                      final bool isPast =
-                          (eventData['isPast'] == true) || now.isAfter(endTime);
-                      final bool isStartingSoon =
-                          eventTime.isAfter(now) &&
-                          eventTime.difference(now).inMinutes <= 60;
-                      final bool isHappeningNow =
-                          !eventTime.isAfter(now) && !now.isAfter(endTime);
-
-                      final eventItem = {
-                        'id': eventId,
-                        'eventData': eventData,
-                        'inviteData': inviteData,
-                        'isPast': isPast,
-                        'isStartingSoon': isStartingSoon,
-                        'isHappeningNow': isHappeningNow,
-                        'status': status,
-                        'time': eventTime,
-                      };
-
-                      if (isHidden) {
-                        hiddenEvents.add(eventItem);
-                      } else if (isPast) {
-                        pastEvents.add(eventItem);
-                      } else if (status == 'pending') {
-                        actionNeededEvents.add(eventItem);
-                      } else if (status == 'going') {
-                        agendaEvents.add(eventItem);
-                      } else if (status == 'declined') {
-                        declinedEvents.add(eventItem);
-                      }
-                    }
-
-                    actionNeededEvents.sort(
-                      (a, b) => (a['time'] as DateTime).compareTo(
-                        b['time'] as DateTime,
-                      ),
-                    );
-                    agendaEvents.sort(
-                      (a, b) => (a['time'] as DateTime).compareTo(
-                        b['time'] as DateTime,
-                      ),
-                    );
-                    declinedEvents.sort(
-                      (a, b) => (a['time'] as DateTime).compareTo(
-                        b['time'] as DateTime,
-                      ),
-                    );
-                    pastEvents.sort(
-                      (a, b) => (b['time'] as DateTime).compareTo(
-                        a['time'] as DateTime,
-                      ),
-                    );
-                    hiddenEvents.sort(
-                      (a, b) => (b['time'] as DateTime).compareTo(
-                        a['time'] as DateTime,
-                      ),
-                    );
-
-                    String filterText = "";
-                    switch (_selectedFilter) {
-                      case FeedFilter.thisWeek:
-                        filterText = " this week";
-                        break;
-                      case FeedFilter.nextWeek:
-                        filterText = " next week";
-                        break;
-                      case FeedFilter.thisMonth:
-                        filterText = " this month";
-                        break;
-                      case FeedFilter.nextMonth:
-                        filterText = " next month";
-                        break;
-                      case FeedFilter.goated:
-                        filterText = " with your Goated friends";
-                        break;
-                      case FeedFilter.all:
-                        filterText = "";
-                        break;
-                    }
-
-                    final hour = DateTime.now().hour;
-                    String greeting;
-                    if (hour < 12) {
-                      greeting = "Good morning";
-                    } else if (hour < 17) {
-                      greeting = "Good afternoon";
-                    } else {
-                      greeting = "Good evening";
-                    }
-
-                    return CustomScrollView(
-                      slivers: [
-                        SharedSliverAppBar(
-                          title: "the i's",
-                          collapsedTitle: "thanks for the invite",
-                          subtitle: "$greeting, $firstName",
-                          expandedHeight: isLandscape ? 56.0 : 140.0,
-                          hasBackButton: false,
-                          actions: [
-                            Padding(
-                              padding: const EdgeInsets.only(right: 16.0),
-                              child: Center(
-                                child: InkWell(
-                                  onTap: () {
-                                    HapticFeedback.lightImpact();
-                                    _showAddMenu();
-                                  },
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: primaryColor.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.add,
-                                          color: primaryColor,
-                                          size: 16,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          "Create",
-                                          style: TextStyle(
-                                            color: primaryColor,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+        return CustomScrollView(
+          slivers: [
+            SharedSliverAppBar(
+              title: "the i's",
+              collapsedTitle: "thanks for the invite",
+              subtitle: "$greeting, ${feedSnapshot.firstName}",
+              expandedHeight: isLandscape ? 56.0 : 140.0,
+              hasBackButton: false,
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: Center(
+                    child: InkWell(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _showAddMenu();
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.add,
+                              color: primaryColor,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              "Create",
+                              style: TextStyle(
+                                color: primaryColor,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
                         ),
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0),
-                            child: FeedFilterBar(
-                              selectedFilter: _selectedFilter,
-                              onFilterChanged: (f) =>
-                                  setState(() => _selectedFilter = f),
-                            ),
-                          ),
-                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: FeedFilterBar(
+                  selectedFilter: _selectedFilter,
+                  onFilterChanged: (f) => setState(() => _selectedFilter = f),
+                ),
+              ),
+            ),
 
-                        // --- ACTION NEEDED ---
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.only(
-                              left: 20,
-                              bottom: 12,
-                            ),
-                            child: Text(
-                              "Action Needed",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: isDark
-                                    ? Colors.grey.shade400
-                                    : Colors.grey.shade600,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (actionNeededEvents.isNotEmpty)
-                          if (isLandscape)
-                            SliverPadding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              sliver: SliverList(
-                                delegate: SliverChildBuilderDelegate(
-                                  (context, index) =>
-                                      _buildEventSummaryCardWrapper(
-                                        actionNeededEvents[index],
-                                        isLandscape,
-                                        false,
-                                        goatedUids,
-                                        blockedUids,
-                                      ),
-                                  childCount: actionNeededEvents.length,
-                                ),
-                              ),
-                            )
-                          else
-                            SliverToBoxAdapter(
-                              child: SizedBox(
-                                height: 310,
-                                child: CarouselFeedList(
-                                  itemCount: actionNeededEvents.length,
-                                  itemBuilder: (context, index) =>
-                                      _buildEventSummaryCardWrapper(
-                                        actionNeededEvents[index],
-                                        isLandscape,
-                                        true,
-                                        goatedUids,
-                                        blockedUids,
-                                      ),
-                                ),
-                              ),
-                            )
-                        else
-                          SliverToBoxAdapter(
-                            child: SizedBox(
-                              height: 310,
-                              child: isLandscape
-                                  ? CarouselFeedList(
-                                      itemCount: 1,
-                                      itemBuilder: (context, index) =>
-                                          ContextualEmptyCard(
-                                            icon: Icons.check_circle_outline,
-                                            title: "You're all caught up!",
-                                            message:
-                                                "You have no pending invites$filterText.",
-                                          ),
-                                    )
-                                  : Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                      ),
-                                      child: ContextualEmptyCard(
-                                        icon: Icons.check_circle_outline,
-                                        title: "You're all caught up!",
-                                        message:
-                                            "You have no pending invites$filterText.",
-                                      ),
-                                    ),
-                            ),
-                          ),
-                        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            // --- ACTION NEEDED ---
+            _buildSectionHeader(
+              "Action Needed",
+              isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            ),
+            if (filtered.actionNeeded.isNotEmpty)
+              _buildEventsCarouselOrList(
+                items: filtered.actionNeeded,
+                isLandscape: isLandscape,
+                goatedUids: feedSnapshot.goatedUids,
+                blockedUids: feedSnapshot.blockedUids,
+              )
+            else
+              _buildContextualEmptySliver(
+                icon: Icons.check_circle_outline,
+                title: "You're all caught up!",
+                message: "You have no pending invites$filterText.",
+                isLandscape: isLandscape,
+              ),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-                        // --- THE AGENDA ---
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.only(
-                              left: 20,
-                              bottom: 12,
-                            ),
-                            child: Text(
-                              "The Agenda",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: isDark
-                                    ? Colors.grey.shade400
-                                    : Colors.grey.shade600,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (agendaEvents.isNotEmpty)
-                          SliverPadding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            sliver: SliverList(
-                              delegate: SliverChildBuilderDelegate(
-                                (context, index) =>
-                                    _buildEventSummaryCardWrapper(
-                                      agendaEvents[index],
-                                      isLandscape,
-                                      false,
-                                      goatedUids,
-                                      blockedUids,
-                                    ),
-                                childCount: agendaEvents.length,
-                              ),
-                            ),
-                          )
-                        else
-                          SliverToBoxAdapter(
-                            child: SizedBox(
-                              height: 310,
-                              child: isLandscape
-                                  ? CarouselFeedList(
-                                      itemCount: 1,
-                                      itemBuilder: (context, index) =>
-                                          ContextualEmptyCard(
-                                            icon: Icons.celebration,
-                                            title: "Nothing on the agenda.",
-                                            message:
-                                                "Your agenda is looking a bit empty$filterText... Tap the + to host a hangout!",
-                                          ),
-                                    )
-                                  : Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                      ),
-                                      child: ContextualEmptyCard(
-                                        icon: Icons.celebration,
-                                        title: "Nothing on the agenda.",
-                                        message:
-                                            "Your agenda is looking a bit empty$filterText... Tap the + to host a hangout!",
-                                      ),
-                                    ),
-                            ),
-                          ),
-                        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            // --- THE AGENDA ---
+            _buildSectionHeader(
+              "The Agenda",
+              isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            ),
+            if (filtered.agenda.isNotEmpty)
+              _buildEventsCarouselOrList(
+                items: filtered.agenda,
+                isLandscape: isLandscape,
+                goatedUids: feedSnapshot.goatedUids,
+                blockedUids: feedSnapshot.blockedUids,
+                forceVertical: true,
+              )
+            else
+              _buildContextualEmptySliver(
+                icon: Icons.celebration,
+                title: "Nothing on the agenda.",
+                message:
+                    "Your agenda is looking a bit empty$filterText... Tap the + to host a hangout!",
+                isLandscape: isLandscape,
+              ),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-                        if (declinedEvents.isNotEmpty) ...[
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                left: 20,
-                                top: 12,
-                                bottom: 12,
-                              ),
-                              child: Text(
-                                "Not Going",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark
-                                      ? Colors.grey.shade600
-                                      : Colors.grey.shade400,
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (isLandscape)
-                            SliverPadding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              sliver: SliverList(
-                                delegate: SliverChildBuilderDelegate(
-                                  (context, index) =>
-                                      _buildEventSummaryCardWrapper(
-                                        declinedEvents[index],
-                                        isLandscape,
-                                        false,
-                                        goatedUids,
-                                        blockedUids,
-                                      ),
-                                  childCount: declinedEvents.length,
-                                ),
-                              ),
-                            )
-                          else
-                            SliverToBoxAdapter(
-                              child: SizedBox(
-                                height: 310,
-                                child: CarouselFeedList(
-                                  itemCount: declinedEvents.length,
-                                  itemBuilder: (context, index) =>
-                                      _buildEventSummaryCardWrapper(
-                                        declinedEvents[index],
-                                        isLandscape,
-                                        true,
-                                        goatedUids,
-                                        blockedUids,
-                                      ),
-                                ),
-                              ),
-                            ),
-                          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-                        ],
+            // --- NOT GOING ---
+            if (filtered.declined.isNotEmpty) ...[
+              _buildSectionHeader(
+                "Not Going",
+                isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+                padding: const EdgeInsets.only(left: 20, top: 12, bottom: 12),
+              ),
+              _buildEventsCarouselOrList(
+                items: filtered.declined,
+                isLandscape: isLandscape,
+                goatedUids: feedSnapshot.goatedUids,
+                blockedUids: feedSnapshot.blockedUids,
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            ],
 
-                        if (pastEvents.isNotEmpty) ...[
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                left: 20,
-                                top: 12,
-                                bottom: 12,
-                              ),
-                              child: Text(
-                                "Past Hangouts",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark
-                                      ? Colors.grey.shade600
-                                      : Colors.grey.shade400,
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (isLandscape)
-                            SliverPadding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              sliver: SliverList(
-                                delegate: SliverChildBuilderDelegate(
-                                  (context, index) =>
-                                      _buildEventSummaryCardWrapper(
-                                        pastEvents[index],
-                                        isLandscape,
-                                        false,
-                                        goatedUids,
-                                        blockedUids,
-                                      ),
-                                  childCount: pastEvents.length,
-                                ),
-                              ),
-                            )
-                          else
-                            SliverToBoxAdapter(
-                              child: SizedBox(
-                                height: 310,
-                                child: CarouselFeedList(
-                                  itemCount: pastEvents.length,
-                                  itemBuilder: (context, index) =>
-                                      _buildEventSummaryCardWrapper(
-                                        pastEvents[index],
-                                        isLandscape,
-                                        true,
-                                        goatedUids,
-                                        blockedUids,
-                                      ),
-                                ),
-                              ),
-                            ),
-                          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-                        ],
+            // --- PAST HANGOUTS ---
+            if (filtered.past.isNotEmpty) ...[
+              _buildSectionHeader(
+                "Past Hangouts",
+                isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+                padding: const EdgeInsets.only(left: 20, top: 12, bottom: 12),
+              ),
+              _buildEventsCarouselOrList(
+                items: filtered.past,
+                isLandscape: isLandscape,
+                goatedUids: feedSnapshot.goatedUids,
+                blockedUids: feedSnapshot.blockedUids,
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            ],
 
-                        if (hiddenEvents.isNotEmpty) ...[
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 12,
-                              ),
-                              child: TextButton.icon(
-                                onPressed: () =>
-                                    setState(() => _showHidden = !_showHidden),
-                                icon: Icon(
-                                  _showHidden
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                  color: Colors.grey,
-                                ),
-                                label: Text(
-                                  _showHidden
-                                      ? "Hide Archived Events"
-                                      : "View Hidden Events (${hiddenEvents.length})",
-                                  style: const TextStyle(color: Colors.grey),
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (_showHidden)
-                            if (isLandscape)
-                              SliverPadding(
-                                padding: const EdgeInsets.only(
-                                  left: 16,
-                                  right: 16,
-                                  bottom: 100,
-                                ),
-                                sliver: SliverList(
-                                  delegate: SliverChildBuilderDelegate(
-                                    (context, index) =>
-                                        _buildEventSummaryCardWrapper(
-                                          hiddenEvents[index],
-                                          isLandscape,
-                                          false,
-                                          goatedUids,
-                                          blockedUids,
-                                        ),
-                                    childCount: hiddenEvents.length,
-                                  ),
-                                ),
-                              )
-                            else
-                              SliverToBoxAdapter(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(bottom: 100),
-                                  child: SizedBox(
-                                    height: 310,
-                                    child: CarouselFeedList(
-                                      itemCount: hiddenEvents.length,
-                                      itemBuilder: (context, index) =>
-                                          _buildEventSummaryCardWrapper(
-                                            hiddenEvents[index],
-                                            isLandscape,
-                                            true,
-                                            goatedUids,
-                                            blockedUids,
-                                          ),
-                                    ),
-                                  ),
-                                ),
-                              )
-                          else
-                            const SliverToBoxAdapter(
-                              child: SizedBox(height: 100),
-                            ),
-                        ] else ...[
-                          const SliverToBoxAdapter(
-                            child: SizedBox(height: 100),
-                          ),
-                        ],
-                      ],
-                    );
-                  },
-                );
-              },
-            );
-          },
+            // --- HIDDEN EVENTS ---
+            if (filtered.hidden.isNotEmpty) ...[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  child: TextButton.icon(
+                    onPressed: () =>
+                        setState(() => _showHidden = !_showHidden),
+                    icon: Icon(
+                      _showHidden ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    label: Text(
+                      _showHidden
+                          ? "Hide Archived Events"
+                          : "View Hidden Events (${filtered.hidden.length})",
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                ),
+              ),
+              if (_showHidden)
+                _buildEventsCarouselOrList(
+                  items: filtered.hidden,
+                  isLandscape: isLandscape,
+                  goatedUids: feedSnapshot.goatedUids,
+                  blockedUids: feedSnapshot.blockedUids,
+                  landscapePadding: const EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    bottom: 100,
+                  ),
+                  carouselBottomPadding: 100,
+                )
+              else
+                const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            ] else ...[
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            ],
+          ],
         );
       },
     );

@@ -16,6 +16,7 @@ import '../components/chat/chat_input_field.dart';
 import '../components/chat/mentions_overlay.dart';
 import '../components/chat/chat_action_dialogs.dart';
 import '../components/chat/chat_feed.dart';
+import '../services/user_cache_repository.dart';
 
 class ChatPage extends StatefulWidget {
   final String eventId;
@@ -84,8 +85,11 @@ class _ChatPageState extends State<ChatPage> {
         .collection('invitations')
         .snapshots()
         .listen((snapshot) async {
-          List<Map<String, dynamic>> guests = [];
           final currentUser = FirebaseAuth.instance.currentUser;
+          final guestUids = snapshot.docs.map((doc) => doc.id).toList();
+          final userMap = await UserCacheRepository.instance.getUsers(guestUids);
+
+          List<Map<String, dynamic>> guests = [];
 
           for (var doc in snapshot.docs) {
             final data = doc.data();
@@ -96,32 +100,25 @@ class _ChatPageState extends State<ChatPage> {
                 });
               }
             }
-            try {
-              final userDoc = await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(doc.id)
-                  .get();
-              if (userDoc.exists) {
-                final userData = userDoc.data() as Map<String, dynamic>;
-                final String displayName = userData['displayName'] ?? 'Unknown';
 
-                final String realUsername =
-                    userData['username'] ??
-                    displayName.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+            final profile = userMap[doc.id];
+            if (profile != null) {
+              final String displayName = profile.displayName.isNotEmpty
+                  ? profile.displayName
+                  : 'Unknown';
+              final String realUsername = profile.username.isNotEmpty
+                  ? profile.username
+                  : displayName.toLowerCase().replaceAll(RegExp(r'\s+'), '');
 
-                guests.add({
-                  'uid': doc.id,
-                  'displayName': displayName,
-                  'tag': realUsername,
-                  'avatarUrl': userData['avatarUrl'],
-                  'avatarColor':
-                      userData['avatarColor'] ?? Colors.blue.toARGB32(),
-                  'status': data['status'],
-                  'lastReadChat': data['lastReadChat'],
-                });
-              }
-            } catch (e) {
-              debugPrint("Error fetching user data for chat guest: $e");
+              guests.add({
+                'uid': doc.id,
+                'displayName': displayName,
+                'tag': realUsername,
+                'avatarUrl': profile.avatarUrl,
+                'avatarColor': profile.avatarColor,
+                'status': data['status'],
+                'lastReadChat': data['lastReadChat'],
+              });
             }
           }
 

@@ -81,12 +81,48 @@ class Event {
     this.lastMessageMentions,
   });
 
+  bool get isVibeCheck => type == 'vibe_check';
+  bool get isHangout => type != 'vibe_check';
+  bool isHost(String uid) => hostId == uid;
+  bool isCoHost(String? uid) => uid != null && coHostId == uid;
+
+  DateTime get calculatedEndTime {
+    if (endTime != null) return endTime!;
+    final int durationMinutes = keepAliveDays > 0 ? (keepAliveDays * 24 * 60) : 240;
+    return time.add(Duration(minutes: durationMinutes));
+  }
+
+  DateTime get rsvpDeadlineTime => time.add(Duration(minutes: rsvpDeadline));
+
+  bool isCurrentlyPast([DateTime? currentTime]) {
+    final now = currentTime ?? DateTime.now();
+    return isPast || now.isAfter(calculatedEndTime);
+  }
+
   // Convert JSON from Firestore -> our Object
   factory Event.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>? ?? {};
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return Event.fromMap(data, id: doc.id);
+  }
+
+  factory Event.fromMap(Map<String, dynamic> data, {String? id}) {
+    DateTime parseDate(dynamic val, DateTime fallback) {
+      if (val is Timestamp) return val.toDate();
+      if (val is String) {
+        final parsed = DateTime.tryParse(val);
+        if (parsed != null) return parsed;
+      }
+      return fallback;
+    }
+
+    DateTime? parseNullableDate(dynamic val) {
+      if (val is Timestamp) return val.toDate();
+      if (val is String) return DateTime.tryParse(val);
+      return null;
+    }
 
     return Event(
-      id: doc.id,
+      id: id ?? data['id'] ?? '',
       type: data['type'] ?? 'event',
       hostId: data['hostId'] ?? '',
       coHostId: data['coHostId'],
@@ -96,20 +132,16 @@ class Event {
       bannerUrl: data['bannerUrl'],
 
       // Safely parse timestamps
-      time: data['time'] != null
-          ? (data['time'] as Timestamp).toDate()
-          : DateTime.now(),
-      endTime: data['endTime'] != null
-          ? (data['endTime'] as Timestamp).toDate()
-          : null,
-      isPast: data['isPast'] ?? false,
+      time: parseDate(data['time'], DateTime.now()),
+      endTime: parseNullableDate(data['endTime']),
+      isPast: data['isPast'] == true,
 
-      isImportantDetails: data['isImportantDetails'] ?? false,
+      isImportantDetails: data['isImportantDetails'] == true,
       rsvpDeadline: data['rsvpDeadline'] ?? 0,
       keepAliveDays: data['keepAliveDays'] ?? 0,
-      pointsAwarded: data['pointsAwarded'] ?? false,
+      pointsAwarded: data['pointsAwarded'] == true,
 
-      inviteAll: data['inviteAll'] ?? false,
+      inviteAll: data['inviteAll'] == true,
       invitedCircles: List<String>.from(data['invitedCircles'] ?? []),
       coHostInviteAll: data['coHostInviteAll'],
       coHostInvitedCircles: data['coHostInvitedCircles'] != null
@@ -127,18 +159,12 @@ class Event {
       lockedOptionId: data['lockedOptionId'],
       isTieBreakerNeeded: data['isTieBreakerNeeded'],
 
-      createdAt: data['created_at'] != null
-          ? (data['created_at'] as Timestamp).toDate()
-          : null,
-      lastUpdatedAt: data['lastUpdatedAt'] != null
-          ? (data['lastUpdatedAt'] as Timestamp).toDate()
-          : null,
+      createdAt: parseNullableDate(data['created_at'] ?? data['createdAt']),
+      lastUpdatedAt: parseNullableDate(data['lastUpdatedAt']),
       latestCriticalChange:
           data['latestCriticalChange'] as Map<String, dynamic>?,
 
-      lastMessageAt: data['lastMessageAt'] != null
-          ? (data['lastMessageAt'] as Timestamp).toDate()
-          : null,
+      lastMessageAt: parseNullableDate(data['lastMessageAt']),
       lastMessageSnippet: data['lastMessageSnippet'] as String?,
       lastMessageMentions: data['lastMessageMentions'] != null
           ? List<String>.from(data['lastMessageMentions'])
