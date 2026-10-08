@@ -19,7 +19,7 @@ dependencies:
   url_launcher: ^6.3.2
   http: ^1.2.0
   uuid: ^4.3.3
-  material_symbols_icons: ^4.2892.0
+  material_symbols_icons: ^4.2960.0
   flutter_contacts: ^1.1.9+2
   shared_preferences: ^2.5.4
   intl_phone_field: ^3.2.0
