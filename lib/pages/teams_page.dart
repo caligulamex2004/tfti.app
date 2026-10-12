@@ -49,7 +49,7 @@ class _TeamsPageState extends State<TeamsPage> {
         final newId = await TeamService.createTeam(uid: uid, name: name);
         if (!mounted) return;
 
-        if (MediaQuery.of(context).orientation == Orientation.landscape) {
+        if (MediaQuery.orientationOf(context) == Orientation.landscape) {
           setState(() {
             _selectedCircleId = newId;
             _selectedCircleName = name;
@@ -306,7 +306,7 @@ class _TeamsPageState extends State<TeamsPage> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final isLandscape = MediaQuery.of(context).size.width > 600;
+    final isLandscape = MediaQuery.sizeOf(context).width > 600;
 
     final listContent = _buildTeamsList(
       context,

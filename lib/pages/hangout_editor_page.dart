@@ -626,7 +626,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
   @override
   Widget build(BuildContext context) {
     final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
+        MediaQuery.orientationOf(context) == Orientation.landscape;
 
     final String appBarTitle = isEditing ? "Manage Hangout" : "Create Hangout";
     final String submitText = isEditing ? "Save Changes" : "Deploy Hangout";

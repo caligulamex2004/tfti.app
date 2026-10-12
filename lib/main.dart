@@ -265,7 +265,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
+        MediaQuery.orientationOf(context) == Orientation.landscape;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Use new smart variable to show the badge

@@ -12,6 +12,8 @@ import '../components/squad/add_friend_section.dart';
 import '../components/squad/friend_list_feed.dart';
 import '../components/squad/contact_import_sheet.dart';
 import '../services/contact_service.dart';
+import '../services/friend_service.dart';
+import '../services/user_cache_repository.dart';
 import '../utils/phone_formatter.dart';
 import '../components/shared/shared_sliver_app_bar.dart';
 
@@ -90,12 +92,7 @@ class _SquadPageState extends State<SquadPage> {
       }
 
       final myUid = FirebaseAuth.instance.currentUser!.uid;
-      final friendsSnap = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(myUid)
-          .collection('friends')
-          .get(const GetOptions(source: Source.server));
-      final myFriendUids = friendsSnap.docs.map((d) => d.id).toSet();
+      final myFriendUids = await FriendService.getFriendUids(myUid);
 
       List<String> allPhones = [];
       Map<String, Contact> phoneToContact = {};
@@ -221,45 +218,29 @@ class _SquadPageState extends State<SquadPage> {
         return;
       }
 
-      final usernameDoc = await FirebaseFirestore.instance
-          .collection('usernames')
-          .doc(input)
-          .get();
+      final targetUid = await FriendService.findUidByUsername(input);
       if (!mounted) return;
-      if (!usernameDoc.exists) {
+      if (targetUid == null) {
         setState(() => _statusMessage = "Username @$input not found.");
         _clearStatusAfterDelay();
         return;
       }
 
-      final targetUid = usernameDoc.data()?['uid'];
       if (targetUid == myUid) {
         setState(() => _statusMessage = "You can't add yourself!");
         _clearStatusAfterDelay();
         return;
       }
 
-      final targetUserDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(targetUid)
-          .get();
+      final targetUser = await UserCacheRepository.instance.getUser(targetUid);
       if (!mounted) return;
-      final targetPhone = targetUserDoc.exists
-          ? (targetUserDoc.data()?['phoneNumber'] ??
-                targetUserDoc.data()?['phone'] ??
-                '')
-          : '';
+      final targetPhone = targetUser?.phoneNumber ?? '';
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(myUid)
-          .collection('friends')
-          .doc(targetUid)
-          .set({
-            'uid': targetUid,
-            'phoneNumber': targetPhone,
-            'addedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+      await FriendService.addFriend(
+        myUid: myUid,
+        friendUid: targetUid,
+        phoneNumber: targetPhone,
+      );
 
       if (!mounted) return;
       setState(() {
@@ -274,14 +255,9 @@ class _SquadPageState extends State<SquadPage> {
         return;
       }
 
-      final query = await FirebaseFirestore.instance
-          .collection('users')
-          .where('phoneNumber', isEqualTo: phoneToAdd)
-          .limit(1)
-          .get();
-
+      final friendUid = await FriendService.findUidByPhone(phoneToAdd);
       if (!mounted) return;
-      if (query.docs.isEmpty) {
+      if (friendUid == null) {
         setState(() => _statusMessage = "User not found on tfti.app.");
 
         final invite = await showDialog<bool>(
@@ -320,23 +296,17 @@ class _SquadPageState extends State<SquadPage> {
         return;
       }
 
-      final friendUid = query.docs.first.id;
       if (friendUid == myUid) {
         setState(() => _statusMessage = "You can't add yourself!");
         _clearStatusAfterDelay();
         return;
       }
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(myUid)
-          .collection('friends')
-          .doc(friendUid)
-          .set({
-            'uid': friendUid,
-            'phoneNumber': query.docs.first.data()['phoneNumber'] ?? phoneToAdd,
-            'addedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+      await FriendService.addFriend(
+        myUid: myUid,
+        friendUid: friendUid,
+        phoneNumber: phoneToAdd,
+      );
 
       if (!mounted) return;
       setState(() {
@@ -354,7 +324,7 @@ class _SquadPageState extends State<SquadPage> {
     final myUid = FirebaseAuth.instance.currentUser!.uid;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final isLandscape = MediaQuery.of(context).size.width > 600;
+    final isLandscape = MediaQuery.sizeOf(context).width > 600;
 
     final List<Widget> appBarActions = [
       IconButton(

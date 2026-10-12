@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:tftiapp/services/user_cache_repository.dart';
 import 'friend_list_tile.dart';
 
 class FriendListFeed extends StatelessWidget {
@@ -29,23 +30,20 @@ class FriendListFeed extends StatelessWidget {
   Future<List<Map<String, dynamic>>> _fetchAndSortFriends(
     List<DocumentSnapshot> docs,
   ) async {
-    List<Map<String, dynamic>> list = [];
-    await Future.wait(
-      docs.map((doc) async {
-        final uid = doc.id;
-        final userSnap = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .get();
-        if (userSnap.exists) {
-          final data = userSnap.data() as Map<String, dynamic>;
-          data['uid'] = uid;
-          data['isGoated'] =
-              (doc.data() as Map<String, dynamic>? ?? {})['isGoated'] ?? false;
-          list.add(data);
-        }
-      }),
-    );
+    final uids = docs.map((doc) => doc.id).toList();
+    final userMap = await UserCacheRepository.instance.getUsers(uids);
+
+    final List<Map<String, dynamic>> list = [];
+    for (final doc in docs) {
+      final profile = userMap[doc.id];
+      if (profile != null) {
+        final data = profile.toMap();
+        data['uid'] = doc.id;
+        data['isGoated'] =
+            (doc.data() as Map<String, dynamic>? ?? {})['isGoated'] ?? false;
+        list.add(data);
+      }
+    }
 
     if (sortByScore) {
       list.sort((a, b) {

@@ -3,7 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/place_model.dart';
+import '../services/place_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/theme_provider.dart';
 
@@ -116,36 +117,31 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return const SizedBox();
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('favorite_places')
-          .orderBy('createdAt', descending: true)
-          .snapshots(),
+    return StreamBuilder<List<SavedPlace>>(
+      stream: PlaceService.placesStream(user.uid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return _buildEmptySearchPrompt(isDark);
         }
 
-        final places = snapshot.data!.docs;
+        final places = snapshot.data!;
         return ListView.separated(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           itemCount: places.length,
           separatorBuilder: (context, index) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
-            final data = places[index].data() as Map<String, dynamic>;
+            final place = places[index];
             return _buildPlaceCard(
-              title: data['name'] ?? 'Favorite Place',
-              subtitle: data['address'] ?? '',
+              title: place.name.isNotEmpty ? place.name : 'Favorite Place',
+              subtitle: place.address,
               icon: Icons.star_rounded,
               iconColor: Colors.amber,
               isDark: isDark,
-              onTap: () => Navigator.pop(context, data['address']),
+              onTap: () => Navigator.pop(context, place.address),
             );
           },
         );

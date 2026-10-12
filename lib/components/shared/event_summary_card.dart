@@ -149,7 +149,7 @@ class EventSummaryCard extends StatelessWidget {
         (lastReadTime == null || lastMsgTime.seconds > lastReadTime.seconds);
 
     final double safeHorizontalWidth =
-        (MediaQuery.of(context).size.width * 0.85).clamp(0.0, 340.0);
+        (MediaQuery.sizeOf(context).width * 0.85).clamp(0.0, 340.0);
 
     // Landscape compact card
     if (isLandscape && !isHorizontal) {

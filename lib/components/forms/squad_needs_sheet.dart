@@ -56,12 +56,12 @@ class _SquadNeedsSheetState extends State<SquadNeedsSheet> {
 
     return Padding(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+        bottom: MediaQuery.viewInsetsOf(context).bottom,
       ),
       child: SafeArea(
         child: Container(
           constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.85,
+            maxHeight: MediaQuery.sizeOf(context).height * 0.85,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,

@@ -558,7 +558,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final user = FirebaseAuth.instance.currentUser;
     final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
+        MediaQuery.orientationOf(context) == Orientation.landscape;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,

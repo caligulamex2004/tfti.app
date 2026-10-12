@@ -40,7 +40,7 @@ class TcgProfileCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
+        MediaQuery.orientationOf(context) == Orientation.landscape;
 
     final plateDecoration = BoxDecoration(
       color: isDark

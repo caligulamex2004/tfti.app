@@ -83,10 +83,10 @@ class FullDetailsSheet extends StatelessWidget {
     return SafeArea(
       child: Container(
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
         ),
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -143,7 +143,7 @@ class SeenBySheet extends StatelessWidget {
     return SafeArea(
       child: Container(
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.7,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,

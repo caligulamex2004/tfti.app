@@ -10,11 +10,18 @@ class PlaceService {
         .collection('users')
         .doc(uid)
         .collection('favorite_places')
-        .orderBy('addedAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => SavedPlace.fromFirestore(doc))
-            .toList());
+        .map((snapshot) {
+          final places = snapshot.docs
+              .map((doc) => SavedPlace.fromFirestore(doc))
+              .toList();
+          places.sort((a, b) {
+            final aTime = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final bTime = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            return bTime.compareTo(aTime);
+          });
+          return places;
+        });
   }
 
   /// Save a new favorite place
@@ -26,6 +33,7 @@ class PlaceService {
     double? longitude,
     String? category,
   }) async {
+    final now = FieldValue.serverTimestamp();
     final docRef = await _firestore
         .collection('users')
         .doc(uid)
@@ -36,10 +44,27 @@ class PlaceService {
       'latitude': ?latitude,
       'longitude': ?longitude,
       'category': ?category,
-      'addedAt': FieldValue.serverTimestamp(),
+      'addedAt': now,
+      'createdAt': now,
     });
 
     return docRef.id;
+  }
+
+  /// Find a saved place ID by address if it exists
+  static Future<String?> findPlaceIdByAddress({
+    required String uid,
+    required String address,
+  }) async {
+    final query = await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('favorite_places')
+        .where('address', isEqualTo: address.trim())
+        .limit(1)
+        .get();
+
+    return query.docs.isNotEmpty ? query.docs.first.id : null;
   }
 
   /// Rename a saved favorite place

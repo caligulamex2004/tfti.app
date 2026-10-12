@@ -367,7 +367,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
+        MediaQuery.orientationOf(context) == Orientation.landscape;
 
     return StreamBuilder<DocumentSnapshot>(
       stream: _eventStream,
@@ -565,7 +565,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                 expandedHeight: hasBanner
                                     ? (isLandscape
                                           ? 220.0
-                                          : MediaQuery.of(context).size.height *
+                                          : MediaQuery.sizeOf(context).height *
                                                 0.55)
                                     : (isLandscape ? 180.0 : 240.0),
                                 actions: [

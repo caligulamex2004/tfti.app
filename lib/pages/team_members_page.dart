@@ -138,7 +138,7 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
+        MediaQuery.orientationOf(context) == Orientation.landscape;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,

@@ -273,9 +273,9 @@ class MessageBubble extends StatelessWidget {
     final Color myTextColor = themeProvider.onPrimaryColor;
     final Color myTimeColor = myTextColor.withValues(alpha: 0.7);
 
-    final screenWidth = MediaQuery.of(context).size.width;
+    final screenWidth = MediaQuery.sizeOf(context).width;
     final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
+        MediaQuery.orientationOf(context) == Orientation.landscape;
     double maxBubbleWidth = screenWidth * (isLandscape ? 0.6 : 0.75);
     maxBubbleWidth = min(maxBubbleWidth, 450);
 

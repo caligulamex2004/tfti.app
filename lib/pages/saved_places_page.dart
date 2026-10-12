@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/places/goated_place_card.dart';
+import '../services/place_service.dart';
 import 'places_search_page.dart';
 
 class SavedPlacesPage extends StatefulWidget {
@@ -70,12 +71,11 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
     if (newName != null && newName.isNotEmpty && newName != currentName) {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .collection('favorite_places')
-            .doc(docId)
-            .update({'name': newName});
+        await PlaceService.renamePlace(
+          uid: user.uid,
+          placeId: docId,
+          newName: newName,
+        );
 
         if (mounted) {
           ScaffoldMessenger.of(
@@ -116,12 +116,10 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
     if (confirm == true) {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .collection('favorite_places')
-            .doc(docId)
-            .delete();
+        await PlaceService.deletePlace(
+          uid: user.uid,
+          placeId: docId,
+        );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -166,15 +164,11 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
         final parts = result.split(',');
         final name = parts.isNotEmpty ? parts[0] : "Saved Place";
 
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .collection('favorite_places')
-            .add({
-              'name': name,
-              'address': result,
-              'addedAt': FieldValue.serverTimestamp(),
-            });
+        await PlaceService.savePlace(
+          uid: user.uid,
+          name: name,
+          address: result,
+        );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -198,7 +192,7 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
+        MediaQuery.orientationOf(context) == Orientation.landscape;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,

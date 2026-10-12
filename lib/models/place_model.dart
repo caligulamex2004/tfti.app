@@ -37,7 +37,9 @@ class SavedPlace {
       address: data['address'] ?? '',
       createdAt: (data['createdAt'] is Timestamp)
           ? (data['createdAt'] as Timestamp).toDate()
-          : null,
+          : (data['addedAt'] is Timestamp)
+              ? (data['addedAt'] as Timestamp).toDate()
+              : null,
       placeId: data['placeId'],
       lat: parseDouble(data['lat']),
       lng: parseDouble(data['lng']),

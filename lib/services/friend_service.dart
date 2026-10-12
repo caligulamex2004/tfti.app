@@ -26,6 +26,16 @@ class FriendService {
     return snap.docs.isNotEmpty;
   }
 
+  /// Get set of all friend UIDs for a given user
+  static Future<Set<String>> getFriendUids(String myUid) async {
+    final snap = await _firestore
+        .collection('users')
+        .doc(myUid)
+        .collection('friends')
+        .get(const GetOptions(source: Source.server));
+    return snap.docs.map((doc) => doc.id).toSet();
+  }
+
   /// Add a friend by target UID
   static Future<void> addFriend({
     required String myUid,

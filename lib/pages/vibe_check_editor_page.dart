@@ -482,7 +482,7 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
+        MediaQuery.orientationOf(context) == Orientation.landscape;
 
     final String appBarTitle = isEditing ? "Edit Vibe Check" : "Vibe Check";
     final String submitText = isEditing ? "Save Changes" : "Throw it out there";

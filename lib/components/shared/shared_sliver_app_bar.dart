@@ -54,10 +54,11 @@ class SharedSliverAppBar extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final double topPadding = MediaQuery.of(context).padding.top;
-              final double leftPadding = MediaQuery.of(context).padding.left;
-              final double rightPadding = MediaQuery.of(context).padding.right;
-              final bool isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+              final EdgeInsets padding = MediaQuery.paddingOf(context);
+              final double topPadding = padding.top;
+              final double leftPadding = padding.left;
+              final double rightPadding = padding.right;
+              final bool isLandscape = MediaQuery.orientationOf(context) == Orientation.landscape;
               
               final double collapsedHeight = kToolbarHeight + topPadding;
               final double expandRatio = expandedHeight <= collapsedHeight 

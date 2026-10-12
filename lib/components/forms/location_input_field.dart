@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'custom_input_field.dart';
 import '../../pages/places_search_page.dart';
+import '../../services/place_service.dart';
 
 class LocationInputField extends StatefulWidget {
   final TextEditingController controller;
@@ -39,18 +39,15 @@ class _LocationInputFieldState extends State<LocationInputField> {
       return;
     }
 
-    final query = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('favorite_places')
-        .where('address', isEqualTo: widget.controller.text)
-        .limit(1)
-        .get();
+    final placeId = await PlaceService.findPlaceIdByAddress(
+      uid: user.uid,
+      address: widget.controller.text,
+    );
 
     if (mounted) {
       setState(() {
-        _isLocFavorite = query.docs.isNotEmpty;
-        _favoriteDocId = query.docs.isNotEmpty ? query.docs.first.id : null;
+        _isLocFavorite = placeId != null;
+        _favoriteDocId = placeId;
       });
     }
   }
@@ -64,12 +61,10 @@ class _LocationInputFieldState extends State<LocationInputField> {
     HapticFeedback.lightImpact();
 
     if (_isLocFavorite && _favoriteDocId != null) {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('favorite_places')
-          .doc(_favoriteDocId)
-          .delete();
+      await PlaceService.deletePlace(
+        uid: user.uid,
+        placeId: _favoriteDocId!,
+      );
 
       if (!mounted) return;
       setState(() {
@@ -130,20 +125,16 @@ class _LocationInputFieldState extends State<LocationInputField> {
         return;
       }
 
-      final docRef = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('favorite_places')
-          .add({
-            'name': confirmedName,
-            'address': widget.controller.text,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+      final placeId = await PlaceService.savePlace(
+        uid: user.uid,
+        name: confirmedName,
+        address: widget.controller.text,
+      );
 
       if (!mounted) return;
       setState(() {
         _isLocFavorite = true;
-        _favoriteDocId = docRef.id;
+        _favoriteDocId = placeId;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Added to Goated Places! 🐐")),
