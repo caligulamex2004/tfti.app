@@ -124,6 +124,8 @@ class _BannerPickerState extends State<BannerPicker> {
       ],
     );
 
+    if (!mounted) return;
+
     if (croppedFile != null) {
       setState(() {
         _localBannerPath = croppedFile.path;

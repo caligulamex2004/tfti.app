@@ -106,7 +106,7 @@ class _TeamSelectionFieldState extends State<TeamSelectionField> {
           ),
         ],
       ),
-    );
+    ).then((_) => nameController.dispose());
   }
 
   void _showCircleDialog(List<DocumentSnapshot> circles) {

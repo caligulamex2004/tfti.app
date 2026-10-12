@@ -218,6 +218,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   Future<void> _checkTutorialStatus() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final hasSeen = prefs.getBool('has_seen_tutorial') ?? false;
     if (!hasSeen) {
       setState(() {

@@ -230,6 +230,7 @@ class _ChatPageState extends State<ChatPage> {
       return;
     }
 
+    if (!mounted) return;
     setState(() => _isUploadingImage = true);
     try {
       final File file = File(pickedFile.path);

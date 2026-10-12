@@ -71,56 +71,60 @@ class _LocationInputFieldState extends State<LocationInputField> {
           .doc(_favoriteDocId)
           .delete();
 
+      if (!mounted) return;
       setState(() {
         _isLocFavorite = false;
         _favoriteDocId = null;
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Removed from Goated Places")),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Removed from Goated Places")),
+      );
     } else {
       final isDark = Theme.of(context).brightness == Brightness.dark;
       final defaultName = widget.controller.text.split(',').first;
       final nameController = TextEditingController(text: defaultName);
 
-      final confirmedName = await showDialog<String>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text("Save Goated Place"),
-          content: TextField(
-            controller: nameController,
-            autofocus: true,
-            textCapitalization: TextCapitalization.words,
-            decoration: InputDecoration(
-              hintText: "Give this spot a name...",
-              filled: true,
-              fillColor: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+      final String? confirmedName;
+      try {
+        confirmedName = await showDialog<String>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text("Save Goated Place"),
+            content: TextField(
+              controller: nameController,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                hintText: "Give this spot a name...",
+                filled: true,
+                fillColor: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, nameController.text.trim()),
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.primary,
+                ),
+                child: const Text(
+                  "Save",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text("Cancel"),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, nameController.text.trim()),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.primary,
-              ),
-              child: const Text(
-                "Save",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-      );
+        );
+      } finally {
+        nameController.dispose();
+      }
 
       if (confirmedName == null || confirmedName.isEmpty) {
         return;
@@ -136,15 +140,14 @@ class _LocationInputFieldState extends State<LocationInputField> {
             'createdAt': FieldValue.serverTimestamp(),
           });
 
+      if (!mounted) return;
       setState(() {
         _isLocFavorite = true;
         _favoriteDocId = docRef.id;
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Added to Goated Places! 🐐")),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Added to Goated Places! 🐐")),
+      );
     }
   }
 

@@ -24,43 +24,48 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final renameController = TextEditingController(text: currentName);
 
-    final newName = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Rename Place"),
-        content: TextField(
-          controller: renameController,
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-          decoration: InputDecoration(
-            hintText: "Enter new name",
-            filled: true,
-            fillColor: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
+    final String? newName;
+    try {
+      newName = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Rename Place"),
+          content: TextField(
+            controller: renameController,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(
+              hintText: "Enter new name",
+              filled: true,
+              fillColor: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(context, renameController.text.trim()),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.primary,
+              ),
+              child: const Text(
+                "Save",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () =>
-                Navigator.pop(context, renameController.text.trim()),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.primary,
-            ),
-            child: const Text(
-              "Save",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
+      );
+    } finally {
+      renameController.dispose();
+    }
 
     if (newName != null && newName.isNotEmpty && newName != currentName) {
       final user = FirebaseAuth.instance.currentUser;

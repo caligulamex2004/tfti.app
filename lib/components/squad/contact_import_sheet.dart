@@ -222,6 +222,7 @@ class _ContactImportSheetState extends State<ContactImportSheet> {
                                         'addedAt': FieldValue.serverTimestamp(),
                                       }, SetOptions(merge: true));
 
+                                  if (!mounted) return;
                                   setState(() => _addedUids.add(uid));
                                   widget.onFriendAdded(uid);
                                 },

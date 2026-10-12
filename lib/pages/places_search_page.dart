@@ -77,6 +77,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
 
     try {
       final response = await http.get(Uri.parse(url));
+      if (!mounted) return;
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['status'] == 'OK') {
@@ -102,6 +103,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = "Network error. Please try again.";
         _isLoading = false;
