@@ -28,8 +28,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
   bool _isLoading = false;
   String? _error;
 
-  // TODO: Move to .env file for security
-  final String _apiKey = "REDACTED_GOOGLE_API_KEY";
+  static const String _apiKey = String.fromEnvironment('PLACES_API_KEY');
 
   @override
   void initState() {
@@ -65,6 +64,15 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
         _isLoading = false;
         _error = null;
       });
+      return;
+    }
+
+    if (_apiKey.isEmpty) {
+      setState(() {
+        _error = "Places API key is not configured.";
+        _isLoading = false;
+      });
+      debugPrint("Warning: PLACES_API_KEY is not defined. Run with --dart-define-from-file=secrets.json");
       return;
     }
 

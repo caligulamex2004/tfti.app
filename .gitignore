@@ -14,6 +14,11 @@ migrate_working_dir/
 key.properties
 **/*.jks
 
+# Secrets and environment files
+secrets.json
+.env
+*.env
+
 # IntelliJ related
 *.iml
 *.ipr

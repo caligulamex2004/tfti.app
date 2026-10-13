@@ -17,6 +17,13 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+// LOAD LOCAL PROPERTIES (For local API keys and SDK paths)
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
+}
+
 android {
     // --- NEW BUNDLE ID ---
     namespace = "com.bearmoose.tftiapp"
@@ -39,6 +46,8 @@ android {
         
         // --- CRITICAL FOR FIREBASE ---
         multiDexEnabled = true
+
+        manifestPlaceholders["MAPS_API_KEY"] = localProperties.getProperty("MAPS_API_KEY") ?: ""
     }
 
     signingConfigs {
