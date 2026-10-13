@@ -93,5 +93,42 @@ void main() {
       await ctrlC.close();
       await ctrlD.close();
     });
+
+    test('Re-listening after cancellation emits the latest cached value immediately', () async {
+      final ctrlA = StreamController<String>.broadcast();
+      final ctrlB = StreamController<int>.broadcast();
+      final ctrlC = StreamController<bool>.broadcast();
+      final ctrlD = StreamController<double>.broadcast();
+
+      final combined = FeedService.combineLatest4(
+        ctrlA.stream,
+        ctrlB.stream,
+        ctrlC.stream,
+        ctrlD.stream,
+        (a, b, c, d) => '$a-$b-$c-$d',
+      );
+
+      final sub1 = combined.listen((_) {});
+      ctrlA.add('X');
+      ctrlB.add(1);
+      ctrlC.add(false);
+      ctrlD.add(9.9);
+      await pumpEventQueue();
+      await sub1.cancel();
+
+      final List<String> secondEmissions = [];
+      final sub2 = combined.listen((val) {
+        secondEmissions.add(val);
+      });
+      await pumpEventQueue();
+
+      expect(secondEmissions, ['X-1-false-9.9']);
+
+      await sub2.cancel();
+      await ctrlA.close();
+      await ctrlB.close();
+      await ctrlC.close();
+      await ctrlD.close();
+    });
   });
 }

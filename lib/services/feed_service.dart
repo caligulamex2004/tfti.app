@@ -74,6 +74,7 @@ class FeedService {
           },
           onError: controller.addError,
         );
+        emitIfAllReady();
       },
       onCancel: () {
         subA?.cancel();

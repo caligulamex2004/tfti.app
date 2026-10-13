@@ -284,16 +284,33 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                         onDestinationSelected: _onNavTapped,
                         backgroundColor: Theme.of(context).cardColor,
                         selectedIconTheme: IconThemeData(
-                          color: Theme.of(context).colorScheme.primary,
+                          color: isDark
+                              ? Colors.white
+                              : Theme.of(context).colorScheme.primary,
+                        ),
+                        unselectedIconTheme: IconThemeData(
+                          color: isDark ? Colors.white60 : Colors.black54,
                         ),
                         selectedLabelTextStyle: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
+                          color: isDark
+                              ? Colors.white
+                              : Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        unselectedLabelTextStyle: TextStyle(
+                          color: isDark ? Colors.white60 : Colors.black87,
                         ),
                         labelType: NavigationRailLabelType.all,
                         useIndicator: true,
-                        indicatorColor: Theme.of(
-                          context,
-                        ).colorScheme.primary.withValues(alpha: 0.2),
+                        indicatorColor: isDark
+                            ? Color.lerp(
+                                Theme.of(context).colorScheme.primary,
+                                Colors.white,
+                                0.15,
+                              )!.withValues(alpha: 0.35)
+                            : Theme.of(
+                                context,
+                              ).colorScheme.primary.withValues(alpha: 0.2),
                         destinations: [
                           NavigationRailDestination(
                             icon: Badge(
@@ -345,10 +362,6 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
               : NavigationBar(
                   selectedIndex: _selectedIndex,
                   onDestinationSelected: _onNavTapped,
-                  backgroundColor: Theme.of(context).cardColor,
-                  indicatorColor: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.2),
                   destinations: [
                     NavigationDestination(
                       icon: Badge(

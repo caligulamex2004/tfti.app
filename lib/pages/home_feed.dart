@@ -345,25 +345,16 @@ class _HomePageState extends State<HomePage> {
     required bool isLandscape,
   }) {
     return SliverToBoxAdapter(
-      child: SizedBox(
-        height: 310,
-        child: isLandscape
-            ? CarouselFeedList(
-                itemCount: 1,
-                itemBuilder: (context, index) => ContextualEmptyCard(
-                  icon: icon,
-                  title: title,
-                  message: message,
-                ),
-              )
-            : Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: ContextualEmptyCard(
-                  icon: icon,
-                  title: title,
-                  message: message,
-                ),
-              ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: isLandscape ? 16 : 20),
+        child: SizedBox(
+          height: isLandscape ? 240 : 310,
+          child: ContextualEmptyCard(
+            icon: icon,
+            title: title,
+            message: message,
+          ),
+        ),
       ),
     );
   }
@@ -376,12 +367,39 @@ class _HomePageState extends State<HomePage> {
     final isLandscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
 
-    final Widget feedContent = StreamBuilder<FeedSnapshot>(
+    if (user != null && (_feedStream == null || user.uid != _currentUid)) {
+      _initFeedStream();
+    }
+
+    return StreamBuilder<FeedSnapshot>(
       stream: _feedStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting &&
             !snapshot.hasData) {
-          return FeedSkeleton(isLandscape: isLandscape);
+          final skeleton = FeedSkeleton(isLandscape: isLandscape);
+          return Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            body: isLandscape
+                ? Row(
+                    children: [
+                      Expanded(
+                        flex: 35,
+                        child: skeleton,
+                      ),
+                      VerticalDivider(
+                        width: 1,
+                        thickness: 1,
+                        color:
+                            isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                      ),
+                      const Expanded(
+                        flex: 65,
+                        child: FeedDetailPlaceholder(),
+                      ),
+                    ],
+                  )
+                : skeleton,
+          );
         }
 
         final feedSnapshot = snapshot.data ?? FeedSnapshot.empty;
@@ -397,7 +415,7 @@ class _HomePageState extends State<HomePage> {
         final filterText = FeedFilterUtils.getFilterSubtitle(_selectedFilter);
         final greeting = FeedFilterUtils.getGreeting();
 
-        return CustomScrollView(
+        final Widget scrollView = CustomScrollView(
           slivers: [
             SharedSliverAppBar(
               title: "the i's",
@@ -578,38 +596,38 @@ class _HomePageState extends State<HomePage> {
             ],
           ],
         );
-      },
-    );
 
-    return Scaffold(
-      body: isLandscape
-          ? Row(
-              children: [
-                Expanded(
-                  flex: 35,
-                  child: Scaffold(
-                    backgroundColor: Colors.transparent,
-                    body: feedContent,
-                  ),
-                ),
-                VerticalDivider(
-                  width: 1,
-                  thickness: 1,
-                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
-                ),
-                Expanded(
-                  flex: 65,
-                  child: _selectedEventId != null && _selectedEventData != null
-                      ? HangoutDetailsPage(
-                          key: ValueKey(_selectedEventId),
-                          eventId: _selectedEventId!,
-                          eventData: _selectedEventData!,
-                        )
-                      : const FeedDetailPlaceholder(),
-                ),
-              ],
-            )
-          : Scaffold(backgroundColor: Colors.transparent, body: feedContent),
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: isLandscape
+              ? Row(
+                  children: [
+                    Expanded(
+                      flex: 35,
+                      child: scrollView,
+                    ),
+                    VerticalDivider(
+                      width: 1,
+                      thickness: 1,
+                      color:
+                          isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                    ),
+                    Expanded(
+                      flex: 65,
+                      child: _selectedEventId != null &&
+                              _selectedEventData != null
+                          ? HangoutDetailsPage(
+                              key: ValueKey(_selectedEventId),
+                              eventId: _selectedEventId!,
+                              eventData: _selectedEventData!,
+                            )
+                          : const FeedDetailPlaceholder(),
+                    ),
+                  ],
+                )
+              : scrollView,
+        );
+      },
     );
   }
 }

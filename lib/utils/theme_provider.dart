@@ -135,6 +135,36 @@ class ThemeProvider extends ChangeNotifier {
           borderRadius: BorderRadius.circular(20),
         ),
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: cardColor,
+        indicatorColor: isDark
+            ? Color.lerp(colorScheme.primary, Colors.white, 0.15)!.withValues(alpha: 0.35)
+            : colorScheme.primary.withValues(alpha: 0.2),
+        iconTheme: WidgetStateProperty.resolveWith<IconThemeData>((states) {
+          if (states.contains(WidgetState.selected)) {
+            return IconThemeData(
+              color: isDark ? Colors.white : colorScheme.primary,
+            );
+          }
+          return IconThemeData(
+            color: isDark ? Colors.white60 : Colors.black54,
+          );
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>((states) {
+          if (states.contains(WidgetState.selected)) {
+            return TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : colorScheme.primary,
+            );
+          }
+          return TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.normal,
+            color: isDark ? Colors.white60 : Colors.black87,
+          );
+        }),
+      ),
     );
   }
 

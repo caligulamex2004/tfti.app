@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tftiapp/components/feed/carousel_feed_list.dart';
 import 'package:tftiapp/components/feed/contextual_empty_card.dart';
 import 'package:tftiapp/components/feed/feed_filter_bar.dart';
 
@@ -45,5 +46,28 @@ void main() {
     await tester.pump();
 
     expect(selected, FeedFilter.nextWeek);
+  });
+
+  testWidgets('CarouselFeedList renders items safely without assertion error', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: 310,
+            child: CarouselFeedList(
+              itemCount: 2,
+              itemBuilder: (context, index) => Container(
+                key: ValueKey('item_$index'),
+                child: Text('Item $index'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Item 0'), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.text('Item 0'), findsOneWidget);
   });
 }

@@ -26,9 +26,12 @@ class _CarouselFeedListState extends State<CarouselFeedList> {
     // Use the provided viewportFraction
     _pageController = PageController(viewportFraction: widget.viewportFraction);
     _pageController.addListener(() {
-      setState(() {
-        _currentPage = _pageController.page ?? 0.0;
-      });
+      if (_pageController.hasClients &&
+          _pageController.position.hasContentDimensions) {
+        setState(() {
+          _currentPage = _pageController.page ?? 0.0;
+        });
+      }
     });
   }
 
@@ -46,17 +49,22 @@ class _CarouselFeedListState extends State<CarouselFeedList> {
       // OverScroll physics give it that premium bouncy feel on iOS and Android
       physics: const BouncingScrollPhysics(),
       itemBuilder: (context, index) {
-        final double difference = (_currentPage - index).abs();
-        
-        // Scale down to 90% (0.9) at adjacent pages
-        final double scale = (1 - (difference * 0.1)).clamp(0.9, 1.0);
-        
-        // Fade down to 70% (0.7) at adjacent pages
-        final double opacity = (1 - (difference * 0.3)).clamp(0.7, 1.0);
-
         return AnimatedBuilder(
           animation: _pageController,
           builder: (context, child) {
+            double page = _currentPage;
+            if (_pageController.hasClients &&
+                _pageController.position.hasContentDimensions) {
+              page = _pageController.page ?? _currentPage;
+            }
+            final double difference = (page - index).abs();
+
+            // Scale down to 90% (0.9) at adjacent pages
+            final double scale = (1 - (difference * 0.1)).clamp(0.9, 1.0);
+
+            // Fade down to 70% (0.7) at adjacent pages
+            final double opacity = (1 - (difference * 0.3)).clamp(0.7, 1.0);
+
             return Transform.scale(
               scale: scale,
               child: Opacity(
