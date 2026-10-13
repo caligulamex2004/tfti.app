@@ -77,7 +77,7 @@ class UserProfileSheet extends StatelessWidget {
                     hp: userData['hp'] ?? 0,
                     mana: userData['mana'] ?? 0,
                     originDate: originDate,
-                    showPhone: userData['showPhoneNumber'] == true,
+                    showPhone: (userData['showPhoneNumber'] ?? userData['isPhonePublic']) != false,
                     displayPhone: PhoneFormatter.beautify(rawPhone),
                     avatarUrl: userData['avatarUrl'],
                     avatarColor: userData['avatarColor'] is int

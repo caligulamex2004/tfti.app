@@ -286,7 +286,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
           'hasSeen': hasSeen,
           'displayName': userData['displayName'] ?? 'Unknown',
           'phone':
-              (userData['showPhoneNumber'] == true &&
+              ((userData['showPhoneNumber'] ?? userData['isPhonePublic']) != false &&
                   (userData['phoneNumber'] ?? userData['phone'] ?? '')
                       .isNotEmpty)
               ? PhoneFormatter.beautify(

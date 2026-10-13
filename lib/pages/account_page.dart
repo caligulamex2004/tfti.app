@@ -33,7 +33,7 @@ class _AccountPageState extends State<AccountPage> {
 
   int _selectedColorValue = Colors.blue.toARGB32();
   bool _isLoading = false;
-  bool _showPhoneNumber = false;
+  bool _showPhoneNumber = true;
 
   String? _avatarUrl;
   bool _isUploadingAvatar = false;
@@ -134,7 +134,7 @@ class _AccountPageState extends State<AccountPage> {
               if (!_hasLoadedInitialData) {
                 _nameController.text = data['displayName'] ?? '';
                 _statusController.text = data['status'] ?? '';
-                _showPhoneNumber = (data['isPhonePublic'] ?? data['showPhoneNumber']) ?? false;
+                _showPhoneNumber = (data['isPhonePublic'] ?? data['showPhoneNumber']) != false;
                 _hasLoadedInitialData = true;
               }
             });

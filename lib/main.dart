@@ -245,6 +245,18 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
       final token = await messaging.getToken();
 
+      // One-time build migration: ensure user phone visibility is reverted to show phone number by default
+      final prefs = await SharedPreferences.getInstance();
+      final hasReverted = prefs.getBool('phone_visibility_reverted_to_show_v1') ?? false;
+      if (!hasReverted) {
+        await prefs.setBool('phone_visibility_reverted_to_show_v1', true);
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'showPhoneNumber': true,
+          'isPhonePublic': true,
+          'isSearchableByPhone': true,
+        }, SetOptions(merge: true));
+      }
+
       if (token != null) {
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'fcmToken': token,

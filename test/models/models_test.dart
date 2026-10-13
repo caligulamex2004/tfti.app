@@ -56,8 +56,8 @@ void main() {
       expect(profile.displayName, 'Antigravity User');
       expect(profile.username, 'antigravity');
       expect(profile.blockedUids, contains('bad-actor'));
-      expect(profile.showPhoneNumber, isFalse);
-      expect(profile.isSearchableByPhone, isTrue); // Default to searchable for existing users
+      expect(profile.showPhoneNumber, isTrue); // Default to showing phone number for users
+      expect(profile.isSearchableByPhone, isTrue); // Default to searchable for users
     });
 
     test('UserProfile phone privacy and searchability parsing and serialization', () {
