@@ -321,7 +321,11 @@ class _SquadPageState extends State<SquadPage> {
 
   @override
   Widget build(BuildContext context) {
-    final myUid = FirebaseAuth.instance.currentUser!.uid;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Scaffold(body: SizedBox.shrink());
+    }
+    final myUid = user.uid;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape = MediaQuery.sizeOf(context).width > 600;
