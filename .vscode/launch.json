@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "tftiapp (Debug)",
+      "request": "launch",
+      "type": "dart",
+      "toolArgs": [
+        "--dart-define-from-file=secrets.json"
+      ]
+    },
+    {
+      "name": "tftiapp (Profile)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "profile",
+      "toolArgs": [
+        "--dart-define-from-file=secrets.json"
+      ]
+    },
+    {
+      "name": "tftiapp (Release)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "release",
+      "toolArgs": [
+        "--dart-define-from-file=secrets.json"
+      ]
+    }
+  ]
+}
