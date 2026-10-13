@@ -8,9 +8,11 @@ import 'package:url_launcher/url_launcher.dart';
 
 // --- COMPONENTS & UTILITIES ---
 import 'qr_scanner_page.dart';
+import '../models/squad_request_model.dart';
 import '../components/squad/add_friend_section.dart';
 import '../components/squad/friend_list_feed.dart';
 import '../components/squad/contact_import_sheet.dart';
+import '../components/squad/squad_requests_section.dart';
 import '../services/contact_service.dart';
 import '../services/friend_service.dart';
 import '../services/user_cache_repository.dart';
@@ -62,7 +64,7 @@ class _SquadPageState extends State<SquadPage> {
           _isAddingByUsername = true;
           _usernameController.text = scannedUsername;
         });
-        _addFriend(overrideUsername: scannedUsername);
+        _addFriend(overrideUsername: scannedUsername, isFromQrCode: true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Invalid or unrecognized QR Code.")),
@@ -204,7 +206,10 @@ class _SquadPageState extends State<SquadPage> {
     }
   }
 
-  Future<void> _addFriend({String? overrideUsername}) async {
+  Future<void> _addFriend({
+    String? overrideUsername,
+    bool isFromQrCode = false,
+  }) async {
     final myUid = FirebaseAuth.instance.currentUser!.uid;
     FocusManager.instance.primaryFocus?.unfocus();
 
@@ -232,23 +237,47 @@ class _SquadPageState extends State<SquadPage> {
         return;
       }
 
-      final targetUser = await UserCacheRepository.instance.getUser(targetUid);
-      if (!mounted) return;
-      final targetPhone = targetUser?.phoneNumber ?? '';
+      final myFriends = await FriendService.getFriendUids(myUid);
+      if (myFriends.contains(targetUid)) {
+        setState(() => _statusMessage = "@$input is already in your squad!");
+        _clearStatusAfterDelay();
+        return;
+      }
 
-      await FriendService.addFriend(
-        myUid: myUid,
-        friendUid: targetUid,
-        phoneNumber: targetPhone,
-      );
+      if (isFromQrCode) {
+        // Fast-path: in-person QR scan directly adds friend
+        final targetUser = await UserCacheRepository.instance.getUser(targetUid);
+        if (!mounted) return;
+        final targetPhone = targetUser?.phoneNumber ?? '';
 
-      if (!mounted) return;
-      setState(() {
-        _removedFriendUids.remove(targetUid);
-        _statusMessage = "Added @$input to the squad!";
-        _usernameController.clear();
-      });
-      _clearStatusAfterDelay();
+        await FriendService.addFriend(
+          myUid: myUid,
+          friendUid: targetUid,
+          phoneNumber: targetPhone,
+        );
+
+        if (!mounted) return;
+        setState(() {
+          _removedFriendUids.remove(targetUid);
+          _statusMessage = "Added @$input to the squad!";
+          _usernameController.clear();
+        });
+        _clearStatusAfterDelay();
+      } else {
+        // Slow-path: manual username entry sends a squad request
+        await FriendService.sendSquadRequest(
+          fromUid: myUid,
+          toUid: targetUid,
+          source: 'username',
+        );
+
+        if (!mounted) return;
+        setState(() {
+          _statusMessage = "Squad request sent to @$input!";
+          _usernameController.clear();
+        });
+        _clearStatusAfterDelay();
+      }
     } else {
       String phoneToAdd = _completePhoneNumber;
       if (phoneToAdd.isEmpty) {
@@ -302,16 +331,23 @@ class _SquadPageState extends State<SquadPage> {
         return;
       }
 
-      await FriendService.addFriend(
-        myUid: myUid,
-        friendUid: friendUid,
-        phoneNumber: phoneToAdd,
+      final myFriends = await FriendService.getFriendUids(myUid);
+      if (myFriends.contains(friendUid)) {
+        setState(() => _statusMessage = "${PhoneFormatter.beautify(phoneToAdd)} is already in your squad!");
+        _clearStatusAfterDelay();
+        return;
+      }
+
+      // Slow-path: manual phone entry sends a squad request
+      await FriendService.sendSquadRequest(
+        fromUid: myUid,
+        toUid: friendUid,
+        source: 'phone',
       );
 
       if (!mounted) return;
       setState(() {
-        _removedFriendUids.remove(friendUid);
-        _statusMessage = "Added ${PhoneFormatter.beautify(phoneToAdd)}!";
+        _statusMessage = "Squad request sent to ${PhoneFormatter.beautify(phoneToAdd)}!";
         _phoneController.clear();
         _completePhoneNumber = "";
       });
@@ -412,6 +448,9 @@ class _SquadPageState extends State<SquadPage> {
                             onSubmit: _addFriend,
                           ),
                         ),
+                        SliverToBoxAdapter(
+                          child: _buildSquadRequestsStream(myUid),
+                        ),
                       ],
                     ),
                   ),
@@ -477,6 +516,9 @@ class _SquadPageState extends State<SquadPage> {
                     onSubmit: _addFriend,
                   ),
                 ),
+                SliverToBoxAdapter(
+                  child: _buildSquadRequestsStream(myUid),
+                ),
               ],
               onToggleSort: () {
                 HapticFeedback.lightImpact();
@@ -486,6 +528,55 @@ class _SquadPageState extends State<SquadPage> {
                 setState(() => _removedFriendUids.add(uid));
               },
             ),
+    );
+  }
+
+  Widget _buildSquadRequestsStream(String myUid) {
+    return StreamBuilder<List<SquadRequest>>(
+      stream: FriendService.incomingRequestsStream(myUid),
+      builder: (context, snapshot) {
+        final requests = snapshot.data ?? [];
+        if (requests.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        return SquadRequestsSection(
+          requests: requests,
+          onSquadUp: (req) async {
+            await FriendService.acceptSquadRequest(
+              myUid: myUid,
+              requesterUid: req.fromUid,
+            );
+            if (!mounted) return;
+            setState(() {
+              _removedFriendUids.remove(req.fromUid);
+              _statusMessage = "Squadded up with ${req.displayName.isNotEmpty ? req.displayName : '@${req.username}'}!";
+            });
+            _clearStatusAfterDelay();
+          },
+          onPass: (req) async {
+            await FriendService.passSquadRequest(
+              myUid: myUid,
+              requesterUid: req.fromUid,
+            );
+            if (!mounted) return;
+            setState(() {
+              _statusMessage = "Passed on squad request.";
+            });
+            _clearStatusAfterDelay();
+          },
+          onBlock: (req) async {
+            await FriendService.blockSquadRequest(
+              myUid: myUid,
+              requesterUid: req.fromUid,
+            );
+            if (!mounted) return;
+            setState(() {
+              _statusMessage = "Blocked user.";
+            });
+            _clearStatusAfterDelay();
+          },
+        );
+      },
     );
   }
 }

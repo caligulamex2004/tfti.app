@@ -134,7 +134,7 @@ class _AccountPageState extends State<AccountPage> {
               if (!_hasLoadedInitialData) {
                 _nameController.text = data['displayName'] ?? '';
                 _statusController.text = data['status'] ?? '';
-                _showPhoneNumber = data['isPhonePublic'] ?? false;
+                _showPhoneNumber = (data['isPhonePublic'] ?? data['showPhoneNumber']) ?? false;
                 _hasLoadedInitialData = true;
               }
             });
@@ -156,6 +156,7 @@ class _AccountPageState extends State<AccountPage> {
         status: status,
         avatarColor: _selectedColorValue,
         isPhonePublic: _showPhoneNumber,
+        isSearchableByPhone: _showPhoneNumber,
       );
     } catch (e) {
       debugPrint("Error auto-saving identity: $e");

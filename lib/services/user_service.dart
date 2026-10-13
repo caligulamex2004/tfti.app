@@ -35,6 +35,7 @@ class UserService {
     int? avatarColor,
     String? phone,
     bool? isPhonePublic,
+    bool? isSearchableByPhone,
     bool? autoExportCalendar,
     Map<String, dynamic>? additionalFields,
   }) async {
@@ -57,6 +58,12 @@ class UserService {
     }
     if (isPhonePublic != null) {
       updates['isPhonePublic'] = isPhonePublic;
+      updates['showPhoneNumber'] = isPhonePublic;
+    }
+    if (isSearchableByPhone != null) {
+      updates['isSearchableByPhone'] = isSearchableByPhone;
+    } else if (isPhonePublic != null) {
+      updates['isSearchableByPhone'] = isPhonePublic;
     }
     if (autoExportCalendar != null) {
       updates['autoExportCalendar'] = autoExportCalendar;

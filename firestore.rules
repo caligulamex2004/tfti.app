@@ -1,0 +1,246 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model & Schemas
+    // ===============================================================
+    //
+    // Collection: /users/{userId}
+    // Fields:
+    //   - displayName: string (optional)
+    //   - username: string (optional)
+    //   - phoneNumber / phone: string (optional)
+    //   - avatarUrl: string (optional)
+    //   - avatarColor: number (optional)
+    //   - blockedUids: list of strings (optional)
+    //   - ... user profile and preferences
+    //
+    // Subcollection: /users/{userId}/favorite_places/{placeId}
+    //   - User favorite places (owner-only access)
+    //
+    // Subcollection: /users/{userId}/circles/{circleId}
+    //   - User circles/teams (owner-only access)
+    //
+    // Subcollection: /users/{userId}/friends/{friendId}
+    // Fields:
+    //   - uid: string (friend UID, required on create)
+    //   - phoneNumber: string (optional, max 50 chars)
+    //   - isGoated: bool (optional)
+    //   - isBlocked: bool (optional)
+    //   - circles: list of strings (optional, max 100 items)
+    //   - addedAt: timestamp (optional)
+    // Access:
+    //   - Read/Delete: userId (owner)
+    //   - Create/Update: userId (owner) OR friendId when accepting an active
+    //     squad request sent by userId to friendId.
+    //
+    // Subcollection: /users/{userId}/squad_requests/{requesterId}
+    // Fields:
+    //   - fromUid: string (required, immutable, requester's auth UID)
+    //   - toUid: string (required, immutable, recipient's user ID)
+    //   - displayName: string (optional, max 100 chars)
+    //   - username: string (optional, max 100 chars)
+    //   - avatarUrl: string (optional, max 500 chars)
+    //   - avatarColor: number (optional)
+    //   - status: string (optional, e.g. 'pending')
+    //   - source: string (optional, max 50 chars, e.g. 'phone' or 'username')
+    //   - createdAt: timestamp (optional)
+    //   - addedAt: timestamp (optional)
+    // Access:
+    //   - create/update: Requester (request.auth.uid == requesterId && request.auth.uid != userId && fromUid == request.auth.uid && toUid == userId)
+    //   - get: Recipient (userId) or Requester (requesterId)
+    //   - list: Recipient (userId) only
+    //   - delete: Recipient (userId) or Requester (requesterId)
+    //
+    // Collection: /events/{eventId}
+    // Subcollections: /messages/{messageId}, /invitations/{inviteId}, /roles/{roleId}
+    //
+    // Collection: /seasons/{seasonId}
+    //
+    // Collection Group Queries:
+    //   - invitations: read, delete if resource.data.uid == request.auth.uid
+    //   - friends: read, delete if resource.data.uid == request.auth.uid
+    //   - roles: read, update if resource.data.claimedByUid == request.auth.uid
+    //
+    // Collection: /reports/{reportId}
+    //
+    // Collection: /usernames/{username}
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Domain validator for squad request documents
+    function isValidSquadRequest(data) {
+      return data.keys().hasAll(['fromUid', 'toUid'])
+        && data.keys().hasOnly(['fromUid', 'toUid', 'displayName', 'username', 'avatarUrl', 'avatarColor', 'status', 'source', 'createdAt', 'addedAt'])
+        && data.fromUid is string && data.fromUid.size() > 0 && data.fromUid.size() <= 128
+        && data.toUid is string && data.toUid.size() > 0 && data.toUid.size() <= 128
+        && (!('displayName' in data) || data.displayName == null || (data.displayName is string && data.displayName.size() <= 100))
+        && (!('username' in data) || data.username == null || (data.username is string && data.username.size() <= 100))
+        && (!('avatarUrl' in data) || data.avatarUrl == null || (data.avatarUrl is string && data.avatarUrl.size() <= 500))
+        && (!('avatarColor' in data) || data.avatarColor == null || data.avatarColor is number)
+        && (!('status' in data) || (data.status is string && data.status in ['pending', 'accepted', 'declined', 'passed']))
+        && (!('source' in data) || (data.source is string && data.source.size() <= 50))
+        && (!('createdAt' in data) || data.createdAt is timestamp)
+        && (!('addedAt' in data) || data.addedAt is timestamp);
+    }
+
+    // Domain validator for friend entries
+    function isValidFriend(data) {
+      return (!('uid' in data) || (data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128))
+        && (!('phoneNumber' in data) || data.phoneNumber == null || (data.phoneNumber is string && data.phoneNumber.size() <= 50))
+        && (!('isGoated' in data) || data.isGoated is bool)
+        && (!('isBlocked' in data) || data.isBlocked is bool)
+        && (!('circles' in data) || (data.circles is list && data.circles.size() <= 100))
+        && (!('addedAt' in data) || data.addedAt is timestamp);
+    }
+
+    // ===============================================================
+    // Collections
+    // ===============================================================
+
+    match /users/{userId} {
+      allow get: if true;
+      allow list: if request.query.limit <= 1 || request.auth != null; 
+      allow write: if isOwner(userId);
+      
+      match /favorite_places/{placeId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /friends/{friendId} {
+        allow get: if isAuthenticated() && (request.auth.uid == userId || request.auth.uid == friendId);
+        allow list: if isOwner(userId);
+
+        // Symmetric Friend Add on Accept:
+        // 1. Owner can add/update friends in their own squad.
+        // 2. Recipient of a squad request can add themselves to the requester's friends list
+        //    if a pending squad request exists from the requester (userId) to recipient (friendId).
+        allow create, update: if isAuthenticated() && (
+          request.auth.uid == userId || (
+            request.auth.uid == friendId &&
+            request.resource.data.uid == friendId &&
+            exists(/databases/$(database)/documents/users/$(request.auth.uid)/squad_requests/$(userId))
+          )
+        ) && isValidFriend(request.resource.data);
+
+        allow delete: if isOwner(userId);
+      }
+
+      match /circles/{circleId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Squad Requests Subcollection
+      match /squad_requests/{requesterId} {
+        // Recipient can list and get incoming requests.
+        // Requester can get their specific request document to check pending status.
+        allow get: if isAuthenticated() && (
+          request.auth.uid == userId || request.auth.uid == requesterId
+        );
+        allow list: if isOwner(userId);
+
+        // Requester sends squad request to recipient
+        allow create: if isAuthenticated()
+          && request.auth.uid == requesterId
+          && request.auth.uid != userId
+          && request.resource.data.fromUid == request.auth.uid
+          && request.resource.data.toUid == userId
+          && isValidSquadRequest(request.resource.data);
+
+        // Requester can update squad request (e.g. re-sending / merging timestamps)
+        allow update: if isAuthenticated()
+          && request.auth.uid == requesterId
+          && request.auth.uid != userId
+          && request.resource.data.fromUid == resource.data.fromUid
+          && request.resource.data.toUid == resource.data.toUid
+          && isValidSquadRequest(request.resource.data);
+
+        // Recipient can delete on accept/pass/block; Requester can delete on cancel
+        allow delete: if isAuthenticated() && (
+          request.auth.uid == userId || request.auth.uid == requesterId
+        );
+      }
+    }
+
+    match /events/{eventId} {
+      allow read, create: if isAuthenticated();
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.hostId;
+      
+      // UPDATED EVENT UPDATE RULES
+      allow update: if isAuthenticated() && (
+        // 1. Host/Co-Host can only update IF the event's original end time is in the future
+        (
+          (request.auth.uid == resource.data.hostId || request.auth.uid == resource.data.get('coHostId', null)) &&
+          (!('endTime' in resource.data) || resource.data.endTime > request.time)
+        ) 
+        || 
+        // 2. Allow specific system/chat updates to bypass the time lock so chats don't break after an event ends
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessageAt', 'lastMessageSnippet', 'lastMessageMentions']) 
+        ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lockedOptionId', 'type', 'isTieBreakerNeeded'])
+      );
+
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated();
+      }
+      match /invitations/{inviteId} {
+        allow read, write: if isAuthenticated(); 
+      }
+      match /roles/{roleId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
+    // Seasons Collection Rules
+    match /seasons/{seasonId} {
+      allow read, create: if isAuthenticated();
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.hostId;
+      allow update: if isAuthenticated() && (
+        request.auth.uid == resource.data.hostId || 
+        request.auth.uid == resource.data.coHostId
+      );
+    }
+    
+    // --- COLLECTION GROUP QUERIES ---
+    match /{path=**}/invitations/{invitationId} {
+      allow read, delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+    
+    match /{path=**}/friends/{friendId} {
+      allow read, delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+    
+    match /{path=**}/roles/{roleId} {
+      allow read, update: if isAuthenticated() && resource.data.claimedByUid == request.auth.uid;
+    }
+
+    match /reports/{reportId} {
+      allow create: if isAuthenticated();
+      allow read, update, delete: if false; 
+    }
+
+    match /usernames/{username} {
+      allow get: if true;
+      allow list: if isAuthenticated();
+      allow create: if isAuthenticated() 
+                    && request.resource.data.uid == request.auth.uid
+                    && username.matches('^[a-z0-9._-]{3,20}$');
+      allow delete: if isAuthenticated() 
+                    && resource.data.uid == request.auth.uid;
+      allow update: if false; 
+    }
+  }
+}

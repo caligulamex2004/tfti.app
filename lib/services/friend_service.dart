@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tftiapp/models/friend_model.dart';
+import 'package:tftiapp/models/squad_request_model.dart';
 
 class FriendService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -141,7 +142,8 @@ class FriendService {
     return null;
   }
 
-  /// Find user UID by phone number
+  /// Find user UID by phone number. Respects user privacy settings:
+  /// returns null if the user has opted out of phone searchability (isSearchableByPhone == false).
   static Future<String?> findUidByPhone(String phoneNumber) async {
     if (phoneNumber.isEmpty) return null;
 
@@ -152,9 +154,153 @@ class FriendService {
         .get();
 
     if (query.docs.isNotEmpty) {
-      return query.docs.first.id;
+      final doc = query.docs.first;
+      final data = doc.data();
+      final bool isSearchable = data['isSearchableByPhone'] != false;
+      if (!isSearchable) {
+        return null;
+      }
+      return doc.id;
     }
 
     return null;
+  }
+
+  /// Stream of active incoming squad requests for a user (filtering out requests older than 14 days)
+  static Stream<List<SquadRequest>> incomingRequestsStream(String myUid) {
+    return _firestore
+        .collection('users')
+        .doc(myUid)
+        .collection('squad_requests')
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
+          .map((doc) => SquadRequest.fromFirestore(doc))
+          .where((req) => !req.isExpired())
+          .toList();
+    });
+  }
+
+  /// Check if there is an active (non-expired) squad request from [fromUid] to [toUid]
+  static Future<bool> hasPendingRequest({
+    required String fromUid,
+    required String toUid,
+  }) async {
+    final doc = await _firestore
+        .collection('users')
+        .doc(toUid)
+        .collection('squad_requests')
+        .doc(fromUid)
+        .get();
+
+    if (!doc.exists) return false;
+    final req = SquadRequest.fromFirestore(doc);
+    return !req.isExpired();
+  }
+
+  /// Send a squad request from [fromUid] to [toUid].
+  /// Silently drops if target has blocked requester.
+  /// Writes both createdAt and addedAt for backwards compatibility.
+  static Future<void> sendSquadRequest({
+    required String fromUid,
+    required String toUid,
+    required String source,
+  }) async {
+    if (fromUid == toUid) return;
+
+    // Check if target user has blocked requester
+    final targetDoc = await _firestore.collection('users').doc(toUid).get();
+    if (targetDoc.exists) {
+      final blocked = List<String>.from(targetDoc.data()?['blockedUids'] ?? []);
+      if (blocked.contains(fromUid)) {
+        return;
+      }
+    }
+
+    // Fetch requester profile details
+    final fromDoc = await _firestore.collection('users').doc(fromUid).get();
+    final fromData = fromDoc.data() ?? {};
+
+    await _firestore
+        .collection('users')
+        .doc(toUid)
+        .collection('squad_requests')
+        .doc(fromUid)
+        .set({
+      'fromUid': fromUid,
+      'toUid': toUid,
+      'displayName': fromData['displayName'] ?? '',
+      'username': fromData['username'] ?? '',
+      'avatarUrl': fromData['avatarUrl'],
+      'avatarColor': fromData['avatarColor'],
+      'status': 'pending',
+      'source': source,
+      'createdAt': FieldValue.serverTimestamp(),
+      'addedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Accept incoming squad request: adds friends symmetrically and removes request
+  static Future<void> acceptSquadRequest({
+    required String myUid,
+    required String requesterUid,
+  }) async {
+    final myDoc = await _firestore.collection('users').doc(myUid).get();
+    final requesterDoc = await _firestore.collection('users').doc(requesterUid).get();
+
+    final myPhone = myDoc.data()?['phoneNumber'] ?? myDoc.data()?['phone'] ?? '';
+    final reqPhone = requesterDoc.data()?['phoneNumber'] ?? requesterDoc.data()?['phone'] ?? '';
+
+    // Add friends symmetrically
+    await addFriend(
+      myUid: myUid,
+      friendUid: requesterUid,
+      phoneNumber: reqPhone,
+    );
+    await addFriend(
+      myUid: requesterUid,
+      friendUid: myUid,
+      phoneNumber: myPhone,
+    );
+
+    // Delete the request
+    await _firestore
+        .collection('users')
+        .doc(myUid)
+        .collection('squad_requests')
+        .doc(requesterUid)
+        .delete();
+  }
+
+  /// Pass / dismiss incoming squad request: removes request silently
+  static Future<void> passSquadRequest({
+    required String myUid,
+    required String requesterUid,
+  }) async {
+    await _firestore
+        .collection('users')
+        .doc(myUid)
+        .collection('squad_requests')
+        .doc(requesterUid)
+        .delete();
+  }
+
+  /// Block requester: removes request and adds requester to user's blockedUids
+  static Future<void> blockSquadRequest({
+    required String myUid,
+    required String requesterUid,
+  }) async {
+    // Delete the request
+    await _firestore
+        .collection('users')
+        .doc(myUid)
+        .collection('squad_requests')
+        .doc(requesterUid)
+        .delete();
+
+    // Add requester to blockedUids
+    await _firestore.collection('users').doc(myUid).set({
+      'blockedUids': FieldValue.arrayUnion([requesterUid]),
+    }, SetOptions(merge: true));
   }
 }

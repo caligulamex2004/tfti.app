@@ -5,6 +5,7 @@ import 'package:tftiapp/models/event_model.dart';
 import 'package:tftiapp/models/user_profile.dart';
 import 'package:tftiapp/models/hangout_submission_request.dart';
 import 'package:tftiapp/models/vibe_check_submission_request.dart';
+import 'package:tftiapp/models/squad_request_model.dart';
 
 void main() {
   group('Event Model Tests', () {
@@ -56,6 +57,48 @@ void main() {
       expect(profile.username, 'antigravity');
       expect(profile.blockedUids, contains('bad-actor'));
       expect(profile.showPhoneNumber, isFalse);
+      expect(profile.isSearchableByPhone, isTrue); // Default to searchable for existing users
+    });
+
+    test('UserProfile phone privacy and searchability parsing and serialization', () {
+      // Opted out of phone search
+      final privateProfile = UserProfile.fromMap(
+        {
+          'displayName': 'Private User',
+          'username': 'private_user',
+          'phoneNumber': '+15550001111',
+          'isPhonePublic': false,
+          'isSearchableByPhone': false,
+        },
+        uid: 'user-private',
+      );
+
+      expect(privateProfile.showPhoneNumber, isFalse);
+      expect(privateProfile.isSearchableByPhone, isFalse);
+
+      final map = privateProfile.toMap();
+      expect(map['isPhonePublic'], isFalse);
+      expect(map['showPhoneNumber'], isFalse);
+      expect(map['isSearchableByPhone'], isFalse);
+
+      // Legacy user with isPhonePublic: true
+      final legacyPublic = UserProfile.fromMap(
+        {
+          'displayName': 'Public User',
+          'username': 'public_user',
+          'phoneNumber': '+15550002222',
+          'isPhonePublic': true,
+        },
+        uid: 'user-public',
+      );
+
+      expect(legacyPublic.showPhoneNumber, isTrue);
+      expect(legacyPublic.isSearchableByPhone, isTrue); // default true when not set
+
+      // copyWith updates searchability
+      final updated = privateProfile.copyWith(isSearchableByPhone: true, showPhoneNumber: true);
+      expect(updated.isSearchableByPhone, isTrue);
+      expect(updated.showPhoneNumber, isTrue);
     });
   });
 
@@ -414,6 +457,102 @@ void main() {
         reqMultiDay.calculatedEndTime,
         reqMultiDay.combinedDateTime.add(const Duration(days: 3)),
       );
+    });
+  });
+
+  group('SquadRequest Model Tests', () {
+    test('Serialization and deserialization roundtrip with createdAt and addedAt', () {
+      final now = DateTime(2026, 10, 13, 11, 0);
+      final req = SquadRequest(
+        id: 'user-a',
+        fromUid: 'user-a',
+        toUid: 'user-x',
+        displayName: 'Ash Ketchum',
+        username: 'ash_k',
+        avatarUrl: 'https://example.com/avatar.png',
+        avatarColor: 4280391411,
+        status: 'pending',
+        source: 'phone',
+        createdAt: now,
+        addedAt: now,
+      );
+
+      final map = req.toMap();
+      expect(map['fromUid'], 'user-a');
+      expect(map['toUid'], 'user-x');
+      expect(map['displayName'], 'Ash Ketchum');
+      expect(map['username'], 'ash_k');
+      expect(map['status'], 'pending');
+      expect(map['source'], 'phone');
+      expect(map['createdAt'], isA<Timestamp>());
+      expect(map['addedAt'], isA<Timestamp>());
+
+      // Deserialization from map
+      final fromMap = SquadRequest.fromMap(map, id: 'user-a');
+      expect(fromMap.id, 'user-a');
+      expect(fromMap.fromUid, 'user-a');
+      expect(fromMap.toUid, 'user-x');
+      expect(fromMap.displayName, 'Ash Ketchum');
+      expect(fromMap.username, 'ash_k');
+      expect(fromMap.createdAt, now);
+      expect(fromMap.addedAt, now);
+      expect(fromMap.effectiveDate, now);
+    });
+
+    test('Backwards compatibility: supports addedAt when createdAt is omitted', () {
+      final legacyTime = DateTime(2026, 10, 1, 12, 0);
+      final legacyMap = {
+        'fromUid': 'user-b',
+        'toUid': 'user-x',
+        'displayName': 'Brock',
+        'username': 'brock_gym',
+        'addedAt': Timestamp.fromDate(legacyTime),
+        // createdAt omitted!
+      };
+
+      final req = SquadRequest.fromMap(legacyMap);
+      expect(req.fromUid, 'user-b');
+      expect(req.displayName, 'Brock');
+      expect(req.effectiveDate, legacyTime);
+      expect(req.addedAt, legacyTime);
+      expect(req.createdAt, legacyTime); // Fallbacks to addedAt
+    });
+
+    test('14-day expiration logic (isExpired)', () {
+      final now = DateTime(2026, 10, 15, 12, 0);
+
+      // 5 days old -> not expired
+      final recentReq = SquadRequest(
+        id: 'req-recent',
+        fromUid: 'user-1',
+        toUid: 'user-2',
+        displayName: 'Misty',
+        username: 'misty',
+        createdAt: now.subtract(const Duration(days: 5)),
+      );
+      expect(recentReq.isExpired(currentTime: now), isFalse);
+
+      // 13 days, 23 hours old -> not expired
+      final almostExpiredReq = SquadRequest(
+        id: 'req-almost',
+        fromUid: 'user-1',
+        toUid: 'user-2',
+        displayName: 'Misty',
+        username: 'misty',
+        createdAt: now.subtract(const Duration(days: 13, hours: 23)),
+      );
+      expect(almostExpiredReq.isExpired(currentTime: now), isFalse);
+
+      // 14 days and 1 hour old -> expired!
+      final expiredReq = SquadRequest(
+        id: 'req-expired',
+        fromUid: 'user-1',
+        toUid: 'user-2',
+        displayName: 'Misty',
+        username: 'misty',
+        createdAt: now.subtract(const Duration(days: 14, hours: 1)),
+      );
+      expect(expiredReq.isExpired(currentTime: now), isTrue);
     });
   });
 }

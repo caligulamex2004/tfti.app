@@ -12,6 +12,7 @@ class UserProfile {
   final int hp;
   final int mana;
   final bool showPhoneNumber;
+  final bool isSearchableByPhone;
   final String? fcmToken;
   final DateTime? createdAt;
   final DateTime? lastActive;
@@ -30,6 +31,7 @@ class UserProfile {
     this.hp = 0,
     this.mana = 0,
     this.showPhoneNumber = false,
+    this.isSearchableByPhone = true,
     this.fcmToken,
     this.createdAt,
     this.lastActive,
@@ -97,7 +99,8 @@ class UserProfile {
       statusText: data['statusText'],
       hp: (data['hp'] is num) ? (data['hp'] as num).toInt() : 0,
       mana: (data['mana'] is num) ? (data['mana'] as num).toInt() : 0,
-      showPhoneNumber: data['showPhoneNumber'] == true,
+      showPhoneNumber: data['showPhoneNumber'] == true || data['isPhonePublic'] == true,
+      isSearchableByPhone: data['isSearchableByPhone'] != false,
       fcmToken: data['fcmToken'],
       createdAt: parseDate(data['createdAt'] ?? data['created_at']),
       lastActive: parseDate(data['lastActive'] ?? data['lastLogin']),
@@ -120,6 +123,8 @@ class UserProfile {
       'hp': hp,
       'mana': mana,
       'showPhoneNumber': showPhoneNumber,
+      'isPhonePublic': showPhoneNumber,
+      'isSearchableByPhone': isSearchableByPhone,
       'fcmToken': fcmToken,
       if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
       if (lastActive != null) 'lastActive': Timestamp.fromDate(lastActive!),
@@ -140,6 +145,7 @@ class UserProfile {
     int? hp,
     int? mana,
     bool? showPhoneNumber,
+    bool? isSearchableByPhone,
     String? fcmToken,
     DateTime? createdAt,
     DateTime? lastActive,
@@ -158,6 +164,7 @@ class UserProfile {
       hp: hp ?? this.hp,
       mana: mana ?? this.mana,
       showPhoneNumber: showPhoneNumber ?? this.showPhoneNumber,
+      isSearchableByPhone: isSearchableByPhone ?? this.isSearchableByPhone,
       fcmToken: fcmToken ?? this.fcmToken,
       createdAt: createdAt ?? this.createdAt,
       lastActive: lastActive ?? this.lastActive,

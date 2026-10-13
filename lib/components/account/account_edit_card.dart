@@ -25,6 +25,39 @@ class AccountEditCard extends StatelessWidget {
     required this.onSave,
   });
 
+  void _showPhonePrivacyInfo(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.lock_outline, size: 22),
+            SizedBox(width: 8),
+            Text(
+              "Phone Privacy",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ],
+        ),
+        content: const Text(
+          "When enabled, your phone number is displayed on your Squad profile card, and friends can find you by your phone number.\n\n"
+          "When disabled, your phone number is hidden from your profile and blocked from manual phone searches. Friends who already have your number saved in their phone contacts can still find and squad up with you.",
+          style: TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              "Got it",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -169,19 +202,40 @@ class AccountEditCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        "Show to Squad",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark
-                              ? Colors.grey.shade500
-                              : Colors.grey.shade600,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            "Show to Squad",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? Colors.grey.shade500
+                                  : Colors.grey.shade600,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          GestureDetector(
+                            key: const ValueKey('phone_privacy_info_icon'),
+                            onTap: () => _showPhonePrivacyInfo(context),
+                            child: Tooltip(
+                              message: "Phone privacy info",
+                              child: Icon(
+                                Icons.info_outline,
+                                size: 14,
+                                color: isDark
+                                    ? Colors.grey.shade400
+                                    : Colors.grey.shade600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
                 Switch(
+                  key: const ValueKey('phone_privacy_switch'),
                   value: showPhoneNumber,
                   activeThumbColor: primaryColor,
                   onChanged: (val) {
