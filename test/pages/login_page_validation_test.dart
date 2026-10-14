@@ -120,5 +120,64 @@ void main() {
       expect(find.text('Pick a display name'), findsNothing);
       expect(find.text('Pick a username'), findsNothing);
     });
+
+    testWidgets('Card width is constrained to max 440px on iPad and web desktop screens', (tester) async {
+      // Simulate 1440x900 desktop/web window
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(buildLoginPage());
+      await tester.pumpAndSettle();
+
+      final cardFinder = find.byType(Card);
+      expect(cardFinder, findsOneWidget);
+      final cardSize = tester.getSize(cardFinder);
+
+      // Must be capped at 440px instead of stretching to 1440px
+      expect(cardSize.width, equals(440.0));
+    });
+
+    testWidgets('Card adapts to mobile portrait screens without overflow', (tester) async {
+      // Standard iPhone portrait size
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(buildLoginPage());
+      await tester.pumpAndSettle();
+
+      final cardFinder = find.byType(Card);
+      final cardSize = tester.getSize(cardFinder);
+
+      // Width is screenWidth - 48px padding = 342px
+      expect(cardSize.width, equals(390.0 - 48.0));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Renders gracefully in landscape mode without layout overflow', (tester) async {
+      // iPhone landscape size (wide but short)
+      tester.view.physicalSize = const Size(844, 390);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(buildLoginPage());
+      await tester.pumpAndSettle();
+
+      final cardFinder = find.byType(Card);
+      expect(cardFinder, findsOneWidget);
+      final cardSize = tester.getSize(cardFinder);
+      expect(cardSize.width, equals(440.0));
+      expect(tester.takeException(), isNull);
+    });
   });
 }

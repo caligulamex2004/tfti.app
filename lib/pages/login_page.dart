@@ -355,6 +355,8 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
+    final size = MediaQuery.sizeOf(context);
+    final isCompactHeight = size.height < 600;
 
     return Scaffold(
       body: Container(
@@ -364,40 +366,53 @@ class _LoginPageState extends State<LoginPage> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Symbols.how_to_vote,
-                    size: 80,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "tfti.app",
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-
-                  Card(
-                    elevation: isDark ? 2 : 8,
-                    color: Theme.of(context).cardColor,
-                    surfaceTintColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      side: isDark
-                          ? BorderSide(color: Colors.grey.shade800)
-                          : BorderSide.none,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(24.0),
+              padding: EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: isCompactHeight ? 16.0 : 32.0,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
                       child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Symbols.how_to_vote,
+                            size: isCompactHeight ? 56 : 80,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "tfti.app",
+                            style: TextStyle(
+                              fontSize: isCompactHeight ? 26 : 32,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black87,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: isCompactHeight ? 20 : 36),
+
+                    Card(
+                      elevation: isDark ? 2 : 8,
+                      color: Theme.of(context).cardColor,
+                      surfaceTintColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: isDark
+                            ? BorderSide(color: Colors.grey.shade800)
+                            : BorderSide.none,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
                         children: [
                           Text(
                             _codeSent
@@ -508,8 +523,9 @@ class _LoginPageState extends State<LoginPage> {
                             const SizedBox(height: 16),
 
                             // --- TOGGLE MODE FOOTER ---
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                            Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
                                 Text(
                                   _isLoginMode
@@ -591,6 +607,7 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }
