@@ -42,33 +42,37 @@ class _TeamsPageState extends State<TeamsPage> {
     }
   }
 
-  void _showCreateSheet(String uid) {
-    CreateTeamSheet.showCreate(
+  Future<void> _showCreateSheet(String uid) async {
+    String? createdName;
+    final newId = await CreateTeamSheet.showCreate<String>(
       context: context,
       onCreated: (name) async {
-        final newId = await TeamService.createTeam(uid: uid, name: name);
-        if (!mounted) return;
-
-        if (MediaQuery.orientationOf(context) == Orientation.landscape) {
-          setState(() {
-            _selectedCircleId = newId;
-            _selectedCircleName = name;
-            _autoOpenNewCircle = true;
-          });
-        } else {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => TeamMembersPage(
-                circleId: newId,
-                circleName: name,
-                autoOpenAddMembers: true,
-              ),
-            ),
-          );
-        }
+        createdName = name;
+        return await TeamService.createTeam(uid: uid, name: name);
       },
     );
+
+    if (newId == null || !mounted) return;
+
+    final isLandscape = MediaQuery.sizeOf(context).width > 600;
+    if (isLandscape) {
+      setState(() {
+        _selectedCircleId = newId;
+        _selectedCircleName = createdName;
+        _autoOpenNewCircle = true;
+      });
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TeamMembersPage(
+            circleId: newId,
+            circleName: createdName ?? '',
+            autoOpenAddMembers: true,
+          ),
+        ),
+      );
+    }
   }
 
   void _showRenameSheet(String uid, TeamCircle team) {

@@ -77,7 +77,9 @@ class _SquadPageState extends State<SquadPage> {
   Future<void> _importContacts() async {
     if (kIsWeb) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Contact import is only available on mobile devices.")),
+        const SnackBar(
+          content: Text("Contact import is only available on mobile devices."),
+        ),
       );
       return;
     }
@@ -193,7 +195,7 @@ class _SquadPageState extends State<SquadPage> {
   }
 
   Future<void> _inviteViaSms(String phone) async {
-    const String kAppUrl = "https://tftiapp.com";
+    const String kAppUrl = "https://tfti-app.web.app";
     final String message =
         "Hey! Join me on tfti.app so I can invite you to events! Check it out: $kAppUrl";
     final Uri smsLaunchUri = Uri.parse(
@@ -254,7 +256,9 @@ class _SquadPageState extends State<SquadPage> {
 
       if (isFromQrCode) {
         // Fast-path: in-person QR scan directly adds friend
-        final targetUser = await UserCacheRepository.instance.getUser(targetUid);
+        final targetUser = await UserCacheRepository.instance.getUser(
+          targetUid,
+        );
         if (!mounted) return;
         final targetPhone = targetUser?.phoneNumber ?? '';
 
@@ -341,7 +345,10 @@ class _SquadPageState extends State<SquadPage> {
 
       final myFriends = await FriendService.getFriendUids(myUid);
       if (myFriends.contains(friendUid)) {
-        setState(() => _statusMessage = "${PhoneFormatter.beautify(phoneToAdd)} is already in your squad!");
+        setState(
+          () => _statusMessage =
+              "${PhoneFormatter.beautify(phoneToAdd)} is already in your squad!",
+        );
         _clearStatusAfterDelay();
         return;
       }
@@ -355,7 +362,8 @@ class _SquadPageState extends State<SquadPage> {
 
       if (!mounted) return;
       setState(() {
-        _statusMessage = "Squad request sent to ${PhoneFormatter.beautify(phoneToAdd)}!";
+        _statusMessage =
+            "Squad request sent to ${PhoneFormatter.beautify(phoneToAdd)}!";
         _phoneController.clear();
         _completePhoneNumber = "";
       });
@@ -404,29 +412,37 @@ class _SquadPageState extends State<SquadPage> {
                           pinned: true,
                           toolbarHeight: 56,
                           primary: true,
-                          backgroundColor: isDark 
-                              ? Colors.black.withValues(alpha: 0.6) 
+                          backgroundColor: isDark
+                              ? Colors.black.withValues(alpha: 0.6)
                               : Colors.white.withValues(alpha: 0.7),
                           automaticallyImplyLeading: false,
                           title: null,
                           actions: null,
                           flexibleSpace: ClipRect(
                             child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
+                              filter: ImageFilter.blur(
+                                sigmaX: 15.0,
+                                sigmaY: 15.0,
+                              ),
                               child: SafeArea(
                                 bottom: false,
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
                                   child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Flexible(
                                         child: Text(
-                                          "The Squad", 
+                                          "The Squad",
                                           style: TextStyle(
-                                            fontWeight: FontWeight.bold, 
+                                            fontWeight: FontWeight.bold,
                                             fontSize: 18,
-                                            color: isDark ? Colors.white : Colors.black87,
+                                            color: isDark
+                                                ? Colors.white
+                                                : Colors.black87,
                                           ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
@@ -525,9 +541,7 @@ class _SquadPageState extends State<SquadPage> {
                     onSubmit: _addFriend,
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: _buildSquadRequestsStream(myUid),
-                ),
+                SliverToBoxAdapter(child: _buildSquadRequestsStream(myUid)),
               ],
               onToggleSort: () {
                 HapticFeedback.lightImpact();
@@ -558,7 +572,8 @@ class _SquadPageState extends State<SquadPage> {
             if (!mounted) return;
             setState(() {
               _removedFriendUids.remove(req.fromUid);
-              _statusMessage = "Squadded up with ${req.displayName.isNotEmpty ? req.displayName : '@${req.username}'}!";
+              _statusMessage =
+                  "Squadded up with ${req.displayName.isNotEmpty ? req.displayName : '@${req.username}'}!";
             });
             _clearStatusAfterDelay();
           },

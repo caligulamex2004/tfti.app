@@ -124,7 +124,7 @@ class SharedSliverAppBar extends StatelessWidget {
 
                   // Expanded Content Area
                   Positioned(
-                    left: ((isLandscape && hasBackButton) ? 56.0 : (isLandscape ? 8.0 : 20.0)) + leftPadding,
+                    left: (hasBackButton ? 56.0 : (isLandscape ? 8.0 : 20.0)) + leftPadding,
                     right: (isLandscape ? 8.0 : 20.0) + rightPadding,
                     bottom: 20 + (expandRatio * 20),
                     child: Opacity(

@@ -142,17 +142,22 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(user!.uid)
-            .collection('friends')
-            .where('circles', arrayContains: widget.circleId)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: user == null
+            ? const Center(child: CircularProgressIndicator())
+            : StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user.uid)
+                    .collection('friends')
+                    .where('circles', arrayContains: widget.circleId)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
           final friendDocs = snapshot.data!.docs;
 
@@ -453,8 +458,9 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                 ],
               );
             },
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

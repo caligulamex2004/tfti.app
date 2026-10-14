@@ -93,7 +93,8 @@ class AccountSettingsCard extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             trailing: const Icon(Icons.chevron_right, size: 16),
-            onTap: () => _launchLegalUrl(context, "https://tftiapp.com/terms"),
+            onTap: () =>
+                _launchLegalUrl(context, "https://tfti-app.web.app/terms"),
           ),
           Divider(
             height: 1,
@@ -119,7 +120,7 @@ class AccountSettingsCard extends StatelessWidget {
             ),
             trailing: const Icon(Icons.chevron_right, size: 16),
             onTap: () =>
-                _launchLegalUrl(context, "https://tftiapp.com/privacy"),
+                _launchLegalUrl(context, "https://tfti-app.web.app/privacy"),
           ),
           Divider(
             height: 1,

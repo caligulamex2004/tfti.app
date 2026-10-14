@@ -6,7 +6,7 @@ import '../../utils/theme_provider.dart';
 class CreateTeamSheet extends StatefulWidget {
   final String? initialName;
   final bool isRename;
-  final Future<void> Function(String name) onSubmit;
+  final Future<dynamic> Function(String name) onSubmit;
 
   const CreateTeamSheet({
     super.key,
@@ -16,11 +16,11 @@ class CreateTeamSheet extends StatefulWidget {
   });
 
   /// Displays the create team sheet
-  static Future<void> showCreate({
+  static Future<T?> showCreate<T>({
     required BuildContext context,
-    required Future<void> Function(String name) onCreated,
+    required Future<T> Function(String name) onCreated,
   }) {
-    return showModalBottomSheet(
+    return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -132,9 +132,9 @@ class _CreateTeamSheetState extends State<CreateTeamSheet> {
 
     setState(() => _isLoading = true);
     try {
-      await widget.onSubmit(name);
+      final result = await widget.onSubmit(name);
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context, result);
       }
     } catch (e) {
       if (mounted) {
