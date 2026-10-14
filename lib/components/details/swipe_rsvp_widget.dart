@@ -429,30 +429,33 @@ class _SwipeRsvpWidgetState extends State<SwipeRsvpWidget> {
                         ),
                       ],
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.chevron_left,
-                          color: Colors.grey.shade400,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          "SWIPE",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black87,
-                            letterSpacing: 1.0,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.chevron_left,
+                            color: Colors.grey.shade400,
+                            size: 20,
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.chevron_right,
-                          color: Colors.grey.shade400,
-                          size: 20,
-                        ),
-                      ],
+                          const SizedBox(width: 4),
+                          Text(
+                            "SWIPE",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black87,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.chevron_right,
+                            color: Colors.grey.shade400,
+                            size: 20,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

@@ -169,7 +169,7 @@ class UserCacheRepository {
 
   /// Clear all cached data
   void clear() {
-    _userCache.clear;
+    _userCache.clear();
     _eventCache.clear();
   }
 }

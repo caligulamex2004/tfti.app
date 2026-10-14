@@ -6,6 +6,12 @@ import 'package:tftiapp/models/user_profile.dart';
 import 'package:tftiapp/models/hangout_submission_request.dart';
 import 'package:tftiapp/models/vibe_check_submission_request.dart';
 import 'package:tftiapp/models/squad_request_model.dart';
+import 'package:tftiapp/models/team_model.dart';
+import 'package:tftiapp/models/chat_message_model.dart';
+import 'package:tftiapp/models/place_model.dart';
+import 'package:tftiapp/models/friend_model.dart';
+import 'package:tftiapp/models/invitation_model.dart';
+import 'package:tftiapp/models/feed_snapshot.dart';
 
 void main() {
   group('Event Model Tests', () {
@@ -555,4 +561,235 @@ void main() {
       expect(expiredReq.isExpired(currentTime: now), isTrue);
     });
   });
+
+  group('TeamCircle & TeamMember Tests', () {
+    test('TeamCircle toMap and copyWith', () {
+      final now = DateTime(2026, 10, 1, 12, 0);
+      final circle = TeamCircle(
+        id: 'circle-1',
+        name: 'The OG Squad',
+        createdAt: now,
+        memberCount: 5,
+      );
+
+      final map = circle.toMap();
+      expect(map['name'], 'The OG Squad');
+      expect((map['createdAt'] as Timestamp).toDate(), now);
+
+      final updated = circle.copyWith(name: 'The New Squad', memberCount: 6);
+      expect(updated.id, 'circle-1');
+      expect(updated.name, 'The New Squad');
+      expect(updated.memberCount, 6);
+      expect(updated.createdAt, now);
+    });
+
+    test('TeamMember score calculation and color resolution', () {
+      const member = TeamMember(
+        uid: 'user-77',
+        displayName: 'Red',
+        username: 'red_pkmn',
+        phoneNumber: '+15551234567',
+        avatarColor: 4280391411,
+        hp: 100,
+        mana: 50,
+        isGoated: true,
+        circles: ['circle-1', 'circle-2'],
+      );
+
+      // score formula: (hp * 0.6) + (mana * 0.4) -> (60) + (20) = 80.0
+      expect(member.score, closeTo(80.0, 0.001));
+      expect(member.resolvedColor.value, 4280391411);
+      expect(member.isGoated, isTrue);
+      expect(member.circles, contains('circle-1'));
+
+      // Fallback color when avatarColor is null
+      const defaultMember = TeamMember(
+        uid: 'user-default',
+        displayName: 'Blue',
+      );
+      expect(defaultMember.resolvedColor, isNotNull);
+      expect(defaultMember.score, 0.0);
+    });
+  });
+
+  group('ChatMessage Model Tests', () {
+    test('ChatMessage fromMap and toMap roundtrip', () {
+      final now = DateTime(2026, 10, 10, 14, 30);
+      final msg = ChatMessage(
+        id: 'msg-1',
+        eventId: 'evt-100',
+        senderId: 'user-ash',
+        senderName: 'Ash',
+        senderAvatarUrl: 'https://example.com/ash.jpg',
+        senderColor: 4280391411,
+        text: 'Who is ready for tacos? @gary',
+        imageUrl: 'https://example.com/taco.jpg',
+        timestamp: now,
+        mentionedUids: ['user-gary'],
+        reactions: {
+          '🔥': ['user-gary', 'user-brock'],
+        },
+        readBy: [
+          {'uid': 'user-gary', 'readAt': now.toIso8601String()},
+        ],
+        type: 'text',
+      );
+
+      final map = msg.toMap();
+      expect(map['senderId'], 'user-ash');
+      expect(map['senderName'], 'Ash');
+      expect(map['text'], 'Who is ready for tacos? @gary');
+      expect(map['imageUrl'], 'https://example.com/taco.jpg');
+      expect(map['mentionedUids'], contains('user-gary'));
+      expect(map['reactions']['🔥'], contains('user-brock'));
+      expect((map['timestamp'] as Timestamp).toDate(), now);
+
+      final restored = ChatMessage.fromMap(map, id: 'msg-1', eventId: 'evt-100');
+      expect(restored.id, 'msg-1');
+      expect(restored.eventId, 'evt-100');
+      expect(restored.senderName, 'Ash');
+      expect(restored.hasImage, isTrue);
+      expect(restored.isSystem, isFalse);
+      expect(restored.isFromUser('user-ash'), isTrue);
+      expect(restored.isFromUser('user-gary'), isFalse);
+      expect(restored.reactions['🔥']?.length, 2);
+    });
+
+    test('ChatMessage handles ISO string timestamp and empty fields gracefully', () {
+      final isoString = '2026-10-12T18:00:00.000Z';
+      final rawMap = {
+        'senderId': 'system-bot',
+        'text': 'Welcome everyone!',
+        'timestamp': isoString,
+        'type': 'system',
+      };
+
+      final msg = ChatMessage.fromMap(rawMap, id: 'msg-sys');
+      expect(msg.isSystem, isTrue);
+      expect(msg.hasImage, isFalse);
+      expect(msg.senderName, 'Guest'); // Default
+      expect(msg.timestamp, DateTime.parse(isoString));
+    });
+  });
+
+  group('SavedPlace Model Tests', () {
+    test('SavedPlace parsing and serialization', () {
+      final now = DateTime(2026, 10, 5, 20, 0);
+      final place = SavedPlace(
+        id: 'place-abc',
+        name: 'Super Taqueria',
+        address: '123 Taco Lane',
+        createdAt: now,
+        placeId: 'google-place-999',
+        lat: 37.7749,
+        lng: -122.4194,
+      );
+
+      final map = place.toMap();
+      expect(map['name'], 'Super Taqueria');
+      expect(map['address'], '123 Taco Lane');
+      expect(map['placeId'], 'google-place-999');
+      expect(map['lat'], 37.7749);
+      expect(map['lng'], -122.4194);
+      expect((map['createdAt'] as Timestamp).toDate(), now);
+
+      // Test parsing with string lat/lng
+      final stringCoordMap = {
+        'name': 'String Coords Spot',
+        'address': '456 Main St',
+        'lat': '34.0522',
+        'lng': '-118.2437',
+        'addedAt': Timestamp.fromDate(now),
+      };
+
+      final fromStringCoord = SavedPlace.fromMap(stringCoordMap, id: 'spot-str');
+      expect(fromStringCoord.lat, 34.0522);
+      expect(fromStringCoord.lng, -118.2437);
+      expect(fromStringCoord.createdAt, now); // Fallback from addedAt
+
+      final copy = place.copyWith(name: 'Updated Taqueria');
+      expect(copy.name, 'Updated Taqueria');
+      expect(copy.lat, 37.7749);
+    });
+  });
+
+  group('Friend Model Tests', () {
+    test('Friend toMap, copyWith, and fields', () {
+      final now = DateTime(2026, 10, 2, 9, 30);
+      final friend = Friend(
+        uid: 'friend-42',
+        phoneNumber: '+15559876543',
+        isGoated: true,
+        circles: ['circle-inner', 'circle-lunch'],
+        addedAt: now,
+      );
+
+      final map = friend.toMap();
+      expect(map['uid'], 'friend-42');
+      expect(map['phoneNumber'], '+15559876543');
+      expect(map['isGoated'], isTrue);
+      expect(map['circles'], contains('circle-lunch'));
+      expect((map['addedAt'] as Timestamp).toDate(), now);
+
+      final copy = friend.copyWith(isGoated: false);
+      expect(copy.isGoated, isFalse);
+      expect(copy.uid, 'friend-42');
+      expect(copy.circles.length, 2);
+    });
+  });
+
+  group('Invitation Model Tests', () {
+    test('Invitation getters and serialization', () {
+      final now = DateTime(2026, 10, 11, 15, 0);
+      final inv = Invitation(
+        uid: 'user-invited',
+        eventId: 'evt-200',
+        status: 'going',
+        isHidden: false,
+        isMuted: true,
+        respondedAt: now,
+        lastReadChat: now,
+        lastViewedAt: now,
+      );
+
+      expect(inv.isGoing, isTrue);
+      expect(inv.isDeclined, isFalse);
+      expect(inv.isPending, isFalse);
+
+      final map = inv.toMap();
+      expect(map['status'], 'going');
+      expect(map['isMuted'], isTrue);
+      expect(map['isHidden'], isFalse);
+      expect((map['respondedAt'] as Timestamp).toDate(), now);
+
+      final fromMap = Invitation.fromMap(map, uid: 'user-invited', eventId: 'evt-200');
+      expect(fromMap.isGoing, isTrue);
+      expect(fromMap.isMuted, isTrue);
+      expect(fromMap.respondedAt, now);
+
+      final declinedInv = inv.copyWith(status: 'declined');
+      expect(declinedInv.isDeclined, isTrue);
+      expect(declinedInv.isGoing, isFalse);
+    });
+  });
+
+  group('FeedSnapshot & FilteredFeedData Tests', () {
+    test('FeedSnapshot.empty default values', () {
+      expect(FeedSnapshot.empty.firstName, 'there');
+      expect(FeedSnapshot.empty.blockedUids, isEmpty);
+      expect(FeedSnapshot.empty.goatedUids, isEmpty);
+      expect(FeedSnapshot.empty.myInvitesMap, isEmpty);
+      expect(FeedSnapshot.empty.events, isEmpty);
+    });
+
+    test('FilteredFeedData defaults', () {
+      const data = FilteredFeedData();
+      expect(data.actionNeeded, isEmpty);
+      expect(data.agenda, isEmpty);
+      expect(data.declined, isEmpty);
+      expect(data.past, isEmpty);
+      expect(data.hidden, isEmpty);
+    });
+  });
 }
+
