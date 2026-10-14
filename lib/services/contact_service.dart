@@ -4,6 +4,10 @@ import 'package:flutter_contacts/flutter_contacts.dart';
 class ContactHelper {
   /// Requests permission and fetches contacts with phone numbers.
   static Future<List<Contact>?> getContacts() async {
+    if (kIsWeb) {
+      debugPrint("Contact import is not supported on Web.");
+      return null;
+    }
     try {
       // readonly: true is highly recommended for iOS to assure the user
       // you are only reading contacts, not modifying them.

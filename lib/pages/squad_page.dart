@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -74,6 +75,13 @@ class _SquadPageState extends State<SquadPage> {
   }
 
   Future<void> _importContacts() async {
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Contact import is only available on mobile devices.")),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -372,11 +380,12 @@ class _SquadPageState extends State<SquadPage> {
         tooltip: "Scan QR",
         onPressed: _openScanner,
       ),
-      IconButton(
-        icon: const Icon(Icons.import_contacts),
-        tooltip: "Import Contacts",
-        onPressed: _importContacts,
-      ),
+      if (!kIsWeb)
+        IconButton(
+          icon: const Icon(Icons.import_contacts),
+          tooltip: "Import Contacts",
+          onPressed: _importContacts,
+        ),
       const SizedBox(width: 8),
     ];
 

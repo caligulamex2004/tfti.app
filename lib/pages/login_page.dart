@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../utils/theme_provider.dart';
 import '../utils/auth_service.dart';
@@ -465,6 +466,12 @@ class _LoginPageState extends State<LoginPage> {
                                     _agreedToToS = val ?? false;
                                   });
                                 },
+                                onTextTap: () {
+                                  launchUrl(
+                                    Uri.parse("https://tfti-app.web.app/terms"),
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                },
                               ),
                               const SizedBox(height: 8),
                               AuthCheckbox(
@@ -474,6 +481,12 @@ class _LoginPageState extends State<LoginPage> {
                                   setState(() {
                                     _agreedToPrivacy = val ?? false;
                                   });
+                                },
+                                onTextTap: () {
+                                  launchUrl(
+                                    Uri.parse("https://tfti-app.web.app/privacy"),
+                                    mode: LaunchMode.externalApplication,
+                                  );
                                 },
                               ),
                             ],

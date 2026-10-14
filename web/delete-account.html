@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delete Account - TFTI</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <style>
+    :root {
+      --primary: #1D73CB;
+      --danger: #EF4444;
+      --bg: #F8FAFC;
+      --card-bg: #FFFFFF;
+      --text: #0F172A;
+      --text-muted: #64748B;
+      --border: #E2E8F0;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --primary: #38BDF8;
+        --danger: #F87171;
+        --bg: #0F172A;
+        --card-bg: #1E293B;
+        --text: #F8FAFC;
+        --text-muted: #94A3B8;
+        --border: #334155;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 0 16px;
+    }
+    header {
+      max-width: 800px;
+      margin: 40px auto 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--primary);
+      text-decoration: none;
+      letter-spacing: -0.5px;
+    }
+    nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      margin-left: 16px;
+      font-weight: 500;
+    }
+    nav a:hover { color: var(--primary); }
+    main {
+      max-width: 800px;
+      margin: 0 auto 60px;
+      background: var(--card-bg);
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      border: 1px solid var(--border);
+    }
+    h1 { font-size: 32px; font-weight: 800; margin-bottom: 8px; color: var(--text); }
+    .subtitle { color: var(--text-muted); font-size: 16px; margin-bottom: 32px; }
+    h2 { font-size: 20px; font-weight: 700; margin: 28px 0 12px; color: var(--text); }
+    p, ol, ul { margin-bottom: 16px; color: var(--text); }
+    ol, ul { padding-left: 24px; }
+    li { margin-bottom: 8px; }
+    .step-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--primary);
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    .warning-box {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-left: 4px solid var(--danger);
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    .warning-box strong { color: var(--danger); }
+    footer {
+      max-width: 800px;
+      margin: 0 auto 40px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    footer a { color: var(--primary); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/" class="logo">TFTI</a>
+    <nav>
+      <a href="/">App</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Account & Data Deletion</h1>
+    <div class="subtitle">Instructions for permanently deleting your TFTI account and associated personal data.</div>
+
+    <p>At <strong>TFTI ("Thanks For The Invite")</strong>, we believe you should have complete ownership and control over your personal data. In accordance with Apple App Store Review Guidelines, Google Play Developer Policies, GDPR, and CCPA, you have the right to delete your account and all associated personal information at any time.</p>
+
+    <h2>Method 1: Delete Directly in the App (Instant)</h2>
+    <p>The fastest and most direct way to delete your account is from within the TFTI mobile or web app:</p>
+    <div class="step-box">
+      <ol>
+        <li>Open the <strong>TFTI</strong> app on your device.</li>
+        <li>Tap your <strong>Profile / Account</strong> tab in the bottom navigation bar.</li>
+        <li>Scroll down to <strong>Account Settings</strong>.</li>
+        <li>Tap <strong style="color: var(--danger);">Delete Account</strong>.</li>
+        <li>Confirm your decision in the prompt.</li>
+      </ol>
+    </div>
+    <p><em>Note: If you have been logged in for an extended period, Firebase may request a quick re-authentication via SMS code to ensure account security before processing deletion.</em></p>
+
+    <h2>Method 2: Request Deletion via Email</h2>
+    <p>If you no longer have access to the app or device, you can submit a manual deletion request by contacting our support team:</p>
+    <div class="step-box">
+      <p>Send an email from your verified address or contact us at:</p>
+      <p style="margin-top: 8px; font-weight: 600;"><a href="mailto:support@tfti.app?subject=Account%20Deletion%20Request" style="color: var(--primary); text-decoration: none;">support@tfti.app</a></p>
+      <p style="margin-top: 8px; font-size: 14px; color: var(--text-muted);">Please include your registered mobile phone number and username. To protect your security, our team may verify account ownership before completing the deletion.</p>
+    </div>
+
+    <h2>What Happens When You Delete Your Account?</h2>
+    <div class="warning-box">
+      <p><strong>Permanent Data Removal:</strong></p>
+      <ul style="margin-top: 8px;">
+        <li>Your user profile, username, display name, and avatar are permanently purged.</li>
+        <li>Your phone number mapping is removed from our database.</li>
+        <li>You are removed from all squads and hangout circles.</li>
+        <li>Your push notification device tokens are revoked immediately.</li>
+      </ul>
+      <p style="margin-top: 8px;"><em>This action is irreversible. Once deleted, your account cannot be restored.</em></p>
+    </div>
+  </main>
+
+  <footer>
+    &copy; 2026 TFTI (Thanks For The Invite). All rights reserved. &bull; <a href="/privacy">Privacy</a> &bull; <a href="/terms">Terms</a> &bull; <a href="/support">Support</a>
+  </footer>
+</body>
+</html>

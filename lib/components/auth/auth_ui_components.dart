@@ -112,12 +112,14 @@ class AuthCheckbox extends StatelessWidget {
   final String text;
   final bool value;
   final Function(bool?) onChanged;
+  final VoidCallback? onTextTap;
 
   const AuthCheckbox({
     super.key,
     required this.text,
     required this.value,
     required this.onChanged,
+    this.onTextTap,
   });
 
   @override
@@ -142,11 +144,17 @@ class AuthCheckbox extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 13,
-              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+          child: GestureDetector(
+            onTap: onTextTap,
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 13,
+                color: onTextTap != null
+                    ? primaryColor
+                    : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                decoration: onTextTap != null ? TextDecoration.underline : null,
+              ),
             ),
           ),
         ),

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -41,10 +42,12 @@ void main() async {
   }
 
   try {
-    if (Platform.isIOS) {
-      await Purchases.configure(PurchasesConfiguration("YOUR_APPLE_API_KEY"));
-    } else if (Platform.isAndroid) {
-      await Purchases.configure(PurchasesConfiguration("YOUR_GOOGLE_API_KEY"));
+    if (!kIsWeb) {
+      if (Platform.isIOS) {
+        await Purchases.configure(PurchasesConfiguration("YOUR_APPLE_API_KEY"));
+      } else if (Platform.isAndroid) {
+        await Purchases.configure(PurchasesConfiguration("YOUR_GOOGLE_API_KEY"));
+      }
     }
   } catch (e) {
     debugPrint("RevenueCat Init Error (ignore if no API keys yet): $e");
@@ -206,6 +209,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   }
 
   Future<void> _clearAppBadge() async {
+    if (kIsWeb) return;
     try {
       bool isSupported = await FlutterAppBadger.isAppBadgeSupported();
       if (isSupported) {

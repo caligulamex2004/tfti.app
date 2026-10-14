@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:add_2_calendar/add_2_calendar.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -342,6 +343,19 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
 
     final DateTime startTime = ts.toDate();
     final DateTime endTime = startTime.add(const Duration(hours: 2));
+
+    if (kIsWeb) {
+      final title = Uri.encodeComponent(data['title'] ?? 'Squad Hangout');
+      final details = Uri.encodeComponent(data['details'] ?? 'Added via tfti.app');
+      final location = Uri.encodeComponent(data['location'] ?? '');
+      final startIso = '${startTime.toUtc().toIso8601String().replaceAll(RegExp(r'[:-]'), '').split('.').first}Z';
+      final endIso = '${endTime.toUtc().toIso8601String().replaceAll(RegExp(r'[:-]'), '').split('.').first}Z';
+      final gCalUrl = Uri.parse(
+        'https://calendar.google.com/calendar/render?action=TEMPLATE&text=$title&dates=$startIso/$endIso&details=$details&location=$location',
+      );
+      launchUrl(gCalUrl, mode: LaunchMode.externalApplication);
+      return;
+    }
 
     Add2Calendar.addEvent2Cal(
       Event(
