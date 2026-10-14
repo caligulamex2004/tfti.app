@@ -47,108 +47,119 @@ class AccountSettingsCard extends StatelessWidget {
           color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
         ),
       ),
-      child: Column(
-        children: [
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 8,
-            ),
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
               ),
-              child: const Icon(Symbols.settings),
-            ),
-            title: const Text(
-              "Preferences",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: const Text("Notifications & Appearance"),
-            trailing: const Icon(Icons.chevron_right, size: 16),
-            onTap: onPreferencesTap,
-          ),
-          Divider(
-            height: 1,
-            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-            indent: 60,
-          ),
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 8,
-            ),
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Symbols.settings),
               ),
-              child: const Icon(Icons.description_outlined, color: Colors.blue),
-            ),
-            title: const Text(
-              "Terms of Service",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            trailing: const Icon(Icons.chevron_right, size: 16),
-            onTap: () =>
-                _launchLegalUrl(context, "https://tfti-app.web.app/terms"),
-          ),
-          Divider(
-            height: 1,
-            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-            indent: 60,
-          ),
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 8,
-            ),
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.teal.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+              title: const Text(
+                "Preferences",
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              child: const Icon(Icons.privacy_tip_outlined, color: Colors.teal),
+              subtitle: const Text("Notifications & Appearance"),
+              trailing: const Icon(Icons.chevron_right, size: 16),
+              onTap: onPreferencesTap,
             ),
-            title: const Text(
-              "Privacy Policy",
-              style: TextStyle(fontWeight: FontWeight.bold),
+            Divider(
+              height: 1,
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+              indent: 60,
             ),
-            trailing: const Icon(Icons.chevron_right, size: 16),
-            onTap: () =>
-                _launchLegalUrl(context, "https://tfti-app.web.app/privacy"),
-          ),
-          Divider(
-            height: 1,
-            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-            indent: 60,
-          ),
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 8,
-            ),
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
               ),
-              child: const Icon(Icons.coffee, color: Colors.amber),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.description_outlined,
+                  color: Colors.blue,
+                ),
+              ),
+              title: const Text(
+                "Terms of Service",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              trailing: const Icon(Icons.chevron_right, size: 16),
+              onTap: () =>
+                  _launchLegalUrl(context, "https://tfti-app.web.app/terms"),
             ),
-            title: const Text(
-              "Support the Developer",
-              style: TextStyle(fontWeight: FontWeight.bold),
+            Divider(
+              height: 1,
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+              indent: 60,
             ),
-            subtitle: const Text("Help keep the servers running"),
-            trailing: const Icon(Icons.chevron_right, size: 16),
-            onTap: onTipJarTap,
-          ),
-        ],
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
+              ),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.privacy_tip_outlined,
+                  color: Colors.teal,
+                ),
+              ),
+              title: const Text(
+                "Privacy Policy",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              trailing: const Icon(Icons.chevron_right, size: 16),
+              onTap: () =>
+                  _launchLegalUrl(context, "https://tfti-app.web.app/privacy"),
+            ),
+            Divider(
+              height: 1,
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+              indent: 60,
+            ),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
+              ),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.coffee, color: Colors.amber),
+              ),
+              title: const Text(
+                "Support the Developer",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: const Text("Help keep the servers running"),
+              trailing: const Icon(Icons.chevron_right, size: 16),
+              onTap: onTipJarTap,
+            ),
+          ],
+        ),
       ),
     );
   }

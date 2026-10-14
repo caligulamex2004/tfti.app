@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20FCM%20%7C%20Storage%20%7C%20Hosting-FFCA28?logo=firebase&logoColor=black" alt="Firebase" />
   <img src="https://img.shields.io/badge/Google%20Maps-Places%20API-4285F4?logo=googlemaps&logoColor=white" alt="Google Maps" />
   <img src="https://img.shields.io/badge/Platforms-iOS%2015%2B%20%7C%20Android%205.0%2B%20%7C%20Web-brightgreen" alt="Platforms" />
-  <img src="https://img.shields.io/badge/Tests-124%20Passing-success" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-141%20Passing-success" alt="Tests" />
   <img src="https://img.shields.io/badge/License-Proprietary-blue" alt="License" />
 </p>
 
@@ -66,6 +66,7 @@ Modern group chats are broken for planning hangouts. They drown in endless back-
 - **Squad Needs (Dibs System)**: Create interactive lists of food, gear, or party favors. Guests can claim and call dibs directly from the event page.
 - **Co-Captains**: Designate a co-host with permission to invite their own circles or manage squad needs.
 - **Time-Locked Edits**: Event updates automatically lock once the scheduled end time passes, preserving historical event integrity while allowing real-time chat updates to continue.
+- **Real-Time Event Chat & Message Editing**: Coordinate with quick emoji reactions, @mentions, and an inline message editor for authors to revise messages with server-stamped edit tracking (`(edited)`) while preserving guest mentions.
 - **Calendar Integration**: Export confirmed hangouts directly to Apple Calendar or Google Calendar via `add_2_calendar`.
 
 ### 2. Vibe Checks (Democratic Polling)
@@ -75,6 +76,7 @@ Modern group chats are broken for planning hangouts. They drown in endless back-
 
 ### 3. Squad Circles & Social Graph
 - **Dynamic Circles**: Segment your friends into custom interest-based circles so notifications only reach the people who care.
+- **Streamlined Team Creation Flow**: Type-safe modal return architecture (`CreateTeamSheet.showCreate<T>`) enabling instantaneous selection and navigation to newly created circles across mobile portrait and split-view landscape layouts.
 - **Goated Friends**: Mark your favorite / best friends as "Goated" (⭐) to highlight them in feeds and filter event views.
 - **Contextual Empty States & Shimmer Skeletons**: Fluid animations and informative empty cards guide users when their squad or circles are fresh.
 
@@ -116,7 +118,8 @@ A multi-layered defense system that blocks random phone scraping and unsolicited
 - **Social Link Previews**: Rich Open Graph and Twitter Card tags for crisp link previews across iMessage, WhatsApp, Slack, Discord, and Twitter/X.
 - **Google Calendar Web Integration**: Instant web event creation via standard Google Calendar URL templates.
 - **Responsive Layout & Polished Presentation**: Adaptive container constraints across desktop browsers, iPads/tablets, and mobile viewports with centered cards, dedicated scroll boundaries, and overflow-safe footer links.
-- **Platform-Aware Media Delivery**: Dual-engine image rendering (`AppBannerImage`) using native browser HTTP caching on web to avoid canvas detachment, alongside custom Cloud Storage CORS rules.
+- **Platform-Aware Media Delivery**: Dual-engine image rendering (`AppBannerImage`) using native browser HTTP caching on web to avoid canvas detachment, alongside custom Cloud Storage CORS rules (`cors.json`) for secure cross-origin asset access.
+- **Cross-Platform Byte Uploads**: Decoupled file handling with `Uint8List` byte streams, eliminating `dart:io` `File` limitations across Flutter Web, desktop, and mobile for user avatars, event banners, and in-chat photos.
 
 ---
 
@@ -204,6 +207,7 @@ tftiapp/
 │   ├── terms.html                # Public Terms of Service
 │   ├── support.html              # Public Support and Help Center
 │   └── delete-account.html       # Apple Guideline 5.1.1(v) Account Deletion instructions
+├── cors.json                     # Firebase Storage CORS cross-origin headers configuration
 ├── firebase.json                 # Firebase CLI project configuration (Hosting, Firestore, Functions)
 ├── firestore.rules               # Production Firestore Security Rules
 └── pubspec.yaml                  # Flutter package dependencies and metadata
@@ -269,7 +273,7 @@ tftiapp/
 
 ## 🧪 Testing & Quality Assurance
 
-This codebase enforces strict automated testing for logic, models, privacy controls, UI components, and web compliance. **115 automated tests** run across the test suite with 100% pass rate.
+This codebase enforces strict automated testing for logic, models, privacy controls, UI components, responsive layouts, and web store compliance. **141 automated tests** run across the test suite with 100% pass rate.
 
 ### Run the Test Suite
 ```bash
@@ -282,20 +286,33 @@ flutter analyze
 ```
 
 ### Test Coverage Highlights
-- **Model Tests (`test/models/`)**: Serializations, 14-day squad request expiration TTL calculations, and phone privacy parsing.
+- **Model Tests (`test/models/`)**: Event serialization/deserialization, season recurring generator logic, `HangoutSubmissionRequest` duration & web `Uint8List` byte propagation, 14-day squad request expiration TTL calculations, and phone privacy parsing.
 - **Component Tests (`test/components/`)**:
   - `account_edit_card_test.dart`: Phone privacy toggle, modal explanations, and auto-save handlers.
-  - `squad_requests_section_test.dart`: Rendering and tap interactions for **Squad Up**, **Pass**, and **Block**.
+  - `account_settings_card_test.dart`: Preferences, legal document navigation (Terms & Privacy web URLs), and tip jar callbacks with Material splash safety.
   - `auth_ui_components_test.dart`: Text field validation, dynamic loading button states, and clickable checkbox terms/privacy links.
+  - `create_team_sheet_test.dart`: Generic return value resolution (`showCreate<T>`), validation, and empty-input protection.
+  - `team_card_test.dart`: Team avatar rendering, member count chips, and interactive selection.
+  - `message_options_sheet_test.dart`: Quick emoji reactions, text copying, message deletion, and author message editing dialog with @mention preservation.
+  - `app_banner_image_test.dart`: Platform-aware image caching (native HTTP on web vs CachedNetworkImage on mobile) and graceful gradient fallback.
+  - `banner_picker_test.dart`: Image picking options sheet, web `Uint8List` byte propagation, removal callbacks, and past-event guards.
+  - `squad_requests_section_test.dart`: Rendering and tap interactions for **Squad Up**, **Pass**, and **Block**.
+  - `friend_list_tile_test.dart`: Friend row layout, status badges, and action triggers.
+  - `swipe_rsvp_widget_test.dart` & `critical_alert_banner_test.dart`: Haptic RSVP swipe mechanics and urgent notification banners.
+- **Page & Layout Tests (`test/pages/`, `test/`)**:
+  - `team_members_page_test.dart`: SafeArea notch clearance and `SharedSliverAppBar` expanded title offset spacing relative to back buttons.
+  - `login_page_validation_test.dart`: Phone number OTP validation, responsive maxWidth constraint (440px on web/desktop/tablets), and mobile viewport overflow safety.
+  - `onboarding_tutorial_test.dart`: Multi-slide carousel progression and landscape stability.
+  - `orientation_layout_test.dart`: NavigationRail / NavigationBar switching, app bar shrinkage (140px to 56px), and form state persistence across orientation flips.
 - **Service & Utility Tests (`test/services/`, `test/utils/`)**:
   - `contact_service_test.dart`: Normalization of 10-digit, 11-digit, and international numbers; web safety guards.
   - `calendar_export_helper_test.dart`: Google Calendar template URL construction, ISO timestamp formatting, and special character/emoji encoding.
   - `phone_formatter_test.dart`: Local and international beautification logic.
+  - `feed_filter_utils_test.dart` & `feed_service_test.dart`: Feed sorting, circle filtering, and empty-state handling.
+  - `theme_provider_test.dart`: Dynamic palette brightness, contrast, and theme persistence.
   - `user_cache_repository_test.dart`: Memory and SharedPreferences cache eviction and TTL management.
 - **Web & Compliance Tests (`test/web/`)**:
-  - `web_assets_test.dart`: Automated verification ensuring `privacy.html`, `terms.html`, `support.html`, `delete-account.html`, `manifest.json`, `favicon.ico`, and `favicon.png` exist, parse cleanly, and satisfy Apple App Store & Google Play requirements.
-- **Orientation & Layout Tests (`test/orientation_layout_test.dart`)**: NavigationRail / NavigationBar switching, app bar shrinkage (140px to 56px), and form state persistence across orientation flips.
-- **Onboarding Tutorial Tests (`test/pages/`)**: Multi-slide carousel progression and landscape stability.
+  - `web_assets_test.dart`: Automated verification ensuring `privacy.html`, `terms.html`, `support.html`, `delete-account.html`, `manifest.json`, favicons, `cors.json` storage headers, and `firebase.json` hosting rewrites exist, parse cleanly, and satisfy Apple App Store & Google Play requirements.
 
 ---
 
