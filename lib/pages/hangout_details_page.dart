@@ -23,6 +23,7 @@ import '../components/details/event_rsvp_card.dart';
 import '../components/details/event_squad_needs_card.dart';
 import '../components/details/event_vitals_card.dart';
 import '../components/shared/shared_sliver_app_bar.dart';
+import '../components/shared/app_banner_image.dart';
 
 class HangoutDetailsPage extends StatefulWidget {
   final String eventId;
@@ -606,22 +607,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                     ? Stack(
                                         fit: StackFit.expand,
                                         children: [
-                                          CachedNetworkImage(
+                                          AppBannerImage(
                                             imageUrl: data['bannerUrl'],
                                             fit: BoxFit.cover,
-                                            placeholder: (context, url) => Container(
-                                              decoration: BoxDecoration(
-                                                gradient: themeProvider.appGradient,
-                                              ),
-                                              child: const Center(
-                                                child: CircularProgressIndicator(strokeWidth: 2),
-                                              ),
-                                            ),
-                                            errorWidget: (context, url, error) => Container(
-                                              decoration: BoxDecoration(
-                                                gradient: themeProvider.appGradient,
-                                              ),
-                                            ),
                                           ),
                                           Container(
                                             decoration: BoxDecoration(

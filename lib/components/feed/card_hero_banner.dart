@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import '../shared/app_banner_image.dart';
 import '../../utils/theme_provider.dart';
 import '../../models/user_profile.dart';
 import '../../services/user_cache_repository.dart';
@@ -50,25 +51,9 @@ class CardHeroBanner extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           if (bannerUrl != null && bannerUrl!.isNotEmpty)
-            CachedNetworkImage(
+            AppBannerImage(
               imageUrl: bannerUrl!,
               fit: BoxFit.cover,
-              placeholder: (context, url) => Container(
-                decoration: BoxDecoration(
-                  gradient: themeProvider.appGradient,
-                ),
-                child: const Center(
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-              errorWidget: (context, url, error) {
-                debugPrint("Banner image load error: $url, error: $error");
-                return Container(
-                  decoration: BoxDecoration(
-                    gradient: themeProvider.appGradient,
-                  ),
-                );
-              },
             )
           else
             Container(

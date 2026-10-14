@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import '../shared/app_banner_image.dart';
 import '../../utils/theme_provider.dart';
 
 /// The compact tile used for horizontal landscape split view lists.
@@ -86,19 +86,9 @@ class CardLandscapeTile extends StatelessWidget {
                     ),
                     clipBehavior: Clip.antiAlias,
                     child: (bannerUrl != null && bannerUrl!.isNotEmpty)
-                        ? CachedNetworkImage(
+                        ? AppBannerImage(
                             imageUrl: bannerUrl!,
                             fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              decoration: BoxDecoration(
-                                gradient: themeProvider.appGradient,
-                              ),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              decoration: BoxDecoration(
-                                gradient: themeProvider.appGradient,
-                              ),
-                            ),
                           )
                         : Container(
                             decoration: BoxDecoration(
