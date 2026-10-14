@@ -30,12 +30,18 @@ class MessageOptionsSheet extends StatelessWidget {
   final DocumentSnapshot doc;
   final String eventId;
   final VoidCallback onAddReaction;
+  final List<Map<String, dynamic>>? eventGuests;
+  final Future<void> Function(String newText)? onEditMessage;
+  final String? currentUserId;
 
   const MessageOptionsSheet({
     super.key,
     required this.doc,
     required this.eventId,
     required this.onAddReaction,
+    this.eventGuests,
+    this.onEditMessage,
+    this.currentUserId,
   });
 
   Future<void> _handleQuickReaction(
@@ -92,8 +98,15 @@ class MessageOptionsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final data = doc.data() as Map<String, dynamic>;
-    final user = FirebaseAuth.instance.currentUser;
-    final isMe = data['senderId'] == user?.uid;
+    String? effectiveUid = currentUserId;
+    if (effectiveUid == null) {
+      try {
+        effectiveUid = FirebaseAuth.instance.currentUser?.uid;
+      } catch (_) {
+        effectiveUid = null;
+      }
+    }
+    final isMe = effectiveUid != null && data['senderId'] == effectiveUid;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
 
@@ -104,9 +117,9 @@ class MessageOptionsSheet extends StatelessWidget {
     final normalized = normalizeReactions(rawReactions);
     String? myCurrentEmoji;
 
-    if (user != null) {
+    if (effectiveUid != null) {
       normalized.forEach((key, list) {
-        if (list.contains(user.uid)) {
+        if (list.contains(effectiveUid)) {
           myCurrentEmoji = key;
         }
       });
@@ -190,7 +203,121 @@ class MessageOptionsSheet extends StatelessWidget {
               },
             ),
 
-          if (isMe)
+          if (isMe) ...[
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text("Edit Message"),
+              onTap: () async {
+                final currentText = (data['text'] as String?) ?? '';
+                final editController = TextEditingController(text: currentText);
+
+                final updatedText = await showDialog<String>(
+                  context: context,
+                  builder: (dialogCtx) {
+                    final isDark =
+                        Theme.of(dialogCtx).brightness == Brightness.dark;
+                    final primaryColor =
+                        Theme.of(dialogCtx).colorScheme.primary;
+
+                    return AlertDialog(
+                      backgroundColor: Theme.of(dialogCtx).cardColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      title: const Text("Edit Message"),
+                      content: TextField(
+                        controller: editController,
+                        autofocus: true,
+                        textCapitalization: TextCapitalization.sentences,
+                        maxLines: 5,
+                        minLines: 1,
+                        decoration: InputDecoration(
+                          hintText: "Edit your message...",
+                          filled: true,
+                          fillColor: isDark
+                              ? Colors.grey.shade900
+                              : Colors.grey.shade100,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogCtx, null),
+                          child: const Text("Cancel"),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            final text = editController.text.trim();
+                            final hasImage = data['imageUrl'] != null &&
+                                (data['imageUrl'] as String).isNotEmpty;
+                            if (text.isEmpty && !hasImage) {
+                              return;
+                            }
+                            Navigator.pop(dialogCtx, text);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text("Save"),
+                        ),
+                      ],
+                    );
+                  },
+                );
+
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
+
+                if (updatedText != null && updatedText != currentText) {
+                  if (onEditMessage != null) {
+                    await onEditMessage!(updatedText);
+                  } else {
+                    try {
+                      Map<String, dynamic> updateData = {
+                        'text': updatedText,
+                        'isEdited': true,
+                        'editedAt': FieldValue.serverTimestamp(),
+                      };
+
+                      if (eventGuests != null && eventGuests!.isNotEmpty) {
+                        List<String> mentionedUids = [];
+                        final words = updatedText.split(RegExp(r'\s+'));
+                        for (var word in words) {
+                          if (word.startsWith('@')) {
+                            final queryName = word
+                                .substring(1)
+                                .toLowerCase()
+                                .replaceAll(RegExp(r'[^\w\s]'), '');
+                            for (var guest in eventGuests!) {
+                              final tag =
+                                  (guest['tag'] as String?)?.toLowerCase();
+                              if (tag == queryName) {
+                                mentionedUids.add(guest['uid']);
+                              }
+                            }
+                          }
+                        }
+                        updateData['mentionedUids'] =
+                            mentionedUids.toSet().toList();
+                      }
+
+                      await doc.reference.update(updateData);
+                    } catch (e) {
+                      debugPrint("Failed to edit message: $e");
+                    }
+                  }
+                }
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
               title: const Text(
@@ -202,6 +329,7 @@ class MessageOptionsSheet extends StatelessWidget {
                 await doc.reference.delete();
               },
             ),
+          ],
 
           if (!isMe)
             ListTile(
@@ -245,7 +373,8 @@ class MessageOptionsSheet extends StatelessWidget {
                 }
 
                 try {
-                  if (user == null) {
+                  final reporterUid = effectiveUid;
+                  if (reporterUid == null) {
                     return;
                   }
 
@@ -254,7 +383,7 @@ class MessageOptionsSheet extends StatelessWidget {
                     'messageId': doc.id,
                     'messageText': data['text'] ?? '',
                     'offenderId': data['senderId'],
-                    'reportedBy': user.uid,
+                    'reportedBy': reporterUid,
                     'reportedAt': FieldValue.serverTimestamp(),
                     'status': 'pending',
                   });

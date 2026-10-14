@@ -102,6 +102,7 @@ class ChatFeed extends StatelessWidget {
                   builder: (ctx) => MessageOptionsSheet(
                     doc: doc,
                     eventId: eventId,
+                    eventGuests: eventGuests,
                     onAddReaction: () {
                       showModalBottomSheet(
                         context: context,
