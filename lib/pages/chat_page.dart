@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -233,14 +232,20 @@ class _ChatPageState extends State<ChatPage> {
     if (!mounted) return;
     setState(() => _isUploadingImage = true);
     try {
-      final File file = File(pickedFile.path);
-      final bytes = await file.readAsBytes();
-      final compressedBytes = await FlutterImageCompress.compressWithList(
-        bytes,
-        minWidth: 800,
-        minHeight: 800,
-        quality: 80,
-      );
+      final Uint8List bytes = await pickedFile.readAsBytes();
+      Uint8List compressedBytes = bytes;
+      try {
+        compressedBytes = await FlutterImageCompress.compressWithList(
+          bytes,
+          minWidth: 800,
+          minHeight: 800,
+          quality: 80,
+        );
+      } catch (compressionError) {
+        debugPrint(
+          "Chat image compression error (using raw bytes): $compressionError",
+        );
+      }
 
       final String fileName =
           'chat_images/${widget.eventId}/${DateTime.now().millisecondsSinceEpoch}.jpg';

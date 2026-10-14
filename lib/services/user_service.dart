@@ -86,16 +86,26 @@ class UserService {
   /// Compresses and uploads an avatar image to Storage and saves url to user doc
   static Future<String> uploadAvatar({
     required String uid,
-    required File imageFile,
+    File? imageFile,
+    Uint8List? imageBytes,
   }) async {
-    final Uint8List bytes = await imageFile.readAsBytes();
-    final Uint8List compressedBytes =
-        await FlutterImageCompress.compressWithList(
-          bytes,
-          minWidth: 512,
-          minHeight: 512,
-          quality: 75,
-        );
+    assert(
+      imageFile != null || imageBytes != null,
+      "Either imageFile or imageBytes must be provided",
+    );
+    final Uint8List bytes =
+        imageBytes ?? await imageFile!.readAsBytes();
+    Uint8List compressedBytes = bytes;
+    try {
+      compressedBytes = await FlutterImageCompress.compressWithList(
+        bytes,
+        minWidth: 512,
+        minHeight: 512,
+        quality: 75,
+      );
+    } catch (e) {
+      debugPrint("Avatar compression error (using raw bytes): $e");
+    }
 
     final Reference ref = _storage.ref().child('profile_images/$uid/avatar.jpg');
 

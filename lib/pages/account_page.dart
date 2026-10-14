@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -239,32 +240,38 @@ class _AccountPageState extends State<AccountPage> {
     final pickedFile = await picker.pickImage(source: source);
     if (pickedFile == null) return;
 
-    final croppedFile = await ImageCropper().cropImage(
-      sourcePath: pickedFile.path,
-      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-      compressQuality: 100,
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: 'Adjust Profile Photo',
-          toolbarColor: primaryColor,
-          toolbarWidgetColor: Colors.white,
-          initAspectRatio: CropAspectRatioPreset.square,
-          lockAspectRatio: true,
-          hideBottomControls: false,
-          cropStyle: CropStyle.circle,
-        ),
-        IOSUiSettings(
-          title: 'Adjust Profile Photo',
-          cancelButtonTitle: 'Cancel',
-          doneButtonTitle: 'Save',
-          aspectRatioLockEnabled: true,
-          resetAspectRatioEnabled: false,
-          cropStyle: CropStyle.circle,
-        ),
-      ],
-    );
+    Uint8List? imageBytes;
+    if (kIsWeb) {
+      imageBytes = await pickedFile.readAsBytes();
+    } else {
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: pickedFile.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        compressQuality: 100,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Adjust Profile Photo',
+            toolbarColor: primaryColor,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+            hideBottomControls: false,
+            cropStyle: CropStyle.circle,
+          ),
+          IOSUiSettings(
+            title: 'Adjust Profile Photo',
+            cancelButtonTitle: 'Cancel',
+            doneButtonTitle: 'Save',
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
+            cropStyle: CropStyle.circle,
+          ),
+        ],
+      );
 
-    if (croppedFile == null) return;
+      if (croppedFile == null) return;
+      imageBytes = await croppedFile.readAsBytes();
+    }
 
     if (!mounted) return;
     setState(() => _isUploadingAvatar = true);
@@ -278,7 +285,7 @@ class _AccountPageState extends State<AccountPage> {
     try {
       final downloadUrl = await UserService.uploadAvatar(
         uid: user.uid,
-        imageFile: File(croppedFile.path),
+        imageBytes: imageBytes,
       );
       if (mounted) {
         setState(() => _avatarUrl = downloadUrl);

@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -10,12 +12,14 @@ class BannerPicker extends StatefulWidget {
   final String? existingImageUrl;
   final bool isPast;
   final Function(String? localPath, bool isRemoved) onImageChanged;
+  final Function(Uint8List? bytes)? onBytesChanged;
 
   const BannerPicker({
     super.key,
     this.existingImageUrl,
     required this.isPast,
     required this.onImageChanged,
+    this.onBytesChanged,
   });
 
   @override
@@ -24,6 +28,7 @@ class BannerPicker extends StatefulWidget {
 
 class _BannerPickerState extends State<BannerPicker> {
   String? _localBannerPath;
+  Uint8List? _localBannerBytes;
   bool _removeBanner = false;
 
   void _showBannerOptions() {
@@ -81,9 +86,11 @@ class _BannerPickerState extends State<BannerPicker> {
                   Navigator.pop(ctx);
                   setState(() {
                     _localBannerPath = null;
+                    _localBannerBytes = null;
                     _removeBanner = true;
                   });
                   widget.onImageChanged(null, true);
+                  widget.onBytesChanged?.call(null);
                 },
               ),
             ],
@@ -100,6 +107,19 @@ class _BannerPickerState extends State<BannerPicker> {
     final pickedFile = await picker.pickImage(source: source);
 
     if (pickedFile == null) return;
+
+    if (kIsWeb) {
+      final bytes = await pickedFile.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        _localBannerPath = pickedFile.path;
+        _localBannerBytes = bytes;
+        _removeBanner = false;
+      });
+      widget.onImageChanged(_localBannerPath, false);
+      widget.onBytesChanged?.call(bytes);
+      return;
+    }
 
     final croppedFile = await ImageCropper().cropImage(
       sourcePath: pickedFile.path,
@@ -127,11 +147,14 @@ class _BannerPickerState extends State<BannerPicker> {
     if (!mounted) return;
 
     if (croppedFile != null) {
+      final bytes = await croppedFile.readAsBytes();
       setState(() {
         _localBannerPath = croppedFile.path;
+        _localBannerBytes = bytes;
         _removeBanner = false;
       });
       widget.onImageChanged(_localBannerPath, false);
+      widget.onBytesChanged?.call(bytes);
     }
   }
 
@@ -147,7 +170,11 @@ class _BannerPickerState extends State<BannerPicker> {
     DecorationImage? imageDecoration;
     if (hasLocalImage) {
       imageDecoration = DecorationImage(
-        image: FileImage(File(_localBannerPath!)),
+        image: _localBannerBytes != null
+            ? MemoryImage(_localBannerBytes!)
+            : (!kIsWeb && _localBannerPath != null
+                ? FileImage(File(_localBannerPath!))
+                : MemoryImage(Uint8List(0))) as ImageProvider,
         fit: BoxFit.cover,
       );
     } else if (hasExistingUrl) {

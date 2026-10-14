@@ -70,6 +70,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
   }
 
   String? _bannerImagePath;
+  Uint8List? _bannerImageBytes;
   bool _removeBanner = false;
 
   // Squad Needs (Create Mode — local list)
@@ -230,7 +231,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
       if (_titleController.text.trim().isNotEmpty) return true;
       if (_locController.text.trim().isNotEmpty) return true;
       if (_detailsController.text.trim().isNotEmpty) return true;
-      if (_bannerImagePath != null) return true;
+      if (_bannerImagePath != null || _bannerImageBytes != null) return true;
       if (_roles.isNotEmpty) return true;
     }
     return false;
@@ -311,6 +312,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
       generateSeasonDates: _generateSeasonDates,
       updateScope: updateScope,
       bannerImagePath: _bannerImagePath,
+      bannerImageBytes: _bannerImageBytes,
       removeBanner: _removeBanner,
       coHostId: _selectedCoHostId,
       coHostName: _selectedCoHostName,
@@ -684,6 +686,12 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                             setState(() {
                                               _bannerImagePath = path;
                                               _removeBanner = removed;
+                                              if (removed) _bannerImageBytes = null;
+                                            });
+                                          },
+                                          onBytesChanged: (bytes) {
+                                            setState(() {
+                                              _bannerImageBytes = bytes;
                                             });
                                           },
                                         ),
@@ -815,6 +823,12 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                   setState(() {
                                     _bannerImagePath = path;
                                     _removeBanner = removed;
+                                    if (removed) _bannerImageBytes = null;
+                                  });
+                                },
+                                onBytesChanged: (bytes) {
+                                  setState(() {
+                                    _bannerImageBytes = bytes;
                                   });
                                 },
                               ),

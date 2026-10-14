@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 enum SeasonUpdateScope {
@@ -59,6 +60,7 @@ class HangoutSubmissionRequest {
 
   // Banner
   final String? bannerImagePath;
+  final Uint8List? bannerImageBytes;
   final bool removeBanner;
 
   // Co-host
@@ -90,6 +92,7 @@ class HangoutSubmissionRequest {
     this.generateSeasonDates,
     this.updateScope = SeasonUpdateScope.single,
     this.bannerImagePath,
+    this.bannerImageBytes,
     this.removeBanner = false,
     this.coHostId,
     this.coHostName,

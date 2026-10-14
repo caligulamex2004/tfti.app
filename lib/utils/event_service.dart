@@ -437,25 +437,34 @@ class EventService {
                 .child('event_banners/${request.eventId}/banner.jpg')
                 .delete();
           } catch (_) {}
-        } else if (request.bannerImagePath != null) {
+        } else if (request.bannerImageBytes != null || request.bannerImagePath != null) {
           try {
-            final File file = File(request.bannerImagePath!);
-            final Uint8List bytes = await file.readAsBytes();
-            final Uint8List compressedBytes =
-                await FlutterImageCompress.compressWithList(
+            Uint8List? bytes = request.bannerImageBytes;
+            if (bytes == null && request.bannerImagePath != null && !kIsWeb) {
+              final File file = File(request.bannerImagePath!);
+              bytes = await file.readAsBytes();
+            }
+            if (bytes != null) {
+              Uint8List compressedBytes = bytes;
+              try {
+                compressedBytes = await FlutterImageCompress.compressWithList(
                   bytes,
                   minWidth: 1280,
                   minHeight: 720,
                   quality: 75,
                 );
-            final ref = FirebaseStorage.instance.ref().child(
-              'event_banners/${request.eventId}/banner.jpg',
-            );
-            await ref.putData(
-              compressedBytes,
-              SettableMetadata(contentType: 'image/jpeg'),
-            );
-            updateData['bannerUrl'] = await ref.getDownloadURL();
+              } catch (compErr) {
+                debugPrint("Banner compression error (using raw bytes): $compErr");
+              }
+              final ref = FirebaseStorage.instance.ref().child(
+                'event_banners/${request.eventId}/banner.jpg',
+              );
+              await ref.putData(
+                compressedBytes,
+                SettableMetadata(contentType: 'image/jpeg'),
+              );
+              updateData['bannerUrl'] = await ref.getDownloadURL();
+            }
           } catch (e) {
             debugPrint("Failed to upload new banner: $e");
           }
@@ -858,33 +867,41 @@ class EventService {
         if (operationCount > 0) await batch.commit();
 
         // Banner upload (once, shared across all events in the season)
-        if (request.bannerImagePath != null && createdEventRefs.isNotEmpty) {
+        if ((request.bannerImageBytes != null || request.bannerImagePath != null) && createdEventRefs.isNotEmpty) {
           try {
-            final File file = File(request.bannerImagePath!);
-            final Uint8List bytes = await file.readAsBytes();
-            final Uint8List compressedBytes =
-                await FlutterImageCompress.compressWithList(
+            Uint8List? bytes = request.bannerImageBytes;
+            if (bytes == null && request.bannerImagePath != null && !kIsWeb) {
+              final File file = File(request.bannerImagePath!);
+              bytes = await file.readAsBytes();
+            }
+            if (bytes != null) {
+              Uint8List compressedBytes = bytes;
+              try {
+                compressedBytes = await FlutterImageCompress.compressWithList(
                   bytes,
                   minWidth: 1280,
                   minHeight: 720,
                   quality: 75,
                 );
+              } catch (compErr) {
+                debugPrint("Season banner compression error (using raw bytes): $compErr");
+              }
 
-            final String storageFolderId =
-                newSeasonId ?? createdEventRefs.first.id;
-            final Reference ref = FirebaseStorage.instance.ref().child(
-              'event_banners/$storageFolderId/banner.jpg',
-            );
+              final String storageFolderId =
+                  newSeasonId ?? createdEventRefs.first.id;
+              final Reference ref = FirebaseStorage.instance.ref().child(
+                'event_banners/$storageFolderId/banner.jpg',
+              );
 
-            final TaskSnapshot snapshot = await ref.putData(
-              compressedBytes,
-              SettableMetadata(contentType: 'image/jpeg'),
-            );
-            final String downloadUrl = await snapshot.ref.getDownloadURL();
+              final TaskSnapshot snapshot = await ref.putData(
+                compressedBytes,
+                SettableMetadata(contentType: 'image/jpeg'),
+              );
+              final String downloadUrl = await snapshot.ref.getDownloadURL();
 
-            if (seasonRef != null) {
-              await seasonRef.update({'bannerUrl': downloadUrl});
-            }
+              if (seasonRef != null) {
+                await seasonRef.update({'bannerUrl': downloadUrl});
+              }
 
             WriteBatch urlBatch = FirebaseFirestore.instance.batch();
             int urlOps = 0;
@@ -898,6 +915,7 @@ class EventService {
               }
             }
             if (urlOps > 0) await urlBatch.commit();
+            }
           } catch (e) {
             debugPrint("Failed to upload banner: $e");
           }
