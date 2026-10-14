@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20FCM%20%7C%20Storage%20%7C%20Hosting-FFCA28?logo=firebase&logoColor=black" alt="Firebase" />
   <img src="https://img.shields.io/badge/Google%20Maps-Places%20API-4285F4?logo=googlemaps&logoColor=white" alt="Google Maps" />
   <img src="https://img.shields.io/badge/Platforms-iOS%2015%2B%20%7C%20Android%205.0%2B%20%7C%20Web-brightgreen" alt="Platforms" />
-  <img src="https://img.shields.io/badge/Tests-115%20Passing-success" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-124%20Passing-success" alt="Tests" />
   <img src="https://img.shields.io/badge/License-Proprietary-blue" alt="License" />
 </p>
 
@@ -115,6 +115,8 @@ A multi-layered defense system that blocks random phone scraping and unsolicited
   - [Account Deletion](https://tfti-app.web.app/delete-account): Web-accessible deletion instructions satisfying Apple App Store Guideline 5.1.1(v).
 - **Social Link Previews**: Rich Open Graph and Twitter Card tags for crisp link previews across iMessage, WhatsApp, Slack, Discord, and Twitter/X.
 - **Google Calendar Web Integration**: Instant web event creation via standard Google Calendar URL templates.
+- **Responsive Layout & Polished Presentation**: Adaptive container constraints across desktop browsers, iPads/tablets, and mobile viewports with centered cards, dedicated scroll boundaries, and overflow-safe footer links.
+- **Platform-Aware Media Delivery**: Dual-engine image rendering (`AppBannerImage`) using native browser HTTP caching on web to avoid canvas detachment, alongside custom Cloud Storage CORS rules.
 
 ---
 
