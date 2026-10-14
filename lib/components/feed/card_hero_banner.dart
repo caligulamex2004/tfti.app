@@ -50,7 +50,26 @@ class CardHeroBanner extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           if (bannerUrl != null && bannerUrl!.isNotEmpty)
-            CachedNetworkImage(imageUrl: bannerUrl!, fit: BoxFit.cover)
+            CachedNetworkImage(
+              imageUrl: bannerUrl!,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(
+                decoration: BoxDecoration(
+                  gradient: themeProvider.appGradient,
+                ),
+                child: const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+              errorWidget: (context, url, error) {
+                debugPrint("Banner image load error: $url, error: $error");
+                return Container(
+                  decoration: BoxDecoration(
+                    gradient: themeProvider.appGradient,
+                  ),
+                );
+              },
+            )
           else
             Container(
               decoration: BoxDecoration(

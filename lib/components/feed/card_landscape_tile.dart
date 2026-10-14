@@ -89,6 +89,16 @@ class CardLandscapeTile extends StatelessWidget {
                         ? CachedNetworkImage(
                             imageUrl: bannerUrl!,
                             fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              decoration: BoxDecoration(
+                                gradient: themeProvider.appGradient,
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              decoration: BoxDecoration(
+                                gradient: themeProvider.appGradient,
+                              ),
+                            ),
                           )
                         : Container(
                             decoration: BoxDecoration(
