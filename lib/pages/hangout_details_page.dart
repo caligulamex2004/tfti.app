@@ -14,6 +14,7 @@ import 'hangout_editor_page.dart';
 import 'vibe_check_editor_page.dart';
 
 // --- UTILS & COMPONENTS ---
+import '../utils/calendar_export_helper.dart';
 import '../utils/phone_formatter.dart';
 import '../utils/theme_provider.dart';
 import '../components/details/event_crew_card.dart';
@@ -345,13 +346,12 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
     final DateTime endTime = startTime.add(const Duration(hours: 2));
 
     if (kIsWeb) {
-      final title = Uri.encodeComponent(data['title'] ?? 'Squad Hangout');
-      final details = Uri.encodeComponent(data['details'] ?? 'Added via tfti.app');
-      final location = Uri.encodeComponent(data['location'] ?? '');
-      final startIso = '${startTime.toUtc().toIso8601String().replaceAll(RegExp(r'[:-]'), '').split('.').first}Z';
-      final endIso = '${endTime.toUtc().toIso8601String().replaceAll(RegExp(r'[:-]'), '').split('.').first}Z';
-      final gCalUrl = Uri.parse(
-        'https://calendar.google.com/calendar/render?action=TEMPLATE&text=$title&dates=$startIso/$endIso&details=$details&location=$location',
+      final gCalUrl = CalendarExportHelper.buildGoogleCalendarUrl(
+        title: data['title'] ?? 'Squad Hangout',
+        details: data['details'] ?? 'Added via tfti.app',
+        location: data['location'] ?? '',
+        startTime: startTime,
+        endTime: endTime,
       );
       launchUrl(gCalUrl, mode: LaunchMode.externalApplication);
       return;

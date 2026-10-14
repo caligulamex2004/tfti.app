@@ -112,5 +112,50 @@ void main() {
       expect(isChecked, isTrue);
       expect(tester.widget<Checkbox>(checkboxFinder).value, isTrue);
     });
+
+    testWidgets('AuthCheckbox triggers onTextTap when label is tapped without changing checkbox', (tester) async {
+      bool textTapped = false;
+      bool checkboxToggled = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AuthCheckbox(
+              text: 'I agree to the Terms of Service',
+              value: false,
+              onChanged: (_) => checkboxToggled = true,
+              onTextTap: () => textTapped = true,
+            ),
+          ),
+        ),
+      );
+
+      // Tap the text label
+      await tester.tap(find.text('I agree to the Terms of Service'));
+      await tester.pumpAndSettle();
+
+      expect(textTapped, isTrue);
+      expect(checkboxToggled, isFalse);
+    });
+
+    testWidgets('AuthCheckbox applies underline styling when onTextTap is supplied', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(colorScheme: const ColorScheme.light(primary: Color(0xFF1D73CB))),
+          home: Scaffold(
+            body: AuthCheckbox(
+              text: 'Privacy Policy',
+              value: false,
+              onChanged: (_) {},
+              onTextTap: () {},
+            ),
+          ),
+        ),
+      );
+
+      final textWidget = tester.widget<Text>(find.text('Privacy Policy'));
+      expect(textWidget.style?.decoration, equals(TextDecoration.underline));
+      expect(textWidget.style?.color, equals(const Color(0xFF1D73CB)));
+    });
   });
 }

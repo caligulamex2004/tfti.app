@@ -12,10 +12,10 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white" alt="Flutter" />
   <img src="https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white" alt="Dart" />
-  <img src="https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20FCM%20%7C%20Storage-FFCA28?logo=firebase&logoColor=black" alt="Firebase" />
+  <img src="https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20FCM%20%7C%20Storage%20%7C%20Hosting-FFCA28?logo=firebase&logoColor=black" alt="Firebase" />
   <img src="https://img.shields.io/badge/Google%20Maps-Places%20API-4285F4?logo=googlemaps&logoColor=white" alt="Google Maps" />
-  <img src="https://img.shields.io/badge/Platforms-iOS%2015%2B%20%7C%20Android%205.0%2B-brightgreen" alt="Platforms" />
-  <img src="https://img.shields.io/badge/Tests-52%20Passing-success" alt="Tests" />
+  <img src="https://img.shields.io/badge/Platforms-iOS%2015%2B%20%7C%20Android%205.0%2B%20%7C%20Web-brightgreen" alt="Platforms" />
+  <img src="https://img.shields.io/badge/Tests-115%20Passing-success" alt="Tests" />
   <img src="https://img.shields.io/badge/License-Proprietary-blue" alt="License" />
 </p>
 
@@ -32,6 +32,7 @@
   - [5. TCG Profile Cards & In-Person QR Sharing](#5-tcg-profile-cards--in-person-qr-sharing)
   - [6. Recurring Seasons](#6-recurring-seasons)
   - [7. Adaptive UI & Smart Badges](#7-adaptive-ui--smart-badges)
+  - [8. Web App & App Store Compliance](#8-web-app--app-store-compliance)
 - [Architecture & Workflow](#-architecture--workflow)
 - [Technology Stack](#-technology-stack)
 - [Project Structure](#-project-structure)
@@ -103,6 +104,17 @@ A multi-layered defense system that blocks random phone scraping and unsolicited
 ### 7. Adaptive UI & Smart Badges
 - **Orientation & Multi-Window Support**: Seamlessly transitions between a portrait bottom `NavigationBar` with single-column feed and a landscape `NavigationRail` with dual-pane split screens for foldables and tablets.
 - **Ghost Badge Prevention**: App badge counters cross-reference real-time RSVP deadlines to eliminate phantom unread notification badges.
+
+### 8. Web App & App Store Compliance
+- **Firebase Web Hosting**: Fully integrated web client deployed directly via Firebase Hosting at `https://tfti-app.web.app`.
+- **First-Party Authentication**: Seamless phone SMS OTP authentication on the web with invisible reCAPTCHA anti-bot shielding (zero requirement for 3rd-party social logins).
+- **Public Legal & Store Compliance**:
+  - [Privacy Policy](https://tfti-app.web.app/privacy): Detailed disclosure of data collection, storage, and user rights.
+  - [Terms of Service](https://tfti-app.web.app/terms): User conduct and circle coordination terms.
+  - [Support & FAQ](https://tfti-app.web.app/support): Help center and technical inquiries (`support@tfti.app`).
+  - [Account Deletion](https://tfti-app.web.app/delete-account): Web-accessible deletion instructions satisfying Apple App Store Guideline 5.1.1(v).
+- **Social Link Previews**: Rich Open Graph and Twitter Card tags for crisp link previews across iMessage, WhatsApp, Slack, Discord, and Twitter/X.
+- **Google Calendar Web Integration**: Instant web event creation via standard Google Calendar URL templates.
 
 ---
 
@@ -179,11 +191,18 @@ tftiapp/
 │   │   ├── squad_page.dart       # Squad requests, friend list, circles, and QR scanner
 │   │   └── vibe_check_editor_page.dart # Democratic polling setup wizard
 │   ├── services/                 # FriendService, UserService, PlaceService, FeedService
-│   ├── utils/                    # AuthService, EventService, PhoneFormatter
+│   ├── utils/                    # AuthService, EventService, CalendarExportHelper, PhoneFormatter
 │   ├── firebase_options.dart     # Firebase Flutter configuration
 │   └── main.dart                 # App entry point, MainShell, orientation listener
-├── test/                         # Comprehensive unit, widget, and layout test suites
-├── firebase.json                 # Firebase CLI project configuration
+├── test/                         # Comprehensive unit, widget, and compliance test suites
+├── web/                          # Web app shell, icons, manifest, and legal compliance pages
+│   ├── index.html                # App entry point with Open Graph preview tags
+│   ├── manifest.json             # PWA metadata and theme configurations
+│   ├── privacy.html              # Public Privacy Policy
+│   ├── terms.html                # Public Terms of Service
+│   ├── support.html              # Public Support and Help Center
+│   └── delete-account.html       # Apple Guideline 5.1.1(v) Account Deletion instructions
+├── firebase.json                 # Firebase CLI project configuration (Hosting, Firestore, Functions)
 ├── firestore.rules               # Production Firestore Security Rules
 └── pubspec.yaml                  # Flutter package dependencies and metadata
 ```
@@ -228,20 +247,27 @@ tftiapp/
    firebase deploy --only firestore:rules
    ```
 
-3. **Run on Device or Simulator**:
+3. **Run or Deploy**:
    ```bash
    # Launch on iOS Simulator
    flutter run -d ios
 
    # Launch on Android Device/Emulator
    flutter run -d android
+
+   # Launch locally on Web (Chrome)
+   flutter run -d chrome
+
+   # Compile & Deploy to Firebase Hosting
+   flutter build web --release
+   firebase deploy --only hosting
    ```
 
 ---
 
 ## 🧪 Testing & Quality Assurance
 
-This codebase enforces strict automated testing for logic, models, privacy controls, and UI components.
+This codebase enforces strict automated testing for logic, models, privacy controls, UI components, and web compliance. **115 automated tests** run across the test suite with 100% pass rate.
 
 ### Run the Test Suite
 ```bash
@@ -258,6 +284,14 @@ flutter analyze
 - **Component Tests (`test/components/`)**:
   - `account_edit_card_test.dart`: Phone privacy toggle, modal explanations, and auto-save handlers.
   - `squad_requests_section_test.dart`: Rendering and tap interactions for **Squad Up**, **Pass**, and **Block**.
+  - `auth_ui_components_test.dart`: Text field validation, dynamic loading button states, and clickable checkbox terms/privacy links.
+- **Service & Utility Tests (`test/services/`, `test/utils/`)**:
+  - `contact_service_test.dart`: Normalization of 10-digit, 11-digit, and international numbers; web safety guards.
+  - `calendar_export_helper_test.dart`: Google Calendar template URL construction, ISO timestamp formatting, and special character/emoji encoding.
+  - `phone_formatter_test.dart`: Local and international beautification logic.
+  - `user_cache_repository_test.dart`: Memory and SharedPreferences cache eviction and TTL management.
+- **Web & Compliance Tests (`test/web/`)**:
+  - `web_assets_test.dart`: Automated verification ensuring `privacy.html`, `terms.html`, `support.html`, `delete-account.html`, `manifest.json`, `favicon.ico`, and `favicon.png` exist, parse cleanly, and satisfy Apple App Store & Google Play requirements.
 - **Orientation & Layout Tests (`test/orientation_layout_test.dart`)**: NavigationRail / NavigationBar switching, app bar shrinkage (140px to 56px), and form state persistence across orientation flips.
 - **Onboarding Tutorial Tests (`test/pages/`)**: Multi-slide carousel progression and landscape stability.
 

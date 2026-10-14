@@ -598,7 +598,7 @@ void main() {
 
       // score formula: (hp * 0.6) + (mana * 0.4) -> (60) + (20) = 80.0
       expect(member.score, closeTo(80.0, 0.001));
-      expect(member.resolvedColor.value, 4280391411);
+      expect(member.resolvedColor.toARGB32(), 4280391411);
       expect(member.isGoated, isTrue);
       expect(member.circles, contains('circle-1'));
 
