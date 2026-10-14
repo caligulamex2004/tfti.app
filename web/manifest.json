@@ -1,11 +1,11 @@
 {
-    "name": "tftiapp",
-    "short_name": "tftiapp",
+    "name": "TFTI - Thanks For The Invite",
+    "short_name": "TFTI",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#1D73CB",
+    "theme_color": "#1D73CB",
+    "description": "The low-friction social coordination and friend circle platform.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
