@@ -179,7 +179,10 @@ class _BannerPickerState extends State<BannerPicker> {
       );
     } else if (hasExistingUrl) {
       imageDecoration = DecorationImage(
-        image: CachedNetworkImageProvider(widget.existingImageUrl!),
+        image: kIsWeb
+            ? NetworkImage(widget.existingImageUrl!)
+            : CachedNetworkImageProvider(widget.existingImageUrl!)
+                as ImageProvider,
         fit: BoxFit.cover,
       );
     }

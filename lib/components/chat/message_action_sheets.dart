@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../shared/app_avatar.dart';
 
 // --- SHARED REACTION NORMALIZER ---
 Map<String, List<String>> normalizeReactions(Map<String, dynamic> raw) {
@@ -554,21 +554,12 @@ class MessageReactionsSheet extends StatelessWidget {
                   );
 
                   return ListTile(
-                    leading: CircleAvatar(
+                    leading: AppAvatar(
                       radius: 16,
-                      backgroundColor: color,
-                      backgroundImage: avatarUrl != null
-                          ? CachedNetworkImageProvider(avatarUrl)
-                          : null,
-                      child: avatarUrl == null
-                          ? Text(
-                              name[0].toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            )
-                          : null,
+                      avatarColor: color,
+                      avatarUrl: avatarUrl,
+                      displayName: name,
+                      fontSize: 12,
                     ),
                     title: Text(
                       name,
@@ -652,21 +643,12 @@ class MessageReadBySheet extends StatelessWidget {
             final tag = guest['tag'];
 
             return ListTile(
-              leading: CircleAvatar(
+              leading: AppAvatar(
                 radius: 16,
-                backgroundColor: color,
-                backgroundImage: avatarUrl != null
-                    ? CachedNetworkImageProvider(avatarUrl)
-                    : null,
-                child: avatarUrl == null
-                    ? Text(
-                        name[0].toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      )
-                    : null,
+                avatarColor: color,
+                avatarUrl: avatarUrl,
+                displayName: name,
+                fontSize: 12,
               ),
               title: Text(
                 name,

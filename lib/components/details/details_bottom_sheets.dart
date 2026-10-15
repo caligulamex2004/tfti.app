@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../shared/app_avatar.dart';
 
 // --- FULL DETAILS SHEET ---
 class FullDetailsSheet extends StatelessWidget {
@@ -195,22 +195,12 @@ class SeenBySheet extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: CircleAvatar(
+                      child: AppAvatar.fromColorValue(
                         radius: 20,
-                        backgroundColor: Color(avatarColor),
-                        backgroundImage: avatarUrl != null
-                            ? CachedNetworkImageProvider(avatarUrl)
-                            : null,
-                        child: avatarUrl == null
-                            ? Text(
-                                name.isNotEmpty ? name[0].toUpperCase() : "?",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              )
-                            : null,
+                        avatarColor: avatarColor,
+                        avatarUrl: avatarUrl,
+                        displayName: name,
+                        fontSize: 16,
                       ),
                     ),
                     title: Text(

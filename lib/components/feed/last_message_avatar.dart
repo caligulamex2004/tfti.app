@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/user_cache_repository.dart';
+import '../shared/app_avatar.dart';
 
 class LastMessageSenderAvatar extends StatefulWidget {
   final String eventId;
@@ -95,22 +95,12 @@ class _LastMessageSenderAvatarState extends State<LastMessageSenderAvatar> {
             ),
           ],
         ),
-        child: CircleAvatar(
+        child: AppAvatar.fromColorValue(
           radius: 10,
-          backgroundColor: Color(avatarColor),
-          backgroundImage: avatarUrl != null
-              ? CachedNetworkImageProvider(avatarUrl)
-              : null,
-          child: avatarUrl == null
-              ? Text(
-                  name.isNotEmpty ? name[0].toUpperCase() : "?",
-                  style: const TextStyle(
-                    fontSize: 9,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                )
-              : null,
+          avatarColor: avatarColor,
+          avatarUrl: avatarUrl,
+          displayName: name,
+          fontSize: 9,
         ),
       ),
     );

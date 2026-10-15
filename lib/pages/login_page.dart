@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,6 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../utils/theme_provider.dart';
 import '../utils/auth_service.dart';
 import '../components/auth/auth_ui_components.dart';
+import '../components/dialogs/mobile_waitlist_dialog.dart';
+
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -601,6 +604,10 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                   ),
+                  if (kIsWeb) ...[
+                    SizedBox(height: isCompactHeight ? 16 : 24),
+                    _buildMobileComingSoonSection(context, isDark, primaryColor),
+                  ],
                 ],
               ),
             ),
@@ -609,5 +616,133 @@ class _LoginPageState extends State<LoginPage> {
       ),
     ),
   );
+  }
+
+  Widget _buildMobileComingSoonSection(
+    BuildContext context,
+    bool isDark,
+    Color primaryColor,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Expanded(
+              child: _buildStorePill(
+                context: context,
+                icon: Icons.apple,
+                platformName: "iOS",
+                badgeText: "Coming Soon",
+                isDark: isDark,
+                primaryColor: primaryColor,
+                onTap: () => MobileWaitlistDialog.show(
+                  context,
+                  initialPlatform: 'ios',
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStorePill(
+                context: context,
+                icon: Icons.android,
+                platformName: "Android",
+                badgeText: "Coming Soon",
+                isDark: isDark,
+                primaryColor: primaryColor,
+                onTap: () => MobileWaitlistDialog.show(
+                  context,
+                  initialPlatform: 'android',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStorePill({
+    required BuildContext context,
+    required IconData icon,
+    required String platformName,
+    required String badgeText,
+    required bool isDark,
+    required Color primaryColor,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: "Join the $platformName waitlist",
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : Colors.white.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark
+                    ? Colors.grey.shade800
+                    : Colors.grey.shade300,
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 24,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        platformName,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                          height: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        badgeText,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: primaryColor,
+                          letterSpacing: 0.2,
+                          height: 1.1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

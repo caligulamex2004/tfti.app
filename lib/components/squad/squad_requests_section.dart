@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:tftiapp/models/squad_request_model.dart';
+import '../shared/app_avatar.dart';
 
 class SquadRequestsSection extends StatelessWidget {
   final List<SquadRequest> requests;
@@ -96,22 +96,12 @@ class SquadRequestsSection extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        CircleAvatar(
+                        AppAvatar(
                           radius: 22,
-                          backgroundColor: avatarColor,
-                          backgroundImage: req.avatarUrl != null && req.avatarUrl!.isNotEmpty
-                              ? CachedNetworkImageProvider(req.avatarUrl!)
-                              : null,
-                          child: req.avatarUrl == null || req.avatarUrl!.isEmpty
-                              ? Text(
-                                  name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                )
-                              : null,
+                          avatarColor: avatarColor,
+                          avatarUrl: req.avatarUrl,
+                          displayName: name,
+                          fontSize: 16,
                         ),
                         const SizedBox(width: 12),
                         Expanded(

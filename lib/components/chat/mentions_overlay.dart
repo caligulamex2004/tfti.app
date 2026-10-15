@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../shared/app_avatar.dart';
 
 class MentionsOverlay extends StatelessWidget {
   final String? mentionQuery;
@@ -60,22 +60,12 @@ class MentionsOverlay extends StatelessWidget {
           final Color avatarColor = Color(guest['avatarColor']);
 
           return ListTile(
-            leading: CircleAvatar(
+            leading: AppAvatar(
               radius: 16,
-              backgroundColor: avatarColor,
-              backgroundImage: avatarUrl != null
-                  ? CachedNetworkImageProvider(avatarUrl)
-                  : null,
-              child: avatarUrl == null
-                  ? Text(
-                      name[0].toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    )
-                  : null,
+              avatarColor: avatarColor,
+              avatarUrl: avatarUrl,
+              displayName: name,
+              fontSize: 12,
             ),
             title: Text(
               name,

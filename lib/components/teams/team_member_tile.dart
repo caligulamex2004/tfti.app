@@ -1,5 +1,5 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../shared/app_avatar.dart';
 
 class TeamMemberTile extends StatelessWidget {
   final Map<String, dynamic> profile;
@@ -109,24 +109,12 @@ class TeamMemberTile extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: CircleAvatar(
-                      backgroundColor: avatarColor,
+                    child: AppAvatar(
+                      avatarColor: avatarColor,
                       radius: 26,
-                      backgroundImage: avatarUrl != null
-                          ? CachedNetworkImageProvider(avatarUrl)
-                          : null,
-                      child: avatarUrl == null
-                          ? Text(
-                              displayName.isNotEmpty
-                                  ? displayName[0].toUpperCase()
-                                  : "?",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                              ),
-                            )
-                          : null,
+                      avatarUrl: avatarUrl,
+                      displayName: displayName,
+                      fontSize: 20,
                     ),
                   ),
                   const SizedBox(width: 16),

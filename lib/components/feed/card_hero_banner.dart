@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import '../shared/app_banner_image.dart';
+import '../shared/app_avatar.dart';
 import '../../utils/theme_provider.dart';
 import '../../models/user_profile.dart';
 import '../../services/user_cache_repository.dart';
@@ -344,24 +344,12 @@ class CardHeroBanner extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            CircleAvatar(
+                            AppAvatar(
                               radius: 10,
-                              backgroundColor: avatarColor,
-                              backgroundImage: avatarUrl != null
-                                  ? CachedNetworkImageProvider(avatarUrl)
-                                  : null,
-                              child: avatarUrl == null
-                                  ? Text(
-                                      hostName.isNotEmpty
-                                          ? hostName[0].toUpperCase()
-                                          : "?",
-                                      style: const TextStyle(
-                                        fontSize: 8,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    )
-                                  : null,
+                              avatarColor: avatarColor,
+                              avatarUrl: avatarUrl,
+                              displayName: hostName,
+                              fontSize: 8,
                             ),
                             const SizedBox(width: 6),
                             Text(

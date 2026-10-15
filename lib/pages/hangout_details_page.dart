@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:add_2_calendar/add_2_calendar.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,6 +22,7 @@ import '../components/details/event_rsvp_card.dart';
 import '../components/details/event_squad_needs_card.dart';
 import '../components/details/event_vitals_card.dart';
 import '../components/shared/shared_sliver_app_bar.dart';
+import '../components/shared/app_avatar.dart';
 import '../components/shared/app_banner_image.dart';
 
 class HangoutDetailsPage extends StatefulWidget {
@@ -722,29 +722,12 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                         as Map<String, dynamic>;
                                     return Row(
                                       children: [
-                                        CircleAvatar(
+                                        AppAvatar.fromColorValue(
                                           radius: 12,
-                                          backgroundColor: Color(
-                                            hostData['avatarColor'] ??
-                                                Colors.blue.toARGB32(),
-                                          ),
-                                          backgroundImage:
-                                              hostData['avatarUrl'] != null
-                                                  ? CachedNetworkImageProvider(
-                                                      hostData['avatarUrl'],
-                                                    )
-                                                  : null,
-                                          child: hostData['avatarUrl'] == null
-                                              ? Text(
-                                                  (hostData['displayName'] ?? "S")[0]
-                                                      .toUpperCase(),
-                                                  style: const TextStyle(
-                                                    fontSize: 10,
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                )
-                                              : null,
+                                          avatarColor: hostData['avatarColor'],
+                                          avatarUrl: hostData['avatarUrl'],
+                                          displayName: hostData['displayName'] ?? "S",
+                                          fontSize: 10,
                                         ),
                                         const SizedBox(width: 8),
                                         Text(

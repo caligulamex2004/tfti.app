@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import '../shared/info_card.dart';
 import '../shared/user_profile_sheet.dart';
 import 'details_bottom_sheets.dart';
+import '../shared/app_avatar.dart';
 
 class EventCrewCard extends StatelessWidget {
   final bool inviteDocsEmpty;
@@ -168,23 +168,11 @@ class EventCrewCard extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                child: CircleAvatar(
-                                  backgroundColor: Color(guest['avatarColor']),
+                                child: AppAvatar.fromColorValue(
+                                  avatarColor: guest['avatarColor'],
                                   radius: 22,
-                                  backgroundImage: guest['avatarUrl'] != null
-                                      ? CachedNetworkImageProvider(
-                                          guest['avatarUrl'],
-                                        )
-                                      : null,
-                                  child: guest['avatarUrl'] == null
-                                      ? Text(
-                                          guest['displayName'][0].toUpperCase(),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        )
-                                      : null,
+                                  avatarUrl: guest['avatarUrl'],
+                                  displayName: guest['displayName'],
                                 ),
                               ),
                               Positioned(

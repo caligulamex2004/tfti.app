@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import '../shared/user_profile_sheet.dart';
+import '../shared/app_avatar.dart';
 
 class FriendListTile extends StatelessWidget {
   final Map<String, dynamic> userData;
@@ -161,24 +161,12 @@ class FriendListTile extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: CircleAvatar(
+                      child: AppAvatar(
                         radius: 26,
-                        backgroundColor: avatarColor,
-                        backgroundImage: avatarUrl != null
-                            ? CachedNetworkImageProvider(avatarUrl)
-                            : null,
-                        child: avatarUrl == null
-                            ? Text(
-                                displayName.isNotEmpty
-                                    ? displayName[0].toUpperCase()
-                                    : "?",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 20,
-                                ),
-                              )
-                            : null,
+                        avatarColor: avatarColor,
+                        avatarUrl: avatarUrl,
+                        displayName: displayName,
+                        fontSize: 20,
                       ),
                     ),
                     const SizedBox(width: 16),

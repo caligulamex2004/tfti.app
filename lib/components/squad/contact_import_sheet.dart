@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../utils/phone_formatter.dart';
 import '../../services/contact_service.dart';
+import '../shared/app_avatar.dart';
 
 class ContactImportSheet extends StatefulWidget {
   final List<Map<String, dynamic>> onTfti;
@@ -170,22 +170,10 @@ class _ContactImportSheetState extends State<ContactImportSheet> {
                               ),
                             ],
                           ),
-                          child: CircleAvatar(
-                            backgroundColor: Color(avatarColor),
-                            backgroundImage: avatarUrl != null
-                                ? CachedNetworkImageProvider(avatarUrl)
-                                : null,
-                            child: avatarUrl == null
-                                ? Text(
-                                    name.isNotEmpty
-                                        ? name[0].toUpperCase()
-                                        : "?",
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  )
-                                : null,
+                          child: AppAvatar.fromColorValue(
+                            avatarColor: avatarColor,
+                            avatarUrl: avatarUrl,
+                            displayName: name,
                           ),
                         ),
                         title: Text(

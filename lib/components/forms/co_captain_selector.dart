@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import '../shared/app_avatar.dart';
 
 class CoCaptainSelector extends StatelessWidget {
   final bool isPast;
@@ -149,22 +149,10 @@ class CoCaptainSelector extends StatelessWidget {
                               final avatarColor = Color(avatarColorVal);
 
                               return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: avatarColor,
-                                  backgroundImage: avatarUrl != null
-                                      ? CachedNetworkImageProvider(avatarUrl)
-                                      : null,
-                                  child: avatarUrl == null
-                                      ? Text(
-                                          name.isNotEmpty
-                                              ? name[0].toUpperCase()
-                                              : "?",
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        )
-                                      : null,
+                                leading: AppAvatar(
+                                  avatarColor: avatarColor,
+                                  avatarUrl: avatarUrl,
+                                  displayName: name,
                                 ),
                                 title: Text(
                                   name,
@@ -246,23 +234,11 @@ class CoCaptainSelector extends StatelessWidget {
               if (coHostId == null)
                 Icon(Symbols.shield_person, color: primaryColor, size: 40)
               else
-                CircleAvatar(
+                AppAvatar.fromColorValue(
                   radius: 20,
-                  backgroundColor: Color(
-                    coHostAvatarColor ?? Colors.blue.toARGB32(),
-                  ),
-                  backgroundImage: coHostAvatarUrl != null
-                      ? CachedNetworkImageProvider(coHostAvatarUrl!)
-                      : null,
-                  child: coHostAvatarUrl == null
-                      ? Text(
-                          (coHostName ?? "?")[0].toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
-                      : null,
+                  avatarColor: coHostAvatarColor,
+                  avatarUrl: coHostAvatarUrl,
+                  displayName: coHostName ?? "?",
                 ),
               const SizedBox(width: 12),
               Expanded(

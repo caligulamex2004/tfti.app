@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../shared/app_avatar.dart';
 
 class VoteTallySheet extends StatelessWidget {
   final List<dynamic> options;
@@ -147,21 +147,11 @@ class VoteTallySheet extends StatelessWidget {
                                 final name = v['displayName'];
 
                                 return Chip(
-                                  avatar: CircleAvatar(
-                                    backgroundColor: avatarColor,
-                                    backgroundImage: avatarUrl != null
-                                        ? CachedNetworkImageProvider(avatarUrl)
-                                        : null,
-                                    child: avatarUrl == null
-                                        ? Text(
-                                            name[0].toUpperCase(),
-                                            style: const TextStyle(
-                                              fontSize: 10,
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          )
-                                        : null,
+                                  avatar: AppAvatar(
+                                    avatarColor: avatarColor,
+                                    avatarUrl: avatarUrl,
+                                    displayName: name,
+                                    fontSize: 10,
                                   ),
                                   label: Text(
                                     name,

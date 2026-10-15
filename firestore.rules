@@ -67,6 +67,17 @@ service cloud.firestore {
     //
     // Collection: /usernames/{username}
     //
+    // Collection: /mobile_waitlist/{docId}
+    // Fields:
+    //   - email: string (required, max 120 chars, regex format)
+    //   - platform: string (required, 'ios' | 'android' | 'both')
+    //   - createdAt: timestamp (required, equal to request.time)
+    //   - source: string (optional, max 50 chars)
+    //   - userAgent: string (optional, max 300 chars)
+    // Access:
+    //   - Create: Anyone (unauthenticated and authenticated)
+    //   - Read, Update, Delete: Denied (admin / backend only)
+    //
     // ===============================================================
 
     // ===============================================================
@@ -105,6 +116,18 @@ service cloud.firestore {
         && (!('isBlocked' in data) || data.isBlocked is bool)
         && (!('circles' in data) || (data.circles is list && data.circles.size() <= 100))
         && (!('addedAt' in data) || data.addedAt is timestamp);
+    }
+
+    // Domain validator for mobile waitlist entries
+    function isValidMobileWaitlist(data) {
+      return data.keys().hasAll(['email', 'platform', 'createdAt'])
+        && data.keys().hasOnly(['email', 'platform', 'createdAt', 'source', 'userAgent'])
+        && data.email is string && data.email.size() <= 120
+        && data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
+        && data.platform is string && data.platform in ['ios', 'android', 'both']
+        && data.createdAt is timestamp && data.createdAt == request.time
+        && (!('source' in data) || (data.source is string && data.source.size() <= 50))
+        && (!('userAgent' in data) || (data.userAgent is string && data.userAgent.size() <= 300));
     }
 
     // ===============================================================
@@ -241,6 +264,11 @@ service cloud.firestore {
       allow delete: if isAuthenticated() 
                     && resource.data.uid == request.auth.uid;
       allow update: if false; 
+    }
+
+    match /mobile_waitlist/{docId} {
+      allow create: if isValidMobileWaitlist(request.resource.data);
+      allow read, update, delete: if false;
     }
   }
 }

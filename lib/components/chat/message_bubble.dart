@@ -1,10 +1,10 @@
 import 'dart:math';
 import 'package:any_link_preview/any_link_preview.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../utils/theme_provider.dart';
+import '../shared/app_avatar.dart';
 
 class MessageBubble extends StatelessWidget {
   final String messageId;
@@ -238,22 +238,12 @@ class MessageBubble extends StatelessWidget {
               width: 1.5,
             ),
           ),
-          child: CircleAvatar(
+          child: AppAvatar.fromColorValue(
             radius: 7,
-            backgroundColor: Color(colorValue),
-            backgroundImage: avatarUrl != null
-                ? CachedNetworkImageProvider(avatarUrl)
-                : null,
-            child: avatarUrl == null
-                ? Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                      fontSize: 8,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
-                : null,
+            avatarColor: colorValue,
+            avatarUrl: avatarUrl,
+            displayName: name,
+            fontSize: 8,
           ),
         );
       }).toList(),
@@ -291,24 +281,12 @@ class MessageBubble extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             if (!isMe) ...[
-              CircleAvatar(
+              AppAvatar.fromColorValue(
                 radius: 16,
-                backgroundColor: Color(senderColor),
-                backgroundImage: senderAvatarUrl != null
-                    ? CachedNetworkImageProvider(senderAvatarUrl!)
-                    : null,
-                child: senderAvatarUrl == null
-                    ? Text(
-                        senderName.isNotEmpty
-                            ? senderName[0].toUpperCase()
-                            : "?",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                    : null,
+                avatarColor: senderColor,
+                avatarUrl: senderAvatarUrl,
+                displayName: senderName,
+                fontSize: 12,
               ),
               const SizedBox(width: 8),
             ],

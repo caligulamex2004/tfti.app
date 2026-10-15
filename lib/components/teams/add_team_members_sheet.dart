@@ -1,9 +1,9 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:tftiapp/services/team_service.dart';
 import 'package:tftiapp/services/user_cache_repository.dart';
 import 'package:tftiapp/utils/theme_provider.dart';
+import '../shared/app_avatar.dart';
 
 class AddTeamMembersSheet extends StatefulWidget {
   final String circleId;
@@ -218,23 +218,11 @@ class _AddTeamMembersSheetState extends State<AddTeamMembersSheet> {
                                 ),
                               ],
                             ),
-                            child: CircleAvatar(
-                              backgroundColor: avatarColor,
+                            child: AppAvatar(
+                              avatarColor: avatarColor,
                               radius: 20,
-                              backgroundImage: avatarUrl != null
-                                  ? CachedNetworkImageProvider(avatarUrl)
-                                  : null,
-                              child: avatarUrl == null
-                                  ? Text(
-                                      name.isNotEmpty
-                                          ? name[0].toUpperCase()
-                                          : "?",
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    )
-                                  : null,
+                              avatarUrl: avatarUrl,
+                              displayName: name,
                             ),
                           ),
                           title: Text(

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -131,6 +132,14 @@ class TcgProfileCard extends StatelessWidget {
       );
     }
 
+    final ImageProvider? imageProvider =
+        (avatarUrl != null && avatarUrl!.trim().isNotEmpty)
+            ? (kIsWeb
+                ? NetworkImage(avatarUrl!.trim())
+                : CachedNetworkImageProvider(avatarUrl!.trim())
+                    as ImageProvider)
+            : null;
+
     Widget avatarWidget = Container(
       width: isLandscape ? 120 : 160,
       height: isLandscape ? 120 : 160,
@@ -141,30 +150,32 @@ class TcgProfileCard extends StatelessWidget {
           color: isDark ? Colors.white24 : Colors.black12,
           width: 3,
         ),
-        image: avatarUrl != null
+        image: imageProvider != null
             ? DecorationImage(
-                image: CachedNetworkImageProvider(avatarUrl!),
+                image: imageProvider,
                 fit: BoxFit.cover,
+                onError: (exception, stackTrace) {
+                  debugPrint("TcgProfileCard avatar load error: $exception");
+                },
               )
             : null,
       ),
       child: isUploadingAvatar
           ? const Center(child: CircularProgressIndicator(color: Colors.white))
-          : (avatarUrl == null
-                ? Center(
-                    child: Text(
-                      displayName.isNotEmpty
-                          ? displayName[0].toUpperCase()
-                          : "?",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 60,
-                      ),
-                    ),
-                  )
-                : null),
+          : Center(
+              child: Text(
+                displayName.isNotEmpty
+                    ? displayName[0].toUpperCase()
+                    : "?",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 60,
+                ),
+              ),
+            ),
     );
+
 
     // Add camera overlay if it's editable (Account Page)
     if (onAvatarTap != null) {

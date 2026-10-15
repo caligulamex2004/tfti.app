@@ -1,6 +1,6 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import '../shared/app_avatar.dart';
 
 class QrCodeSheet extends StatelessWidget {
   final String username;
@@ -86,24 +86,12 @@ class QrCodeSheet extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: CircleAvatar(
+                child: AppAvatar.fromColorValue(
                   radius: 36,
-                  backgroundColor: Color(avatarColor),
-                  backgroundImage: avatarUrl != null
-                      ? CachedNetworkImageProvider(avatarUrl!)
-                      : null,
-                  child: avatarUrl == null
-                      ? Text(
-                          displayName.isNotEmpty
-                              ? displayName[0].toUpperCase()
-                              : "?",
-                          style: const TextStyle(
-                            fontSize: 28,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
-                      : null,
+                  avatarColor: avatarColor,
+                  avatarUrl: avatarUrl,
+                  displayName: displayName,
+                  fontSize: 28,
                 ),
               ),
               const SizedBox(height: 16),

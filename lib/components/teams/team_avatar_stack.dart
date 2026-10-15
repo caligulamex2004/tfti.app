@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import '../shared/app_avatar.dart';
 
 class TeamAvatarStack extends StatelessWidget {
   final String myUid;
@@ -103,21 +103,11 @@ class TeamAvatarStack extends StatelessWidget {
                           width: 2,
                         ),
                       ),
-                      child: CircleAvatar(
-                        backgroundColor: Color(avatarColor),
-                        backgroundImage: avatarUrl != null
-                            ? CachedNetworkImageProvider(avatarUrl)
-                            : null,
-                        child: avatarUrl == null
-                            ? Text(
-                                name.isNotEmpty ? name[0].toUpperCase() : "?",
-                                style: TextStyle(
-                                  fontSize: count == 1 ? 20 : 11,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              )
-                            : null,
+                      child: AppAvatar.fromColorValue(
+                        avatarColor: avatarColor,
+                        avatarUrl: avatarUrl,
+                        displayName: name,
+                        fontSize: count == 1 ? 20 : 11,
                       ),
                     );
 
