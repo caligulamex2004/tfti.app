@@ -4,13 +4,16 @@ import 'package:flutter/material.dart';
 
 /// A platform-aware avatar widget that displays user profile pictures with robust fallbacks.
 ///
-/// On Web: Uses native [NetworkImage] with browser HTTP caching to prevent
-/// blob URL eviction and cache-manager detachment across route transitions.
-/// On Mobile: Uses [CachedNetworkImageProvider] for persistent local disk caching.
+/// Order of operations:
+/// 1. If [avatarUrl] is null or empty, displays [avatarColor] with the user's [monogram].
+/// 2. If [avatarUrl] is provided:
+///    - While loading or on error: displays [avatarColor] with the [monogram].
+///    - When successfully loaded: displays the image cleanly WITHOUT superimposing the monogram.
 ///
-/// Always provides the monogram letter child on top of [avatarColor] so that if
-/// an avatar image fails or is loading, the user's monogram is displayed rather
-/// than a blank colored circle.
+/// Platform considerations:
+/// - On Web: Uses native [Image.network] with browser HTTP caching to prevent
+///   blob URL eviction and IndexedDB cache-manager detachment across route transitions.
+/// - On Mobile: Uses [CachedNetworkImage] for persistent local disk caching.
 class AppAvatar extends StatelessWidget {
   final String? avatarUrl;
   final Color avatarColor;
@@ -65,34 +68,15 @@ class AppAvatar extends StatelessWidget {
     );
   }
 
-  ImageProvider? get _imageProvider {
-    if (avatarUrl == null || avatarUrl!.trim().isEmpty) return null;
-    final cleanUrl = avatarUrl!.trim();
-    if (kIsWeb) {
-      // Browser-native HTTP caching without IndexedDB blob URL eviction
-      return NetworkImage(cleanUrl);
-    }
-    // Mobile persistent disk cache
-    return CachedNetworkImageProvider(cleanUrl);
-  }
-
   @override
   Widget build(BuildContext context) {
     final monogram = displayName.trim().isNotEmpty
         ? displayName.trim()[0].toUpperCase()
         : '?';
 
-    Widget avatar = CircleAvatar(
+    final Widget fallback = CircleAvatar(
       radius: radius,
       backgroundColor: avatarColor,
-      backgroundImage: _imageProvider,
-      onBackgroundImageError: avatarUrl != null && avatarUrl!.trim().isNotEmpty
-          ? (exception, stackTrace) {
-              debugPrint("AppAvatar image load error for $avatarUrl: $exception");
-            }
-          : null,
-      // Always provide the monogram child so if image fails or is loading,
-      // the monogram is visible against the signature color.
       child: Text(
         monogram,
         style: textStyle ??
@@ -104,13 +88,71 @@ class AppAvatar extends StatelessWidget {
       ),
     );
 
-    if (onTap != null) {
-      return GestureDetector(
-        onTap: onTap,
-        child: avatar,
+    final cleanUrl = avatarUrl?.trim();
+    if (cleanUrl == null || cleanUrl.isEmpty) {
+      return _wrapTap(fallback);
+    }
+
+    Widget avatar;
+    if (kIsWeb) {
+      // On Web: Native Image.network with browser HTTP caching.
+      // While loading or on error, display the fallback monogram.
+      // Once loaded, display the circular image without the monogram.
+      avatar = SizedBox(
+        width: radius * 2,
+        height: radius * 2,
+        child: Image.network(
+          cleanUrl,
+          width: radius * 2,
+          height: radius * 2,
+          fit: BoxFit.cover,
+          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+            if (wasSynchronouslyLoaded || frame != null) {
+              return ClipOval(
+                child: Container(
+                  width: radius * 2,
+                  height: radius * 2,
+                  color: avatarColor,
+                  child: child,
+                ),
+              );
+            }
+            return fallback;
+          },
+          errorBuilder: (context, error, stackTrace) => fallback,
+        ),
+      );
+    } else {
+      // On Mobile: CachedNetworkImage with persistent disk cache.
+      // imageBuilder renders without child so monogram is never superimposed.
+      // placeholder and errorWidget display fallback monogram.
+      avatar = SizedBox(
+        width: radius * 2,
+        height: radius * 2,
+        child: CachedNetworkImage(
+          imageUrl: cleanUrl,
+          imageBuilder: (context, imageProvider) => CircleAvatar(
+            radius: radius,
+            backgroundColor: avatarColor,
+            backgroundImage: imageProvider,
+          ),
+          placeholder: (context, url) => fallback,
+          errorWidget: (context, url, error) => fallback,
+        ),
       );
     }
 
-    return avatar;
+    return _wrapTap(avatar);
+  }
+
+  Widget _wrapTap(Widget child) {
+    if (onTap != null) {
+      return GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: child,
+      );
+    }
+    return child;
   }
 }

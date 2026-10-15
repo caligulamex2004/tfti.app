@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tftiapp/components/shared/app_avatar.dart';
@@ -25,7 +26,26 @@ void main() {
       expect(circleAvatar.backgroundImage, isNull);
     });
 
-    testWidgets('renders monogram child even when avatarUrl is provided', (tester) async {
+    testWidgets('renders monogram initial when avatarUrl is empty or whitespace', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: AppAvatar(
+              avatarUrl: '   ',
+              avatarColor: Colors.green,
+              displayName: 'Chloe',
+              radius: 20,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('C'), findsOneWidget);
+      final circleAvatar = tester.widget<CircleAvatar>(find.byType(CircleAvatar));
+      expect(circleAvatar.backgroundColor, Colors.green);
+    });
+
+    testWidgets('mobile uses CachedNetworkImage and imageBuilder does NOT superimpose monogram', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -39,11 +59,33 @@ void main() {
         ),
       );
 
-      // Child monogram should always be present as fallback
-      expect(find.text('Z'), findsOneWidget);
-      final circleAvatar = tester.widget<CircleAvatar>(find.byType(CircleAvatar));
-      expect(circleAvatar.backgroundColor, Colors.purple);
-      expect(circleAvatar.backgroundImage, isNotNull);
+      final cachedImageFinder = find.byType(CachedNetworkImage);
+      expect(cachedImageFinder, findsOneWidget);
+
+      final cachedImage = tester.widget<CachedNetworkImage>(cachedImageFinder);
+
+      // 1. Verify placeholder renders fallback with monogram
+      final context = tester.element(cachedImageFinder);
+      final placeholderWidget = cachedImage.placeholder!(context, 'https://example.com/photo.jpg');
+      expect(placeholderWidget, isA<CircleAvatar>());
+      final placeholderAvatar = placeholderWidget as CircleAvatar;
+      expect(placeholderAvatar.backgroundColor, Colors.purple);
+      expect(placeholderAvatar.child, isNotNull);
+
+      // 2. Verify errorWidget renders fallback with monogram
+      final errorWidget = cachedImage.errorWidget!(context, 'https://example.com/photo.jpg', Exception('404'));
+      expect(errorWidget, isA<CircleAvatar>());
+      final errorAvatar = errorWidget as CircleAvatar;
+      expect(errorAvatar.backgroundColor, Colors.purple);
+      expect(errorAvatar.child, isNotNull);
+
+      // 3. Verify imageBuilder produces CircleAvatar WITHOUT child (monogram is NOT superimposed)
+      const fakeProvider = AssetImage('assets/test.png');
+      final builtImageWidget = cachedImage.imageBuilder!(context, fakeProvider);
+      expect(builtImageWidget, isA<CircleAvatar>());
+      final builtAvatar = builtImageWidget as CircleAvatar;
+      expect(builtAvatar.backgroundImage, fakeProvider);
+      expect(builtAvatar.child, isNull, reason: 'Monogram must NOT be superimposed on loaded image');
     });
 
     testWidgets('renders fallback question mark when displayName is empty', (tester) async {
