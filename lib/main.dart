@@ -80,7 +80,7 @@ class MyApp extends StatelessWidget {
       builder: (context, child) {
         return MaterialApp(
           navigatorKey: navigatorKey, // Attach global navigator key
-          title: 'TFTI',
+          title: 'thanks for the invite',
           theme: themeProvider.themeData,
           debugShowCheckedModeBanner: false,
           home: const AuthWrapper(),

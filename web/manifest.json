@@ -1,6 +1,6 @@
 {
-    "name": "TFTI - Thanks For The Invite",
-    "short_name": "TFTI",
+    "name": "thanks for the invite",
+    "short_name": "tfti",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#1D73CB",
