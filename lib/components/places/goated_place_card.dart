@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
-class GoatedPlaceCard extends StatelessWidget {
+typedef GoatedPlaceCard = VipPlaceCard;
+
+class VipPlaceCard extends StatelessWidget {
   final String id;
   final String name;
   final String address;
@@ -8,7 +11,7 @@ class GoatedPlaceCard extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onTap;
 
-  const GoatedPlaceCard({
+  const VipPlaceCard({
     super.key,
     required this.id,
     required this.name,
@@ -52,7 +55,12 @@ class GoatedPlaceCard extends StatelessWidget {
                   color: Colors.amber.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.star, color: Colors.amber, size: 24),
+                child: const Icon(
+                  Symbols.star,
+                  fill: 1.0,
+                  color: Colors.amber,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(

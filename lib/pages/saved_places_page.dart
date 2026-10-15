@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -92,8 +93,8 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Remove Favorite?"),
-        content: Text("Remove '$placeName' from your favorite places?"),
+        title: const Text("Remove VIP Place?"),
+        content: Text("Remove '$placeName' from your VIP places?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -123,7 +124,7 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("'$placeName' removed from Goated Places")),
+            SnackBar(content: Text("'$placeName' removed from VIP Places")),
           );
         }
       }
@@ -174,7 +175,7 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                "Added to Goated Places!",
+                "Added to VIP Places! ⭐",
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
@@ -240,8 +241,8 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
           return CustomScrollView(
             slivers: [
               SharedSliverAppBar(
-                title: "Favorite Places",
-                collapsedTitle: "Favorite Places",
+                title: "VIP Places",
+                collapsedTitle: "VIP Places",
                 expandedHeight: isLandscape ? 56.0 : 200.0,
                 hasBackButton: ModalRoute.of(context)?.canPop ?? false,
                 actions: [
@@ -284,7 +285,8 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
                 bottomContent: Row(
                   children: [
                     Icon(
-                      Icons.star,
+                      Symbols.star,
+                      fill: 1.0,
                       color: primaryColor.withValues(alpha: 0.8),
                       size: 16,
                     ),
@@ -352,7 +354,8 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            Icons.star_border,
+                            Symbols.star,
+                            fill: 0.0,
                             size: 64,
                             color: isDark
                                 ? Colors.grey.shade700
@@ -361,7 +364,7 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          "No Goated Places Yet",
+                          "No VIP Places Yet",
                           style: TextStyle(
                             color: isDark
                                 ? Colors.grey.shade400
@@ -394,7 +397,7 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
                       final name = data['name'] ?? 'Unknown Place';
                       final address = data['address'] ?? '';
 
-                      return GoatedPlaceCard(
+                      return VipPlaceCard(
                         id: docId,
                         name: name,
                         address: address,

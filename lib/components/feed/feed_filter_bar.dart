@@ -1,7 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-enum FeedFilter { all, goated, thisWeek, nextWeek, thisMonth, nextMonth }
+enum FeedFilter {
+  all,
+  vip,
+  thisWeek,
+  nextWeek,
+  thisMonth,
+  nextMonth;
+
+  // Backward compatibility alias
+  static const FeedFilter goated = FeedFilter.vip;
+}
 
 class FeedFilterBar extends StatelessWidget {
   final FeedFilter selectedFilter;
@@ -20,7 +30,7 @@ class FeedFilterBar extends StatelessWidget {
 
     final filters = [
       {'label': 'All', 'value': FeedFilter.all},
-      {'label': '🐐 Goated', 'value': FeedFilter.goated},
+      {'label': '⭐ VIP', 'value': FeedFilter.vip},
       {'label': 'This Week', 'value': FeedFilter.thisWeek},
       {'label': 'Next Week', 'value': FeedFilter.nextWeek},
       {'label': 'This Month', 'value': FeedFilter.thisMonth},

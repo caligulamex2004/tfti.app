@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 class TcgProfileCard extends StatelessWidget {
   final String displayName;
@@ -264,10 +265,15 @@ class TcgProfileCard extends StatelessWidget {
               ),
             ),
           ),
-          // --- ADDED PADDING TO GOAT ICON ---
+          // --- VIP STAR ICON ---
           if (isGoated) ...[
             const SizedBox(width: 8),
-            const Text("🐐", style: TextStyle(fontSize: 22)),
+            const Icon(
+              Symbols.star,
+              color: Colors.amber,
+              size: 22,
+              fill: 1.0,
+            ),
           ],
         ],
       ),

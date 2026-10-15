@@ -43,11 +43,15 @@ void main() {
 
     expect(find.text('This Week'), findsOneWidget);
     expect(find.text('Next Week'), findsOneWidget);
+    expect(find.text('⭐ VIP'), findsOneWidget);
 
     await tester.tap(find.text('Next Week'));
     await tester.pump();
-
     expect(selected, FeedFilter.nextWeek);
+
+    await tester.tap(find.text('⭐ VIP'));
+    await tester.pump();
+    expect(selected, FeedFilter.vip);
   });
 
   testWidgets('CarouselFeedList renders items safely without assertion error', (WidgetTester tester) async {

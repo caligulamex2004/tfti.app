@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:tftiapp/components/shared/tcg_profile_card.dart';
 
 void main() {
@@ -120,6 +121,31 @@ void main() {
       // Tap camera icon or avatar container
       await tester.tap(find.byIcon(Icons.camera_alt));
       expect(tapped, isTrue);
+    });
+
+    testWidgets('renders VIP star icon when isGoated is true', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: TcgProfileCard(
+                displayName: 'Hero VIP',
+                username: 'vip_hero',
+                statusText: 'VIP Member',
+                hp: 200,
+                mana: 100,
+                originDate: 'Joined Oct 2026',
+                showPhone: false,
+                displayPhone: '',
+                avatarColor: Colors.blue,
+                isGoated: true,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Symbols.star), findsOneWidget);
     });
   });
 }

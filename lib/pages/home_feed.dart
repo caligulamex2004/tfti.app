@@ -492,7 +492,9 @@ class _HomePageState extends State<HomePage> {
               _buildContextualEmptySliver(
                 icon: Icons.check_circle_outline,
                 title: "You're all caught up!",
-                message: "You have no pending invites$filterText.",
+                message: _selectedFilter == FeedFilter.vip
+                    ? "You have no pending invites with your VIP friends."
+                    : "You have no pending invites.",
                 isLandscape: isLandscape,
               ),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),

@@ -81,8 +81,8 @@ class FeedFilterUtils {
       // Skip blocked users
       if (blockedUids.contains(hostId)) continue;
 
-      // Filter by Goated status
-      if (filter == FeedFilter.goated && !goatedUids.contains(hostId)) {
+      // Filter by VIP status
+      if (filter == FeedFilter.vip && !goatedUids.contains(hostId)) {
         continue;
       }
 
@@ -90,25 +90,6 @@ class FeedFilterUtils {
       final DateTime eventTime = rawTime is Timestamp
           ? rawTime.toDate()
           : (rawTime is DateTime ? rawTime : now);
-
-      // Date range filters
-      if (filter == FeedFilter.thisWeek &&
-          (eventTime.isBefore(startOfThisWeek) ||
-              eventTime.isAfter(endOfThisWeek))) {
-        continue;
-      } else if (filter == FeedFilter.nextWeek &&
-          (eventTime.isBefore(startOfNextWeek) ||
-              eventTime.isAfter(endOfNextWeek))) {
-        continue;
-      } else if (filter == FeedFilter.thisMonth &&
-          (eventTime.isBefore(startOfThisMonth) ||
-              eventTime.isAfter(endOfThisMonth))) {
-        continue;
-      } else if (filter == FeedFilter.nextMonth &&
-          (eventTime.isBefore(startOfNextMonth) ||
-              eventTime.isAfter(endOfNextMonth))) {
-        continue;
-      }
 
       final bool isMyEvent = hostId == currentUserId;
       final inviteData = myInvitesMap[eventId] ?? {};
@@ -149,6 +130,31 @@ class FeedFilterUtils {
           eventTime.difference(now).inMinutes <= 60;
       final bool isHappeningNow =
           !eventTime.isAfter(now) && !now.isAfter(endTime);
+
+      final bool isPendingAction =
+          !isHidden && !isPast && (status == 'pending');
+
+      // Date range filters apply to non-pending-action events (The Agenda, Declined, Past).
+      // Pending action events (Action Needed) are decoupled from date ranges so users never miss an invite.
+      if (!isPendingAction) {
+        if (filter == FeedFilter.thisWeek &&
+            (eventTime.isBefore(startOfThisWeek) ||
+                eventTime.isAfter(endOfThisWeek))) {
+          continue;
+        } else if (filter == FeedFilter.nextWeek &&
+            (eventTime.isBefore(startOfNextWeek) ||
+                eventTime.isAfter(endOfNextWeek))) {
+          continue;
+        } else if (filter == FeedFilter.thisMonth &&
+            (eventTime.isBefore(startOfThisMonth) ||
+                eventTime.isAfter(endOfThisMonth))) {
+          continue;
+        } else if (filter == FeedFilter.nextMonth &&
+            (eventTime.isBefore(startOfNextMonth) ||
+                eventTime.isAfter(endOfNextMonth))) {
+          continue;
+        }
+      }
 
       final eventItem = {
         'id': eventId,
@@ -210,8 +216,8 @@ class FeedFilterUtils {
         return " this month";
       case FeedFilter.nextMonth:
         return " next month";
-      case FeedFilter.goated:
-        return " with your Goated friends";
+      case FeedFilter.vip:
+        return " with your VIP friends";
       case FeedFilter.all:
         return "";
     }

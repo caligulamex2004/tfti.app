@@ -19,7 +19,7 @@ void main() {
       expect(FeedFilterUtils.getFilterSubtitle(FeedFilter.nextWeek), ' next week');
       expect(FeedFilterUtils.getFilterSubtitle(FeedFilter.thisMonth), ' this month');
       expect(FeedFilterUtils.getFilterSubtitle(FeedFilter.nextMonth), ' next month');
-      expect(FeedFilterUtils.getFilterSubtitle(FeedFilter.goated), ' with your Goated friends');
+      expect(FeedFilterUtils.getFilterSubtitle(FeedFilter.vip), ' with your VIP friends');
       expect(FeedFilterUtils.getFilterSubtitle(FeedFilter.all), '');
     });
 
@@ -134,7 +134,7 @@ void main() {
       expect(result.actionNeeded.first['id'], 'event-clean');
     });
 
-    test('Goated filter only includes events from goated hosts', () {
+    test('VIP filter only includes events from VIP hosts', () {
       final events = [
         RawFeedEvent(
           id: 'event-regular',
@@ -144,9 +144,9 @@ void main() {
           },
         ),
         RawFeedEvent(
-          id: 'event-goated',
+          id: 'event-vip',
           data: {
-            'hostId': 'friend-goated',
+            'hostId': 'friend-vip',
             'time': Timestamp.fromDate(baseTime.add(const Duration(hours: 2))),
           },
         ),
@@ -156,14 +156,126 @@ void main() {
         events: events,
         myInvitesMap: {},
         blockedUids: [],
-        goatedUids: ['friend-goated'],
+        goatedUids: ['friend-vip'],
         currentUserId: 'my-uid',
-        filter: FeedFilter.goated,
+        filter: FeedFilter.vip,
         currentTime: baseTime,
       );
 
       expect(result.actionNeeded.length, 1);
-      expect(result.actionNeeded.first['id'], 'event-goated');
+      expect(result.actionNeeded.first['id'], 'event-vip');
+    });
+
+    test('Pending events scheduled for future dates remain in Action Needed when filtering by This Week (Decoupled)', () {
+      // Event happening 10 days later (next week)
+      final futureTime = baseTime.add(const Duration(days: 10));
+      final events = [
+        RawFeedEvent(
+          id: 'future-pending-invite',
+          data: {
+            'hostId': 'friend-1',
+            'time': Timestamp.fromDate(futureTime),
+            'type': 'event',
+          },
+        ),
+        RawFeedEvent(
+          id: 'future-confirmed-agenda',
+          data: {
+            'hostId': 'friend-2',
+            'time': Timestamp.fromDate(futureTime),
+            'type': 'event',
+          },
+        ),
+      ];
+
+      final myInvitesMap = {
+        'future-pending-invite': {'status': 'pending', 'isHidden': false},
+        'future-confirmed-agenda': {'status': 'going', 'isHidden': false},
+      };
+
+      final result = FeedFilterUtils.filterAndBucket(
+        events: events,
+        myInvitesMap: myInvitesMap,
+        blockedUids: [],
+        goatedUids: [],
+        currentUserId: 'my-uid',
+        filter: FeedFilter.thisWeek,
+        currentTime: baseTime,
+      );
+
+      // Pending action item should be retained in Action Needed despite date filter
+      expect(result.actionNeeded.length, 1);
+      expect(result.actionNeeded.first['id'], 'future-pending-invite');
+
+      // The Agenda strictly respects date filtering and excludes future confirmed events
+      expect(result.agenda, isEmpty);
+    });
+
+    test('Pending events for next month remain in Action Needed when filtering by This Month', () {
+      final nextMonthTime = baseTime.add(const Duration(days: 45));
+      final events = [
+        RawFeedEvent(
+          id: 'next-month-pending',
+          data: {
+            'hostId': 'friend-1',
+            'time': Timestamp.fromDate(nextMonthTime),
+            'type': 'event',
+          },
+        ),
+      ];
+
+      final result = FeedFilterUtils.filterAndBucket(
+        events: events,
+        myInvitesMap: {
+          'next-month-pending': {'status': 'pending', 'isHidden': false},
+        },
+        blockedUids: [],
+        goatedUids: [],
+        currentUserId: 'my-uid',
+        filter: FeedFilter.thisMonth,
+        currentTime: baseTime,
+      );
+
+      expect(result.actionNeeded.length, 1);
+      expect(result.actionNeeded.first['id'], 'next-month-pending');
+      expect(result.agenda, isEmpty);
+    });
+
+    test('VIP filter restricts Action Needed to only VIP hosts', () {
+      final events = [
+        RawFeedEvent(
+          id: 'pending-regular',
+          data: {
+            'hostId': 'regular-user',
+            'time': Timestamp.fromDate(baseTime.add(const Duration(hours: 2))),
+            'type': 'event',
+          },
+        ),
+        RawFeedEvent(
+          id: 'pending-vip',
+          data: {
+            'hostId': 'vip-user',
+            'time': Timestamp.fromDate(baseTime.add(const Duration(hours: 2))),
+            'type': 'event',
+          },
+        ),
+      ];
+
+      final result = FeedFilterUtils.filterAndBucket(
+        events: events,
+        myInvitesMap: {
+          'pending-regular': {'status': 'pending', 'isHidden': false},
+          'pending-vip': {'status': 'pending', 'isHidden': false},
+        },
+        blockedUids: [],
+        goatedUids: ['vip-user'],
+        currentUserId: 'my-uid',
+        filter: FeedFilter.vip,
+        currentTime: baseTime,
+      );
+
+      expect(result.actionNeeded.length, 1);
+      expect(result.actionNeeded.first['id'], 'pending-vip');
     });
 
     test('Pending events automatically decline when past RSVP deadline for hangouts', () {

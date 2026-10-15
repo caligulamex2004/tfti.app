@@ -531,14 +531,19 @@ class _PreferencesPageState extends State<PreferencesPage> {
             color: Colors.amber.withValues(alpha: 0.15),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.star, color: Colors.amber, size: 20),
+          child: const Icon(
+            Symbols.star,
+            fill: 1.0,
+            color: Colors.amber,
+            size: 20,
+          ),
         ),
         title: const Text(
-          "Favorite Places",
+          "VIP Places",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: const Text(
-          "Manage your saved addresses",
+          "Manage your saved hangout spots",
           style: TextStyle(fontSize: 12),
         ),
         trailing: const Icon(Icons.chevron_right, size: 16),

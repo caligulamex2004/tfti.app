@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 import 'custom_input_field.dart';
 import '../../pages/places_search_page.dart';
@@ -72,7 +73,7 @@ class _LocationInputFieldState extends State<LocationInputField> {
         _favoriteDocId = null;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Removed from Goated Places")),
+        const SnackBar(content: Text("Removed from VIP Places")),
       );
     } else {
       final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -84,7 +85,7 @@ class _LocationInputFieldState extends State<LocationInputField> {
         confirmedName = await showDialog<String>(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text("Save Goated Place"),
+            title: const Text("Save VIP Place"),
             content: TextField(
               controller: nameController,
               autofocus: true,
@@ -137,7 +138,7 @@ class _LocationInputFieldState extends State<LocationInputField> {
         _favoriteDocId = placeId;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Added to Goated Places! 🐐")),
+        const SnackBar(content: Text("Added to VIP Places! ⭐")),
       );
     }
   }
@@ -181,7 +182,8 @@ class _LocationInputFieldState extends State<LocationInputField> {
             padding: const EdgeInsets.only(left: 8.0),
             child: IconButton(
               icon: Icon(
-                _isLocFavorite ? Icons.star : Icons.star_border,
+                Symbols.star,
+                fill: _isLocFavorite ? 1.0 : 0.0,
                 color: Colors.amber,
                 size: 32,
               ),

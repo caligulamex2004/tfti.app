@@ -121,7 +121,7 @@ class UserProfileSheet extends StatelessWidget {
                       size: 28,
                     ),
                     title: Text(
-                      isGoated ? "Remove from Goated" : "Mark as Goated",
+                      isGoated ? "Remove from VIP" : "Add to VIP",
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     subtitle: const Text(
