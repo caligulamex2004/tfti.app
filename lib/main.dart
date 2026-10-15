@@ -20,6 +20,8 @@ import 'pages/account_page.dart';
 import 'firebase_options.dart';
 import 'utils/theme_provider.dart';
 import 'services/user_cache_repository.dart';
+import 'services/web_update_service.dart';
+import 'components/shared/web_update_banner.dart';
 import 'pages/onboarding_tutorial.dart';
 import 'pages/home_feed.dart';
 
@@ -67,6 +69,9 @@ void main() async {
     }
   });
 
+  // Start background update checker for Web/PWA clients
+  WebUpdateService.instance.start();
+
   runApp(const MyApp());
 }
 
@@ -83,6 +88,11 @@ class MyApp extends StatelessWidget {
           title: 'thanks for the invite',
           theme: themeProvider.themeData,
           debugShowCheckedModeBanner: false,
+          builder: (context, widget) {
+            return WebUpdateBannerWrapper(
+              child: widget ?? const SizedBox.shrink(),
+            );
+          },
           home: const AuthWrapper(),
         );
       },

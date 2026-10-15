@@ -17,8 +17,8 @@ void main() {
         final content = manifestFile.readAsStringSync();
         final Map<String, dynamic> json = jsonDecode(content);
 
-        expect(json['name'], contains('TFTI'));
-        expect(json['short_name'], 'TFTI');
+        expect(json['name'], contains('thanks for the invite'));
+        expect(json['short_name'], 'tfti');
         expect(json['theme_color'], '#1D73CB');
         expect(json['background_color'], '#1D73CB');
 
@@ -42,7 +42,7 @@ void main() {
 
         final html = indexFile.readAsStringSync();
 
-        expect(html, contains('<title>TFTI — Thanks For The Invite</title>'));
+        expect(html, contains('<title>thanks for the invite</title>'));
         expect(html, contains('og:title'));
         expect(html, contains('og:image'));
         expect(html, contains('og:url'));
@@ -170,6 +170,7 @@ void main() {
         expect(hosting['public'], equals('build/web'));
         expect(hosting['cleanUrls'], isTrue);
         expect(hosting['rewrites'], isNotEmpty);
+        expect(hosting['headers'], isNotEmpty);
 
         expect(json['flutter'], isNotNull);
         expect(json['flutter']['platforms'], contains('android'));
