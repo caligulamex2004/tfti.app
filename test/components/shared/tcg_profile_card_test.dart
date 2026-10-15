@@ -1,0 +1,125 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:tftiapp/components/shared/tcg_profile_card.dart';
+
+void main() {
+  group('TcgProfileCard Tests', () {
+    testWidgets('renders monogram when avatarUrl is null', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: TcgProfileCard(
+                displayName: 'Gamer One',
+                username: 'gamer1',
+                statusText: 'Ready to play',
+                hp: 150,
+                mana: 80,
+                originDate: 'Joined Oct 2026',
+                showPhone: false,
+                displayPhone: '',
+                avatarColor: Colors.deepPurple,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('G'), findsOneWidget);
+      expect(find.byType(CachedNetworkImage), findsNothing);
+    });
+
+    testWidgets('renders loading spinner when isUploadingAvatar is true', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: TcgProfileCard(
+                displayName: 'Gamer One',
+                username: 'gamer1',
+                statusText: 'Ready to play',
+                hp: 150,
+                mana: 80,
+                originDate: 'Joined Oct 2026',
+                showPhone: false,
+                displayPhone: '',
+                avatarColor: Colors.deepPurple,
+                isUploadingAvatar: true,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('G'), findsNothing);
+    });
+
+    testWidgets('builds CachedNetworkImage on mobile without superimposing monogram on loaded image', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: TcgProfileCard(
+                displayName: 'Hero Zara',
+                username: 'zara_hero',
+                statusText: 'Questing',
+                hp: 200,
+                mana: 100,
+                originDate: 'Joined Oct 2026',
+                showPhone: false,
+                displayPhone: '',
+                avatarUrl: 'https://example.com/avatar.jpg',
+                avatarColor: Colors.blue,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final cachedImageFinder = find.byType(CachedNetworkImage);
+      expect(cachedImageFinder, findsOneWidget);
+
+      final cachedImage = tester.widget<CachedNetworkImage>(cachedImageFinder);
+      expect(cachedImage.imageUrl, 'https://example.com/avatar.jpg');
+      expect(cachedImage.fit, BoxFit.cover);
+
+      // Verify placeholder renders the monogram
+      final context = tester.element(cachedImageFinder);
+      final placeholder = cachedImage.placeholder!(context, 'https://example.com/avatar.jpg');
+      expect(placeholder, isA<Center>());
+    });
+
+    testWidgets('triggers onAvatarTap when avatar is tapped', (tester) async {
+      bool tapped = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: TcgProfileCard(
+                displayName: 'Hero Zara',
+                username: 'zara_hero',
+                statusText: 'Questing',
+                hp: 200,
+                mana: 100,
+                originDate: 'Joined Oct 2026',
+                showPhone: false,
+                displayPhone: '',
+                avatarColor: Colors.blue,
+                onAvatarTap: () {
+                  tapped = true;
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Tap camera icon or avatar container
+      await tester.tap(find.byIcon(Icons.camera_alt));
+      expect(tapped, isTrue);
+    });
+  });
+}

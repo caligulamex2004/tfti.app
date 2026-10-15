@@ -132,17 +132,64 @@ class TcgProfileCard extends StatelessWidget {
       );
     }
 
-    final ImageProvider? imageProvider =
-        (avatarUrl != null && avatarUrl!.trim().isNotEmpty)
-            ? (kIsWeb
-                ? NetworkImage(avatarUrl!.trim())
-                : CachedNetworkImageProvider(avatarUrl!.trim())
-                    as ImageProvider)
-            : null;
+    final double avatarSize = isLandscape ? 120 : 160;
+    final String monogram = displayName.trim().isNotEmpty
+        ? displayName.trim()[0].toUpperCase()
+        : "?";
+
+    final Widget fallbackMonogram = isUploadingAvatar
+        ? const Center(child: CircularProgressIndicator(color: Colors.white))
+        : Center(
+            child: Text(
+              monogram,
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: isLandscape ? 48 : 60,
+              ),
+            ),
+          );
+
+    final cleanUrl = avatarUrl?.trim();
+    Widget avatarContent;
+
+    if (isUploadingAvatar || cleanUrl == null || cleanUrl.isEmpty) {
+      avatarContent = fallbackMonogram;
+    } else if (kIsWeb) {
+      avatarContent = Image.network(
+        cleanUrl,
+        width: avatarSize,
+        height: avatarSize,
+        fit: BoxFit.cover,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded || frame != null) {
+            return child;
+          }
+          return fallbackMonogram;
+        },
+        errorBuilder: (context, error, stackTrace) {
+          debugPrint("TcgProfileCard avatar load error: $error");
+          return fallbackMonogram;
+        },
+      );
+    } else {
+      avatarContent = CachedNetworkImage(
+        imageUrl: cleanUrl,
+        width: avatarSize,
+        height: avatarSize,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => fallbackMonogram,
+        errorWidget: (context, url, error) {
+          debugPrint("TcgProfileCard avatar load error: $error");
+          return fallbackMonogram;
+        },
+      );
+    }
 
     Widget avatarWidget = Container(
-      width: isLandscape ? 120 : 160,
-      height: isLandscape ? 120 : 160,
+      width: avatarSize,
+      height: avatarSize,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: avatarColor,
         borderRadius: BorderRadius.circular(12),
@@ -150,30 +197,8 @@ class TcgProfileCard extends StatelessWidget {
           color: isDark ? Colors.white24 : Colors.black12,
           width: 3,
         ),
-        image: imageProvider != null
-            ? DecorationImage(
-                image: imageProvider,
-                fit: BoxFit.cover,
-                onError: (exception, stackTrace) {
-                  debugPrint("TcgProfileCard avatar load error: $exception");
-                },
-              )
-            : null,
       ),
-      child: isUploadingAvatar
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
-          : Center(
-              child: Text(
-                displayName.isNotEmpty
-                    ? displayName[0].toUpperCase()
-                    : "?",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 60,
-                ),
-              ),
-            ),
+      child: avatarContent,
     );
 
 
