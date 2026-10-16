@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import '../../utils/phone_formatter.dart';
+import '../../services/contact_resolver.dart';
 import 'tcg_profile_card.dart';
 
 class UserProfileSheet extends StatelessWidget {
@@ -37,6 +38,7 @@ class UserProfileSheet extends StatelessWidget {
     final String targetUid = userData['uid'] ?? userData['id'] ?? "";
     final String displayName = userData['displayName'] ?? "No Name";
     final String rawPhone = userData['phoneNumber'] ?? userData['phone'] ?? "";
+    final String? contactName = ContactResolver.instance.resolveName(rawPhone);
 
     final Timestamp? createdAt =
         userData['createdAt'] ?? userData['created_at'];
@@ -84,6 +86,7 @@ class UserProfileSheet extends StatelessWidget {
                         ? Color(userData['avatarColor'])
                         : Colors.blue.shade100,
                     isGoated: isGoated,
+                    contactName: contactName,
                   ),
                 ),
 

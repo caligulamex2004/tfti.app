@@ -5,6 +5,7 @@ import 'package:material_symbols_icons/symbols.dart';
 
 import '../shared/user_profile_sheet.dart';
 import '../shared/app_avatar.dart';
+import '../../services/contact_resolver.dart';
 
 class FriendListTile extends StatelessWidget {
   final Map<String, dynamic> userData;
@@ -36,6 +37,12 @@ class FriendListTile extends StatelessWidget {
     final String uid = userData['uid'];
     final String displayName = userData['displayName'] ?? "No Name";
     final String username = userData['username'] ?? "";
+    final String rawPhone = userData['phoneNumber'] ?? userData['phone'] ?? "";
+    final String? contactName = ContactResolver.instance.resolveName(rawPhone);
+    final bool hasContactName =
+        contactName != null && contactName.trim().isNotEmpty;
+    final String primaryName =
+        hasContactName ? contactName.trim() : displayName;
     final String? avatarUrl = userData['avatarUrl'];
     final Color avatarColor = userData['avatarColor'] is int
         ? Color(userData['avatarColor'])
@@ -165,7 +172,7 @@ class FriendListTile extends StatelessWidget {
                         radius: 26,
                         avatarColor: avatarColor,
                         avatarUrl: avatarUrl,
-                        displayName: displayName,
+                        displayName: primaryName,
                         fontSize: 20,
                       ),
                     ),
@@ -179,7 +186,7 @@ class FriendListTile extends StatelessWidget {
                               ?rankIcon,
                               Flexible(
                                 child: Text(
-                                  displayName,
+                                  primaryName,
                                   style: TextStyle(
                                     fontWeight: FontWeight.w900,
                                     fontSize: 17,
@@ -194,6 +201,20 @@ class FriendListTile extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
+                              if (hasContactName)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 4.0),
+                                  child: Tooltip(
+                                    message: "From your contacts",
+                                    child: Icon(
+                                      Icons.contact_phone_outlined,
+                                      size: 14,
+                                      color: isDark
+                                          ? Colors.grey.shade400
+                                          : Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ),
                               if (isGoated && !isBlocked)
                                 const Padding(
                                   padding: EdgeInsets.only(left: 6.0),
@@ -215,7 +236,39 @@ class FriendListTile extends StatelessWidget {
                                 ),
                             ],
                           ),
-                          if (username.isNotEmpty)
+                          if (hasContactName) ...[
+                            if (displayName.isNotEmpty &&
+                                displayName != primaryName)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Text(
+                                  "~ $displayName${username.isNotEmpty ? ' (@$username)' : ''}",
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        isBlocked ? Colors.grey : primaryColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              )
+                            else if (username.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Text(
+                                  "@$username",
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        isBlocked ? Colors.grey : primaryColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ] else if (username.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 4.0),
                               child: Text(

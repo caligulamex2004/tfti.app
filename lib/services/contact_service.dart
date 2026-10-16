@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
+import 'contact_resolver.dart';
 
 class ContactHelper {
   /// Requests permission and fetches contacts with phone numbers.
@@ -19,6 +20,9 @@ class ContactHelper {
         debugPrint("Contact permission denied by user.");
         return null;
       }
+
+      // Mark permission granted so ContactResolver can auto-warm cache in future sessions
+      ContactResolver.instance.onPermissionGranted();
 
       // Fetch contacts with their properties (specifically phone numbers)
       final List<Contact> contacts = await FlutterContacts.getContacts(

@@ -143,7 +143,13 @@ class _ContactImportSheetState extends State<ContactImportSheet> {
 
                     if (item is Map<String, dynamic>) {
                       final uid = item['uid'];
-                      final name = item['displayName'] ?? "Unknown";
+                      final profileName = item['displayName'] ?? "Unknown";
+                      final contactName = item['contactName'] as String?;
+                      final bool hasContactName =
+                          contactName != null && contactName.trim().isNotEmpty;
+                      final primaryName =
+                          hasContactName ? contactName.trim() : profileName;
+                      final username = item['username'] as String?;
                       final phone = PhoneFormatter.beautify(
                         item['phoneNumber'] ?? "",
                       );
@@ -151,6 +157,26 @@ class _ContactImportSheetState extends State<ContactImportSheet> {
                       final avatarColor =
                           item['avatarColor'] ?? Colors.blue.toARGB32();
                       final isAdded = _addedUids.contains(uid);
+
+                      String subtitleText;
+                      if (hasContactName) {
+                        final String handlePart =
+                            (username != null && username.isNotEmpty)
+                                ? " (@$username)"
+                                : "";
+                        if (profileName.isNotEmpty &&
+                            profileName != primaryName) {
+                          subtitleText = "~ $profileName$handlePart • $phone";
+                        } else if (handlePart.isNotEmpty) {
+                          subtitleText = "@$username • $phone";
+                        } else {
+                          subtitleText = phone;
+                        }
+                      } else if (username != null && username.isNotEmpty) {
+                        subtitleText = "@$username • $phone";
+                      } else {
+                        subtitleText = phone;
+                      }
 
                       return ListTile(
                         contentPadding: const EdgeInsets.symmetric(
@@ -173,23 +199,46 @@ class _ContactImportSheetState extends State<ContactImportSheet> {
                           child: AppAvatar.fromColorValue(
                             avatarColor: avatarColor,
                             avatarUrl: avatarUrl,
-                            displayName: name,
+                            displayName: primaryName,
                           ),
                         ),
-                        title: Text(
-                          name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                        title: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                primaryName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (hasContactName) ...[
+                              const SizedBox(width: 6),
+                              Tooltip(
+                                message: "From your contacts",
+                                child: Icon(
+                                  Icons.contact_phone_outlined,
+                                  size: 15,
+                                  color: isDark
+                                      ? Colors.grey.shade400
+                                      : Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                         subtitle: Text(
-                          phone,
+                          subtitleText,
                           style: TextStyle(
                             color: isDark
                                 ? Colors.grey.shade400
                                 : Colors.grey.shade600,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         trailing: isAdded
                             ? const Icon(

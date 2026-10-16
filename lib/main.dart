@@ -20,6 +20,7 @@ import 'pages/account_page.dart';
 import 'firebase_options.dart';
 import 'utils/theme_provider.dart';
 import 'services/user_cache_repository.dart';
+import 'services/contact_resolver.dart';
 import 'services/web_update_service.dart';
 import 'components/shared/web_update_banner.dart';
 import 'pages/onboarding_tutorial.dart';
@@ -54,6 +55,9 @@ void main() async {
   } catch (e) {
     debugPrint("RevenueCat Init Error (ignore if no API keys yet): $e");
   }
+
+  // Asynchronously warm up the contact resolver cache if permission was granted
+  unawaited(ContactResolver.instance.warmUpIfPermitted());
 
   // Scenario 1: The app is completely closed / terminated
   FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {

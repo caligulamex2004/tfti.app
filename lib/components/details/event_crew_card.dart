@@ -6,6 +6,7 @@ import '../shared/info_card.dart';
 import '../shared/user_profile_sheet.dart';
 import 'details_bottom_sheets.dart';
 import '../shared/app_avatar.dart';
+import '../../services/contact_resolver.dart';
 
 class EventCrewCard extends StatelessWidget {
   final bool inviteDocsEmpty;
@@ -120,6 +121,15 @@ class EventCrewCard extends StatelessWidget {
                             true
                       : false;
 
+                  final guestPhone =
+                      guest['phoneNumber'] ?? guest['phone'] ?? '';
+                  final contactName =
+                      ContactResolver.instance.resolveName(guestPhone);
+                  final bool hasContact =
+                      contactName != null && contactName.trim().isNotEmpty;
+                  final String primaryName =
+                      hasContact ? contactName.trim() : guest['displayName'];
+
                   return InkWell(
                     onTap: () {
                       showModalBottomSheet(
@@ -172,7 +182,7 @@ class EventCrewCard extends StatelessWidget {
                                   avatarColor: guest['avatarColor'],
                                   radius: 22,
                                   avatarUrl: guest['avatarUrl'],
-                                  displayName: guest['displayName'],
+                                  displayName: primaryName,
                                 ),
                               ),
                               Positioned(
@@ -202,7 +212,7 @@ class EventCrewCard extends StatelessWidget {
                                   children: [
                                     Flexible(
                                       child: Text(
-                                        guest['displayName'],
+                                        primaryName,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 16,
@@ -210,6 +220,20 @@ class EventCrewCard extends StatelessWidget {
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
+                                    if (hasContact)
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 4),
+                                        child: Tooltip(
+                                          message: "From your contacts",
+                                          child: Icon(
+                                            Icons.contact_phone_outlined,
+                                            size: 14,
+                                            color: isDark
+                                                ? Colors.grey.shade400
+                                                : Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ),
                                     if (guestUid == hostId)
                                       const Padding(
                                         padding: EdgeInsets.only(left: 6),
@@ -230,7 +254,18 @@ class EventCrewCard extends StatelessWidget {
                                       ),
                                   ],
                                 ),
-                                if ((guest['username'] ?? "").isNotEmpty)
+                                if (hasContact &&
+                                    guest['displayName'] != primaryName)
+                                  Text(
+                                    "~ ${guest['displayName']}${(guest['username'] ?? "").isNotEmpty ? ' (@${guest['username']})' : ''}",
+                                    style: TextStyle(
+                                      color: primaryColor,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  )
+                                else if ((guest['username'] ?? "").isNotEmpty)
                                   Text(
                                     "@${guest['username']}",
                                     style: TextStyle(
@@ -250,7 +285,7 @@ class EventCrewCard extends StatelessWidget {
                               ),
                               onPressed: () => onAddFriend(
                                 guestUid,
-                                guest['phone'],
+                                (guest['phoneNumber'] ?? guest['phone'] ?? '').toString(),
                                 guest['displayName'],
                               ),
                             ),

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tftiapp/services/contact_service.dart';
+import 'package:tftiapp/services/contact_resolver.dart';
 
 void main() {
   group('ContactHelper Tests', () {
@@ -62,5 +63,23 @@ void main() {
         expect(contacts, isNull);
       },
     );
+  });
+
+  group('ContactResolver Tests', () {
+    test('resolveName returns null for empty or null inputs', () {
+      expect(ContactResolver.instance.resolveName(null), isNull);
+      expect(ContactResolver.instance.resolveName(''), isNull);
+      expect(ContactResolver.instance.resolveName('   '), isNull);
+    });
+
+    test('resolveName returns null for unknown phone numbers', () {
+      expect(ContactResolver.instance.resolveName('+19999999999'), isNull);
+      expect(ContactResolver.instance.resolveName('999-999-9999'), isNull);
+    });
+
+    test('cache property is unmodifiable', () {
+      final cache = ContactResolver.instance.cache;
+      expect(() => cache['+15551234567'] = 'Test', throwsUnsupportedError);
+    });
   });
 }

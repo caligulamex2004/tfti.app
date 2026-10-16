@@ -15,6 +15,7 @@ import '../components/squad/friend_list_feed.dart';
 import '../components/squad/contact_import_sheet.dart';
 import '../components/squad/squad_requests_section.dart';
 import '../services/contact_service.dart';
+import '../services/contact_resolver.dart';
 import '../services/friend_service.dart';
 import '../services/user_cache_repository.dart';
 import '../utils/phone_formatter.dart';
@@ -37,6 +38,12 @@ class _SquadPageState extends State<SquadPage> {
   bool _sortByScore = true;
 
   final Set<String> _removedFriendUids = {};
+
+  @override
+  void initState() {
+    super.initState();
+    ContactResolver.instance.warmUpIfPermitted();
+  }
 
   @override
   void dispose() {
@@ -140,6 +147,10 @@ class _SquadPageState extends State<SquadPage> {
             allTftiPhones.add(phone);
             if (uid != myUid && !myFriendUids.contains(uid)) {
               data['uid'] = uid;
+              final contact = phoneToContact[phone];
+              if (contact != null && contact.displayName.trim().isNotEmpty) {
+                data['contactName'] = contact.displayName.trim();
+              }
               onTfti.add(data);
             }
           }
@@ -153,9 +164,13 @@ class _SquadPageState extends State<SquadPage> {
       }
 
       onTfti.sort(
-        (a, b) => (a['displayName'] ?? '').toString().toLowerCase().compareTo(
-          (b['displayName'] ?? '').toString().toLowerCase(),
-        ),
+        (a, b) {
+          final nameA =
+              (a['contactName'] ?? a['displayName'] ?? '').toString().toLowerCase();
+          final nameB =
+              (b['contactName'] ?? b['displayName'] ?? '').toString().toLowerCase();
+          return nameA.compareTo(nameB);
+        },
       );
       notOnTfti.sort(
         (a, b) =>

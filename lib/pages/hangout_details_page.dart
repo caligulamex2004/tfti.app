@@ -176,9 +176,10 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
           .doc(guestUid)
           .set({
             'uid': guestUid,
+            'phoneNumber': guestPhone,
             'phone': guestPhone,
             'addedAt': FieldValue.serverTimestamp(),
-          });
+          }, SetOptions(merge: true));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -296,6 +297,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                   userData['phoneNumber'] ?? userData['phone'],
                 )
               : '',
+          'phoneNumber': userData['phoneNumber'] ?? userData['phone'] ?? '',
           'avatarColor': userData['avatarColor'] ?? 0xFF9E9E9E,
           'avatarUrl': userData['avatarUrl'],
           'username': userData['username'] ?? '',

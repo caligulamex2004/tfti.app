@@ -15,6 +15,7 @@ class TcgProfileCard extends StatelessWidget {
   final String? avatarUrl;
   final Color avatarColor;
   final bool isGoated;
+  final String? contactName;
 
   // Account Page Edit Features
   final VoidCallback? onAvatarTap;
@@ -33,6 +34,7 @@ class TcgProfileCard extends StatelessWidget {
     this.avatarUrl,
     required this.avatarColor,
     this.isGoated = false,
+    this.contactName,
     this.onAvatarTap,
     this.isUploadingAvatar = false,
   });
@@ -134,8 +136,12 @@ class TcgProfileCard extends StatelessWidget {
     }
 
     final double avatarSize = isLandscape ? 120 : 160;
-    final String monogram = displayName.trim().isNotEmpty
-        ? displayName.trim()[0].toUpperCase()
+    final String effectiveName =
+        (contactName != null && contactName!.trim().isNotEmpty)
+            ? contactName!.trim()
+            : displayName.trim();
+    final String monogram = effectiveName.isNotEmpty
+        ? effectiveName[0].toUpperCase()
         : "?";
 
     final Widget fallbackMonogram = isUploadingAvatar
@@ -232,6 +238,10 @@ class TcgProfileCard extends StatelessWidget {
       );
     }
 
+    final bool hasContact = contactName != null &&
+        contactName!.trim().isNotEmpty &&
+        contactName!.trim() != displayName.trim();
+
     Widget titleWidget = Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: plateDecoration,
@@ -239,31 +249,76 @@ class TcgProfileCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Expanded(
-            child: RichText(
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              text: TextSpan(
-                children: [
-                  if (username.isNotEmpty)
-                    TextSpan(
-                      text: "@$username, ",
-                      style: TextStyle(
-                        fontSize: isLandscape ? 15 : 14,
-                        fontWeight: FontWeight.bold,
-                        color: primaryColor,
+            child: hasContact
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              contactName!.trim(),
+                              style: TextStyle(
+                                fontSize: isLandscape ? 20 : 18,
+                                fontWeight: FontWeight.w900,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Tooltip(
+                            message: "From your contacts",
+                            child: Icon(
+                              Icons.contact_phone_outlined,
+                              size: 15,
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  TextSpan(
-                    text: displayName,
-                    style: TextStyle(
-                      fontSize: isLandscape ? 20 : 18,
-                      fontWeight: FontWeight.w900,
-                      color: isDark ? Colors.white : Colors.black87,
+                      Text(
+                        "~ $displayName${username.isNotEmpty ? ' (@$username)' : ''}",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: primaryColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  )
+                : RichText(
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    text: TextSpan(
+                      children: [
+                        if (username.isNotEmpty)
+                          TextSpan(
+                            text: "@$username, ",
+                            style: TextStyle(
+                              fontSize: isLandscape ? 15 : 14,
+                              fontWeight: FontWeight.bold,
+                              color: primaryColor,
+                            ),
+                          ),
+                        TextSpan(
+                          text: displayName,
+                          style: TextStyle(
+                            fontSize: isLandscape ? 20 : 18,
+                            fontWeight: FontWeight.w900,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
           ),
           // --- VIP STAR ICON ---
           if (isGoated) ...[
