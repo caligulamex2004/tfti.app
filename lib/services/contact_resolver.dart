@@ -106,4 +106,24 @@ class ContactResolver extends ChangeNotifier {
     );
     refresh();
   }
+
+  /// Seeds the cache for unit and widget tests and notifies listeners.
+  @visibleForTesting
+  void seedForTest(Map<String, String> entries) {
+    _phoneToNameCache.clear();
+    entries.forEach((phone, name) {
+      final normalized = ContactHelper.normalizePhone(phone) ?? phone;
+      _phoneToNameCache[normalized] = name;
+    });
+    _hasWarmedUp = true;
+    notifyListeners();
+  }
+
+  /// Clears the cache for unit and widget tests and notifies listeners.
+  @visibleForTesting
+  void clearForTest() {
+    _phoneToNameCache.clear();
+    _hasWarmedUp = false;
+    notifyListeners();
+  }
 }

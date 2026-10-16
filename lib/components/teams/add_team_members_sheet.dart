@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:tftiapp/services/contact_resolver.dart';
 import 'package:tftiapp/services/team_service.dart';
 import 'package:tftiapp/services/user_cache_repository.dart';
 import 'package:tftiapp/utils/theme_provider.dart';
@@ -57,15 +58,29 @@ class AddTeamMembersSheet extends StatefulWidget {
       if (profile != null) {
         final data = profile.toMap();
         data['uid'] = doc.id;
+        final docData = doc.data();
+        final phone =
+            docData['phoneNumber'] ??
+            docData['phone'] ??
+            data['phoneNumber'] ??
+            data['phone'] ??
+            '';
+        data['phoneNumber'] = phone;
         sortedAvailable.add(data);
       }
     }
 
+    String getEffectiveName(Map<String, dynamic> item) {
+      final phone = item['phoneNumber'] as String?;
+      final contactName = ContactResolver.instance.resolveName(phone);
+      if (contactName != null && contactName.trim().isNotEmpty) {
+        return contactName.trim().toLowerCase();
+      }
+      return (item['displayName'] ?? '').toString().toLowerCase();
+    }
+
     sortedAvailable.sort(
-      (a, b) => (a['displayName'] ?? '')
-          .toString()
-          .toLowerCase()
-          .compareTo((b['displayName'] ?? '').toString().toLowerCase()),
+      (a, b) => getEffectiveName(a).compareTo(getEffectiveName(b)),
     );
 
     if (!context.mounted) return;
@@ -124,16 +139,28 @@ class _AddTeamMembersSheetState extends State<AddTeamMembersSheet> {
       if (profile != null) {
         final data = profile.toMap();
         data['uid'] = doc.id;
+        final docData = doc.data();
+        final phone =
+            docData['phoneNumber'] ??
+            docData['phone'] ??
+            data['phoneNumber'] ??
+            data['phone'] ??
+            '';
+        data['phoneNumber'] = phone;
         list.add(data);
       }
     }
 
-    list.sort(
-      (a, b) => (a['displayName'] ?? '')
-          .toString()
-          .toLowerCase()
-          .compareTo((b['displayName'] ?? '').toString().toLowerCase()),
-    );
+    String getEffectiveName(Map<String, dynamic> item) {
+      final phone = item['phoneNumber'] as String?;
+      final contactName = ContactResolver.instance.resolveName(phone);
+      if (contactName != null && contactName.trim().isNotEmpty) {
+        return contactName.trim().toLowerCase();
+      }
+      return (item['displayName'] ?? '').toString().toLowerCase();
+    }
+
+    list.sort((a, b) => getEffectiveName(a).compareTo(getEffectiveName(b)));
 
     if (mounted) {
       setState(() {
@@ -186,83 +213,135 @@ class _AddTeamMembersSheetState extends State<AddTeamMembersSheet> {
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
-                  : ListView.builder(
-                      controller: scrollController,
-                      itemCount: _sortedAvailable.length,
-                      itemBuilder: (context, index) {
-                        final profile = _sortedAvailable[index];
-                        final uid = profile['uid'];
-                        final isSelected = _selectedIds.contains(uid);
-                        final name = profile['displayName'] ?? "Unknown";
-                        final username = profile['username'] ?? "";
-                        final avatarUrl = profile['avatarUrl'];
-                        final avatarColor = Color(
-                          profile['avatarColor'] is int
-                              ? profile['avatarColor']
-                              : Colors.grey.toARGB32(),
-                        );
+                  : ListenableBuilder(
+                      listenable: ContactResolver.instance,
+                      builder: (context, _) {
+                        return ListView.builder(
+                          controller: scrollController,
+                          itemCount: _sortedAvailable.length,
+                          itemBuilder: (context, index) {
+                            final profile = _sortedAvailable[index];
+                            final uid = profile['uid'];
+                            final isSelected = _selectedIds.contains(uid);
+                            final displayName =
+                                profile['displayName'] ?? "Unknown";
+                            final username = profile['username'] ?? "";
+                            final rawPhone =
+                                profile['phoneNumber'] ??
+                                profile['phone'] ??
+                                "";
+                            final contactName = ContactResolver.instance
+                                .resolveName(rawPhone);
+                            final bool hasContactName =
+                                contactName != null &&
+                                contactName.trim().isNotEmpty;
+                            final String primaryName = hasContactName
+                                ? contactName.trim()
+                                : displayName;
+                            final avatarUrl = profile['avatarUrl'];
+                            final avatarColor = Color(
+                              profile['avatarColor'] is int
+                                  ? profile['avatarColor']
+                                  : Colors.grey.toARGB32(),
+                            );
 
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 4,
-                          ),
-                          leading: Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: avatarColor.withValues(alpha: 0.4),
-                                  blurRadius: 8,
-                                  spreadRadius: 1,
+                            String? subtitleText;
+                            if (hasContactName &&
+                                displayName.isNotEmpty &&
+                                displayName != primaryName) {
+                              subtitleText =
+                                  "~ $displayName${username.isNotEmpty ? ' (@$username)' : ''}";
+                            } else if (username.isNotEmpty) {
+                              subtitleText = "@$username";
+                            }
+
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 4,
+                              ),
+                              leading: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: avatarColor.withValues(alpha: 0.4),
+                                      blurRadius: 8,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            child: AppAvatar(
-                              avatarColor: avatarColor,
-                              radius: 20,
-                              avatarUrl: avatarUrl,
-                              displayName: name,
-                            ),
-                          ),
-                          title: Text(
-                            name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          subtitle: username.isNotEmpty
-                              ? Text(
-                                  "@$username",
-                                  style: TextStyle(
-                                    color: primaryColor,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
+                                child: AppAvatar(
+                                  avatarColor: avatarColor,
+                                  radius: 20,
+                                  avatarUrl: avatarUrl,
+                                  displayName: primaryName,
+                                ),
+                              ),
+                              title: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      primaryName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
-                                )
-                              : null,
-                          trailing: isSelected
-                              ? Icon(
-                                  Icons.check_circle,
-                                  color: primaryColor,
-                                  size: 28,
-                                )
-                              : Icon(
-                                  Icons.circle_outlined,
-                                  color: isDark
-                                      ? Colors.grey.shade600
-                                      : Colors.grey.shade400,
-                                  size: 28,
-                                ),
-                          onTap: () {
-                            setState(() {
-                              if (isSelected) {
-                                _selectedIds.remove(uid);
-                              } else {
-                                _selectedIds.add(uid);
-                              }
-                            });
+                                  if (hasContactName)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 4.0),
+                                      child: Tooltip(
+                                        message: "From your contacts",
+                                        child: Icon(
+                                          Icons.contact_phone_outlined,
+                                          size: 14,
+                                          color: isDark
+                                              ? Colors.grey.shade400
+                                              : Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              subtitle: subtitleText != null
+                                  ? Text(
+                                      subtitleText,
+                                      style: TextStyle(
+                                        color: primaryColor,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    )
+                                  : null,
+                              trailing: isSelected
+                                  ? Icon(
+                                      Icons.check_circle,
+                                      color: primaryColor,
+                                      size: 28,
+                                    )
+                                  : Icon(
+                                      Icons.circle_outlined,
+                                      color: isDark
+                                          ? Colors.grey.shade600
+                                          : Colors.grey.shade400,
+                                      size: 28,
+                                    ),
+                              onTap: () {
+                                setState(() {
+                                  if (isSelected) {
+                                    _selectedIds.remove(uid);
+                                  } else {
+                                    _selectedIds.add(uid);
+                                  }
+                                });
+                              },
+                            );
                           },
                         );
                       },

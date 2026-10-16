@@ -2,16 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:tftiapp/components/squad/friend_list_tile.dart';
+import 'package:tftiapp/services/contact_resolver.dart';
 
 void main() {
   final sampleUserData = {
     'uid': 'user-brock',
     'displayName': 'Brock',
     'username': 'pewter_gym',
+    'phoneNumber': '+15559876543',
     'avatarColor': Colors.blue.toARGB32(),
     'hp': 85,
     'mana': 40,
   };
+
+  tearDown(() {
+    ContactResolver.instance.clearForTest();
+  });
 
   Widget buildTile({
     Map<String, dynamic>? userData,
@@ -46,6 +52,22 @@ void main() {
       expect(find.byIcon(Symbols.star), findsNothing);
       expect(find.byIcon(Icons.block), findsNothing);
     });
+
+    testWidgets(
+      'Renders local contact name, contact badge, and ~ DisplayName (@username) subtitle when resolved',
+      (tester) async {
+        ContactResolver.instance.seedForTest({
+          '(555) 987-6543': 'Harrison',
+        });
+
+        await tester.pumpWidget(buildTile());
+
+        expect(find.text('Harrison'), findsOneWidget);
+        expect(find.text('H'), findsOneWidget);
+        expect(find.byIcon(Icons.contact_phone_outlined), findsOneWidget);
+        expect(find.text('~ Brock (@pewter_gym)'), findsOneWidget);
+      },
+    );
 
     testWidgets('Renders goated star icon when friend isGoated is true', (tester) async {
       await tester.pumpWidget(buildTile(isGoated: true));
