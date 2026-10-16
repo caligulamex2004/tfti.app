@@ -71,8 +71,9 @@ class WebUpdateService {
   }
 
   /// Reloads the web page to activate the new bundle.
-  void triggerReload() {
-    reloadWebPage();
+  Future<void> triggerReload() async {
+    updateAvailable.value = false;
+    await reloadWebPage();
   }
 
   /// Dismisses the update banner for the current session.

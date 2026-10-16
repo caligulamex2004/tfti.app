@@ -7,11 +7,20 @@ import '../../services/web_update_service.dart';
 class WebUpdateBannerWrapper extends StatelessWidget {
   final Widget child;
 
-  const WebUpdateBannerWrapper({super.key, required this.child});
+  /// Overrides [kIsWeb] in widget tests so the banner UI can be tested on the Dart VM.
+  @visibleForTesting
+  final bool? debugForceWeb;
+
+  const WebUpdateBannerWrapper({
+    super.key,
+    required this.child,
+    @visibleForTesting this.debugForceWeb,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (!kIsWeb) return child;
+    final isWeb = debugForceWeb ?? kIsWeb;
+    if (!isWeb) return child;
 
     return Directionality(
       // Ensure Directionality is available if wrapped at MaterialApp.builder
@@ -37,6 +46,7 @@ class WebUpdateBannerWrapper extends StatelessWidget {
                         constraints: const BoxConstraints(maxWidth: 500),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               Icons.rocket_launch_rounded,
@@ -64,7 +74,7 @@ class WebUpdateBannerWrapper extends StatelessWidget {
                                       color: Theme.of(context)
                                           .colorScheme
                                           .onPrimaryContainer
-                                          .withOpacity(0.8),
+                                          .withValues(alpha: 0.8),
                                     ),
                                   ),
                                 ],
@@ -86,13 +96,23 @@ class WebUpdateBannerWrapper extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            IconButton(
-                              icon: const Icon(Icons.close, size: 18),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              color: Theme.of(context).colorScheme.onPrimaryContainer,
-                              onPressed: () => WebUpdateService.instance.dismiss(),
-                              tooltip: 'Dismiss',
+                            // Do NOT set `tooltip` here because WebUpdateBannerWrapper
+                            // sits at MaterialApp.builder (above Navigator/Overlay),
+                            // where Tooltip would throw "No Overlay widget found" on hover.
+                            Semantics(
+                              button: true,
+                              label: 'Dismiss update banner',
+                              child: IconButton(
+                                icon: const Icon(Icons.close, size: 18),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints.tightFor(
+                                  width: 32,
+                                  height: 32,
+                                ),
+                                splashRadius: 16,
+                                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                onPressed: () => WebUpdateService.instance.dismiss(),
+                              ),
                             ),
                           ],
                         ),
