@@ -29,7 +29,7 @@ class TeamMemberTile extends StatelessWidget {
     final String uid = profile['uid'];
     final String displayName = profile['displayName'] ?? "Unknown";
     final String username = profile['username'] ?? "";
-    final String rawPhone = profile['phoneNumber'] ?? profile['phone'] ?? "";
+    final String rawPhone = profile['phoneNumber'] ?? "";
     final String? contactName = ContactResolver.instance.resolveName(rawPhone);
     final bool hasContactName =
         contactName != null && contactName.trim().isNotEmpty;

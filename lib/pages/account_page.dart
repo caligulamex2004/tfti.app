@@ -128,8 +128,6 @@ class _AccountPageState extends State<AccountPage> {
                 _phoneNumber = PhoneFormatter.beautify(
                   data['phoneNumber'] ?? '',
                 );
-              } else if (data.containsKey('phone')) {
-                _phoneNumber = PhoneFormatter.beautify(data['phone'] ?? '');
               }
 
               if (!_hasLoadedInitialData) {

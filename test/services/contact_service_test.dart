@@ -63,6 +63,20 @@ void main() {
         expect(contacts, isNull);
       },
     );
+
+    test(
+      'pickPhone skips null and empty/whitespace strings instead of clobbering valid fallback phone numbers',
+      () {
+        expect(
+          ContactHelper.pickPhone([null, '', '   ', '+15551234567']),
+          '+15551234567',
+        );
+        expect(
+          ContactHelper.pickPhone(['', null, '   ']),
+          '',
+        );
+      },
+    );
   });
 
   group('ContactResolver Tests', () {

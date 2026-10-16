@@ -137,7 +137,7 @@ class AuthService {
       }
     } else {
       // EXISTING USER LOGGING IN: Just ensure phone number is patched
-      if (!data.containsKey('phone') && !data.containsKey('phoneNumber')) {
+      if (!data.containsKey('phoneNumber')) {
         await userDoc.set({
           'phoneNumber': user.phoneNumber,
         }, SetOptions(merge: true));

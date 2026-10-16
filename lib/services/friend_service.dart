@@ -248,8 +248,8 @@ class FriendService {
     final myDoc = await _firestore.collection('users').doc(myUid).get();
     final requesterDoc = await _firestore.collection('users').doc(requesterUid).get();
 
-    final myPhone = myDoc.data()?['phoneNumber'] ?? myDoc.data()?['phone'] ?? '';
-    final reqPhone = requesterDoc.data()?['phoneNumber'] ?? requesterDoc.data()?['phone'] ?? '';
+    final myPhone = myDoc.data()?['phoneNumber'] ?? '';
+    final reqPhone = requesterDoc.data()?['phoneNumber'] ?? '';
 
     // Add friends symmetrically
     await addFriend(

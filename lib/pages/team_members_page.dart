@@ -8,6 +8,7 @@ import '../components/shared/user_profile_sheet.dart';
 import '../components/teams/add_team_members_sheet.dart';
 import '../components/teams/team_member_tile.dart';
 import '../services/contact_resolver.dart';
+import '../services/contact_service.dart';
 import '../services/team_service.dart';
 import '../services/user_cache_repository.dart';
 
@@ -56,12 +57,10 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
         final data = profile.toMap();
         data['uid'] = uid;
         data['isGoated'] = friendData['isGoated'] ?? false;
-        final phone =
-            friendData['phoneNumber'] ??
-            friendData['phone'] ??
-            data['phoneNumber'] ??
-            data['phone'] ??
-            '';
+        final phone = ContactHelper.pickPhone([
+          friendData['phoneNumber'],
+          data['phoneNumber'],
+        ]);
         data['phoneNumber'] = phone;
         profiles.add(data);
       }
@@ -477,9 +476,7 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                               profile['displayName'] ??
                                               "Unknown";
                                           final String rawPhone =
-                                              profile['phoneNumber'] ??
-                                              profile['phone'] ??
-                                              "";
+                                              profile['phoneNumber'] ?? "";
                                           final String? contactName =
                                               ContactResolver.instance
                                                   .resolveName(rawPhone);

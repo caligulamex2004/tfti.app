@@ -33,7 +33,7 @@ class UserService {
     String? username,
     String? status,
     int? avatarColor,
-    String? phone,
+    String? phoneNumber,
     bool? isPhonePublic,
     bool? isSearchableByPhone,
     bool? autoExportCalendar,
@@ -53,8 +53,8 @@ class UserService {
     if (avatarColor != null) {
       updates['avatarColor'] = avatarColor;
     }
-    if (phone != null) {
-      updates['phone'] = phone;
+    if (phoneNumber != null) {
+      updates['phoneNumber'] = phoneNumber;
     }
     if (isPhonePublic != null) {
       updates['isPhonePublic'] = isPhonePublic;

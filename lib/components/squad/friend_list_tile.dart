@@ -37,7 +37,7 @@ class FriendListTile extends StatelessWidget {
     final String uid = userData['uid'];
     final String displayName = userData['displayName'] ?? "No Name";
     final String username = userData['username'] ?? "";
-    final String rawPhone = userData['phoneNumber'] ?? userData['phone'] ?? "";
+    final String rawPhone = userData['phoneNumber'] ?? "";
     final String? contactName = ContactResolver.instance.resolveName(rawPhone);
     final bool hasContactName =
         contactName != null && contactName.trim().isNotEmpty;

@@ -50,4 +50,16 @@ class ContactHelper {
 
     return null;
   }
+
+  /// Picks the first non-null, non-empty phone string from [candidates].
+  /// Prevents empty strings (`""`) from short-circuiting Dart's `??` operator.
+  static String pickPhone(Iterable<dynamic> candidates) {
+    for (final candidate in candidates) {
+      if (candidate is String && candidate.trim().isNotEmpty) {
+        return candidate.trim();
+      }
+    }
+    return '';
+  }
 }
+

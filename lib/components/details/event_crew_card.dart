@@ -121,8 +121,7 @@ class EventCrewCard extends StatelessWidget {
                             true
                       : false;
 
-                  final guestPhone =
-                      guest['phoneNumber'] ?? guest['phone'] ?? '';
+                  final guestPhone = (guest['phoneNumber'] ?? '').toString();
                   final contactName =
                       ContactResolver.instance.resolveName(guestPhone);
                   final bool hasContact =
@@ -285,7 +284,7 @@ class EventCrewCard extends StatelessWidget {
                               ),
                               onPressed: () => onAddFriend(
                                 guestUid,
-                                (guest['phoneNumber'] ?? guest['phone'] ?? '').toString(),
+                                (guest['phoneNumber'] ?? '').toString(),
                                 guest['displayName'],
                               ),
                             ),

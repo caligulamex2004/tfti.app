@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import '../../services/contact_resolver.dart';
+import '../../services/contact_service.dart';
 import '../shared/app_avatar.dart';
 
 class TeamAvatarStack extends StatelessWidget {
@@ -28,12 +29,10 @@ class TeamAvatarStack extends StatelessWidget {
         final data = userSnap.data() as Map<String, dynamic>;
         final friendData = doc.data() as Map<String, dynamic>? ?? {};
         data['uid'] = doc.id;
-        data['phoneNumber'] =
-            friendData['phoneNumber'] ??
-            friendData['phone'] ??
-            data['phoneNumber'] ??
-            data['phone'] ??
-            '';
+        data['phoneNumber'] = ContactHelper.pickPhone([
+          friendData['phoneNumber'],
+          data['phoneNumber'],
+        ]);
         validProfiles.add(data);
       }
       if (validProfiles.length >= 4) {
@@ -103,8 +102,7 @@ class TeamAvatarStack extends StatelessWidget {
 
                         final String displayName =
                             uData['displayName'] ?? "Unknown";
-                        final String rawPhone =
-                            uData['phoneNumber'] ?? uData['phone'] ?? "";
+                        final String rawPhone = uData['phoneNumber'] ?? "";
                         final String? contactName = ContactResolver.instance
                             .resolveName(rawPhone);
                         final String name =

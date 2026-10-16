@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:tftiapp/services/user_cache_repository.dart';
 import 'package:tftiapp/services/contact_resolver.dart';
+import 'package:tftiapp/services/contact_service.dart';
 import 'friend_list_tile.dart';
 
 class FriendListFeed extends StatelessWidget {
@@ -42,12 +43,10 @@ class FriendListFeed extends StatelessWidget {
         data['uid'] = doc.id;
         final docData = doc.data() as Map<String, dynamic>? ?? {};
         data['isGoated'] = docData['isGoated'] ?? false;
-        final phone =
-            docData['phoneNumber'] ??
-            docData['phone'] ??
-            data['phoneNumber'] ??
-            data['phone'] ??
-            '';
+        final phone = ContactHelper.pickPhone([
+          docData['phoneNumber'],
+          data['phoneNumber'],
+        ]);
         data['phoneNumber'] = phone;
         list.add(data);
       }
@@ -283,14 +282,11 @@ class FriendListFeed extends StatelessWidget {
                                     }
                                   }
 
-                                  if ((userData['phoneNumber'] == null ||
-                                          userData['phoneNumber']
-                                              .toString()
-                                              .isEmpty) &&
-                                      friendInitData['phoneNumber'] != null) {
-                                    userData['phoneNumber'] =
-                                        friendInitData['phoneNumber'];
-                                  }
+                                  userData['phoneNumber'] =
+                                      ContactHelper.pickPhone([
+                                        userData['phoneNumber'],
+                                        friendInitData['phoneNumber'],
+                                      ]);
 
                                   final String displayName =
                                       userData['displayName'] ?? "No Name";

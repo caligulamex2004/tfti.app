@@ -14,7 +14,6 @@ import 'vibe_check_editor_page.dart';
 
 // --- UTILS & COMPONENTS ---
 import '../utils/calendar_export_helper.dart';
-import '../utils/phone_formatter.dart';
 import '../utils/theme_provider.dart';
 import '../components/details/event_crew_card.dart';
 import '../components/details/event_details_card.dart';
@@ -176,8 +175,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
           .doc(guestUid)
           .set({
             'uid': guestUid,
-            'phoneNumber': guestPhone,
-            'phone': guestPhone,
+            if (guestPhone.isNotEmpty) 'phoneNumber': guestPhone,
             'addedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
 
@@ -289,15 +287,10 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
           'status': status,
           'hasSeen': hasSeen,
           'displayName': userData['displayName'] ?? 'Unknown',
-          'phone':
-              ((userData['showPhoneNumber'] ?? userData['isPhonePublic']) != false &&
-                  (userData['phoneNumber'] ?? userData['phone'] ?? '')
-                      .isNotEmpty)
-              ? PhoneFormatter.beautify(
-                  userData['phoneNumber'] ?? userData['phone'],
-                )
-              : '',
-          'phoneNumber': userData['phoneNumber'] ?? userData['phone'] ?? '',
+          'phoneNumber': userData['phoneNumber'] ?? '',
+          'showPhoneNumber':
+              (userData['showPhoneNumber'] ?? userData['isPhonePublic']) !=
+              false,
           'avatarColor': userData['avatarColor'] ?? 0xFF9E9E9E,
           'avatarUrl': userData['avatarUrl'],
           'username': userData['username'] ?? '',

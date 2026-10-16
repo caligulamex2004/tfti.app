@@ -93,7 +93,7 @@ class UserProfile {
       uid: uid ?? data['uid'] ?? '',
       displayName: data['displayName'] ?? '',
       username: data['username'] ?? '',
-      phoneNumber: data['phoneNumber'] ?? data['phone'] ?? '',
+      phoneNumber: data['phoneNumber'] ?? '',
       avatarUrl: data['avatarUrl'],
       avatarColor: data['avatarColor'] is int ? data['avatarColor'] : null,
       statusText: data['statusText'],

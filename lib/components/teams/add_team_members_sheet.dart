@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:tftiapp/services/contact_resolver.dart';
+import 'package:tftiapp/services/contact_service.dart';
 import 'package:tftiapp/services/team_service.dart';
 import 'package:tftiapp/services/user_cache_repository.dart';
 import 'package:tftiapp/utils/theme_provider.dart';
@@ -59,12 +60,10 @@ class AddTeamMembersSheet extends StatefulWidget {
         final data = profile.toMap();
         data['uid'] = doc.id;
         final docData = doc.data();
-        final phone =
-            docData['phoneNumber'] ??
-            docData['phone'] ??
-            data['phoneNumber'] ??
-            data['phone'] ??
-            '';
+        final phone = ContactHelper.pickPhone([
+          docData['phoneNumber'],
+          data['phoneNumber'],
+        ]);
         data['phoneNumber'] = phone;
         sortedAvailable.add(data);
       }
@@ -140,12 +139,10 @@ class _AddTeamMembersSheetState extends State<AddTeamMembersSheet> {
         final data = profile.toMap();
         data['uid'] = doc.id;
         final docData = doc.data();
-        final phone =
-            docData['phoneNumber'] ??
-            docData['phone'] ??
-            data['phoneNumber'] ??
-            data['phone'] ??
-            '';
+        final phone = ContactHelper.pickPhone([
+          docData['phoneNumber'],
+          data['phoneNumber'],
+        ]);
         data['phoneNumber'] = phone;
         list.add(data);
       }
@@ -226,10 +223,7 @@ class _AddTeamMembersSheetState extends State<AddTeamMembersSheet> {
                             final displayName =
                                 profile['displayName'] ?? "Unknown";
                             final username = profile['username'] ?? "";
-                            final rawPhone =
-                                profile['phoneNumber'] ??
-                                profile['phone'] ??
-                                "";
+                            final rawPhone = profile['phoneNumber'] ?? "";
                             final contactName = ContactResolver.instance
                                 .resolveName(rawPhone);
                             final bool hasContactName =

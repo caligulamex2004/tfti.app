@@ -37,7 +37,7 @@ class UserProfileSheet extends StatelessWidget {
 
     final String targetUid = userData['uid'] ?? userData['id'] ?? "";
     final String displayName = userData['displayName'] ?? "No Name";
-    final String rawPhone = userData['phoneNumber'] ?? userData['phone'] ?? "";
+    final String rawPhone = userData['phoneNumber'] ?? "";
     final String? contactName = ContactResolver.instance.resolveName(rawPhone);
 
     final Timestamp? createdAt =

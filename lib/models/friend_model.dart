@@ -19,7 +19,7 @@ class Friend {
     final data = doc.data() as Map<String, dynamic>? ?? {};
     return Friend(
       uid: doc.id,
-      phoneNumber: data['phoneNumber'] ?? data['phone'] ?? '',
+      phoneNumber: data['phoneNumber'] ?? '',
       isGoated: data['isGoated'] == true,
       circles: data['circles'] is List ? List<String>.from(data['circles']) : const [],
       addedAt: (data['addedAt'] is Timestamp)
