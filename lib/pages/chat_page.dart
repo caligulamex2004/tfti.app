@@ -9,6 +9,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 // --- UTILS & COMPONENTS ---
 import '../utils/theme_provider.dart';
+import '../utils/responsive_layout.dart';
 import '../components/chat/pinned_context_card.dart';
 import '../components/chat/chat_quick_actions.dart';
 import '../components/chat/chat_input_field.dart';
@@ -401,40 +402,43 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          if (_eventData != null) PinnedContextCard(eventData: _eventData!),
+      body: CenteredContentColumn(
+        maxWidth: 860,
+        child: Column(
+          children: [
+            if (_eventData != null) PinnedContextCard(eventData: _eventData!),
 
-          // THE NEW EXTRACTED CHAT FEED COMPONENT!
-          Expanded(
-            child: ChatFeed(
-              eventId: widget.eventId,
-              eventGuests: _eventGuests,
-              scrollController: _scrollController,
+            // THE NEW EXTRACTED CHAT FEED COMPONENT!
+            Expanded(
+              child: ChatFeed(
+                eventId: widget.eventId,
+                eventGuests: _eventGuests,
+                scrollController: _scrollController,
+              ),
             ),
-          ),
 
-          MentionsOverlay(
-            mentionQuery: _mentionQuery,
-            eventGuests: _eventGuests,
-            onMentionSelected: _insertMention,
-          ),
+            MentionsOverlay(
+              mentionQuery: _mentionQuery,
+              eventGuests: _eventGuests,
+              onMentionSelected: _insertMention,
+            ),
 
-          ChatQuickActions(
-            onMention: _triggerMentionAction,
-            onPhoto: _pickImage,
-            onOmw: _sendOmw,
-            onDibs: _showDibsSheet,
-            onBringItem: _showBringItemDialog,
-          ),
+            ChatQuickActions(
+              onMention: _triggerMentionAction,
+              onPhoto: _pickImage,
+              onOmw: _sendOmw,
+              onDibs: _showDibsSheet,
+              onBringItem: _showBringItemDialog,
+            ),
 
-          ChatInputField(
-            controller: _messageController,
-            focusNode: _focusNode,
-            isUploadingImage: _isUploadingImage,
-            onSend: _sendMessage,
-          ),
-        ],
+            ChatInputField(
+              controller: _messageController,
+              focusNode: _focusNode,
+              isUploadingImage: _isUploadingImage,
+              onSend: _sendMessage,
+            ),
+          ],
+        ),
       ),
     );
   }

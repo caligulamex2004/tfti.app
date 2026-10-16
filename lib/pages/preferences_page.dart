@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'saved_places_page.dart';
 import '../utils/theme_provider.dart';
+import '../utils/responsive_layout.dart';
 import '../components/shared/shared_sliver_app_bar.dart';
 
 class PreferencesPage extends StatefulWidget {
@@ -569,8 +570,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
     final user = FirebaseAuth.instance.currentUser;
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isLandscape = context.isWideScreen;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,

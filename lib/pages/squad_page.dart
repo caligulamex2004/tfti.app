@@ -20,6 +20,7 @@ import '../services/friend_service.dart';
 import '../services/user_cache_repository.dart';
 import '../utils/phone_formatter.dart';
 import '../components/shared/shared_sliver_app_bar.dart';
+import '../utils/responsive_layout.dart';
 
 class SquadPage extends StatefulWidget {
   const SquadPage({super.key});
@@ -395,7 +396,7 @@ class _SquadPageState extends State<SquadPage> {
     final myUid = user.uid;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final isLandscape = MediaQuery.sizeOf(context).width > 600;
+    final isLandscape = context.isWideScreen;
 
     final List<Widget> appBarActions = [
       IconButton(

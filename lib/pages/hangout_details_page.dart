@@ -15,6 +15,7 @@ import 'vibe_check_editor_page.dart';
 // --- UTILS & COMPONENTS ---
 import '../utils/calendar_export_helper.dart';
 import '../utils/theme_provider.dart';
+import '../utils/responsive_layout.dart';
 import '../components/details/event_crew_card.dart';
 import '../components/details/event_details_card.dart';
 import '../components/details/event_rsvp_card.dart';
@@ -376,8 +377,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isLandscape = context.isWideScreen;
 
     return StreamBuilder<DocumentSnapshot>(
       stream: _eventStream,

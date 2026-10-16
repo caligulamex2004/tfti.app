@@ -25,6 +25,7 @@ import 'services/web_update_service.dart';
 import 'components/shared/web_update_banner.dart';
 import 'pages/onboarding_tutorial.dart';
 import 'pages/home_feed.dart';
+import 'utils/responsive_layout.dart';
 
 final GlobalKey<NavigatorState> navigatorKey =
     GlobalKey<
@@ -94,7 +95,9 @@ class MyApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           builder: (context, widget) {
             return WebUpdateBannerWrapper(
-              child: widget ?? const SizedBox.shrink(),
+              child: AppMaxWidthContainer(
+                child: widget ?? const SizedBox.shrink(),
+              ),
             );
           },
           home: const AuthWrapper(),
@@ -294,8 +297,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isWide = context.isWideScreen;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Use new smart variable to show the badge
@@ -304,7 +306,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     return Stack(
       children: [
         Scaffold(
-          body: isLandscape
+          body: isWide
               ? Row(
                   children: [
                     SafeArea(
@@ -387,7 +389,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                   index: _selectedIndex,
                   children: _pages,
                 ),
-          bottomNavigationBar: isLandscape
+          bottomNavigationBar: isWide
               ? null
               : NavigationBar(
                   selectedIndex: _selectedIndex,

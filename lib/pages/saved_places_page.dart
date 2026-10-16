@@ -10,6 +10,7 @@ import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/places/goated_place_card.dart';
 import '../services/place_service.dart';
 import '../utils/theme_provider.dart';
+import '../utils/responsive_layout.dart';
 import 'places_search_page.dart';
 
 class SavedPlacesPage extends StatefulWidget {
@@ -193,8 +194,7 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isLandscape = context.isWideScreen;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -239,7 +239,9 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
             });
           }
 
-          return CustomScrollView(
+          return CenteredContentColumn(
+            maxWidth: 860,
+            child: CustomScrollView(
             slivers: [
               SharedSliverAppBar(
                 title: "VIP Places",
@@ -414,6 +416,7 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
                   ),
                 ),
             ],
+            ),
           );
         },
       ),

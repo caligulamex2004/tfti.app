@@ -9,6 +9,7 @@ import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/teams/create_team_sheet.dart';
 import '../components/teams/team_card.dart';
 import '../utils/theme_provider.dart';
+import '../utils/responsive_layout.dart';
 import 'team_members_page.dart';
 
 class TeamsPage extends StatefulWidget {
@@ -55,7 +56,7 @@ class _TeamsPageState extends State<TeamsPage> {
 
     if (newId == null || !mounted) return;
 
-    final isLandscape = MediaQuery.sizeOf(context).width > 600;
+    final isLandscape = context.isWideScreen;
     if (isLandscape) {
       setState(() {
         _selectedCircleId = newId;
@@ -315,7 +316,7 @@ class _TeamsPageState extends State<TeamsPage> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final isLandscape = MediaQuery.sizeOf(context).width > 600;
+    final isLandscape = context.isWideScreen;
 
     final listContent = _buildTeamsList(
       context,

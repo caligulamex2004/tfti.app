@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import '../utils/responsive_layout.dart';
 
 class OnboardingTutorial extends StatefulWidget {
   final VoidCallback onComplete;
@@ -46,8 +47,7 @@ class _OnboardingTutorialState extends State<OnboardingTutorial> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isLandscape = context.isWideScreen;
 
     return Scaffold(
       body: Container(
@@ -1040,8 +1040,7 @@ class _TutorialCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isLandscape = context.isWideScreen;
 
     if (isLandscape) {
       return Padding(

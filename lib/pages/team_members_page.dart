@@ -12,6 +12,7 @@ import '../services/contact_service.dart';
 import '../services/team_service.dart';
 import '../services/user_cache_repository.dart';
 import '../utils/theme_provider.dart';
+import '../utils/responsive_layout.dart';
 
 class TeamMembersPage extends StatefulWidget {
   final String circleId;
@@ -152,8 +153,7 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
     final user = FirebaseAuth.instance.currentUser;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isLandscape = context.isWideScreen;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,

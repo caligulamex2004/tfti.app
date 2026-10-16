@@ -18,6 +18,7 @@ import '../pages/preferences_page.dart';
 import '../services/user_service.dart';
 import '../utils/phone_formatter.dart';
 import '../utils/theme_provider.dart';
+import '../utils/responsive_layout.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -497,8 +498,7 @@ class _AccountPageState extends State<AccountPage> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isLandscape = context.isWideScreen;
 
     if (_isLoading) {
       return Scaffold(

@@ -21,6 +21,7 @@ import '../services/user_service.dart';
 import '../utils/event_service.dart';
 import '../utils/feed_filter_utils.dart';
 import '../utils/theme_provider.dart';
+import '../utils/responsive_layout.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -364,8 +365,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isLandscape = context.isWideScreen;
 
     if (user != null && (_feedStream == null || user.uid != _currentUid)) {
       _initFeedStream();

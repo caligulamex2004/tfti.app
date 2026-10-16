@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../../utils/responsive_layout.dart';
 
 class SharedSliverAppBar extends StatelessWidget {
   final String title;
@@ -58,7 +59,7 @@ class SharedSliverAppBar extends StatelessWidget {
               final double topPadding = padding.top;
               final double leftPadding = padding.left;
               final double rightPadding = padding.right;
-              final bool isLandscape = MediaQuery.orientationOf(context) == Orientation.landscape;
+              final bool isLandscape = context.isWideScreen;
               
               final double collapsedHeight = kToolbarHeight + topPadding;
               final double expandRatio = expandedHeight <= collapsedHeight 

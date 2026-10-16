@@ -9,6 +9,7 @@ import '../components/forms/extras_form_card.dart';
 import '../models/vibe_check_submission_request.dart';
 import '../utils/event_service.dart';
 import '../utils/theme_provider.dart';
+import '../utils/responsive_layout.dart';
 import 'places_search_page.dart';
 
 class VibeCheckEditorPage extends StatefulWidget {
@@ -481,8 +482,7 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
   @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isLandscape = context.isWideScreen;
 
     final String appBarTitle = isEditing ? "Edit Vibe Check" : "Vibe Check";
     final String submitText = isEditing ? "Save Changes" : "Throw it out there";

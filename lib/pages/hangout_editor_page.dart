@@ -22,6 +22,7 @@ import '../components/forms/recurring_season_toggle.dart';
 import '../models/hangout_submission_request.dart';
 import '../utils/event_service.dart';
 import '../utils/theme_provider.dart';
+import '../utils/responsive_layout.dart';
 
 class HangoutEditorPage extends StatefulWidget {
   final String? eventId;
@@ -627,8 +628,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isLandscape = context.isWideScreen;
 
     final String appBarTitle = isEditing ? "Manage Hangout" : "Create Hangout";
     final String submitText = isEditing ? "Save Changes" : "Deploy Hangout";
