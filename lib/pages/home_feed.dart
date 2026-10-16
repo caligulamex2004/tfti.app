@@ -20,6 +20,7 @@ import '../services/friend_service.dart';
 import '../services/user_service.dart';
 import '../utils/event_service.dart';
 import '../utils/feed_filter_utils.dart';
+import '../utils/theme_provider.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -363,7 +364,6 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
 
@@ -439,7 +439,7 @@ class _HomePageState extends State<HomePage> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: primaryColor.withValues(alpha: 0.2),
+                          color: themeProvider.pillBackgroundColor,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -447,14 +447,14 @@ class _HomePageState extends State<HomePage> {
                           children: [
                             Icon(
                               Icons.add,
-                              color: primaryColor,
+                              color: themeProvider.pillTextColor,
                               size: 16,
                             ),
                             const SizedBox(width: 6),
                             Text(
                               "Create",
                               style: TextStyle(
-                                color: primaryColor,
+                                color: themeProvider.pillTextColor,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),

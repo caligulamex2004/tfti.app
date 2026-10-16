@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../utils/theme_provider.dart';
 
 enum FeedFilter {
   all,
@@ -25,9 +26,6 @@ class FeedFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
-
     final filters = [
       {'label': 'All', 'value': FeedFilter.all},
       {'label': '⭐ VIP', 'value': FeedFilter.vip},
@@ -56,17 +54,17 @@ class FeedFilterBar extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
                   color: isSelected
-                      ? Colors.white
-                      : (isDark ? Colors.grey.shade300 : Colors.black87),
+                      ? themeProvider.pillTextColor
+                      : themeProvider.chipUnselectedTextColor,
                 ),
               ),
               selected: isSelected,
-              selectedColor: primaryColor,
-              backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
+              selectedColor: themeProvider.pillBackgroundColor,
+              backgroundColor: themeProvider.chipUnselectedBackgroundColor,
               side: BorderSide(
                 color: isSelected
-                    ? primaryColor
-                    : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                    ? themeProvider.pillBackgroundColor
+                    : themeProvider.chipBorderColor,
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),

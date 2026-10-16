@@ -49,38 +49,43 @@ class MentionsOverlay extends StatelessWidget {
           ),
         ],
       ),
-      child: ListView.builder(
-        shrinkWrap: true,
-        itemCount: filteredGuests.length,
-        itemBuilder: (context, index) {
-          final guest = filteredGuests[index];
-          final String name = guest['displayName'];
-          final String tag = guest['tag'];
-          final String? avatarUrl = guest['avatarUrl'];
-          final Color avatarColor = Color(guest['avatarColor']);
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: filteredGuests.length,
+          itemBuilder: (context, index) {
+            final guest = filteredGuests[index];
+            final String name = guest['displayName'];
+            final String tag = guest['tag'];
+            final String? avatarUrl = guest['avatarUrl'];
+            final Color avatarColor = Color(guest['avatarColor']);
 
-          return ListTile(
-            leading: AppAvatar(
-              radius: 16,
-              avatarColor: avatarColor,
-              avatarUrl: avatarUrl,
-              displayName: name,
-              fontSize: 12,
-            ),
-            title: Text(
-              name,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(
-              "@$tag",
-              style: TextStyle(
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            return ListTile(
+              leading: AppAvatar(
+                radius: 16,
+                avatarColor: avatarColor,
+                avatarUrl: avatarUrl,
+                displayName: name,
                 fontSize: 12,
               ),
-            ),
-            onTap: () => onMentionSelected(tag),
-          );
-        },
+              title: Text(
+                name,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                "@$tag",
+                style: TextStyle(
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  fontSize: 12,
+                ),
+              ),
+              onTap: () => onMentionSelected(tag),
+            );
+          },
+        ),
       ),
     );
   }

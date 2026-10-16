@@ -301,13 +301,13 @@ class _MobileWaitlistDialogState extends State<MobileWaitlistDialog> {
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: isSelected
-              ? primaryColor.withValues(alpha: isDark ? 0.25 : 0.12)
-              : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
+              ? themeProvider.pillBackgroundColor
+              : themeProvider.chipUnselectedBackgroundColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isSelected
-                ? primaryColor
-                : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                ? themeProvider.pillBackgroundColor
+                : themeProvider.chipBorderColor,
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -318,8 +318,8 @@ class _MobileWaitlistDialogState extends State<MobileWaitlistDialog> {
               icon,
               size: 20,
               color: isSelected
-                  ? primaryColor
-                  : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                  ? themeProvider.pillTextColor
+                  : themeProvider.chipUnselectedTextColor,
             ),
             const SizedBox(height: 4),
             Text(
@@ -328,8 +328,8 @@ class _MobileWaitlistDialogState extends State<MobileWaitlistDialog> {
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 color: isSelected
-                    ? primaryColor
-                    : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                    ? themeProvider.pillTextColor
+                    : themeProvider.chipUnselectedTextColor,
               ),
             ),
           ],

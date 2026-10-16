@@ -85,13 +85,91 @@ class ThemeProvider extends ChangeNotifier {
     ),
   };
 
-  // Helper to dynamically set text color based on background luminance
-  Color get onPrimaryColor {
-    final primary = themeData.colorScheme.primary;
-    return primary.computeLuminance() > 0.5
-        ? const Color(0xDD000000)
-        : Colors.white;
-  }
+  // Standardized foreground color on primary backgrounds (buttons, pills, selected chips)
+  Color get onPrimaryColor => switch (_currentTheme) {
+    AppTheme.electricAmber ||
+    AppTheme.cyberPunk => const Color(0xDD000000),
+    AppTheme.original ||
+    AppTheme.royalPurple ||
+    AppTheme.lipGloss ||
+    AppTheme.jadeEdge ||
+    AppTheme.lavenderHaze ||
+    AppTheme.goldenHour ||
+    AppTheme.darkBlue ||
+    AppTheme.dark ||
+    AppTheme.beyondDark ||
+    AppTheme.velvetDust => Colors.white,
+  };
+
+  // Standardized background color for action pills and selected chips
+  Color get pillBackgroundColor => themeData.colorScheme.primary;
+
+  // Standardized text & icon color for action pills and selected chips
+  Color get pillTextColor => onPrimaryColor;
+
+  // Standardized background color for unselected chips and surface pills
+  Color get chipUnselectedBackgroundColor => switch (_currentTheme) {
+    AppTheme.original ||
+    AppTheme.royalPurple ||
+    AppTheme.lipGloss ||
+    AppTheme.jadeEdge ||
+    AppTheme.lavenderHaze ||
+    AppTheme.goldenHour => Colors.white,
+    AppTheme.darkBlue => const Color(0xFF1E293B),
+    AppTheme.velvetDust => const Color(0xFF2D1626),
+    AppTheme.dark ||
+    AppTheme.electricAmber ||
+    AppTheme.cyberPunk ||
+    AppTheme.beyondDark => const Color(0xFF1E1E1E),
+  };
+
+  // Standardized text & icon color for unselected chips and surface pills
+  Color get chipUnselectedTextColor => switch (_currentTheme) {
+    AppTheme.original ||
+    AppTheme.royalPurple ||
+    AppTheme.lipGloss ||
+    AppTheme.jadeEdge ||
+    AppTheme.lavenderHaze ||
+    AppTheme.goldenHour => Colors.black87,
+    AppTheme.darkBlue ||
+    AppTheme.dark ||
+    AppTheme.electricAmber ||
+    AppTheme.cyberPunk ||
+    AppTheme.beyondDark ||
+    AppTheme.velvetDust => Colors.white,
+  };
+
+  // Standardized border color for unselected chips and surface pills
+  Color get chipBorderColor => switch (_currentTheme) {
+    AppTheme.original ||
+    AppTheme.royalPurple ||
+    AppTheme.lipGloss ||
+    AppTheme.jadeEdge ||
+    AppTheme.lavenderHaze ||
+    AppTheme.goldenHour => const Color(0xFFE0E0E0),
+    AppTheme.darkBlue ||
+    AppTheme.dark ||
+    AppTheme.electricAmber ||
+    AppTheme.cyberPunk ||
+    AppTheme.beyondDark ||
+    AppTheme.velvetDust => const Color(0xFF424242),
+  };
+
+  // Standardized foreground color for text/icons rendered directly on appGradient
+  Color get onGradientColor => switch (_currentTheme) {
+    AppTheme.lipGloss => Colors.black87,
+    AppTheme.original ||
+    AppTheme.royalPurple ||
+    AppTheme.jadeEdge ||
+    AppTheme.lavenderHaze ||
+    AppTheme.goldenHour ||
+    AppTheme.darkBlue ||
+    AppTheme.dark ||
+    AppTheme.electricAmber ||
+    AppTheme.cyberPunk ||
+    AppTheme.beyondDark ||
+    AppTheme.velvetDust => Colors.white,
+  };
 
   // --- THEME DATA HELPER ---
   ThemeData _buildTheme({
@@ -113,6 +191,24 @@ class ThemeProvider extends ChangeNotifier {
         backgroundColor: Colors.transparent,
       ),
       colorScheme: colorScheme,
+      chipTheme: ChipThemeData(
+        backgroundColor: chipUnselectedBackgroundColor,
+        selectedColor: colorScheme.primary,
+        secondarySelectedColor: colorScheme.primary,
+        labelStyle: TextStyle(
+          color: chipUnselectedTextColor,
+          fontWeight: FontWeight.bold,
+        ),
+        secondaryLabelStyle: TextStyle(
+          color: colorScheme.onPrimary,
+          fontWeight: FontWeight.bold,
+        ),
+        iconTheme: IconThemeData(
+          color: chipUnselectedTextColor,
+          size: 16,
+        ),
+        side: BorderSide(color: chipBorderColor),
+      ),
       cardTheme: CardThemeData(
         color: cardColor,
         elevation: 0,
@@ -176,6 +272,7 @@ class ThemeProvider extends ChangeNotifier {
       cardColor: Colors.white,
       colorScheme: const ColorScheme.light(
         primary: Colors.lightBlue,
+        onPrimary: Colors.white,
         secondary: Colors.blueAccent,
         tertiary: Color(0xFF0288D1),
         secondaryContainer: Color(0xFFB3E5FC),
@@ -188,6 +285,7 @@ class ThemeProvider extends ChangeNotifier {
       appBarElevation: 4,
       colorScheme: const ColorScheme.light(
         primary: Color(0xFF4A00E0),
+        onPrimary: Colors.white,
         secondary: Color(0xFF8E2DE2),
         tertiary: Color(0xFFD500F9),
         secondaryContainer: Color(0xFFE1BEE7),
@@ -199,6 +297,7 @@ class ThemeProvider extends ChangeNotifier {
       cardColor: Colors.white,
       colorScheme: const ColorScheme.light(
         primary: Color(0xFFFF6B81),
+        onPrimary: Colors.white,
         secondary: Color(0xFFFF9A9E),
         tertiary: Color(0xFFFF4081),
         secondaryContainer: Color(0xFFFFD1DC),
@@ -210,6 +309,7 @@ class ThemeProvider extends ChangeNotifier {
       cardColor: Colors.white,
       colorScheme: const ColorScheme.light(
         primary: Color(0xFF1C8D6C),
+        onPrimary: Colors.white,
         secondary: Color(0xFF2A594A),
         tertiary: Color(0xFF00BFA5),
         secondaryContainer: Color(0xFFB2DFDB),
@@ -221,6 +321,7 @@ class ThemeProvider extends ChangeNotifier {
       cardColor: Colors.white,
       colorScheme: const ColorScheme.light(
         primary: Color(0xFF7B61FF),
+        onPrimary: Colors.white,
         secondary: Color(0xFF9D84FF),
         tertiary: Color(0xFFFFA8E2),
         secondaryContainer: Color(0xFFE6E6FA),
@@ -233,6 +334,7 @@ class ThemeProvider extends ChangeNotifier {
       cardColor: Colors.white,
       colorScheme: const ColorScheme.light(
         primary: Color(0xFFFF7E5F),
+        onPrimary: Colors.white,
         secondary: Color(0xFFFEB47B),
         tertiary: Color(0xFFFFB74D),
         secondaryContainer: Color(0xFFFFE0B2),
@@ -245,6 +347,7 @@ class ThemeProvider extends ChangeNotifier {
       cardColor: const Color(0xFF15233D),
       colorScheme: const ColorScheme.dark(
         primary: Color(0xFF3B82F6),
+        onPrimary: Colors.white,
         secondary: Colors.blueAccent,
         tertiary: Color(0xFF60A5FA),
         secondaryContainer: Color(0xFF1E3A8A),
@@ -256,6 +359,7 @@ class ThemeProvider extends ChangeNotifier {
       cardColor: const Color(0xFF000000),
       colorScheme: const ColorScheme.dark(
         primary: Color(0xFF7637F3),
+        onPrimary: Colors.white,
         secondary: Colors.grey,
         tertiary: Colors.white,
         secondaryContainer: Color(0xFF121212),
@@ -267,6 +371,7 @@ class ThemeProvider extends ChangeNotifier {
       cardColor: const Color(0xFF1E1E1E),
       colorScheme: const ColorScheme.dark(
         primary: Color(0xFFFFAB00),
+        onPrimary: Color(0xDD000000),
         secondary: Colors.orangeAccent,
         tertiary: Color(0xFFFFD740),
         secondaryContainer: Color(0xFF4E342E),
@@ -278,6 +383,7 @@ class ThemeProvider extends ChangeNotifier {
       cardColor: const Color(0xFF1E1E1E),
       colorScheme: const ColorScheme.dark(
         primary: Color(0xFF00E5FF),
+        onPrimary: Color(0xDD000000),
         secondary: Color(0xFFFF007F),
         tertiary: Color(0xFF76FF03),
         secondaryContainer: Color(0xFF004D40),
@@ -289,6 +395,7 @@ class ThemeProvider extends ChangeNotifier {
       cardColor: const Color(0xFF111111),
       colorScheme: const ColorScheme.dark(
         primary: Color(0xFFEE0909),
+        onPrimary: Colors.white,
         secondary: Colors.grey,
         tertiary: Color(0xFFFF5252),
         secondaryContainer: Color(0xFF3E2723),
@@ -300,6 +407,7 @@ class ThemeProvider extends ChangeNotifier {
       cardColor: const Color(0xFF24111E),
       colorScheme: const ColorScheme.dark(
         primary: Color(0xFFFF2A7A),
+        onPrimary: Colors.white,
         secondary: Color(0xFFB48EAD),
         tertiary: Color(0xFFFF8AAE),
         secondaryContainer: Color(0xFF4A233C),

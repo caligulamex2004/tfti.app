@@ -134,27 +134,32 @@ class _PreferencesPageState extends State<PreferencesPage> {
           color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.5,
-                color: isDark ? Colors.white : Colors.black87,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.5,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
               ),
             ),
-          ),
-          Divider(
-            height: 1,
-            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-          ),
-          child,
-        ],
+            Divider(
+              height: 1,
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            ),
+            child,
+          ],
+        ),
       ),
     );
   }
@@ -475,13 +480,13 @@ class _PreferencesPageState extends State<PreferencesPage> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             color: isSelected
-                ? primaryColor.withValues(alpha: 0.1)
-                : (isDark ? Colors.grey.shade900 : Colors.grey.shade50),
+                ? themeProvider.pillBackgroundColor
+                : themeProvider.chipUnselectedBackgroundColor,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected
-                  ? primaryColor
-                  : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                  ? themeProvider.pillBackgroundColor
+                  : themeProvider.chipBorderColor,
               width: isSelected ? 2 : 1,
             ),
           ),
@@ -495,8 +500,10 @@ class _PreferencesPageState extends State<PreferencesPage> {
                   color: opt['color'],
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
-                    width: 0.5,
+                    color: isSelected
+                        ? themeProvider.pillTextColor
+                        : themeProvider.chipBorderColor,
+                    width: isSelected ? 1.5 : 0.5,
                   ),
                 ),
               ),
@@ -507,8 +514,8 @@ class _PreferencesPageState extends State<PreferencesPage> {
                   fontSize: 13,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                   color: isSelected
-                      ? primaryColor
-                      : (isDark ? Colors.white70 : Colors.black87),
+                      ? themeProvider.pillTextColor
+                      : themeProvider.chipUnselectedTextColor,
                 ),
               ),
             ],

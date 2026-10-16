@@ -386,7 +386,7 @@ class _LoginPageState extends State<LoginPage> {
                           Icon(
                             Symbols.how_to_vote,
                             size: isCompactHeight ? 56 : 80,
-                            color: isDark ? Colors.white : Colors.black87,
+                            color: themeProvider.onGradientColor,
                           ),
                           const SizedBox(height: 8),
                           Text(
@@ -394,7 +394,7 @@ class _LoginPageState extends State<LoginPage> {
                             style: TextStyle(
                               fontSize: isCompactHeight ? 26 : 32,
                               fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : Colors.black87,
+                              color: themeProvider.onGradientColor,
                               letterSpacing: 2,
                             ),
                           ),
@@ -683,14 +683,10 @@ class _LoginPageState extends State<LoginPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.05)
-                  : Colors.white.withValues(alpha: 0.8),
+              color: themeProvider.chipUnselectedBackgroundColor,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isDark
-                    ? Colors.grey.shade800
-                    : Colors.grey.shade300,
+                color: themeProvider.chipBorderColor,
                 width: 1,
               ),
               boxShadow: [
@@ -707,7 +703,7 @@ class _LoginPageState extends State<LoginPage> {
                 Icon(
                   icon,
                   size: 24,
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: themeProvider.chipUnselectedTextColor,
                 ),
                 const SizedBox(width: 10),
                 Flexible(
@@ -720,7 +716,7 @@ class _LoginPageState extends State<LoginPage> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black87,
+                          color: themeProvider.chipUnselectedTextColor,
                           height: 1.1,
                         ),
                       ),
@@ -730,7 +726,7 @@ class _LoginPageState extends State<LoginPage> {
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: primaryColor,
+                          color: themeProvider.pillBackgroundColor,
                           letterSpacing: 0.2,
                           height: 1.1,
                         ),

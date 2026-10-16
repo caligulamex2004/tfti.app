@@ -11,6 +11,7 @@ import '../services/contact_resolver.dart';
 import '../services/contact_service.dart';
 import '../services/team_service.dart';
 import '../services/user_cache_repository.dart';
+import '../utils/theme_provider.dart';
 
 class TeamMembersPage extends StatefulWidget {
   final String circleId;
@@ -232,9 +233,8 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                                     vertical: 6,
                                                   ),
                                               decoration: BoxDecoration(
-                                                color: primaryColor.withValues(
-                                                  alpha: 0.2,
-                                                ),
+                                                color: themeProvider
+                                                    .pillBackgroundColor,
                                                 borderRadius:
                                                     BorderRadius.circular(12),
                                               ),
@@ -243,14 +243,16 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                                 children: [
                                                   Icon(
                                                     Icons.person_add,
-                                                    color: primaryColor,
+                                                    color: themeProvider
+                                                        .pillTextColor,
                                                     size: 16,
                                                   ),
                                                   const SizedBox(width: 6),
                                                   Text(
                                                     "Add",
                                                     style: TextStyle(
-                                                      color: primaryColor,
+                                                      color: themeProvider
+                                                          .pillTextColor,
                                                       fontWeight:
                                                           FontWeight.bold,
                                                     ),
@@ -300,9 +302,8 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                                     vertical: 6,
                                                   ),
                                               decoration: BoxDecoration(
-                                                color: primaryColor.withValues(
-                                                  alpha: 0.2,
-                                                ),
+                                                color: themeProvider
+                                                    .pillBackgroundColor,
                                                 borderRadius:
                                                     BorderRadius.circular(12),
                                               ),
@@ -314,7 +315,8 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                                         ? Icons.leaderboard
                                                         : Icons.sort_by_alpha,
                                                     size: 14,
-                                                    color: primaryColor,
+                                                    color: themeProvider
+                                                        .pillTextColor,
                                                   ),
                                                   const SizedBox(width: 4),
                                                   Text(
@@ -325,7 +327,8 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                                       fontWeight:
                                                           FontWeight.bold,
                                                       fontSize: 12,
-                                                      color: primaryColor,
+                                                      color: themeProvider
+                                                          .pillTextColor,
                                                     ),
                                                   ),
                                                 ],

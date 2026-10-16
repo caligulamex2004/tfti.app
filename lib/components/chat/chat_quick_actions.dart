@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/theme_provider.dart';
 
 class ChatQuickActions extends StatelessWidget {
   final VoidCallback onMention;
@@ -18,8 +19,11 @@ class ChatQuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
+    final pillBg = themeProvider.pillBackgroundColor;
+    final pillFg = themeProvider.pillTextColor;
+    final chipBg = themeProvider.chipUnselectedBackgroundColor;
+    final chipFg = themeProvider.chipUnselectedTextColor;
+    final chipBorder = themeProvider.chipBorderColor;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -27,16 +31,16 @@ class ChatQuickActions extends StatelessWidget {
       child: Row(
         children: [
           ActionChip(
-            avatar: Icon(Icons.alternate_email, size: 16, color: primaryColor),
+            avatar: Icon(Icons.alternate_email, size: 16, color: pillFg),
             label: Text(
               "Mention",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: primaryColor,
+                color: pillFg,
               ),
             ),
-            backgroundColor: primaryColor.withValues(alpha: 0.1),
-            side: BorderSide(color: primaryColor.withValues(alpha: 0.3)),
+            backgroundColor: pillBg,
+            side: BorderSide(color: pillBg),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -47,19 +51,17 @@ class ChatQuickActions extends StatelessWidget {
             avatar: Icon(
               Icons.camera_alt,
               size: 16,
-              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+              color: chipFg,
             ),
             label: Text(
               "Photo",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                color: chipFg,
               ),
             ),
-            backgroundColor: isDark
-                ? Colors.grey.shade800
-                : Colors.grey.shade200,
-            side: BorderSide.none,
+            backgroundColor: chipBg,
+            side: BorderSide(color: chipBorder),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -70,19 +72,17 @@ class ChatQuickActions extends StatelessWidget {
             avatar: Icon(
               Icons.directions_car,
               size: 16,
-              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+              color: chipFg,
             ),
             label: Text(
               "On my way",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                color: chipFg,
               ),
             ),
-            backgroundColor: isDark
-                ? Colors.grey.shade800
-                : Colors.grey.shade200,
-            side: BorderSide.none,
+            backgroundColor: chipBg,
+            side: BorderSide(color: chipBorder),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -93,19 +93,17 @@ class ChatQuickActions extends StatelessWidget {
             avatar: Icon(
               Icons.pan_tool,
               size: 16,
-              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+              color: chipFg,
             ),
             label: Text(
               "I call dibs on...",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                color: chipFg,
               ),
             ),
-            backgroundColor: isDark
-                ? Colors.grey.shade800
-                : Colors.grey.shade200,
-            side: BorderSide.none,
+            backgroundColor: chipBg,
+            side: BorderSide(color: chipBorder),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -116,17 +114,17 @@ class ChatQuickActions extends StatelessWidget {
             avatar: Icon(
               Icons.volunteer_activism,
               size: 16,
-              color: primaryColor,
+              color: pillFg,
             ),
             label: Text(
               "I'm bringing...",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: primaryColor,
+                color: pillFg,
               ),
             ),
-            backgroundColor: primaryColor.withValues(alpha: 0.1),
-            side: BorderSide(color: primaryColor.withValues(alpha: 0.3)),
+            backgroundColor: pillBg,
+            side: BorderSide(color: pillBg),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),

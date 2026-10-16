@@ -8,6 +8,7 @@ import '../services/friend_service.dart';
 import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/teams/create_team_sheet.dart';
 import '../components/teams/team_card.dart';
+import '../utils/theme_provider.dart';
 import 'team_members_page.dart';
 
 class TeamsPage extends StatefulWidget {
@@ -205,18 +206,22 @@ class _TeamsPageState extends State<TeamsPage> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: primaryColor.withValues(alpha: 0.2),
+                          color: themeProvider.pillBackgroundColor,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.add, color: primaryColor, size: 16),
+                            Icon(
+                              Icons.add,
+                              color: themeProvider.pillTextColor,
+                              size: 16,
+                            ),
                             const SizedBox(width: 6),
                             Text(
                               "Create",
                               style: TextStyle(
-                                color: primaryColor,
+                                color: themeProvider.pillTextColor,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),

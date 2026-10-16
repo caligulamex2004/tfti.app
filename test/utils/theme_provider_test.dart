@@ -62,18 +62,60 @@ void main() {
       }
     });
 
-    test('onPrimaryColor computes high-contrast text color based on primary luminance', () {
+    test('onPrimaryColor and pillTextColor match colorScheme.onPrimary across all themes', () {
       final provider = ThemeProvider();
 
-      // CyberPunk has bright cyan (#00E5FF) -> luminance > 0.5 -> dark text
-      provider.setTheme(AppTheme.cyberPunk);
-      expect(provider.themeData.colorScheme.primary.computeLuminance(), greaterThan(0.5));
-      expect(provider.onPrimaryColor, const Color(0xDD000000));
+      // CyberPunk & Electric Amber use dark text on bright primary colors
+      for (final theme in [AppTheme.cyberPunk, AppTheme.electricAmber]) {
+        provider.setTheme(theme);
+        expect(provider.onPrimaryColor, const Color(0xDD000000));
+        expect(provider.pillTextColor, const Color(0xDD000000));
+        expect(provider.themeData.colorScheme.onPrimary, const Color(0xDD000000));
+      }
 
-      // Royal Purple has dark purple (#4A00E0) -> luminance < 0.5 -> white text
-      provider.setTheme(AppTheme.royalPurple);
-      expect(provider.themeData.colorScheme.primary.computeLuminance(), lessThan(0.5));
-      expect(provider.onPrimaryColor, Colors.white);
+      // All other 10 themes use white text on primary colors
+      final whiteTextThemes = AppTheme.values.where(
+        (t) => t != AppTheme.cyberPunk && t != AppTheme.electricAmber,
+      );
+      for (final theme in whiteTextThemes) {
+        provider.setTheme(theme);
+        expect(provider.onPrimaryColor, Colors.white, reason: '$theme onPrimaryColor');
+        expect(provider.pillTextColor, Colors.white, reason: '$theme pillTextColor');
+        expect(provider.themeData.colorScheme.onPrimary, Colors.white,
+            reason: '$theme colorScheme.onPrimary');
+      }
+    });
+
+    test('Standardized pill, chip, and gradient tokens are defined for all themes', () {
+      final provider = ThemeProvider();
+
+      for (final theme in AppTheme.values) {
+        provider.setTheme(theme);
+        final isDark = provider.themeData.brightness == Brightness.dark;
+
+        expect(provider.pillBackgroundColor, provider.themeData.colorScheme.primary);
+        expect(provider.pillTextColor, provider.onPrimaryColor);
+
+        if (isDark) {
+          expect(provider.chipUnselectedTextColor, Colors.white);
+          expect(provider.chipBorderColor, const Color(0xFF424242));
+          expect(
+            provider.chipUnselectedBackgroundColor,
+            isNot(equals(const Color(0xFF000000))),
+            reason: '$theme unselected chip background should stand out against pure black',
+          );
+        } else {
+          expect(provider.chipUnselectedBackgroundColor, Colors.white);
+          expect(provider.chipUnselectedTextColor, Colors.black87);
+          expect(provider.chipBorderColor, const Color(0xFFE0E0E0));
+        }
+
+        if (theme == AppTheme.lipGloss) {
+          expect(provider.onGradientColor, Colors.black87);
+        } else {
+          expect(provider.onGradientColor, Colors.white);
+        }
+      }
     });
 
     test('setTheme notifies listeners and persists index to SharedPreferences', () async {

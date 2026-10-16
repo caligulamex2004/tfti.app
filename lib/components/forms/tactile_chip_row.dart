@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/theme_provider.dart';
 
 class TactileChipRow<T> extends StatelessWidget {
   final String label;
@@ -55,24 +56,18 @@ class TactileChipRow<T> extends StatelessWidget {
                     FocusScope.of(context).unfocus(); // Drops the keyboard!
                     if (selected) onSelected(value);
                   },
-                  selectedColor: primaryColor.withValues(alpha: 0.15),
-                  backgroundColor: isDark
-                      ? Colors.grey.shade900
-                      : Colors.grey.shade50,
+                  selectedColor: themeProvider.pillBackgroundColor,
+                  backgroundColor: themeProvider.chipUnselectedBackgroundColor,
                   labelStyle: TextStyle(
                     color: isSelected
-                        ? primaryColor
-                        : (isDark
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade700),
+                        ? themeProvider.pillTextColor
+                        : themeProvider.chipUnselectedTextColor,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                   ),
                   side: BorderSide(
                     color: isSelected
-                        ? primaryColor.withValues(alpha: 0.5)
-                        : (isDark
-                              ? Colors.grey.shade800
-                              : Colors.grey.shade300),
+                        ? themeProvider.pillBackgroundColor
+                        : themeProvider.chipBorderColor,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

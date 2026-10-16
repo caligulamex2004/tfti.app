@@ -17,6 +17,7 @@ import '../components/shared/tcg_profile_card.dart';
 import '../pages/preferences_page.dart';
 import '../services/user_service.dart';
 import '../utils/phone_formatter.dart';
+import '../utils/theme_provider.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -515,18 +516,18 @@ class _AccountPageState extends State<AccountPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: primaryColor.withValues(alpha: 0.2),
+              color: themeProvider.pillBackgroundColor,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.qr_code, color: primaryColor, size: 16),
+                Icon(Icons.qr_code, color: themeProvider.pillTextColor, size: 16),
                 const SizedBox(width: 6),
                 Text(
                   "QR",
                   style: TextStyle(
-                    color: primaryColor,
+                    color: themeProvider.pillTextColor,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
