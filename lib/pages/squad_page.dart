@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -8,9 +9,10 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // --- COMPONENTS & UTILITIES ---
-import 'qr_scanner_page.dart';
 import '../models/squad_request_model.dart';
 import '../components/squad/add_friend_section.dart';
+import '../components/squad/suggested_squad_rail.dart';
+import '../components/squad/qr_duo_sheet.dart';
 import '../components/squad/friend_list_feed.dart';
 import '../components/squad/contact_import_sheet.dart';
 import '../components/squad/squad_requests_section.dart';
@@ -18,7 +20,6 @@ import '../services/contact_service.dart';
 import '../services/contact_resolver.dart';
 import '../services/friend_service.dart';
 import '../services/user_cache_repository.dart';
-import '../utils/phone_formatter.dart';
 import '../components/shared/shared_sliver_app_bar.dart';
 import '../utils/responsive_layout.dart';
 
@@ -30,27 +31,137 @@ class SquadPage extends StatefulWidget {
 }
 
 class _SquadPageState extends State<SquadPage> {
-  final _phoneController = TextEditingController();
-  final _usernameController = TextEditingController();
-
-  bool _isAddingByUsername = true;
-  String _completePhoneNumber = "";
   String _statusMessage = "";
   bool _sortByScore = true;
 
   final Set<String> _removedFriendUids = {};
+  Set<String> _myFriendUids = {};
+  StreamSubscription? _friendsSubscription;
+
+  // Current user profile details for QR and Link sharing
+  String _myUsername = "";
+  String _myDisplayName = "";
+  String? _myAvatarUrl;
+  int _myAvatarColor = Colors.blue.toARGB32();
+
+  // Suggested Squad state
+  List<Map<String, dynamic>> _suggestedUsers = [];
+  final Set<String> _suggestedAddedUids = {};
+  bool _isLoadingSuggestions = false;
 
   @override
   void initState() {
     super.initState();
-    ContactResolver.instance.warmUpIfPermitted();
+    _loadCurrentUserProfile();
+    _listenToFriends();
+
+    if (!kIsWeb) {
+      ContactResolver.instance.warmUpIfPermitted();
+      ContactResolver.instance.addListener(_onContactResolverUpdated);
+    }
   }
 
   @override
   void dispose() {
-    _phoneController.dispose();
-    _usernameController.dispose();
+    _friendsSubscription?.cancel();
+    if (!kIsWeb) {
+      ContactResolver.instance.removeListener(_onContactResolverUpdated);
+    }
     super.dispose();
+  }
+
+  void _onContactResolverUpdated() {
+    if (mounted && ContactResolver.instance.hasWarmedUp) {
+      _loadSuggestedContacts();
+    }
+  }
+
+  Future<void> _loadCurrentUserProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final profile = await UserCacheRepository.instance.getUser(user.uid);
+    if (!mounted || profile == null) return;
+
+    setState(() {
+      _myUsername = profile.username;
+      _myDisplayName = profile.displayName;
+      _myAvatarUrl = profile.avatarUrl;
+      _myAvatarColor = profile.avatarColor ?? Colors.blue.toARGB32();
+    });
+  }
+
+  void _listenToFriends() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    _friendsSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('friends')
+        .snapshots()
+        .listen((snap) {
+      if (!mounted) return;
+      setState(() {
+        _myFriendUids = snap.docs.map((doc) => doc.id).toSet();
+      });
+      // Re-filter suggestions so friends don't appear in suggested squad
+      if (_suggestedUsers.isNotEmpty) {
+        setState(() {
+          _suggestedUsers.removeWhere((u) => _myFriendUids.contains(u['uid']));
+        });
+      }
+    });
+  }
+
+  Future<void> _loadSuggestedContacts() async {
+    if (kIsWeb) return;
+    if (_isLoadingSuggestions) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final cache = ContactResolver.instance.cache;
+    if (cache.isEmpty) return;
+
+    _isLoadingSuggestions = true;
+    try {
+      final List<String> allPhones = cache.keys.toList();
+      final List<Map<String, dynamic>> matches = [];
+
+      for (int i = 0; i < allPhones.length && matches.length < 15; i += 30) {
+        final end = (i + 30 < allPhones.length) ? i + 30 : allPhones.length;
+        final chunk = allPhones.sublist(i, end);
+
+        final snap = await FirebaseFirestore.instance
+            .collection('users')
+            .where('phoneNumber', whereIn: chunk)
+            .get(const GetOptions(source: Source.server));
+
+        for (final doc in snap.docs) {
+          final data = doc.data();
+          final uid = doc.id;
+          final phone = data['phoneNumber'] as String?;
+
+          if (uid != user.uid && !_myFriendUids.contains(uid)) {
+            data['uid'] = uid;
+            if (phone != null && cache.containsKey(phone)) {
+              data['contactName'] = cache[phone];
+            }
+            matches.add(data);
+          }
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _suggestedUsers = matches;
+      });
+    } catch (e) {
+      debugPrint("Error loading suggested contacts: $e");
+    } finally {
+      _isLoadingSuggestions = false;
+    }
   }
 
   void _clearStatusAfterDelay() {
@@ -61,25 +172,37 @@ class _SquadPageState extends State<SquadPage> {
     });
   }
 
-  Future<void> _openScanner() async {
-    final result = await Navigator.push(
+  void _openQrDuo() {
+    QrDuoSheet.show(
       context,
-      MaterialPageRoute(builder: (context) => const QRScannerPage()),
-    );
-    if (result != null && result is String && mounted) {
-      if (result.startsWith('tfti://add/@')) {
-        final scannedUsername = result.replaceFirst('tfti://add/@', '');
-        setState(() {
-          _isAddingByUsername = true;
-          _usernameController.text = scannedUsername;
-        });
+      username: _myUsername,
+      displayName: _myDisplayName,
+      avatarUrl: _myAvatarUrl,
+      avatarColor: _myAvatarColor,
+      onScanned: (scannedUsername) {
         _addFriend(overrideUsername: scannedUsername, isFromQrCode: true);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Invalid or unrecognized QR Code.")),
-        );
-      }
-    }
+      },
+    );
+  }
+
+  void _shareInviteLink() {
+    final link = "https://tfti-app.web.app/add/@$_myUsername";
+    Clipboard.setData(ClipboardData(text: link));
+    HapticFeedback.lightImpact();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: const [
+            Icon(Icons.check_circle, color: Colors.greenAccent, size: 20),
+            SizedBox(width: 8),
+            Text("Invite link copied to clipboard!"),
+          ],
+        ),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   Future<void> _importContacts() async {
@@ -101,9 +224,7 @@ class _SquadPageState extends State<SquadPage> {
     try {
       final contacts = await ContactHelper.getContacts();
       if (contacts == null) {
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Permission denied for contacts.")),
@@ -178,9 +299,7 @@ class _SquadPageState extends State<SquadPage> {
             a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
       );
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       Navigator.pop(context);
 
       showModalBottomSheet(
@@ -199,9 +318,12 @@ class _SquadPageState extends State<SquadPage> {
             setState(() {
               _removedFriendUids.remove(uid);
             });
+            _loadSuggestedContacts();
           },
         ),
       );
+
+      _loadSuggestedContacts();
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
@@ -233,158 +355,105 @@ class _SquadPageState extends State<SquadPage> {
   }
 
   Future<void> _addFriend({
-    String? overrideUsername,
+    required String overrideUsername,
     bool isFromQrCode = false,
   }) async {
     final myUid = FirebaseAuth.instance.currentUser!.uid;
-    FocusManager.instance.primaryFocus?.unfocus();
+    String input = overrideUsername.trim().toLowerCase();
+    if (input.startsWith('@')) {
+      input = input.substring(1);
+    }
+    if (input.isEmpty) return;
 
-    if (_isAddingByUsername || overrideUsername != null) {
-      String input =
-          overrideUsername ?? _usernameController.text.trim().toLowerCase();
-      if (input.startsWith('@')) {
-        input = input.substring(1);
-      }
-      if (input.isEmpty) {
-        return;
-      }
+    final targetUid = await FriendService.findUidByUsername(input);
+    if (!mounted) return;
+    if (targetUid == null) {
+      setState(() => _statusMessage = "Username @$input not found.");
+      _clearStatusAfterDelay();
+      return;
+    }
 
-      final targetUid = await FriendService.findUidByUsername(input);
+    if (targetUid == myUid) {
+      setState(() => _statusMessage = "You can't add yourself!");
+      _clearStatusAfterDelay();
+      return;
+    }
+
+    final myFriends = await FriendService.getFriendUids(myUid);
+    if (myFriends.contains(targetUid)) {
+      setState(() => _statusMessage = "@$input is already in your squad!");
+      _clearStatusAfterDelay();
+      return;
+    }
+
+    if (isFromQrCode) {
+      // In-person QR fast-path directly adds friend
+      final targetUser = await UserCacheRepository.instance.getUser(targetUid);
       if (!mounted) return;
-      if (targetUid == null) {
-        setState(() => _statusMessage = "Username @$input not found.");
-        _clearStatusAfterDelay();
-        return;
-      }
+      final targetPhone = targetUser?.phoneNumber ?? '';
 
-      if (targetUid == myUid) {
-        setState(() => _statusMessage = "You can't add yourself!");
-        _clearStatusAfterDelay();
-        return;
-      }
-
-      final myFriends = await FriendService.getFriendUids(myUid);
-      if (myFriends.contains(targetUid)) {
-        setState(() => _statusMessage = "@$input is already in your squad!");
-        _clearStatusAfterDelay();
-        return;
-      }
-
-      if (isFromQrCode) {
-        // Fast-path: in-person QR scan directly adds friend
-        final targetUser = await UserCacheRepository.instance.getUser(
-          targetUid,
-        );
-        if (!mounted) return;
-        final targetPhone = targetUser?.phoneNumber ?? '';
-
-        await FriendService.addFriend(
-          myUid: myUid,
-          friendUid: targetUid,
-          phoneNumber: targetPhone,
-        );
-
-        if (!mounted) return;
-        setState(() {
-          _removedFriendUids.remove(targetUid);
-          _statusMessage = "Added @$input to the squad!";
-          _usernameController.clear();
-        });
-        _clearStatusAfterDelay();
-      } else {
-        // Slow-path: manual username entry sends a squad request
-        await FriendService.sendSquadRequest(
-          fromUid: myUid,
-          toUid: targetUid,
-          source: 'username',
-        );
-
-        if (!mounted) return;
-        setState(() {
-          _statusMessage = "Squad request sent to @$input!";
-          _usernameController.clear();
-        });
-        _clearStatusAfterDelay();
-      }
-    } else {
-      String phoneToAdd = _completePhoneNumber;
-      if (phoneToAdd.isEmpty) {
-        return;
-      }
-
-      final friendUid = await FriendService.findUidByPhone(phoneToAdd);
-      if (!mounted) return;
-      if (friendUid == null) {
-        setState(() => _statusMessage = "User not found on tfti.app.");
-
-        final invite = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text("Not on tfti.app Yet"),
-            content: Text(
-              "Would you like to invite ${PhoneFormatter.beautify(phoneToAdd)} to join tfti.app via SMS?",
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text("Cancel"),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text(
-                  "Send Invite",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-        );
-
-        if (invite == true && mounted) {
-          await _inviteViaSms(phoneToAdd);
-          if (!mounted) return;
-          setState(() {
-            _statusMessage = "Invite text prepared!";
-            _phoneController.clear();
-            _completePhoneNumber = "";
-          });
-          _clearStatusAfterDelay();
-        }
-        return;
-      }
-
-      if (friendUid == myUid) {
-        setState(() => _statusMessage = "You can't add yourself!");
-        _clearStatusAfterDelay();
-        return;
-      }
-
-      final myFriends = await FriendService.getFriendUids(myUid);
-      if (myFriends.contains(friendUid)) {
-        setState(
-          () => _statusMessage =
-              "${PhoneFormatter.beautify(phoneToAdd)} is already in your squad!",
-        );
-        _clearStatusAfterDelay();
-        return;
-      }
-
-      // Slow-path: manual phone entry sends a squad request
-      await FriendService.sendSquadRequest(
-        fromUid: myUid,
-        toUid: friendUid,
-        source: 'phone',
+      await FriendService.addFriend(
+        myUid: myUid,
+        friendUid: targetUid,
+        phoneNumber: targetPhone,
       );
 
       if (!mounted) return;
       setState(() {
-        _statusMessage =
-            "Squad request sent to ${PhoneFormatter.beautify(phoneToAdd)}!";
-        _phoneController.clear();
-        _completePhoneNumber = "";
+        _removedFriendUids.remove(targetUid);
+        _statusMessage = "Added @$input to the squad!";
+      });
+      _clearStatusAfterDelay();
+    } else {
+      await FriendService.sendSquadRequest(
+        fromUid: myUid,
+        toUid: targetUid,
+        source: 'username',
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _statusMessage = "Squad request sent to @$input!";
       });
       _clearStatusAfterDelay();
     }
+  }
+
+  Future<void> _sendSquadRequest(String targetUid, String username) async {
+    final myUid = FirebaseAuth.instance.currentUser!.uid;
+    await FriendService.sendSquadRequest(
+      fromUid: myUid,
+      toUid: targetUid,
+      source: 'search',
+    );
+    if (!mounted) return;
+    setState(() {
+      _statusMessage = "Squad request sent to @$username!";
+    });
+    _clearStatusAfterDelay();
+  }
+
+  Future<void> _handleSuggestedSquadUp(Map<String, dynamic> user) async {
+    final myUid = FirebaseAuth.instance.currentUser!.uid;
+    final targetUid = user['uid'] as String;
+    final username = user['username'] as String? ?? '';
+
+    setState(() {
+      _suggestedAddedUids.add(targetUid);
+    });
+
+    await FriendService.sendSquadRequest(
+      fromUid: myUid,
+      toUid: targetUid,
+      source: 'suggested',
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _statusMessage =
+          "Squad request sent${username.isNotEmpty ? ' to @$username' : ''}!";
+    });
+    _clearStatusAfterDelay();
   }
 
   @override
@@ -397,21 +466,8 @@ class _SquadPageState extends State<SquadPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape = context.isWideScreen;
-
-    final List<Widget> appBarActions = [
-      IconButton(
-        icon: const Icon(Icons.qr_code_scanner),
-        tooltip: "Scan QR",
-        onPressed: _openScanner,
-      ),
-      if (!kIsWeb)
-        IconButton(
-          icon: const Icon(Icons.import_contacts),
-          tooltip: "Import Contacts",
-          onPressed: _importContacts,
-        ),
-      const SizedBox(width: 8),
-    ];
+    final hasContactsPermission =
+        !kIsWeb && ContactResolver.instance.hasWarmedUp && ContactResolver.instance.cache.isNotEmpty;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -432,8 +488,6 @@ class _SquadPageState extends State<SquadPage> {
                               ? Colors.black.withValues(alpha: 0.6)
                               : Colors.white.withValues(alpha: 0.7),
                           automaticallyImplyLeading: false,
-                          title: null,
-                          actions: null,
                           flexibleSpace: ClipRect(
                             child: BackdropFilter(
                               filter: ImageFilter.blur(
@@ -446,29 +500,20 @@ class _SquadPageState extends State<SquadPage> {
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 16,
                                   ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          "The Squad",
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 18,
-                                            color: isDark
-                                                ? Colors.white
-                                                : Colors.black87,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      "The Squad",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: isDark
+                                            ? Colors.white
+                                            : Colors.black87,
                                       ),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: appBarActions,
-                                      ),
-                                    ],
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -479,14 +524,27 @@ class _SquadPageState extends State<SquadPage> {
                           child: AddFriendSection(
                             isDark: isDark,
                             primaryColor: primaryColor,
-                            isAddingByUsername: _isAddingByUsername,
-                            usernameController: _usernameController,
-                            phoneController: _phoneController,
+                            isLandscape: true,
+                            myUid: myUid,
+                            myFriendUids: _myFriendUids,
                             statusMessage: _statusMessage,
-                            onToggleInputType: (val) =>
-                                setState(() => _isAddingByUsername = val),
-                            onPhoneChanged: (val) => _completePhoneNumber = val,
-                            onSubmit: _addFriend,
+                            onOpenQrDuo: _openQrDuo,
+                            onShareLink: _shareInviteLink,
+                            onImportContacts: _importContacts,
+                            onSendSquadRequest: _sendSquadRequest,
+                            onInvitePhone: _inviteViaSms,
+                          ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SuggestedSquadRail(
+                            isDark: isDark,
+                            primaryColor: primaryColor,
+                            isLandscape: true,
+                            suggestions: _suggestedUsers,
+                            hasContactsPermission: hasContactsPermission,
+                            addedUids: _suggestedAddedUids,
+                            onRequestContacts: _importContacts,
+                            onSquadUp: _handleSuggestedSquadUp,
                           ),
                         ),
                         SliverToBoxAdapter(
@@ -540,21 +598,33 @@ class _SquadPageState extends State<SquadPage> {
                   collapsedTitle: "The Squad",
                   expandedHeight: 140.0,
                   hasBackButton: false,
-                  actions: appBarActions,
                 ),
                 SliverToBoxAdapter(
                   child: AddFriendSection(
                     isDark: isDark,
                     primaryColor: primaryColor,
-                    useGradient: !isLandscape,
-                    isAddingByUsername: _isAddingByUsername,
-                    usernameController: _usernameController,
-                    phoneController: _phoneController,
+                    useGradient: false,
+                    isLandscape: false,
+                    myUid: myUid,
+                    myFriendUids: _myFriendUids,
                     statusMessage: _statusMessage,
-                    onToggleInputType: (val) =>
-                        setState(() => _isAddingByUsername = val),
-                    onPhoneChanged: (val) => _completePhoneNumber = val,
-                    onSubmit: _addFriend,
+                    onOpenQrDuo: _openQrDuo,
+                    onShareLink: _shareInviteLink,
+                    onImportContacts: _importContacts,
+                    onSendSquadRequest: _sendSquadRequest,
+                    onInvitePhone: _inviteViaSms,
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: SuggestedSquadRail(
+                    isDark: isDark,
+                    primaryColor: primaryColor,
+                    isLandscape: false,
+                    suggestions: _suggestedUsers,
+                    hasContactsPermission: hasContactsPermission,
+                    addedUids: _suggestedAddedUids,
+                    onRequestContacts: _importContacts,
+                    onSquadUp: _handleSuggestedSquadUp,
                   ),
                 ),
                 SliverToBoxAdapter(child: _buildSquadRequestsStream(myUid)),
