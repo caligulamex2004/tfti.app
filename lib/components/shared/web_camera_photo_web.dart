@@ -1,6 +1,6 @@
 // ignore: avoid_web_libraries_in_flutter, deprecated_member_use
 import 'dart:html' as html;
-import 'dart:ui' as ui;
+import 'dart:ui_web' as ui_web;
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -65,8 +65,7 @@ class _WebCameraDialogState extends State<_WebCameraDialog> {
       _viewType = viewId;
 
       // Register platform view for the video element
-      // ignore: undefined_prefixed_name
-      ui.platformViewRegistry.registerViewFactory(
+      ui_web.platformViewRegistry.registerViewFactory(
         viewId,
         (int id) => video,
       );
