@@ -14,6 +14,7 @@ import '../components/account/qr_code_sheet.dart';
 import '../components/account/tip_jar_sheet.dart';
 import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/shared/tcg_profile_card.dart';
+import '../components/shared/web_camera_photo_dialog.dart';
 import '../pages/preferences_page.dart';
 import '../services/user_service.dart';
 import '../utils/phone_formatter.dart';
@@ -206,7 +207,7 @@ class _AccountPageState extends State<AccountPage> {
               ),
               onTap: () {
                 Navigator.pop(ctx);
-                _uploadAvatar(ImageSource.camera);
+                _handleTakePhoto();
               },
             ),
             if (_avatarUrl != null) ...[
@@ -231,6 +232,47 @@ class _AccountPageState extends State<AccountPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleTakePhoto() async {
+    if (kIsWeb) {
+      final bytes = await WebCameraPhotoDialog.show(context);
+      if (bytes != null) {
+        await _uploadAvatarBytes(bytes);
+      }
+    } else {
+      await _uploadAvatar(ImageSource.camera);
+    }
+  }
+
+  Future<void> _uploadAvatarBytes(Uint8List imageBytes) async {
+    if (!mounted) return;
+    setState(() => _isUploadingAvatar = true);
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted) setState(() => _isUploadingAvatar = false);
+      return;
+    }
+
+    try {
+      final downloadUrl = await UserService.uploadAvatar(
+        uid: user.uid,
+        imageBytes: imageBytes,
+      );
+      if (mounted) {
+        setState(() => _avatarUrl = downloadUrl);
+      }
+    } catch (e) {
+      debugPrint("Error uploading avatar: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to upload photo")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingAvatar = false);
+    }
   }
 
   Future<void> _uploadAvatar(ImageSource source) async {
@@ -273,33 +315,7 @@ class _AccountPageState extends State<AccountPage> {
       imageBytes = await croppedFile.readAsBytes();
     }
 
-    if (!mounted) return;
-    setState(() => _isUploadingAvatar = true);
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      if (mounted) setState(() => _isUploadingAvatar = false);
-      return;
-    }
-
-    try {
-      final downloadUrl = await UserService.uploadAvatar(
-        uid: user.uid,
-        imageBytes: imageBytes,
-      );
-      if (mounted) {
-        setState(() => _avatarUrl = downloadUrl);
-      }
-    } catch (e) {
-      debugPrint("Error uploading avatar: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to upload photo")),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isUploadingAvatar = false);
-    }
+    await _uploadAvatarBytes(imageBytes);
   }
 
   Future<void> _removeAvatar() async {
