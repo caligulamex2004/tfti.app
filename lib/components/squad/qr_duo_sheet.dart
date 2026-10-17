@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -69,9 +68,7 @@ class _QrDuoSheetState extends State<QrDuoSheet> {
   @override
   void initState() {
     super.initState();
-    if (!kIsWeb) {
-      _scannerController = MobileScannerController();
-    }
+    _scannerController = MobileScannerController();
   }
 
   @override
@@ -335,124 +332,99 @@ class _QrDuoSheetState extends State<QrDuoSheet> {
                 ),
               ),
             ] else ...[
-              // Scan tab
-              if (kIsWeb) ...[
-                Container(
-                  height: 260,
+              // Scan tab (enabled on Web and Mobile)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  height: 280,
                   width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
-                    ),
-                  ),
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.devices,
-                            size: 48,
-                            color: primaryColor,
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            "Mobile Scanning",
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "Camera scanning is optimized for the TFTI mobile app. You can share your personal QR code or invite link from the web!",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton.icon(
-                            onPressed: () => setState(() => _selectedTabIndex = 0),
-                            icon: const Icon(Icons.qr_code, size: 18),
-                            label: const Text("Show My QR Code"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryColor,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                  color: Colors.black,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      if (_scannerController != null)
+                        MobileScanner(
+                          controller: _scannerController!,
+                          errorBuilder: (context, error) {
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24.0),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.videocam_off_rounded,
+                                      size: 44,
+                                      color: isDark
+                                          ? Colors.grey.shade400
+                                          : Colors.white70,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      error.errorCode ==
+                                              MobileScannerErrorCode.permissionDenied
+                                          ? "Camera permission denied.\nPlease allow camera access in your browser or device settings."
+                                          : "Unable to access camera (${error.errorCode.name}).",
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? Colors.grey.shade300
+                                            : Colors.white,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ] else ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    height: 280,
-                    width: double.infinity,
-                    color: Colors.black,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        if (_scannerController != null)
-                          MobileScanner(
-                            controller: _scannerController!,
-                            onDetect: (BarcodeCapture capture) {
-                              if (_hasScanned) return;
-                              for (final barcode in capture.barcodes) {
-                                final raw = barcode.rawValue;
-                                if (raw != null && raw.startsWith('tfti://add/@')) {
-                                  _hasScanned = true;
-                                  final scannedUsername =
-                                      raw.replaceFirst('tfti://add/@', '');
-                                  HapticFeedback.heavyImpact();
-                                  Navigator.pop(context);
-                                  widget.onScanned(scannedUsername);
-                                  break;
-                                }
+                            );
+                          },
+                          onDetect: (BarcodeCapture capture) {
+                            if (_hasScanned) return;
+                            for (final barcode in capture.barcodes) {
+                              final raw = barcode.rawValue;
+                              if (raw != null && raw.startsWith('tfti://add/@')) {
+                                _hasScanned = true;
+                                final scannedUsername =
+                                    raw.replaceFirst('tfti://add/@', '');
+                                HapticFeedback.heavyImpact();
+                                Navigator.pop(context);
+                                widget.onScanned(scannedUsername);
+                                break;
                               }
-                            },
+                            }
+                          },
+                        ),
+                      // Reticle box
+                      Container(
+                        width: 180,
+                        height: 180,
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            width: 3,
                           ),
-                        // Reticle box
-                        Container(
-                          width: 180,
-                          height: 180,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.8),
-                              width: 3,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      const Positioned(
+                        bottom: 16,
+                        child: Text(
+                          "Point at a friend's TFTI QR Code",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            shadows: [
+                              Shadow(color: Colors.black, blurRadius: 6),
+                            ],
                           ),
                         ),
-                        const Positioned(
-                          bottom: 16,
-                          child: Text(
-                            "Point at a friend's TFTI QR Code",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                              shadows: [
-                                Shadow(color: Colors.black, blurRadius: 6),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ],
           ],
         ),
