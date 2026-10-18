@@ -11,6 +11,7 @@ import '../services/contact_resolver.dart';
 import '../services/contact_service.dart';
 import '../services/team_service.dart';
 import '../services/user_cache_repository.dart';
+import '../utils/event_service.dart';
 import '../utils/theme_provider.dart';
 import '../utils/responsive_layout.dart';
 
@@ -18,12 +19,14 @@ class TeamMembersPage extends StatefulWidget {
   final String circleId;
   final String circleName;
   final bool autoOpenAddMembers;
+  final String? eventId;
 
   const TeamMembersPage({
     super.key,
     required this.circleId,
     required this.circleName,
     this.autoOpenAddMembers = false,
+    this.eventId,
   });
 
   @override
@@ -126,6 +129,9 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
           circleId: widget.circleId,
           friendUid: friendUid,
         );
+        if (widget.eventId != null) {
+          await EventService.syncEventInvitesWithTeams(widget.eventId!);
+        }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("$friendName removed from team!")),
@@ -145,6 +151,9 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
       circleId: widget.circleId,
       circleName: widget.circleName,
       userUid: user.uid,
+      onMembersAdded: widget.eventId != null
+          ? () => EventService.syncEventInvitesWithTeams(widget.eventId!)
+          : null,
     );
   }
 

@@ -520,6 +520,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                         );
 
                         final crewCardWidget = EventCrewCard(
+                          eventId: widget.eventId,
                           inviteDocsEmpty: inviteDocs.isEmpty,
                           cachedCrewFuture: _cachedCrewFuture,
                           currentUserId: currentUser.uid,

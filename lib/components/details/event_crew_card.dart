@@ -18,6 +18,7 @@ class EventCrewCard extends StatelessWidget {
   final VoidCallback? onEditTeamsTap;
   final Function(String uid, String phone, String name) onAddFriend;
   final Function(String uid, String name) onReportUser;
+  final String? eventId;
 
   const EventCrewCard({
     super.key,
@@ -33,6 +34,7 @@ class EventCrewCard extends StatelessWidget {
     this.onEditTeamsTap,
     required this.onAddFriend,
     required this.onReportUser,
+    this.eventId,
   });
 
   @override
@@ -141,6 +143,7 @@ class EventCrewCard extends StatelessWidget {
                 coHostInvitedCircles: coHostInvitedCircles,
                 coHostInviteAll: coHostInviteAll,
                 onEditTap: onEditTeamsTap,
+                eventId: eventId,
               ),
 
               // Horizontal Attendees Rail with status filters and View All toggle

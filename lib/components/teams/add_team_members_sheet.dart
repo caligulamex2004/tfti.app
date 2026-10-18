@@ -11,12 +11,14 @@ class AddTeamMembersSheet extends StatefulWidget {
   final String circleId;
   final String circleName;
   final String userUid;
+  final VoidCallback? onMembersAdded;
 
   const AddTeamMembersSheet({
     super.key,
     required this.circleId,
     required this.circleName,
     required this.userUid,
+    this.onMembersAdded,
   });
 
   static Future<void> show(
@@ -24,6 +26,7 @@ class AddTeamMembersSheet extends StatefulWidget {
     required String circleId,
     required String circleName,
     required String userUid,
+    VoidCallback? onMembersAdded,
   }) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
@@ -95,6 +98,7 @@ class AddTeamMembersSheet extends StatefulWidget {
         circleId: circleId,
         circleName: circleName,
         userUid: userUid,
+        onMembersAdded: onMembersAdded,
       ),
     );
   }
@@ -356,6 +360,7 @@ class _AddTeamMembersSheetState extends State<AddTeamMembersSheet> {
                             circleId: widget.circleId,
                             memberUids: _selectedIds.toList(),
                           );
+                          widget.onMembersAdded?.call();
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(

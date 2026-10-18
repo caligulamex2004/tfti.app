@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../models/team_model.dart';
 import '../../pages/team_members_page.dart';
 import '../../services/team_service.dart';
+import '../../utils/event_service.dart';
 
 /// Shows the host or co-host their personal selected team(s) upfront.
 /// Strictly scoped:
@@ -19,6 +20,7 @@ class HostTeamBadge extends StatelessWidget {
   final List<String>? coHostInvitedCircles;
   final bool coHostInviteAll;
   final VoidCallback? onEditTap;
+  final String? eventId;
 
   const HostTeamBadge({
     super.key,
@@ -30,6 +32,7 @@ class HostTeamBadge extends StatelessWidget {
     required this.coHostInvitedCircles,
     required this.coHostInviteAll,
     this.onEditTap,
+    this.eventId,
   });
 
   @override
@@ -247,17 +250,21 @@ class HostTeamBadge extends StatelessWidget {
           children: selectedTeams.map((team) {
             return InkWell(
               borderRadius: BorderRadius.circular(12),
-              onTap: () {
+              onTap: () async {
                 HapticFeedback.lightImpact();
-                Navigator.push(
+                await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => TeamMembersPage(
                       circleId: team.id,
                       circleName: team.name,
+                      eventId: eventId,
                     ),
                   ),
                 );
+                if (eventId != null) {
+                  await EventService.syncEventInvitesWithTeams(eventId!);
+                }
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(
