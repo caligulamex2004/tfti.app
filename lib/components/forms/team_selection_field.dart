@@ -68,12 +68,13 @@ class _TeamSelectionFieldState extends State<TeamSelectionField> {
               if (nameController.text.trim().isEmpty) return;
               final user = FirebaseAuth.instance.currentUser!;
 
+              final newTeamName = nameController.text.trim();
               final docRef = await FirebaseFirestore.instance
                   .collection('users')
                   .doc(user.uid)
                   .collection('circles')
                   .add({
-                    'name': nameController.text.trim(),
+                    'name': newTeamName,
                     'createdAt': FieldValue.serverTimestamp(),
                   });
 
@@ -96,7 +97,7 @@ class _TeamSelectionFieldState extends State<TeamSelectionField> {
                   builder: (context) => TeamMembersPage(
                     // Use your actual Teams Page Class
                     circleId: docRef.id,
-                    circleName: nameController.text.trim(),
+                    circleName: newTeamName,
                     autoOpenAddMembers: true,
                   ),
                 ),
@@ -106,7 +107,11 @@ class _TeamSelectionFieldState extends State<TeamSelectionField> {
           ),
         ],
       ),
-    ).then((_) => nameController.dispose());
+    ).then((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        nameController.dispose();
+      });
+    });
   }
 
   void _showCircleDialog(List<DocumentSnapshot> circles) {

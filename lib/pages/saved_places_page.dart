@@ -68,7 +68,9 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
         ),
       );
     } finally {
-      renameController.dispose();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        renameController.dispose();
+      });
     }
 
     if (newName != null && newName.isNotEmpty && newName != currentName) {

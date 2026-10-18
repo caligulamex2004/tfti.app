@@ -25,17 +25,20 @@ import '../components/details/event_vitals_card.dart';
 import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/shared/app_avatar.dart';
 import '../components/shared/app_banner_image.dart';
+import '../components/feed/empty_feed_states.dart';
 import '../components/shared/user_profile_sheet.dart';
 import '../services/contact_resolver.dart';
 
 class HangoutDetailsPage extends StatefulWidget {
   final String eventId;
   final Map<String, dynamic> eventData;
+  final VoidCallback? onDeleted;
 
   const HangoutDetailsPage({
     super.key,
     required this.eventId,
     required this.eventData,
+    this.onDeleted,
   });
 
   @override
@@ -393,6 +396,36 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
     return StreamBuilder<DocumentSnapshot>(
       stream: _eventStream,
       builder: (context, eventSnapshot) {
+        if (eventSnapshot.hasData &&
+            (!eventSnapshot.data!.exists ||
+                eventSnapshot.data!.data() == null)) {
+          widget.onDeleted?.call();
+          if (isLandscape) {
+            return Scaffold(
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              body: const FeedDetailPlaceholder(),
+            );
+          }
+
+          // On mobile / portrait: only pop if this page is the current active route.
+          // If an editor (e.g. HangoutEditorPage) is active on top, do NOT pop here
+          // as the editor's deleteEventWithConfirmation will popUntil root.
+          final route = ModalRoute.of(context);
+          if (route != null && route.isCurrent) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
+              }
+            });
+          }
+          return Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            body: const SizedBox.shrink(),
+          );
+        }
+
         var data = widget.eventData;
         if (eventSnapshot.hasData && eventSnapshot.data!.data() != null) {
           data = eventSnapshot.data!.data() as Map<String, dynamic>;

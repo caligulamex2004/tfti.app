@@ -88,7 +88,11 @@ class SquadNeedsRail extends StatelessWidget {
           ),
         ],
       ),
-    ).then((_) => controller.dispose());
+    ).then((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        controller.dispose();
+      });
+    });
   }
 
   Future<void> _claimNeed(

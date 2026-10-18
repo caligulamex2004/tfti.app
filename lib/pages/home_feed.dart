@@ -32,7 +32,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   String? _selectedEventId;
-  Map<String, dynamic>? _selectedEventData;
   bool _showHidden = false;
   FeedFilter _selectedFilter = FeedFilter.thisWeek;
 
@@ -42,7 +41,25 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    EventService.lastDeletedEventId.addListener(_onEventDeleted);
     _initFeedStream();
+  }
+
+  @override
+  void dispose() {
+    EventService.lastDeletedEventId.removeListener(_onEventDeleted);
+    super.dispose();
+  }
+
+  void _onEventDeleted() {
+    final deletedId = EventService.lastDeletedEventId.value;
+    if (deletedId != null && deletedId == _selectedEventId) {
+      if (mounted) {
+        setState(() {
+          _selectedEventId = null;
+        });
+      }
+    }
   }
 
   @override
@@ -251,7 +268,6 @@ class _HomePageState extends State<HomePage> {
         if (isLandscape) {
           setState(() {
             _selectedEventId = eventId;
-            _selectedEventData = data;
           });
         } else {
           Navigator.push(
@@ -403,6 +419,23 @@ class _HomePageState extends State<HomePage> {
         }
 
         final feedSnapshot = snapshot.data ?? FeedSnapshot.empty;
+        final RawFeedEvent? selectedEvent = _selectedEventId != null
+            ? feedSnapshot.events
+                .where((e) => e.id == _selectedEventId)
+                .firstOrNull
+            : null;
+
+        if (_selectedEventId != null &&
+            selectedEvent == null &&
+            snapshot.hasData) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && _selectedEventId != null) {
+              setState(() {
+                _selectedEventId = null;
+              });
+            }
+          });
+        }
         final filtered = FeedFilterUtils.filterAndBucket(
           events: feedSnapshot.events,
           myInvitesMap: feedSnapshot.myInvitesMap,
@@ -616,12 +649,18 @@ class _HomePageState extends State<HomePage> {
                     ),
                     Expanded(
                       flex: 65,
-                      child: _selectedEventId != null &&
-                              _selectedEventData != null
+                      child: selectedEvent != null
                           ? HangoutDetailsPage(
-                              key: ValueKey(_selectedEventId),
-                              eventId: _selectedEventId!,
-                              eventData: _selectedEventData!,
+                              key: ValueKey(selectedEvent.id),
+                              eventId: selectedEvent.id,
+                              eventData: selectedEvent.data,
+                              onDeleted: () {
+                                if (mounted) {
+                                  setState(() {
+                                    _selectedEventId = null;
+                                  });
+                                }
+                              },
                             )
                           : const FeedDetailPlaceholder(),
                     ),

@@ -10,6 +10,10 @@ import 'package:tftiapp/models/hangout_submission_request.dart';
 import 'package:tftiapp/models/vibe_check_submission_request.dart';
 
 class EventService {
+  /// Notifies listeners whenever an event has been deleted permanently.
+  static final ValueNotifier<String?> lastDeletedEventId =
+      ValueNotifier<String?>(null);
+
   // ---------------------------------------------------------------------------
   // Submit / Create / Update a Vibe Check
   // ---------------------------------------------------------------------------
@@ -981,6 +985,7 @@ class EventService {
 
       batch.delete(eventRef);
       await batch.commit();
+      lastDeletedEventId.value = eventId;
 
       try {
         await FirebaseStorage.instance
@@ -1060,6 +1065,7 @@ class EventService {
       if (opCount > 0) await batch.commit();
 
       await firestore.collection('seasons').doc(seasonId).delete();
+      lastDeletedEventId.value = eventId;
 
       try {
         await FirebaseStorage.instance
@@ -1097,6 +1103,9 @@ class EventService {
               : "Hangout deleted permanently.");
 
     onLoadingChanged(true);
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
     try {
       await deleteEvent(
         eventId: eventId,
@@ -1106,13 +1115,10 @@ class EventService {
         eventTime: eventTime,
       );
 
-      if (context.mounted) {
-        final messenger = ScaffoldMessenger.of(context);
-        Navigator.popUntil(context, (route) => route.isFirst);
-        messenger.showSnackBar(
-          SnackBar(content: Text(successMessage), backgroundColor: Colors.red),
-        );
-      }
+      navigator.popUntil((route) => route.isFirst);
+      messenger.showSnackBar(
+        SnackBar(content: Text(successMessage), backgroundColor: Colors.red),
+      );
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(
@@ -1120,7 +1126,9 @@ class EventService {
         ).showSnackBar(SnackBar(content: Text("Error deleting: $e")));
       }
     } finally {
-      onLoadingChanged(false);
+      if (context.mounted) {
+        onLoadingChanged(false);
+      }
     }
   }
 

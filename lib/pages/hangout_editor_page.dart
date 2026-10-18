@@ -773,9 +773,11 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                                 eventId: widget.eventId!,
                                                 isVibeCheck: false,
                                                 onLoadingChanged: (val) {
-                                                  setState(() {
-                                                    _isLoading = val;
-                                                  });
+                                                  if (mounted) {
+                                                    setState(() {
+                                                      _isLoading = val;
+                                                    });
+                                                  }
                                                 },
                                               ),
                                         ),
@@ -929,9 +931,11 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                           ? widget.eventData!['time']
                                           : null,
                                       onLoadingChanged: (val) {
-                                        setState(() {
-                                          _isLoading = val;
-                                        });
+                                        if (mounted) {
+                                          setState(() {
+                                            _isLoading = val;
+                                          });
+                                        }
                                       },
                                     ),
                               ),

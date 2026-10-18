@@ -119,7 +119,9 @@ class _LocationInputFieldState extends State<LocationInputField> {
           ),
         );
       } finally {
-        nameController.dispose();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          nameController.dispose();
+        });
       }
 
       if (confirmedName == null || confirmedName.isEmpty) {

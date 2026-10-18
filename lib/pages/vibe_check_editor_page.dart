@@ -638,9 +638,11 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                                       eventId: widget.eventId!,
                                       isVibeCheck: true,
                                       onLoadingChanged: (val) {
-                                        setState(() {
-                                          _isLoading = val;
-                                        });
+                                        if (mounted) {
+                                          setState(() {
+                                            _isLoading = val;
+                                          });
+                                        }
                                       },
                                     ),
                               ),
@@ -749,9 +751,11 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                                 eventId: widget.eventId!,
                                 isVibeCheck: true,
                                 onLoadingChanged: (val) {
-                                  setState(() {
-                                    _isLoading = val;
-                                  });
+                                  if (mounted) {
+                                    setState(() {
+                                      _isLoading = val;
+                                    });
+                                  }
                                 },
                               ),
                         ),
