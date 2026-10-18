@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:material_symbols_icons/symbols.dart';
 
 import '../shared/info_card.dart';
-import '../shared/user_profile_sheet.dart';
 import 'details_bottom_sheets.dart';
-import '../shared/app_avatar.dart';
-import '../../services/contact_resolver.dart';
+import 'host_team_badge.dart';
+import 'crew_attendees_rail.dart';
 
 class EventCrewCard extends StatelessWidget {
   final bool inviteDocsEmpty;
@@ -14,6 +11,11 @@ class EventCrewCard extends StatelessWidget {
   final String currentUserId;
   final String hostId;
   final String? coHostId;
+  final List<String> invitedCircles;
+  final bool inviteAll;
+  final List<String>? coHostInvitedCircles;
+  final bool coHostInviteAll;
+  final VoidCallback? onEditTeamsTap;
   final Function(String uid, String phone, String name) onAddFriend;
   final Function(String uid, String name) onReportUser;
 
@@ -24,6 +26,11 @@ class EventCrewCard extends StatelessWidget {
     required this.currentUserId,
     required this.hostId,
     required this.coHostId,
+    this.invitedCircles = const [],
+    this.inviteAll = true,
+    this.coHostInvitedCircles,
+    this.coHostInviteAll = false,
+    this.onEditTeamsTap,
     required this.onAddFriend,
     required this.onReportUser,
   });
@@ -38,7 +45,6 @@ class EventCrewCard extends StatelessWidget {
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
 
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: cachedCrewFuture,
@@ -63,238 +69,90 @@ class EventCrewCard extends StatelessWidget {
           return g['hasSeen'] == true && g['uid'] != currentUserId;
         }).toList();
 
+        void openSeenBySheet() {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
+            ),
+            builder: (ctx) => SeenBySheet(seenGuests: seenGuests),
+          );
+        }
+
         return InfoCard(
           title: "The Crew",
           icon: Icons.group,
-          onIconTap: seenGuests.isNotEmpty
-              ? () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(24),
-                      ),
+          onIconTap: seenGuests.isNotEmpty ? openSeenBySheet : null,
+          trailing: seenGuests.isNotEmpty
+              ? InkWell(
+                  onTap: openSeenBySheet,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
                     ),
-                    builder: (ctx) => SeenBySheet(seenGuests: seenGuests),
-                  );
-                }
-              : null,
-          child: ListView.builder(
-            padding: EdgeInsets.zero,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: guests.length,
-            itemBuilder: (context, index) {
-              final guest = guests[index];
-              final String status = guest['status'];
-              final String guestUid = guest['uid'];
-
-              IconData badgeIcon = status == 'going'
-                  ? Icons.check_circle
-                  : (status == 'declined'
-                        ? Icons.cancel
-                        : Icons.hourglass_empty);
-              Color badgeColor = status == 'going'
-                  ? Colors.green
-                  : (status == 'declined'
-                        ? Colors.red
-                        : (isDark
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.visibility_outlined,
+                          size: 13,
+                          color: isDark
                               ? Colors.grey.shade400
-                              : Colors.grey.shade700));
-
-              return StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(currentUserId)
-                    .collection('friends')
-                    .doc(guestUid)
-                    .snapshots(),
-                builder: (context, friendSnap) {
-                  bool showAddButton =
-                      (guestUid != currentUserId) &&
-                      !(friendSnap.hasData && friendSnap.data!.exists);
-                  bool isGoated = friendSnap.hasData && friendSnap.data!.exists
-                      ? (friendSnap.data!.data()
-                                as Map<String, dynamic>)['isGoated'] ==
-                            true
-                      : false;
-
-                  final guestPhone = (guest['phoneNumber'] ?? '').toString();
-                  final contactName =
-                      ContactResolver.instance.resolveName(guestPhone);
-                  final bool hasContact =
-                      contactName != null && contactName.trim().isNotEmpty;
-                  final String primaryName =
-                      hasContact ? contactName.trim() : guest['displayName'];
-
-                  return InkWell(
-                    onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Theme.of(
-                          context,
-                        ).scaffoldBackgroundColor,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(24),
+                              : Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          "Seen (${seenGuests.length})",
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
                           ),
                         ),
-                        builder: (ctx) => UserProfileSheet(
-                          userData: guest,
-                          showAddButton: showAddButton,
-                          isGoated: isGoated,
-                          currentUserId: currentUserId,
-                          onAddFriend: (uid, phone, name) =>
-                              onAddFriend(uid, phone, name),
-                          onReportUser: (uid, name) => onReportUser(uid, name),
-                        ),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 10,
-                        horizontal: 8,
-                      ),
-                      child: Row(
-                        children: [
-                          Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Color(
-                                        guest['avatarColor'],
-                                      ).withValues(alpha: 0.4),
-                                      blurRadius: 8,
-                                      spreadRadius: 1,
-                                    ),
-                                  ],
-                                ),
-                                child: AppAvatar.fromColorValue(
-                                  avatarColor: guest['avatarColor'],
-                                  radius: 22,
-                                  avatarUrl: guest['avatarUrl'],
-                                  displayName: primaryName,
-                                ),
-                              ),
-                              Positioned(
-                                top: -5,
-                                right: -10,
-                                child: Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).cardColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    badgeIcon,
-                                    size: 18,
-                                    color: badgeColor,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Flexible(
-                                      child: Text(
-                                        primaryName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    if (hasContact)
-                                      Padding(
-                                        padding: const EdgeInsets.only(left: 4),
-                                        child: Tooltip(
-                                          message: "From your contacts",
-                                          child: Icon(
-                                            Icons.contact_phone_outlined,
-                                            size: 14,
-                                            color: isDark
-                                                ? Colors.grey.shade400
-                                                : Colors.grey.shade600,
-                                          ),
-                                        ),
-                                      ),
-                                    if (guestUid == hostId)
-                                      const Padding(
-                                        padding: EdgeInsets.only(left: 6),
-                                        child: Icon(
-                                          Symbols.crown,
-                                          size: 18,
-                                          color: Colors.amber,
-                                        ),
-                                      ),
-                                    if (guestUid == coHostId)
-                                      const Padding(
-                                        padding: EdgeInsets.only(left: 6),
-                                        child: Icon(
-                                          Symbols.military_tech,
-                                          size: 16,
-                                          color: Colors.amber,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                if (hasContact &&
-                                    guest['displayName'] != primaryName)
-                                  Text(
-                                    "~ ${guest['displayName']}${(guest['username'] ?? "").isNotEmpty ? ' (@${guest['username']})' : ''}",
-                                    style: TextStyle(
-                                      color: primaryColor,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  )
-                                else if ((guest['username'] ?? "").isNotEmpty)
-                                  Text(
-                                    "@${guest['username']}",
-                                    style: TextStyle(
-                                      color: primaryColor,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          if (showAddButton)
-                            IconButton(
-                              icon: Icon(
-                                Icons.person_add_alt_1,
-                                color: primaryColor,
-                              ),
-                              onPressed: () => onAddFriend(
-                                guestUid,
-                                (guest['phoneNumber'] ?? '').toString(),
-                                guest['displayName'],
-                              ),
-                            ),
-                        ],
-                      ),
+                      ],
                     ),
-                  );
-                },
-              );
-            },
+                  ),
+                )
+              : null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Upfront Team Visibility for Host & Co-host
+              HostTeamBadge(
+                currentUserId: currentUserId,
+                hostId: hostId,
+                coHostId: coHostId,
+                invitedCircles: invitedCircles,
+                inviteAll: inviteAll,
+                coHostInvitedCircles: coHostInvitedCircles,
+                coHostInviteAll: coHostInviteAll,
+                onEditTap: onEditTeamsTap,
+              ),
+
+              // Horizontal Attendees Rail with status filters and View All toggle
+              CrewAttendeesRail(
+                guests: guests,
+                currentUserId: currentUserId,
+                hostId: hostId,
+                coHostId: coHostId,
+                onAddFriend: onAddFriend,
+                onReportUser: onReportUser,
+              ),
+            ],
           ),
         );
       },

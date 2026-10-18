@@ -4,6 +4,7 @@ import '../shared/app_banner_image.dart';
 import '../shared/app_avatar.dart';
 import '../../utils/theme_provider.dart';
 import '../../models/user_profile.dart';
+import '../../services/contact_resolver.dart';
 import '../../services/user_cache_repository.dart';
 
 /// The 16:9 hero image banner with date badge, status pill, title, location and host pill.
@@ -330,9 +331,15 @@ class CardHeroBanner extends StatelessWidget {
                         return const SizedBox.shrink();
                       }
                       final hostProfile = hostSnap.data!;
-                      final hostName = hostProfile.displayName.isNotEmpty
-                          ? hostProfile.displayName
-                          : 'Someone';
+                      final contactName = ContactResolver.instance
+                          .resolveName(hostProfile.phoneNumber);
+                      final bool hasContact = contactName != null &&
+                          contactName.trim().isNotEmpty;
+                      final hostName = hasContact
+                          ? contactName.trim()
+                          : (hostProfile.displayName.isNotEmpty
+                              ? hostProfile.displayName
+                              : 'Someone');
                       final avatarUrl = hostProfile.avatarUrl;
                       final avatarColor = hostProfile.resolvedColor;
                       return GestureDetector(

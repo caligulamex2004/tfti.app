@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../shared/info_card.dart';
-import '../forms/squad_needs_sheet.dart';
+import 'squad_needs_rail.dart';
 
 class EventSquadNeedsCard extends StatelessWidget {
   final bool hasRoles;
@@ -21,61 +20,16 @@ class EventSquadNeedsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!hasRoles) {
+    // If there are no roles and the user cannot edit, hide completely
+    if (!hasRoles && !canEdit) {
       return const SizedBox.shrink();
     }
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
-
-    return InfoCard(
-      title: "Squad Needs",
-      icon: Icons.check_box_outlined,
-      child: InkWell(
-        onTap: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            builder: (ctx) => SquadNeedsSheet(
-              eventId: eventId,
-              hostId: hostId,
-              isPast: isPast,
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: primaryColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.pan_tool, color: primaryColor, size: 24),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  canEdit
-                      ? "Manage items you need help with"
-                      : "See what the captain needs!",
-                  style: TextStyle(
-                    color: isDark ? Colors.white : Colors.black87,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Icon(Icons.arrow_forward_ios, size: 16, color: primaryColor),
-            ],
-          ),
-        ),
-      ),
+    return SquadNeedsRail(
+      eventId: eventId,
+      hostId: hostId,
+      canEdit: canEdit,
+      isPast: isPast,
     );
   }
 }

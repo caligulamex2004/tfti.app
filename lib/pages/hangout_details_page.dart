@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:add_2_calendar/add_2_calendar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -24,6 +25,8 @@ import '../components/details/event_vitals_card.dart';
 import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/shared/app_avatar.dart';
 import '../components/shared/app_banner_image.dart';
+import '../components/shared/user_profile_sheet.dart';
+import '../services/contact_resolver.dart';
 
 class HangoutDetailsPage extends StatefulWidget {
   final String eventId;
@@ -324,9 +327,17 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
       if (weightA != weightB) {
         return weightA.compareTo(weightB);
       }
-      return (a['displayName'] as String).toLowerCase().compareTo(
-        (b['displayName'] as String).toLowerCase(),
-      );
+      final nameA = (ContactResolver.instance.resolveName(a['phoneNumber']) ??
+              a['displayName'] ??
+              '')
+          .toString()
+          .toLowerCase();
+      final nameB = (ContactResolver.instance.resolveName(b['phoneNumber']) ??
+              b['displayName'] ??
+              '')
+          .toString()
+          .toLowerCase();
+      return nameA.compareTo(nameB);
     });
 
     return validGuests;
@@ -457,7 +468,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                     return LayoutBuilder(
                       builder: (context, constraints) {
                         final bool useTwoColumns =
-                            isLandscape || constraints.maxWidth > 600;
+                            constraints.maxWidth >= 700;
                         final String location = data['location'] ?? 'TBD';
 
                         final vitalsCardWidget = EventVitalsCard(
@@ -465,6 +476,13 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                           keepAliveDays: keepAliveDays,
                           location: location,
                           isVibeCheck: isVibeCheck,
+                          margin: useTwoColumns
+                              ? const EdgeInsets.only(
+                                  bottom: 24,
+                                  left: 20,
+                                  right: 10,
+                                )
+                              : null,
                           onCalendarTap: _pushToCalendar,
                           onMapTap: () => _openMap(location),
                         );
@@ -490,6 +508,13 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                           myUid: currentUser.uid,
                           isMainHost: isMainHost,
                           isPast: isPast,
+                          margin: useTwoColumns
+                              ? const EdgeInsets.only(
+                                  bottom: 24,
+                                  left: 10,
+                                  right: 20,
+                                )
+                              : null,
                           cachedCrewFuture: _cachedCrewFuture,
                           onRsvp: _rsvp,
                         );
@@ -500,6 +525,33 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                           currentUserId: currentUser.uid,
                           hostId: data['hostId'],
                           coHostId: data['coHostId'],
+                          invitedCircles: List<String>.from(
+                            data['invitedCircles'] ?? [],
+                          ),
+                          inviteAll: data['inviteAll'] ?? true,
+                          coHostInvitedCircles:
+                              data['coHostInvitedCircles'] != null
+                                  ? List<String>.from(
+                                      data['coHostInvitedCircles'],
+                                    )
+                                  : null,
+                          coHostInviteAll: data['coHostInviteAll'] ?? false,
+                          onEditTeamsTap: canEdit
+                              ? () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => isVibeCheck
+                                        ? VibeCheckEditorPage(
+                                            eventId: widget.eventId,
+                                            eventData: data,
+                                          )
+                                        : HangoutEditorPage(
+                                            eventId: widget.eventId,
+                                            eventData: data,
+                                          ),
+                                  ),
+                                )
+                              : null,
                           onAddFriend: _addFriend,
                           onReportUser: _reportUser,
                         );
@@ -715,25 +767,80 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                     }
                                     final hostData = hostSnap.data!.data()
                                         as Map<String, dynamic>;
-                                    return Row(
-                                      children: [
-                                        AppAvatar.fromColorValue(
-                                          radius: 12,
-                                          avatarColor: hostData['avatarColor'],
-                                          avatarUrl: hostData['avatarUrl'],
-                                          displayName: hostData['displayName'] ?? "S",
-                                          fontSize: 10,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          "Led by ${hostData['displayName'] ?? 'Someone'}",
-                                          style: TextStyle(
-                                            color: primaryColor,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w500,
+                                    final hostPhone =
+                                        (hostData['phoneNumber'] ?? '')
+                                            .toString();
+                                    final contactName = ContactResolver.instance
+                                        .resolveName(hostPhone);
+                                    final bool hasContact = contactName !=
+                                            null &&
+                                        contactName.trim().isNotEmpty;
+                                    final String hostDisplayName = hasContact
+                                        ? contactName.trim()
+                                        : (hostData['displayName'] ??
+                                            'Someone');
+
+                                    return GestureDetector(
+                                      onTap: () {
+                                        HapticFeedback.lightImpact();
+                                        final hostMap =
+                                            Map<String, dynamic>.from(hostData);
+                                        hostMap['uid'] = data['hostId'];
+                                        showModalBottomSheet(
+                                          context: context,
+                                          isScrollControlled: true,
+                                          backgroundColor: Theme.of(context)
+                                              .scaffoldBackgroundColor,
+                                          shape: const RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.vertical(
+                                              top: Radius.circular(24),
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                          builder: (ctx) => UserProfileSheet(
+                                            userData: hostMap,
+                                            currentUserId: currentUser.uid,
+                                            showAddButton: data['hostId'] !=
+                                                currentUser.uid,
+                                            onAddFriend: _addFriend,
+                                            onReportUser: _reportUser,
+                                          ),
+                                        );
+                                      },
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          AppAvatar.fromColorValue(
+                                            radius: 12,
+                                            avatarColor:
+                                                hostData['avatarColor'],
+                                            avatarUrl: hostData['avatarUrl'],
+                                            displayName: hostDisplayName,
+                                            fontSize: 10,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            "Led by $hostDisplayName",
+                                            style: TextStyle(
+                                              color: primaryColor,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          if (hasContact) ...[
+                                            const SizedBox(width: 4),
+                                            Tooltip(
+                                              message: "From your contacts",
+                                              child: Icon(
+                                                Icons.contact_phone_outlined,
+                                                size: 13,
+                                                color: isDark
+                                                    ? Colors.grey.shade400
+                                                    : Colors.grey.shade600,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
                                     );
                                   },
                                 ),
@@ -745,36 +852,39 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                     bottom: 100,
                                   ),
                                   child: useTwoColumns
-                                      ? Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Expanded(
-                                              child: Column(
-                                                children: [
-                                                  vitalsCardWidget,
-                                                  crewCardWidget,
-                                                ],
-                                              ),
+                                      ? Center(
+                                          child: ConstrainedBox(
+                                            constraints: const BoxConstraints(
+                                              maxWidth: 1000,
                                             ),
-                                            Expanded(
-                                              child: Column(
-                                                children: [
-                                                  detailsCardWidget,
-                                                  squadNeedsCardWidget,
-                                                  rsvpCardWidget,
-                                                ],
-                                              ),
+                                            child: Column(
+                                              children: [
+                                                Row(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Expanded(
+                                                      child: vitalsCardWidget,
+                                                    ),
+                                                    Expanded(
+                                                      child: rsvpCardWidget,
+                                                    ),
+                                                  ],
+                                                ),
+                                                detailsCardWidget,
+                                                crewCardWidget,
+                                                squadNeedsCardWidget,
+                                              ],
                                             ),
-                                          ],
+                                          ),
                                         )
                                       : Column(
                                           children: [
                                             vitalsCardWidget,
-                                            detailsCardWidget,
-                                            squadNeedsCardWidget,
-                                            rsvpCardWidget,
                                             crewCardWidget,
+                                            squadNeedsCardWidget,
+                                            detailsCardWidget,
+                                            rsvpCardWidget,
                                           ],
                                         ),
                                 ),

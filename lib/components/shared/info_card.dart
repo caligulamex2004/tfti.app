@@ -6,6 +6,7 @@ class InfoCard extends StatelessWidget {
   final Widget child;
   final Widget? trailing;
   final VoidCallback? onIconTap;
+  final EdgeInsetsGeometry? margin;
 
   const InfoCard({
     super.key,
@@ -14,6 +15,7 @@ class InfoCard extends StatelessWidget {
     required this.child,
     this.trailing,
     this.onIconTap,
+    this.margin,
   });
 
   @override
@@ -22,28 +24,27 @@ class InfoCard extends StatelessWidget {
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 24, left: 20, right: 20),
+      margin: margin ?? const EdgeInsets.only(bottom: 24, left: 20, right: 20),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
           width: 1,
         ),
         boxShadow: [
-          if (!isDark)
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
             child: Row(
               children: [
                 Material(
@@ -53,18 +54,19 @@ class InfoCard extends StatelessWidget {
                     onTap: onIconTap,
                     customBorder: const CircleBorder(),
                     child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Icon(icon, color: primaryColor, size: 20),
+                      padding: const EdgeInsets.all(7.0),
+                      child: Icon(icon, color: primaryColor, size: 18),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    title,
+                    title.toUpperCase(),
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 13,
                       fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
                       color: isDark ? Colors.white : Colors.black87,
                     ),
                   ),
