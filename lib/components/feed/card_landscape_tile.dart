@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import '../shared/app_banner_image.dart';
-import '../../utils/theme_provider.dart';
+import '../shared/event_type_pill.dart';
+import 'default_event_banner.dart';
+import '../../utils/event_type_visuals.dart';
 
 /// The compact tile used for horizontal landscape split view lists.
 class CardLandscapeTile extends StatelessWidget {
@@ -44,6 +46,7 @@ class CardLandscapeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
+    final typeVisuals = EventTypeVisuals.forType(isVibeCheck: isVibeCheck);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -90,10 +93,9 @@ class CardLandscapeTile extends StatelessWidget {
                             imageUrl: bannerUrl!,
                             fit: BoxFit.cover,
                           )
-                        : Container(
-                            decoration: BoxDecoration(
-                              gradient: themeProvider.appGradient,
-                            ),
+                        : DefaultEventBanner.thumbnail(
+                            isVibeCheck: isVibeCheck,
+                            thumbnailSize: 60,
                           ),
                   ),
                   const SizedBox(width: 16),
@@ -139,6 +141,17 @@ class CardLandscapeTile extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 4),
+                        EventTypePill(
+                          isVibeCheck: isVibeCheck,
+                          fontSize: 9,
+                          iconSize: 10,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          borderRadius: 8,
+                        ),
+                        const SizedBox(height: 4),
                         Text(
                           title,
                           style: TextStyle(
@@ -172,25 +185,25 @@ class CardLandscapeTile extends StatelessWidget {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: primaryColor.withValues(alpha: 0.1),
+                    color: typeVisuals.primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: primaryColor.withValues(alpha: 0.3),
+                      color: typeVisuals.primaryColor.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        isVibeCheck ? Icons.how_to_vote : Symbols.mail,
-                        color: primaryColor,
+                        isVibeCheck ? Symbols.earthquake : Icons.how_to_vote,
+                        color: typeVisuals.primaryColor,
                         size: 16,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         isVibeCheck ? "Tap to Vote" : "Tap to RSVP",
                         style: TextStyle(
-                          color: primaryColor,
+                          color: typeVisuals.primaryColor,
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
                         ),

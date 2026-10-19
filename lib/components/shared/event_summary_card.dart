@@ -135,8 +135,8 @@ class EventSummaryCard extends StatelessWidget {
             "Starting Soon",
           ),
           (_, _, _, _, true) => (
-            isVibeCheck ? Icons.how_to_vote : Symbols.mail,
-            Colors.orangeAccent,
+            isVibeCheck ? Symbols.earthquake : Icons.how_to_vote,
+            isVibeCheck ? const Color(0xFFF59E0B) : const Color(0xFF3B82F6),
             isVibeCheck ? "Vote Needed" : "Action Needed",
           ),
           _ => (Icons.check_circle, Colors.greenAccent, "You're going"),
@@ -181,7 +181,14 @@ class EventSummaryCard extends StatelessWidget {
         left: isHorizontal ? 8 : 0,
       ),
       decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.12)
+              : Colors.black.withValues(alpha: 0.06),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),

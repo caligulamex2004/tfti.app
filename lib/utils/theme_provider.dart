@@ -69,14 +69,22 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.dark => const LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [Colors.black, Colors.black],
+      colors: [Color(0xFF0F051D), Color(0xFF28104E), Color(0xFF1E0A3C)],
     ),
-    AppTheme.electricAmber ||
-    AppTheme.cyberPunk ||
+    AppTheme.electricAmber => const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0xFF1F1400), Color(0xFF3E2800), Color(0xFF140D00)],
+    ),
+    AppTheme.cyberPunk => const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0xFF041924), Color(0xFF00383C), Color(0xFF02131C)],
+    ),
     AppTheme.beyondDark => const LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [Color(0xFF2D2D2D), Color(0xFF000000)],
+      colors: [Color(0xFF1A0505), Color(0xFF3B0A0A), Color(0xFF120303)],
     ),
     AppTheme.velvetDust => const LinearGradient(
       begin: Alignment.topLeft,

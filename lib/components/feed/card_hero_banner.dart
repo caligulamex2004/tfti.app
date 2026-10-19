@@ -1,9 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:material_symbols_icons/symbols.dart';
 import '../shared/app_banner_image.dart';
 import '../shared/app_avatar.dart';
-import '../../utils/theme_provider.dart';
+import '../shared/event_type_pill.dart';
+import 'default_event_banner.dart';
 import '../../models/user_profile.dart';
 import '../../services/contact_resolver.dart';
 import '../../services/user_cache_repository.dart';
@@ -47,33 +47,42 @@ class CardHeroBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool hasCustomBanner =
+        bannerUrl != null && bannerUrl!.isNotEmpty;
+
     return AspectRatio(
       aspectRatio: 16 / 9,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (bannerUrl != null && bannerUrl!.isNotEmpty)
+          if (hasCustomBanner)
             AppBannerImage(
               imageUrl: bannerUrl!,
               fit: BoxFit.cover,
             )
           else
-            Container(
-              decoration: BoxDecoration(
-                gradient: themeProvider.appGradient,
-              ),
+            DefaultEventBanner(
+              isVibeCheck: isVibeCheck,
             ),
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withValues(alpha: 0.1),
-                  Colors.black.withValues(alpha: 0.85),
-                ],
-                stops: const [0.4, 0.7, 1.0],
+                colors: hasCustomBanner
+                    ? [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.1),
+                        Colors.black.withValues(alpha: 0.85),
+                      ]
+                    : [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.05),
+                        Colors.black.withValues(alpha: 0.5),
+                      ],
+                stops: hasCustomBanner
+                    ? const [0.4, 0.7, 1.0]
+                    : const [0.4, 0.75, 1.0],
               ),
             ),
           ),
@@ -213,40 +222,7 @@ class CardHeroBanner extends StatelessWidget {
                           ],
                         ),
                       ),
-                    if (isVibeCheck)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.4),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Symbols.earthquake,
-                              size: 12,
-                              color: Colors.white,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              "VIBE CHECK",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    EventTypePill(isVibeCheck: isVibeCheck),
                     if (keepAliveDays > 0)
                       Container(
                         padding: const EdgeInsets.symmetric(

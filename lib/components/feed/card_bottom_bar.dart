@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'last_message_avatar.dart';
+import '../../utils/event_type_visuals.dart';
 
 /// The bottom bar of the EventSummaryCard showing RSVP actions or the chat snippet.
 class CardBottomBar extends StatelessWidget {
@@ -26,6 +27,7 @@ class CardBottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
+    final typeVisuals = EventTypeVisuals.forType(isVibeCheck: isVibeCheck);
 
     return Container(
       color: Theme.of(context).cardColor,
@@ -37,15 +39,15 @@ class CardBottomBar extends StatelessWidget {
           ? Row(
               children: [
                 Icon(
-                  isVibeCheck ? Icons.how_to_vote : Symbols.mail,
-                  color: primaryColor,
+                  isVibeCheck ? Symbols.earthquake : Icons.how_to_vote,
+                  color: typeVisuals.primaryColor,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   isVibeCheck ? "Tap to cast your vote" : "Tap to RSVP",
                   style: TextStyle(
-                    color: primaryColor,
+                    color: typeVisuals.primaryColor,
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
@@ -53,7 +55,7 @@ class CardBottomBar extends StatelessWidget {
                 const Spacer(),
                 Icon(
                   Icons.arrow_forward,
-                  color: primaryColor,
+                  color: typeVisuals.primaryColor,
                   size: 16,
                 ),
               ],
