@@ -147,5 +147,65 @@ void main() {
 
       expect(find.byIcon(Symbols.star), findsOneWidget);
     });
+
+    testWidgets('renders contactName when isSelf is false', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: TcgProfileCard(
+                displayName: 'User C',
+                username: 'user_c',
+                statusText: 'Chilling',
+                hp: 100,
+                mana: 50,
+                originDate: 'Joined Oct 2026',
+                showPhone: false,
+                displayPhone: '',
+                avatarColor: Colors.blue,
+                contactName: 'User A',
+                isSelf: false,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('User A'), findsOneWidget);
+      expect(find.textContaining('User C'), findsOneWidget);
+      expect(find.byIcon(Icons.contact_phone_outlined), findsOneWidget);
+    });
+
+    testWidgets('ignores contactName and shows displayName when isSelf is true', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: TcgProfileCard(
+                displayName: 'User C',
+                username: 'user_c',
+                statusText: 'Chilling',
+                hp: 100,
+                mana: 50,
+                originDate: 'Joined Oct 2026',
+                showPhone: false,
+                displayPhone: '',
+                avatarColor: Colors.blue,
+                contactName: 'User A',
+                isSelf: true,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Should display User C in the title RichText and not display User A or the contacts icon
+      final richTextFinder = find.byWidgetPredicate(
+        (w) => w is RichText && w.text.toPlainText().contains('User C'),
+      );
+      expect(richTextFinder, findsOneWidget);
+      expect(find.text('User A'), findsNothing);
+      expect(find.byIcon(Icons.contact_phone_outlined), findsNothing);
+    });
   });
 }

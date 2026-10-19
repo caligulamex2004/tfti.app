@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import '../shared/app_avatar.dart';
@@ -27,10 +28,16 @@ class TeamMemberTile extends StatelessWidget {
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     final String uid = profile['uid'];
+    String currentUserId = "";
+    try {
+      currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
+    } catch (_) {}
+    final bool isMe = uid.isNotEmpty && uid == currentUserId;
     final String displayName = profile['displayName'] ?? "Unknown";
     final String username = profile['username'] ?? "";
     final String rawPhone = profile['phoneNumber'] ?? "";
-    final String? contactName = ContactResolver.instance.resolveName(rawPhone);
+    final String? contactName =
+        isMe ? null : ContactResolver.instance.resolveName(rawPhone);
     final bool hasContactName =
         contactName != null && contactName.trim().isNotEmpty;
     final String primaryName = hasContactName

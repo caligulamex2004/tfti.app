@@ -105,6 +105,12 @@
       right: 0;
     }
   </style>
+  <!-- Hide Google reCAPTCHA v2/v3 floating badge per Google Terms (attribution displayed in UI) -->
+  <style>
+    .grecaptcha-badge {
+      visibility: hidden !important;
+    }
+  </style>
   <script id="splash-screen-script">
     function removeSplashFromWeb() {
       document.getElementById("splash")?.remove();

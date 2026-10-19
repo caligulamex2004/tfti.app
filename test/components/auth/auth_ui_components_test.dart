@@ -157,5 +157,31 @@ void main() {
       expect(textWidget.style?.decoration, equals(TextDecoration.underline));
       expect(textWidget.style?.color, equals(const Color(0xFF1D73CB)));
     });
+
+    testWidgets('RecaptchaDisclosure renders attribution text and clickable links', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: RecaptchaDisclosure(),
+          ),
+        ),
+      );
+
+      expect(find.byType(RecaptchaDisclosure), findsOneWidget);
+      expect(find.text('Privacy Policy'), findsOneWidget);
+      expect(find.text('Terms of Service'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is RichText && w.text.toPlainText().contains('This site is protected by reCAPTCHA and the Google'),
+        ),
+        findsOneWidget,
+      );
+
+      // Tapping links executes cleanly without unhandled exceptions
+      await tester.tap(find.text('Privacy Policy'));
+      await tester.pump();
+      await tester.tap(find.text('Terms of Service'));
+      await tester.pump();
+    });
   });
 }

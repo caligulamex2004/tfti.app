@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../utils/theme_provider.dart';
 
 // --- AUTH TEXT FIELD ---
@@ -159,6 +160,83 @@ class AuthCheckbox extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// --- RECAPTCHA TERMS DISCLOSURE ---
+class RecaptchaDisclosure extends StatelessWidget {
+  const RecaptchaDisclosure({super.key});
+
+  static const String privacyPolicyUrl = "https://policies.google.com/privacy";
+  static const String termsOfServiceUrl = "https://policies.google.com/terms";
+
+  Future<void> _launchExternal(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint("Could not launch $url: $e");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final mutedColor = isDark ? Colors.grey.shade500 : Colors.grey.shade600;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10.0, bottom: 4.0),
+      child: Text.rich(
+        TextSpan(
+          text: "This site is protected by reCAPTCHA and the Google ",
+          style: TextStyle(
+            fontSize: 11,
+            color: mutedColor,
+            height: 1.35,
+          ),
+          children: [
+            WidgetSpan(
+              alignment: PlaceholderAlignment.baseline,
+              baseline: TextBaseline.alphabetic,
+              child: InkWell(
+                onTap: () => _launchExternal(privacyPolicyUrl),
+                child: Text(
+                  "Privacy Policy",
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: primaryColor,
+                    decoration: TextDecoration.underline,
+                    decorationColor: primaryColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            const TextSpan(text: " and "),
+            WidgetSpan(
+              alignment: PlaceholderAlignment.baseline,
+              baseline: TextBaseline.alphabetic,
+              child: InkWell(
+                onTap: () => _launchExternal(termsOfServiceUrl),
+                child: Text(
+                  "Terms of Service",
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: primaryColor,
+                    decoration: TextDecoration.underline,
+                    decorationColor: primaryColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            const TextSpan(text: " apply."),
+          ],
+        ),
+        textAlign: TextAlign.center,
+      ),
     );
   }
 }

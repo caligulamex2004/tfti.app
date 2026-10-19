@@ -804,8 +804,12 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                     final hostPhone =
                                         (hostData['phoneNumber'] ?? '')
                                             .toString();
-                                    final contactName = ContactResolver.instance
-                                        .resolveName(hostPhone);
+                                    final bool isHostMe =
+                                        data['hostId'] == currentUser.uid;
+                                    final contactName = isHostMe
+                                        ? null
+                                        : ContactResolver.instance
+                                            .resolveName(hostPhone);
                                     final bool hasContact = contactName !=
                                             null &&
                                         contactName.trim().isNotEmpty;

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,21 +10,111 @@ import 'contact_service.dart';
 /// Matches normalized phone numbers to local address book display names
 /// without transmitting contact book names to any cloud server or database.
 class ContactResolver extends ChangeNotifier {
-  ContactResolver._internal();
+  ContactResolver._internal() {
+    _initAuthListenerSafely();
+  }
   static final ContactResolver instance = ContactResolver._internal();
 
   static const String _prefKeyGranted = 'contacts_permission_granted';
 
   final Map<String, String> _phoneToNameCache = {};
+  String? _currentUserPhone;
   bool _isWarmingUp = false;
   bool _hasWarmedUp = false;
   bool _listenerRegistered = false;
 
+  void _initAuthListenerSafely() {
+    try {
+      FirebaseAuth.instance.authStateChanges().listen((user) {
+        if (user != null) {
+          if (user.phoneNumber != null && user.phoneNumber!.isNotEmpty) {
+            setCurrentUserPhone(user.phoneNumber);
+          } else {
+            unawaited(_checkCurrentUserPhone());
+          }
+        } else {
+          setCurrentUserPhone(null);
+        }
+      });
+    } catch (_) {
+      // Firebase might not be initialized in headless test environments
+    }
+  }
+
+  /// Sets or clears the current user's phone number to ignore from address book matching.
+  void setCurrentUserPhone(String? phone) {
+    final normalized =
+        phone != null ? ContactHelper.normalizePhone(phone) : null;
+    if (_currentUserPhone != normalized) {
+      _currentUserPhone = normalized;
+      if (normalized != null) {
+        _phoneToNameCache.remove(normalized);
+      }
+      notifyListeners();
+    }
+  }
+
+  /// Current user's normalized phone number, if known.
+  String? get currentUserPhone => _currentUserPhone;
+
+  /// Returns true if [normalizedPhone] matches the current user's phone number.
+  bool isCurrentUserPhone(String normalizedPhone) {
+    if (_currentUserPhone != null && _currentUserPhone == normalizedPhone) {
+      return true;
+    }
+    try {
+      final authPhone = FirebaseAuth.instance.currentUser?.phoneNumber;
+      if (authPhone != null && authPhone.isNotEmpty) {
+        final norm = ContactHelper.normalizePhone(authPhone);
+        if (norm != null && norm == normalizedPhone) {
+          return true;
+        }
+      }
+    } catch (_) {
+      // Firebase might not be initialized in headless test environments
+    }
+    return false;
+  }
+
+  Future<void> _checkCurrentUserPhone() async {
+    if (_currentUserPhone != null && _currentUserPhone!.isNotEmpty) return;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      if (user.phoneNumber != null && user.phoneNumber!.isNotEmpty) {
+        final norm = ContactHelper.normalizePhone(user.phoneNumber!);
+        if (norm != null) {
+          _currentUserPhone = norm;
+          _phoneToNameCache.remove(norm);
+          return;
+        }
+      }
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (doc.exists) {
+        final phone = doc.data()?['phoneNumber']?.toString();
+        if (phone != null && phone.isNotEmpty) {
+          final norm = ContactHelper.normalizePhone(phone);
+          if (norm != null) {
+            _currentUserPhone = norm;
+            _phoneToNameCache.remove(norm);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error checking current user phone in ContactResolver: $e");
+    }
+  }
+
   /// Returns the cached local contact name for a phone number if known, or null.
+  /// Never matches the current user's own phone number.
   String? resolveName(String? rawPhone) {
     if (rawPhone == null || rawPhone.isEmpty) return null;
     final normalized = ContactHelper.normalizePhone(rawPhone);
     if (normalized == null) return null;
+    if (isCurrentUserPhone(normalized)) return null;
     return _phoneToNameCache[normalized];
   }
 
@@ -66,6 +158,8 @@ class ContactResolver extends ChangeNotifier {
     _isWarmingUp = true;
 
     try {
+      await _checkCurrentUserPhone();
+
       final contacts = await FlutterContacts.getContacts(
         withProperties: true,
         withPhoto: false,
@@ -79,6 +173,7 @@ class ContactResolver extends ChangeNotifier {
         for (final p in contact.phones) {
           final normalized = ContactHelper.normalizePhone(p.number);
           if (normalized != null &&
+              !isCurrentUserPhone(normalized) &&
               !_phoneToNameCache.containsKey(normalized)) {
             _phoneToNameCache[normalized] = name;
           }
@@ -109,11 +204,16 @@ class ContactResolver extends ChangeNotifier {
 
   /// Seeds the cache for unit and widget tests and notifies listeners.
   @visibleForTesting
-  void seedForTest(Map<String, String> entries) {
+  void seedForTest(Map<String, String> entries, {String? currentUserPhone}) {
     _phoneToNameCache.clear();
+    if (currentUserPhone != null) {
+      _currentUserPhone = ContactHelper.normalizePhone(currentUserPhone);
+    }
     entries.forEach((phone, name) {
       final normalized = ContactHelper.normalizePhone(phone) ?? phone;
-      _phoneToNameCache[normalized] = name;
+      if (!isCurrentUserPhone(normalized)) {
+        _phoneToNameCache[normalized] = name;
+      }
     });
     _hasWarmedUp = true;
     notifyListeners();
@@ -123,6 +223,7 @@ class ContactResolver extends ChangeNotifier {
   @visibleForTesting
   void clearForTest() {
     _phoneToNameCache.clear();
+    _currentUserPhone = null;
     _hasWarmedUp = false;
     notifyListeners();
   }

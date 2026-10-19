@@ -331,7 +331,11 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(isEditing ? "Changes saved!" : "Hangout deployed!"),
+              content: Text(
+                isEditing
+                    ? "Changes saved!"
+                    : "It's official! Crew notified! 📨",
+              ),
               backgroundColor: Colors.green,
             ),
           );
@@ -638,7 +642,8 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     final String appBarTitle = isEditing ? "Manage Hangout" : "Create Hangout";
-    final String submitText = isEditing ? "Save Changes" : "Deploy Hangout";
+    final String submitText =
+        isEditing ? "Save Changes" : "Throw it out there";
 
     return PopScope(
       canPop: !_hasUnsavedChanges(),
@@ -707,7 +712,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
-                                      isEditing ? "Save" : "Deploy",
+                                      isEditing ? "Save" : "Go!",
                                       style: TextStyle(
                                         color: themeProvider.onPrimaryColor,
                                         fontSize: 13,

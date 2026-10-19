@@ -49,6 +49,8 @@ void main() {
         expect(html, contains('twitter:card'));
         expect(html, contains('favicon.png'));
         expect(html, contains('favicon.ico'));
+        expect(html, contains('.grecaptcha-badge'));
+        expect(html, contains('visibility: hidden !important;'));
       },
     );
 

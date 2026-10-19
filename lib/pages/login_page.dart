@@ -523,6 +523,9 @@ class _LoginPageState extends State<LoginPage> {
                                   : () => _verifyPhone(isResend: false),
                             ),
 
+                            // Google reCAPTCHA Compliance Disclosure
+                            const RecaptchaDisclosure(),
+
                             const SizedBox(height: 16),
 
                             // --- TOGGLE MODE FOOTER ---

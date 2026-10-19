@@ -72,8 +72,15 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
     }
 
     String getEffectiveName(Map<String, dynamic> item) {
+      final uid = item['uid'] ?? '';
+      String? currentUid;
+      try {
+        currentUid = FirebaseAuth.instance.currentUser?.uid;
+      } catch (_) {}
+      final bool isMe = currentUid != null && uid == currentUid;
       final phone = item['phoneNumber'] as String?;
-      final contactName = ContactResolver.instance.resolveName(phone);
+      final contactName =
+          isMe ? null : ContactResolver.instance.resolveName(phone);
       if (contactName != null && contactName.trim().isNotEmpty) {
         return contactName.trim().toLowerCase();
       }
@@ -489,8 +496,10 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                               "Unknown";
                                           final String rawPhone =
                                               profile['phoneNumber'] ?? "";
-                                          final String? contactName =
-                                              ContactResolver.instance
+                                          final bool isMe = uid == user.uid;
+                                          final String? contactName = isMe
+                                              ? null
+                                              : ContactResolver.instance
                                                   .resolveName(rawPhone);
                                           final String effectiveName =
                                               (contactName != null &&

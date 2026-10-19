@@ -272,8 +272,10 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
           final String? avatarUrl = guest['avatarUrl'];
 
           final guestPhone = (guest['phoneNumber'] ?? '').toString();
-          final contactName =
-              ContactResolver.instance.resolveName(guestPhone);
+          final bool isMe = guestUid == widget.currentUserId;
+          final contactName = isMe
+              ? null
+              : ContactResolver.instance.resolveName(guestPhone);
           final bool hasContact =
               contactName != null && contactName.trim().isNotEmpty;
           final String primaryName =
@@ -564,8 +566,10 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
                 : false;
 
             final guestPhone = (guest['phoneNumber'] ?? '').toString();
-            final contactName =
-                ContactResolver.instance.resolveName(guestPhone);
+            final bool isMe = guestUid == widget.currentUserId;
+            final contactName = isMe
+                ? null
+                : ContactResolver.instance.resolveName(guestPhone);
             final bool hasContact =
                 contactName != null && contactName.trim().isNotEmpty;
             final String primaryName =

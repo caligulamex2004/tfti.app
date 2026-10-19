@@ -36,9 +36,11 @@ class UserProfileSheet extends StatelessWidget {
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     final String targetUid = userData['uid'] ?? userData['id'] ?? "";
+    final bool isSelf = targetUid.isNotEmpty && targetUid == currentUserId;
     final String displayName = userData['displayName'] ?? "No Name";
     final String rawPhone = userData['phoneNumber'] ?? "";
-    final String? contactName = ContactResolver.instance.resolveName(rawPhone);
+    final String? contactName =
+        isSelf ? null : ContactResolver.instance.resolveName(rawPhone);
 
     final Timestamp? createdAt =
         userData['createdAt'] ?? userData['created_at'];
@@ -87,6 +89,7 @@ class UserProfileSheet extends StatelessWidget {
                         : Colors.blue.shade100,
                     isGoated: isGoated,
                     contactName: contactName,
+                    isSelf: isSelf,
                   ),
                 ),
 

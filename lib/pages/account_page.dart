@@ -503,6 +503,7 @@ class _AccountPageState extends State<AccountPage> {
           avatarUrl: _avatarUrl,
           avatarColor: Color(_selectedColorValue),
           isGoated: false,
+          isSelf: true,
           onAvatarTap: _showAvatarOptions,
           isUploadingAvatar: _isUploadingAvatar,
         ),

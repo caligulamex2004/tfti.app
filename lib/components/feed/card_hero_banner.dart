@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import '../shared/app_banner_image.dart';
@@ -331,8 +332,16 @@ class CardHeroBanner extends StatelessWidget {
                         return const SizedBox.shrink();
                       }
                       final hostProfile = hostSnap.data!;
-                      final contactName = ContactResolver.instance
-                          .resolveName(hostProfile.phoneNumber);
+                      String? currentUid;
+                      try {
+                        currentUid = FirebaseAuth.instance.currentUser?.uid;
+                      } catch (_) {}
+                      final bool isMe =
+                          currentUid != null && hostId == currentUid;
+                      final contactName = isMe
+                          ? null
+                          : ContactResolver.instance
+                              .resolveName(hostProfile.phoneNumber);
                       final bool hasContact = contactName != null &&
                           contactName.trim().isNotEmpty;
                       final hostName = hasContact

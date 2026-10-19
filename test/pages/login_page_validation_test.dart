@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tftiapp/components/auth/auth_ui_components.dart';
 import 'package:tftiapp/pages/login_page.dart';
 
 void main() {
@@ -17,6 +18,7 @@ void main() {
       expect(find.text('Welcome Back'), findsOneWidget);
       expect(find.text('Enter your number to login.'), findsOneWidget);
       expect(find.text('Get Login Code'), findsOneWidget);
+      expect(find.byType(RecaptchaDisclosure), findsOneWidget);
       expect(find.text("Don't have an account?"), findsOneWidget);
       expect(find.text('Sign Up'), findsOneWidget);
 
@@ -31,6 +33,7 @@ void main() {
       await tester.pumpWidget(buildLoginPage());
 
       // Tap Sign Up toggle in footer
+      await tester.ensureVisible(find.text('Sign Up'));
       await tester.tap(find.text('Sign Up'));
       await tester.pumpAndSettle();
 

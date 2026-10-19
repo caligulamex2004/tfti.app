@@ -35,10 +35,12 @@ class FriendListTile extends StatelessWidget {
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     final String uid = userData['uid'];
+    final bool isMe = uid == currentUserId;
     final String displayName = userData['displayName'] ?? "No Name";
     final String username = userData['username'] ?? "";
     final String rawPhone = userData['phoneNumber'] ?? "";
-    final String? contactName = ContactResolver.instance.resolveName(rawPhone);
+    final String? contactName =
+        isMe ? null : ContactResolver.instance.resolveName(rawPhone);
     final bool hasContactName =
         contactName != null && contactName.trim().isNotEmpty;
     final String primaryName =

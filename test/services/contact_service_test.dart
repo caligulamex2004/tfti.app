@@ -95,5 +95,26 @@ void main() {
       final cache = ContactResolver.instance.cache;
       expect(() => cache['+15551234567'] = 'Test', throwsUnsupportedError);
     });
+
+    test('ignores current user phone number from resolving to contact name', () {
+      ContactResolver.instance.clearForTest();
+      ContactResolver.instance.setCurrentUserPhone('+15550001111');
+
+      ContactResolver.instance.seedForTest({
+        '+15550001111': 'User A', // Current user's phone saved under User A
+        '+15552223333': 'Bob Friend',
+      }, currentUserPhone: '+15550001111');
+
+      // The user's own phone number must return null
+      expect(ContactResolver.instance.resolveName('+15550001111'), isNull);
+      expect(ContactResolver.instance.resolveName('555-000-1111'), isNull);
+
+      // Other contacts must resolve normally
+      expect(ContactResolver.instance.resolveName('+15552223333'), 'Bob Friend');
+      expect(ContactResolver.instance.resolveName('555-222-3333'), 'Bob Friend');
+
+      // Cleanup
+      ContactResolver.instance.clearForTest();
+    });
   });
 }

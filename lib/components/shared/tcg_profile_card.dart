@@ -16,6 +16,7 @@ class TcgProfileCard extends StatelessWidget {
   final Color avatarColor;
   final bool isGoated;
   final String? contactName;
+  final bool isSelf;
 
   // Account Page Edit Features
   final VoidCallback? onAvatarTap;
@@ -35,6 +36,7 @@ class TcgProfileCard extends StatelessWidget {
     required this.avatarColor,
     this.isGoated = false,
     this.contactName,
+    this.isSelf = false,
     this.onAvatarTap,
     this.isUploadingAvatar = false,
   });
@@ -136,10 +138,11 @@ class TcgProfileCard extends StatelessWidget {
     }
 
     final double avatarSize = isLandscape ? 120 : 160;
-    final String effectiveName =
-        (contactName != null && contactName!.trim().isNotEmpty)
-            ? contactName!.trim()
-            : displayName.trim();
+    final String effectiveName = (!isSelf &&
+            contactName != null &&
+            contactName!.trim().isNotEmpty)
+        ? contactName!.trim()
+        : displayName.trim();
     final String monogram = effectiveName.isNotEmpty
         ? effectiveName[0].toUpperCase()
         : "?";
@@ -238,7 +241,8 @@ class TcgProfileCard extends StatelessWidget {
       );
     }
 
-    final bool hasContact = contactName != null &&
+    final bool hasContact = !isSelf &&
+        contactName != null &&
         contactName!.trim().isNotEmpty &&
         contactName!.trim() != displayName.trim();
 

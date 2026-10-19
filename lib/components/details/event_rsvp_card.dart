@@ -344,8 +344,11 @@ class EventRsvpCard extends StatelessWidget {
     final displayAvatars = goingList.take(3).toList();
 
     String resolveGuestName(Map<String, dynamic> guest) {
+      final guestUid = (guest['uid'] ?? '').toString();
+      final bool isMe = guestUid == myUid;
       final phone = (guest['phoneNumber'] ?? '').toString();
-      final contactName = ContactResolver.instance.resolveName(phone);
+      final contactName =
+          isMe ? null : ContactResolver.instance.resolveName(phone);
       if (contactName != null && contactName.trim().isNotEmpty) {
         return contactName.trim();
       }

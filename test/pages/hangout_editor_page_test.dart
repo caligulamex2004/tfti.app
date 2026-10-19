@@ -19,7 +19,7 @@ void main() {
   });
 
   group('HangoutEditorPage Tests', () {
-    testWidgets('Renders SharedSliverAppBar with Deploy pill and all cards in create mode', (
+    testWidgets('Renders SharedSliverAppBar with Go! pill and all cards in create mode', (
       WidgetTester tester,
     ) async {
       tester.view.physicalSize = const Size(800, 1400);
@@ -39,7 +39,7 @@ void main() {
       // Header & Quick Action Pill
       expect(find.byType(SharedSliverAppBar), findsOneWidget);
       expect(find.text('Create Hangout'), findsWidgets);
-      expect(find.text('Deploy'), findsWidgets);
+      expect(find.text('Go!'), findsWidgets);
 
       // Core Form Cards
       expect(find.byType(BannerPicker), findsOneWidget);
@@ -47,6 +47,7 @@ void main() {
       expect(find.byType(ExtrasFormCard), findsOneWidget);
       expect(find.byType(CrewFormCard), findsOneWidget);
       expect(find.byType(EditorActionButtons), findsOneWidget);
+      expect(find.text('Throw it out there'), findsWidgets);
 
       // Verify Card Titles are uppercased matching InfoCard
       expect(find.text('THE VITALS'), findsOneWidget);
