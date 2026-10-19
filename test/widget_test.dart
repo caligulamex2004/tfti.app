@@ -93,22 +93,22 @@ void main() {
       );
     }
 
-    // keepAliveDays: 1 -> "1 Day"
+    // keepAliveDays: 1 -> "⏱️ 1 Day"
     await tester.pumpWidget(buildVitals(1));
-    expect(find.text('1 Day'), findsOneWidget);
+    expect(find.textContaining('1 Day'), findsOneWidget);
 
-    // keepAliveDays: 7 -> "1 Week"
+    // keepAliveDays: 7 -> "⏱️ 1 Week"
     await tester.pumpWidget(buildVitals(7));
-    expect(find.text('1 Week'), findsOneWidget);
+    expect(find.textContaining('1 Week'), findsOneWidget);
 
-    // keepAliveDays: 3 -> "3 Days"
+    // keepAliveDays: 3 -> "⏱️ 3 Days"
     await tester.pumpWidget(buildVitals(3));
-    expect(find.text('3 Days'), findsOneWidget);
+    expect(find.textContaining('3 Days'), findsOneWidget);
 
     // keepAliveDays: 0 -> no duration pill
     await tester.pumpWidget(buildVitals(0));
-    expect(find.text('1 Day'), findsNothing);
-    expect(find.text('1 Week'), findsNothing);
+    expect(find.textContaining('1 Day'), findsNothing);
+    expect(find.textContaining('1 Week'), findsNothing);
   });
 
   testWidgets('RecurringSeasonToggle configures recurring frequency and instance limits', (WidgetTester tester) async {

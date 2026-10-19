@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../shared/rpg_glass_card.dart';
 
 class VibeHostActionsCard extends StatelessWidget {
@@ -22,70 +23,71 @@ class VibeHostActionsCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Padding(
-      padding: const EdgeInsets.only(top: 24.0),
+      padding: const EdgeInsets.only(top: 8.0),
       child: RpgGlassCard(
         title: "Host Actions",
-        icon: Icons.admin_panel_settings,
+        icon: Icons.admin_panel_settings_outlined,
         iconColor: Colors.amber,
         child: Column(
           children: [
             SizedBox(
               width: double.infinity,
-              height: 55,
-              child: OutlinedButton.icon(
-                onPressed: onConvert,
-                icon: Icon(
-                  Icons.done_all,
-                  color: isDark ? Colors.greenAccent : Colors.green,
-                ),
-                label: Text(
+              height: 56,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  onConvert();
+                },
+                icon: const Icon(Icons.workspace_premium, size: 20),
+                label: const Text(
                   "Lock In Winner & Convert",
                   style: TextStyle(
-                    color: isDark ? Colors.greenAccent : Colors.green,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(
-                    color: isDark
-                        ? Colors.greenAccent.withValues(alpha: 0.5)
-                        : Colors.green.withValues(alpha: 0.5),
-                    width: 1.5,
-                  ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isDark
+                      ? Colors.green.shade800
+                      : Colors.green.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 2,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
-              height: 55,
+              height: 52,
               child: OutlinedButton.icon(
-                onPressed: onDelete,
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  onDelete();
+                },
                 icon: Icon(
-                  Icons.delete,
+                  Icons.delete_outline,
                   color: isDark ? Colors.redAccent : Colors.red,
+                  size: 20,
                 ),
                 label: Text(
                   "Delete Vibe Check",
                   style: TextStyle(
                     color: isDark ? Colors.redAccent : Colors.red,
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(
-                    color: isDark
-                        ? Colors.redAccent.withValues(alpha: 0.5)
-                        : Colors.red.withValues(alpha: 0.5),
+                    color: (isDark ? Colors.redAccent : Colors.red)
+                        .withValues(alpha: 0.4),
                     width: 1.5,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                 ),
               ),

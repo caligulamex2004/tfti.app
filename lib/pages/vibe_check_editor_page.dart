@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/forms/vibe_options_card.dart';
 import '../components/forms/crew_form_card.dart';
 import '../components/forms/vibe_host_actions_card.dart';
@@ -344,46 +346,64 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       return;
     }
     final primaryColor = Theme.of(context).colorScheme.primary;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Select the Winner"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: validOptions.map((opt) {
-            return ListTile(
-              leading: const Icon(Icons.workspace_premium, color: Colors.amber),
-              title: Text(
-                opt['title'],
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text(
-                opt['location'] == 'TBD' ? 'No location' : opt['location'],
-              ),
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: validOptions.map((opt) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
-                  color: primaryColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  "${opt['votes']} Votes",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: primaryColor,
+                  color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                   ),
                 ),
-              ),
-              onTap: () {
-                Navigator.pop(ctx);
-                _confirmConvert(opt);
-              },
-            );
-          }).toList(),
+                child: ListTile(
+                  leading: const Icon(Icons.workspace_premium, color: Colors.amber),
+                  title: Text(
+                    opt['title'],
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    opt['location'] == 'TBD' ? 'No location' : opt['location'],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      "${opt['votes']} Votes",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: primaryColor,
+                      ),
+                    ),
+                  ),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.pop(ctx);
+                    _confirmConvert(opt);
+                  },
+                ),
+              );
+            }).toList(),
+          ),
         ),
         actions: [
           TextButton(
@@ -400,6 +420,7 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Lock In Winner?"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
         content: Text(
           "Are you sure you want to lock in '${option['title']}'?\n\nThis will instantly close the voting and convert this Vibe Check into a finalized Hangout. RSVPs will automatically update for anyone who voted for this option.",
         ),
@@ -462,6 +483,7 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Discard Changes?"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
         content: const Text(
           "You have unsaved changes. Are you sure you want to discard them?",
         ),
@@ -491,7 +513,12 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       width: double.infinity,
       height: 60,
       child: ElevatedButton(
-        onPressed: _isLoading ? null : _submitVibeCheck,
+        onPressed: _isLoading
+            ? null
+            : () {
+                HapticFeedback.lightImpact();
+                _submitVibeCheck();
+              },
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
           foregroundColor: themeProvider.onPrimaryColor,
@@ -528,112 +555,319 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
         }
       },
       child: Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: Text(
-          appBarTitle,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        foregroundColor: Colors.white,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(gradient: themeProvider.appGradient),
-        ),
-      ),
-      body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        behavior: HitTestBehavior.opaque,
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              child: isLandscape
-                  ? Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          behavior: HitTestBehavior.opaque,
+          child: CustomScrollView(
+            slivers: [
+              SharedSliverAppBar(
+                title: appBarTitle,
+                collapsedTitle: appBarTitle,
+                subtitle: isEditing
+                    ? "Adjust options & voting deadline"
+                    : "Give options and let the squad decide",
+                expandedHeight: isLandscape ? 120.0 : 160.0,
+                hasBackButton: true,
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16.0),
+                    child: Center(
+                      child: InkWell(
+                        onTap: _isLoading
+                            ? null
+                            : () {
+                                HapticFeedback.lightImpact();
+                                _submitVibeCheck();
+                              },
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: primaryColor,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: primaryColor.withValues(alpha: 0.35),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              VitalsFormCard(
-                                titleController: _titleController,
-                                isPast: false,
-                                selectedDate: _selectedDate,
-                                selectedTime: _selectedTime,
-                                onDateChanged: (d) {
-                                  setState(() {
-                                    _selectedDate = d;
-                                  });
-                                },
-                                onTimeChanged: (t) {
-                                  setState(() {
-                                    _selectedTime = t;
-                                  });
-                                },
-                                titleLabel: "What's the vibe?",
-                                titleHint: "e.g. Sunday Funday, Happy Hour",
-                              ),
-                              ExtrasFormCard(
-                                detailsController: _detailsController,
-                                isPast: false,
-                                rsvpDeadlineOffset: _rsvpDeadlineOffset,
-                                onRsvpChanged: (val) {
-                                  setState(() {
-                                    _rsvpDeadlineOffset = val;
-                                  });
-                                },
-                                detailsLabel: "Any other details? (Optional)",
-                                detailsHint: "e.g. Dog friendly, BYOB...",
-                                rsvpLabel: "Voting Deadline",
-                                show48HourOption: true,
-                              ),
-                              CrewFormCard(
-                                isPast: false,
-                                inviteAll: _inviteAll,
-                                selectedCircleIds: _selectedCircleIds,
-                                coHostId: _selectedCoHostId,
-                                coHostName: _selectedCoHostName,
-                                coHostUsername: _selectedCoHostUsername,
-                                coHostAvatarUrl: _selectedCoHostAvatarUrl,
-                                coHostAvatarColor: _selectedCoHostAvatarColor,
-                                onTeamChanged: (newAll, newIds) {
-                                  setState(() {
-                                    _inviteAll = newAll;
-                                    _selectedCircleIds = newIds;
+                              if (_isLoading)
+                                const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              else ...[
+                                Icon(
+                                  isEditing ? Icons.check : Icons.send_rounded,
+                                  size: 15,
+                                  color: themeProvider.onPrimaryColor,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  isEditing ? "Save" : "Send",
+                                  style: TextStyle(
+                                    color: themeProvider.onPrimaryColor,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1000),
+                        child: isLandscape
+                            ? Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Left Column: Vitals + Vibe Options
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        VitalsFormCard(
+                                          titleController: _titleController,
+                                          isPast: false,
+                                          selectedDate: _selectedDate,
+                                          selectedTime: _selectedTime,
+                                          onDateChanged: (d) {
+                                            setState(() {
+                                              _selectedDate = d;
+                                            });
+                                          },
+                                          onTimeChanged: (t) {
+                                            setState(() {
+                                              _selectedTime = t;
+                                            });
+                                          },
+                                          titleLabel: "What's the vibe?",
+                                          titleHint:
+                                              "e.g. Sunday Funday, Happy Hour",
+                                        ),
+                                        VibeOptionsCard(
+                                          pollOptions: _pollOptions,
+                                          onAddOption: _addOption,
+                                          onRemoveOption: _removeOption,
+                                          onSelectLocation:
+                                              _selectOptionLocation,
+                                          onClearLocation:
+                                              _clearOptionLocation,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 24),
+                                  // Right Column: Extras + Crew + Host Actions + Submit
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        ExtrasFormCard(
+                                          detailsController: _detailsController,
+                                          isPast: false,
+                                          rsvpDeadlineOffset:
+                                              _rsvpDeadlineOffset,
+                                          onRsvpChanged: (val) {
+                                            setState(() {
+                                              _rsvpDeadlineOffset = val;
+                                            });
+                                          },
+                                          detailsLabel:
+                                              "Any other details? (Optional)",
+                                          detailsHint:
+                                              "e.g. Dog friendly, BYOB...",
+                                          rsvpLabel: "Voting Deadline",
+                                          show48HourOption: true,
+                                        ),
+                                        CrewFormCard(
+                                          isPast: false,
+                                          inviteAll: _inviteAll,
+                                          selectedCircleIds: _selectedCircleIds,
+                                          coHostId: _selectedCoHostId,
+                                          coHostName: _selectedCoHostName,
+                                          coHostUsername:
+                                              _selectedCoHostUsername,
+                                          coHostAvatarUrl:
+                                              _selectedCoHostAvatarUrl,
+                                          coHostAvatarColor:
+                                              _selectedCoHostAvatarColor,
+                                          onTeamChanged: (newAll, newIds) {
+                                            setState(() {
+                                              _inviteAll = newAll;
+                                              _selectedCircleIds = newIds;
 
-                                    if (!_inviteAll &&
-                                        _selectedCircleIds.isEmpty) {
-                                      _selectedCoHostId = null;
-                                      _selectedCoHostName = null;
-                                      _selectedCoHostUsername = null;
-                                      _selectedCoHostAvatarUrl = null;
-                                      _selectedCoHostAvatarColor = null;
-                                    }
-                                  });
-                                },
-                                onCoCaptainChanged:
-                                    (
-                                      id,
-                                      name,
-                                      username,
-                                      avatarUrl,
-                                      avatarColor,
-                                    ) {
+                                              if (!_inviteAll &&
+                                                  _selectedCircleIds.isEmpty) {
+                                                _selectedCoHostId = null;
+                                                _selectedCoHostName = null;
+                                                _selectedCoHostUsername = null;
+                                                _selectedCoHostAvatarUrl = null;
+                                                _selectedCoHostAvatarColor =
+                                                    null;
+                                              }
+                                            });
+                                          },
+                                          onCoCaptainChanged:
+                                              (
+                                                id,
+                                                name,
+                                                username,
+                                                avatarUrl,
+                                                avatarColor,
+                                              ) {
+                                                setState(() {
+                                                  _selectedCoHostId = id;
+                                                  _selectedCoHostName = name;
+                                                  _selectedCoHostUsername =
+                                                      username;
+                                                  _selectedCoHostAvatarUrl =
+                                                      avatarUrl;
+                                                  _selectedCoHostAvatarColor =
+                                                      avatarColor;
+                                                });
+                                              },
+                                        ),
+                                        VibeHostActionsCard(
+                                          isEditing: isEditing,
+                                          onConvert: _showConvertDialog,
+                                          onDelete: () =>
+                                              EventService
+                                                  .deleteEventWithConfirmation(
+                                            context: context,
+                                            eventId: widget.eventId!,
+                                            isVibeCheck: true,
+                                            onLoadingChanged: (val) {
+                                              if (mounted) {
+                                                setState(() {
+                                                  _isLoading = val;
+                                                });
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        submitButton,
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                children: [
+                                  VitalsFormCard(
+                                    titleController: _titleController,
+                                    isPast: false,
+                                    selectedDate: _selectedDate,
+                                    selectedTime: _selectedTime,
+                                    onDateChanged: (d) {
                                       setState(() {
-                                        _selectedCoHostId = id;
-                                        _selectedCoHostName = name;
-                                        _selectedCoHostUsername = username;
-                                        _selectedCoHostAvatarUrl = avatarUrl;
-                                        _selectedCoHostAvatarColor =
-                                            avatarColor;
+                                        _selectedDate = d;
                                       });
                                     },
-                              ),
-                              VibeHostActionsCard(
-                                isEditing: isEditing,
-                                onConvert: _showConvertDialog,
-                                onDelete: () =>
-                                    EventService.deleteEventWithConfirmation(
+                                    onTimeChanged: (t) {
+                                      setState(() {
+                                        _selectedTime = t;
+                                      });
+                                    },
+                                    titleLabel: "What's the vibe?",
+                                    titleHint: "e.g. Sunday Funday, Happy Hour",
+                                  ),
+                                  VibeOptionsCard(
+                                    pollOptions: _pollOptions,
+                                    onAddOption: _addOption,
+                                    onRemoveOption: _removeOption,
+                                    onSelectLocation: _selectOptionLocation,
+                                    onClearLocation: _clearOptionLocation,
+                                  ),
+                                  ExtrasFormCard(
+                                    detailsController: _detailsController,
+                                    isPast: false,
+                                    rsvpDeadlineOffset: _rsvpDeadlineOffset,
+                                    onRsvpChanged: (val) {
+                                      setState(() {
+                                        _rsvpDeadlineOffset = val;
+                                      });
+                                    },
+                                    detailsLabel:
+                                        "Any other details? (Optional)",
+                                    detailsHint: "e.g. Dog friendly, BYOB...",
+                                    rsvpLabel: "Voting Deadline",
+                                    show48HourOption: true,
+                                  ),
+                                  CrewFormCard(
+                                    isPast: false,
+                                    inviteAll: _inviteAll,
+                                    selectedCircleIds: _selectedCircleIds,
+                                    coHostId: _selectedCoHostId,
+                                    coHostName: _selectedCoHostName,
+                                    coHostUsername: _selectedCoHostUsername,
+                                    coHostAvatarUrl: _selectedCoHostAvatarUrl,
+                                    coHostAvatarColor:
+                                        _selectedCoHostAvatarColor,
+                                    onTeamChanged: (newAll, newIds) {
+                                      setState(() {
+                                        _inviteAll = newAll;
+                                        _selectedCircleIds = newIds;
+
+                                        if (!_inviteAll &&
+                                            _selectedCircleIds.isEmpty) {
+                                          _selectedCoHostId = null;
+                                          _selectedCoHostName = null;
+                                          _selectedCoHostUsername = null;
+                                          _selectedCoHostAvatarUrl = null;
+                                          _selectedCoHostAvatarColor = null;
+                                        }
+                                      });
+                                    },
+                                    onCoCaptainChanged:
+                                        (
+                                          id,
+                                          name,
+                                          username,
+                                          avatarUrl,
+                                          avatarColor,
+                                        ) {
+                                          setState(() {
+                                            _selectedCoHostId = id;
+                                            _selectedCoHostName = name;
+                                            _selectedCoHostUsername = username;
+                                            _selectedCoHostAvatarUrl =
+                                                avatarUrl;
+                                            _selectedCoHostAvatarColor =
+                                                avatarColor;
+                                          });
+                                        },
+                                  ),
+                                  VibeHostActionsCard(
+                                    isEditing: isEditing,
+                                    onConvert: _showConvertDialog,
+                                    onDelete: () =>
+                                        EventService
+                                            .deleteEventWithConfirmation(
                                       context: context,
                                       eventId: widget.eventId!,
                                       isVibeCheck: true,
@@ -645,130 +879,21 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                                         }
                                       },
                                     ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  submitButton,
+                                  const SizedBox(height: 60),
+                                ],
                               ),
-                              const SizedBox(height: 12),
-                              submitButton,
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 24),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              VibeOptionsCard(
-                                pollOptions: _pollOptions,
-                                onAddOption: _addOption,
-                                onRemoveOption: _removeOption,
-                                onSelectLocation: _selectOptionLocation,
-                                onClearLocation: _clearOptionLocation,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      children: [
-                        VitalsFormCard(
-                          titleController: _titleController,
-                          isPast: false,
-                          selectedDate: _selectedDate,
-                          selectedTime: _selectedTime,
-                          onDateChanged: (d) {
-                            setState(() {
-                              _selectedDate = d;
-                            });
-                          },
-                          onTimeChanged: (t) {
-                            setState(() {
-                              _selectedTime = t;
-                            });
-                          },
-                          titleLabel: "What's the vibe?",
-                          titleHint: "e.g. Sunday Funday, Happy Hour",
-                        ),
-                        VibeOptionsCard(
-                          pollOptions: _pollOptions,
-                          onAddOption: _addOption,
-                          onRemoveOption: _removeOption,
-                          onSelectLocation: _selectOptionLocation,
-                          onClearLocation: _clearOptionLocation,
-                        ),
-                        ExtrasFormCard(
-                          detailsController: _detailsController,
-                          isPast: false,
-                          rsvpDeadlineOffset: _rsvpDeadlineOffset,
-                          onRsvpChanged: (val) {
-                            setState(() {
-                              _rsvpDeadlineOffset = val;
-                            });
-                          },
-                          detailsLabel: "Any other details? (Optional)",
-                          detailsHint: "e.g. Dog friendly, BYOB...",
-                          rsvpLabel: "Voting Deadline",
-                          show48HourOption: true,
-                        ),
-                        CrewFormCard(
-                          isPast: false,
-                          inviteAll: _inviteAll,
-                          selectedCircleIds: _selectedCircleIds,
-                          coHostId: _selectedCoHostId,
-                          coHostName: _selectedCoHostName,
-                          coHostUsername: _selectedCoHostUsername,
-                          coHostAvatarUrl: _selectedCoHostAvatarUrl,
-                          coHostAvatarColor: _selectedCoHostAvatarColor,
-                          onTeamChanged: (newAll, newIds) {
-                            setState(() {
-                              _inviteAll = newAll;
-                              _selectedCircleIds = newIds;
-
-                              if (!_inviteAll && _selectedCircleIds.isEmpty) {
-                                _selectedCoHostId = null;
-                                _selectedCoHostName = null;
-                                _selectedCoHostUsername = null;
-                                _selectedCoHostAvatarUrl = null;
-                                _selectedCoHostAvatarColor = null;
-                              }
-                            });
-                          },
-                          onCoCaptainChanged:
-                              (id, name, username, avatarUrl, avatarColor) {
-                                setState(() {
-                                  _selectedCoHostId = id;
-                                  _selectedCoHostName = name;
-                                  _selectedCoHostUsername = username;
-                                  _selectedCoHostAvatarUrl = avatarUrl;
-                                  _selectedCoHostAvatarColor = avatarColor;
-                                });
-                              },
-                        ),
-                        VibeHostActionsCard(
-                          isEditing: isEditing,
-                          onConvert: _showConvertDialog,
-                          onDelete: () =>
-                              EventService.deleteEventWithConfirmation(
-                                context: context,
-                                eventId: widget.eventId!,
-                                isVibeCheck: true,
-                                onLoadingChanged: (val) {
-                                  if (mounted) {
-                                    setState(() {
-                                      _isLoading = val;
-                                    });
-                                  }
-                                },
-                              ),
-                        ),
-                        const SizedBox(height: 12),
-                        submitButton,
-                        const SizedBox(height: 40),
-                      ],
+                      ),
                     ),
-            ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

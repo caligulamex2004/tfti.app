@@ -6,9 +6,12 @@ class RpgGlassCard extends StatelessWidget {
   final IconData icon;
   final Widget child;
 
-  // NEW: Optional color overrides!
+  // Optional overrides & additions
   final Color? iconColor;
   final Color? titleColor;
+  final Widget? trailing;
+  final EdgeInsetsGeometry? margin;
+  final EdgeInsetsGeometry? contentPadding;
 
   const RpgGlassCard({
     super.key,
@@ -17,6 +20,9 @@ class RpgGlassCard extends StatelessWidget {
     required this.child,
     this.iconColor,
     this.titleColor,
+    this.trailing,
+    this.margin,
+    this.contentPadding,
   });
 
   @override
@@ -30,48 +36,50 @@ class RpgGlassCard extends StatelessWidget {
         titleColor ?? (isDark ? Colors.white : Colors.black87);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 24),
+      margin: margin ?? const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
           width: 1,
         ),
         boxShadow: [
-          if (!isDark)
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    // Dynamically tints the background circle based on the effective color!
-                    color: effectiveIconColor.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, color: effectiveIconColor, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: effectiveTitleColor,
+                Material(
+                  color: effectiveIconColor.withValues(alpha: 0.15),
+                  shape: const CircleBorder(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(7.0),
+                    child: Icon(icon, color: effectiveIconColor, size: 18),
                   ),
                 ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
+                      color: effectiveTitleColor,
+                    ),
+                  ),
+                ),
+                if (trailing != null) trailing!,
               ],
             ),
           ),
@@ -79,7 +87,10 @@ class RpgGlassCard extends StatelessWidget {
             height: 1,
             color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
           ),
-          Padding(padding: const EdgeInsets.all(20), child: child),
+          Padding(
+            padding: contentPadding ?? const EdgeInsets.all(20),
+            child: child,
+          ),
         ],
       ),
     );
