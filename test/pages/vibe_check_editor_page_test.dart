@@ -84,5 +84,66 @@ void main() {
       expect(find.byType(ExtrasFormCard), findsOneWidget);
       expect(find.byType(CrewFormCard), findsOneWidget);
     });
+
+    testWidgets('Entering text in What\'s the vibe? dynamically updates app bar title', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: VibeCheckEditorPage(),
+        ),
+      );
+      await tester.pump();
+
+      // Initially shows fallback "Vibe Check"
+      expect(find.text('Vibe Check'), findsWidgets);
+
+      // Enter a custom vibe name in the title field
+      final titleFieldFinder = find.byType(TextFormField).first;
+      await tester.enterText(titleFieldFinder, 'Tacos & Trivia Night');
+      await tester.pump();
+
+      // Dynamic app bar now reflects user-entered title
+      expect(find.text('Tacos & Trivia Night'), findsWidgets);
+    });
+
+    testWidgets('Edit mode pre-populates existing user-generated vibe check title in app bar', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: VibeCheckEditorPage(
+            eventId: 'vibe_check_test_1',
+            eventData: {
+              'title': 'Board Games & Brews',
+              'details': 'Bring your favorites',
+              'pollOptions': [
+                {'id': 'opt_1', 'title': 'Settlers of Catan', 'location': 'Dave\'s House'},
+                {'id': 'opt_2', 'title': 'Wingspan', 'location': 'Board Game Cafe'},
+              ],
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // App bar reflects the existing vibe check title
+      expect(find.text('Board Games & Brews'), findsWidgets);
+      expect(find.text('Save'), findsWidgets);
+    });
   });
 }

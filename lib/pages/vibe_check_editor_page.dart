@@ -506,7 +506,6 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape = context.isWideScreen;
 
-    final String appBarTitle = isEditing ? "Edit Vibe Check" : "Vibe Check";
     final String submitText = isEditing ? "Save Changes" : "Throw it out there";
 
     final submitButton = SizedBox(
@@ -561,78 +560,90 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
           behavior: HitTestBehavior.opaque,
           child: CustomScrollView(
             slivers: [
-              SharedSliverAppBar(
-                title: appBarTitle,
-                collapsedTitle: appBarTitle,
-                subtitle: isEditing
-                    ? "Adjust options & voting deadline"
-                    : "Give options and let the squad decide",
-                expandedHeight: isLandscape ? 120.0 : 160.0,
-                hasBackButton: true,
-                actions: [
-                  Padding(
-                    padding: const EdgeInsets.only(right: 16.0),
-                    child: Center(
-                      child: InkWell(
-                        onTap: _isLoading
-                            ? null
-                            : () {
-                                HapticFeedback.lightImpact();
-                                _submitVibeCheck();
-                              },
-                        borderRadius: BorderRadius.circular(14),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 7,
-                          ),
-                          decoration: BoxDecoration(
-                            color: primaryColor,
+              ListenableBuilder(
+                listenable: _titleController,
+                builder: (context, _) {
+                  final trimmedTitle = _titleController.text.trim();
+                  final displayTitle = trimmedTitle.isNotEmpty
+                      ? trimmedTitle
+                      : (isEditing ? "Edit Vibe Check" : "Vibe Check");
+
+                  return SharedSliverAppBar(
+                    title: displayTitle,
+                    collapsedTitle: displayTitle,
+                    subtitle: isEditing
+                        ? "Adjust options & voting deadline"
+                        : "Give options and let the squad decide",
+                    expandedHeight: isLandscape ? 120.0 : 160.0,
+                    hasBackButton: true,
+                    actions: [
+                      Padding(
+                        padding: const EdgeInsets.only(right: 16.0),
+                        child: Center(
+                          child: InkWell(
+                            onTap: _isLoading
+                                ? null
+                                : () {
+                                    HapticFeedback.lightImpact();
+                                    _submitVibeCheck();
+                                  },
                             borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: primaryColor.withValues(alpha: 0.35),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 7,
                               ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (_isLoading)
-                                const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
+                              decoration: BoxDecoration(
+                                color: primaryColor,
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: primaryColor.withValues(alpha: 0.35),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
                                   ),
-                                )
-                              else ...[
-                                Icon(
-                                  isEditing ? Icons.check : Icons.send_rounded,
-                                  size: 15,
-                                  color: themeProvider.onPrimaryColor,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  isEditing ? "Save" : "Send",
-                                  style: TextStyle(
-                                    color: themeProvider.onPrimaryColor,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ],
-                            ],
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (_isLoading)
+                                    const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  else ...[
+                                    Icon(
+                                      isEditing
+                                          ? Icons.check
+                                          : Icons.send_rounded,
+                                      size: 15,
+                                      color: themeProvider.onPrimaryColor,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      isEditing ? "Save" : "Send",
+                                      style: TextStyle(
+                                        color: themeProvider.onPrimaryColor,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
               SliverToBoxAdapter(
                 child: Padding(

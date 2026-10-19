@@ -634,7 +634,15 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                 MaterialPageRoute(
                                   builder: (context) => ChatPage(
                                     eventId: widget.eventId,
-                                    eventTitle: data['title'] ?? "Chat",
+                                    eventTitle: (data['title'] != null &&
+                                            data['title']
+                                                .toString()
+                                                .trim()
+                                                .isNotEmpty)
+                                        ? data['title'].toString().trim()
+                                        : (isVibeCheck
+                                            ? "Vibe Check Chat"
+                                            : "Chat"),
                                   ),
                                 ),
                               ),
@@ -650,8 +658,24 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                             controller: _scrollController,
                             slivers: [
                               SharedSliverAppBar(
-                                title: data['title'] ?? "Untitled Event",
-                                collapsedTitle: data['title'] ?? "Untitled Event",
+                                title: (data['title'] != null &&
+                                        data['title']
+                                            .toString()
+                                            .trim()
+                                            .isNotEmpty)
+                                    ? data['title'].toString().trim()
+                                    : (isVibeCheck
+                                        ? "Untitled Vibe Check"
+                                        : "Untitled Event"),
+                                collapsedTitle: (data['title'] != null &&
+                                        data['title']
+                                            .toString()
+                                            .trim()
+                                            .isNotEmpty)
+                                    ? data['title'].toString().trim()
+                                    : (isVibeCheck
+                                        ? "Untitled Vibe Check"
+                                        : "Untitled Event"),
                                 expandedTitleColor: hasBanner
                                     ? Colors.white
                                     : (isDark ? Colors.white : Colors.black87),

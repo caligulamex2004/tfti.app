@@ -151,6 +151,11 @@ class EventSummaryCard extends StatelessWidget {
     final double safeHorizontalWidth =
         (MediaQuery.sizeOf(context).width * 0.85).clamp(0.0, 340.0);
 
+    final String eventTitle = (data['title'] != null &&
+            data['title'].toString().trim().isNotEmpty)
+        ? data['title'].toString().trim()
+        : (isVibeCheck ? "Untitled Vibe Check" : "Untitled Event");
+
     // Landscape compact card
     if (isLandscape && !isHorizontal) {
       return CardLandscapeTile(
@@ -163,7 +168,7 @@ class EventSummaryCard extends StatelessWidget {
         statusText: statusText,
         isImportantDetails: isImportantDetails,
         hasUnreadChat: hasUnreadChat,
-        title: data['title'] ?? "Untitled Event",
+        title: eventTitle,
         month: month,
         day: day,
         timeString: timeString,
@@ -217,7 +222,7 @@ class EventSummaryCard extends StatelessWidget {
                 isImportantDetails: isImportantDetails,
                 isVibeCheck: isVibeCheck,
                 keepAliveDays: keepAliveDays,
-                title: data['title'] ?? "Untitled Event",
+                title: eventTitle,
                 location: data['location'] ?? "TBD",
                 hostId: data['hostId'],
                 onHostTap: onHostTap,

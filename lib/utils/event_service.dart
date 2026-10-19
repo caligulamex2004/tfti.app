@@ -1095,6 +1095,7 @@ class EventService {
     );
 
     if (deleteScope == null) return;
+    if (!context.mounted) return;
 
     final successMessage = isVibeCheck
         ? "Vibe Check deleted permanently."
