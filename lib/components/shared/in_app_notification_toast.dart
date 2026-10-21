@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import '../../services/badge_service.dart';
 import '../../services/notification_service.dart';
 
 /// Wraps the application widget tree to present a polished, top-anchored toast
@@ -91,6 +92,7 @@ class _InAppNotificationToastWrapperState
   void _onToastTap() {
     if (_currentMessage != null) {
       final data = _currentMessage!.data;
+      BadgeService.instance.clearBadge();
       _dismissToast();
       if (widget.onNotificationTap != null) {
         widget.onNotificationTap!(data);

@@ -23,6 +23,7 @@ import 'services/user_cache_repository.dart';
 import 'services/contact_resolver.dart';
 import 'services/web_update_service.dart';
 import 'services/notification_service.dart';
+import 'services/badge_service.dart';
 import 'components/shared/web_update_banner.dart';
 import 'components/shared/in_app_notification_toast.dart';
 import 'pages/onboarding_tutorial.dart';
@@ -244,12 +245,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   }
 
   Future<void> _clearAppBadge() async {
-    if (kIsWeb) return;
     try {
-      bool isSupported = await FlutterAppBadger.isAppBadgeSupported();
-      if (isSupported) {
-        FlutterAppBadger.removeBadge();
-      }
+      await BadgeService.instance.clearBadge();
     } catch (e) {
       debugPrint("App Badger Error: $e");
     }
@@ -273,6 +270,25 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     try {
       // Sync FCM device token with multi-device array and VAPID key support
       await NotificationService.instance.syncDeviceToken();
+
+      // Self-heal: If Firestore doc lost its displayName, restore from Auth profile
+      try {
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (userDoc.exists) {
+          final data = userDoc.data();
+          final currentDocName = (data?['displayName'] as String?)?.trim() ?? '';
+          final authName = (user.displayName ?? '').trim();
+          if (currentDocName.isEmpty && authName.isNotEmpty) {
+            await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+              'displayName': authName,
+            }, SetOptions(merge: true));
+            UserCacheRepository.instance.invalidateUser(user.uid);
+            debugPrint('✨ Healed empty Firestore displayName from Auth profile: $authName');
+          }
+        }
+      } catch (healErr) {
+        debugPrint('Profile self-healing check error: $healErr');
+      }
 
       // One-time build migration: ensure user phone visibility is reverted to show phone number by default
       final prefs = await SharedPreferences.getInstance();

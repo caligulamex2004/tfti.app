@@ -49,6 +49,10 @@ class _AccountPageState extends State<AccountPage> {
 
   StreamSubscription<DocumentSnapshot>? _userSub;
   bool _hasLoadedInitialData = false;
+  String _initialName = '';
+  String _initialStatus = '';
+  int _initialColorValue = Colors.blue.toARGB32();
+  bool _initialPhoneVisibility = true;
 
   final List<Color> _colors = [
     Colors.blue,
@@ -78,7 +82,7 @@ class _AccountPageState extends State<AccountPage> {
   void dispose() {
     _nameController.removeListener(_onFormChanged);
     _statusController.removeListener(_onFormChanged);
-    if (_hasLoadedInitialData) {
+    if (_hasLoadedInitialData && _nameController.text.trim().isNotEmpty) {
       _autoSaveIdentity();
     }
     _userSub?.cancel();
@@ -137,9 +141,18 @@ class _AccountPageState extends State<AccountPage> {
               }
 
               if (!_hasLoadedInitialData) {
-                _nameController.text = data['displayName'] ?? '';
-                _statusController.text = data['status'] ?? '';
-                _showPhoneNumber = (data['isPhonePublic'] ?? data['showPhoneNumber']) != false;
+                final serverName = (data['displayName'] as String?)?.trim() ?? '';
+                final authName = (user.displayName ?? '').trim();
+                final resolvedName = serverName.isNotEmpty ? serverName : authName;
+                if (resolvedName.isNotEmpty) {
+                  _nameController.text = resolvedName;
+                }
+                _statusController.text = (data['statusText'] ?? data['status'] ?? '').toString();
+                _initialName = _nameController.text;
+                _initialStatus = _statusController.text;
+                _initialColorValue = _selectedColorValue;
+                _initialPhoneVisibility = (data['isPhonePublic'] ?? data['showPhoneNumber']) != false;
+                _showPhoneNumber = _initialPhoneVisibility;
                 _hasLoadedInitialData = true;
               }
             });
@@ -157,15 +170,28 @@ class _AccountPageState extends State<AccountPage> {
     // Guard against saving an empty name (which wipes the user identity)
     if (name.isEmpty) return;
 
+    final bool nameChanged = name != _initialName;
+    final bool statusChanged = status != _initialStatus;
+    final bool colorChanged = _selectedColorValue != _initialColorValue;
+    final bool phoneVisibilityChanged = _showPhoneNumber != _initialPhoneVisibility;
+
+    if (!nameChanged && !statusChanged && !colorChanged && !phoneVisibilityChanged) {
+      return;
+    }
+
     try {
       await UserService.updateProfile(
         uid: user.uid,
-        displayName: name,
-        status: status,
-        avatarColor: _selectedColorValue,
-        isPhonePublic: _showPhoneNumber,
-        isSearchableByPhone: _showPhoneNumber,
+        displayName: nameChanged ? name : null,
+        status: statusChanged ? status : null,
+        avatarColor: colorChanged ? _selectedColorValue : null,
+        isPhonePublic: phoneVisibilityChanged ? _showPhoneNumber : null,
+        isSearchableByPhone: phoneVisibilityChanged ? _showPhoneNumber : null,
       );
+      _initialName = name;
+      _initialStatus = status;
+      _initialColorValue = _selectedColorValue;
+      _initialPhoneVisibility = _showPhoneNumber;
     } catch (e) {
       debugPrint("Error auto-saving identity: $e");
     }

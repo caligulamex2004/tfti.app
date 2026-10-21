@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'badge_service.dart';
 
 class NotificationService {
   NotificationService._();
@@ -30,6 +31,7 @@ class NotificationService {
       debugPrint(
         '📬 Foreground FCM Message: ${message.notification?.title} - ${message.notification?.body}',
       );
+      BadgeService.instance.incrementBadge();
       _foregroundStreamController.add(message);
     });
 

@@ -50,6 +50,7 @@ class UserService {
     }
     if (status != null) {
       updates['status'] = status.trim();
+      updates['statusText'] = status.trim();
     }
     if (avatarColor != null) {
       updates['avatarColor'] = avatarColor;

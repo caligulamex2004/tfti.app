@@ -16,6 +16,12 @@ const messaging = firebase.messaging();
 // Handle push notifications when the web app is backgrounded or closed
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message: ', payload);
+
+  // Set OS application badge if supported (PWA on macOS Dock / Windows taskbar)
+  if (navigator.setAppBadge) {
+    navigator.setAppBadge().catch(() => {});
+  }
+
   const title = payload.notification?.title || payload.data?.title || 'TFTI Alert';
   const body = payload.notification?.body || payload.data?.body || '';
   const notificationOptions = {
@@ -30,6 +36,11 @@ messaging.onBackgroundMessage((payload) => {
 // Focus or open the TFTI window on notification click
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+
+  // Clear OS application badge
+  if (navigator.clearAppBadge) {
+    navigator.clearAppBadge().catch(() => {});
+  }
   const eventId = event.notification.data?.eventId;
   const type = event.notification.data?.type;
   let targetPath = '/';
