@@ -22,7 +22,9 @@ import 'utils/theme_provider.dart';
 import 'services/user_cache_repository.dart';
 import 'services/contact_resolver.dart';
 import 'services/web_update_service.dart';
+import 'services/notification_service.dart';
 import 'components/shared/web_update_banner.dart';
+import 'components/shared/in_app_notification_toast.dart';
 import 'pages/onboarding_tutorial.dart';
 import 'pages/home_feed.dart';
 import 'utils/responsive_layout.dart';
@@ -74,6 +76,19 @@ void main() async {
     }
   });
 
+  // Initialize notification service listeners
+  await NotificationService.instance.init();
+
+  // Handle Web Push launch routing via URL query parameters
+  if (kIsWeb) {
+    final params = Uri.base.queryParameters;
+    if (params.containsKey('eventId')) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        handleNotificationRouting(params);
+      });
+    }
+  }
+
   // Start background update checker for Web/PWA clients
   WebUpdateService.instance.start();
 
@@ -94,9 +109,12 @@ class MyApp extends StatelessWidget {
           theme: themeProvider.themeData,
           debugShowCheckedModeBanner: false,
           builder: (context, widget) {
-            return WebUpdateBannerWrapper(
-              child: AppMaxWidthContainer(
-                child: widget ?? const SizedBox.shrink(),
+            return InAppNotificationToastWrapper(
+              onNotificationTap: (data) => handleNotificationRouting(data),
+              child: WebUpdateBannerWrapper(
+                child: AppMaxWidthContainer(
+                  child: widget ?? const SizedBox.shrink(),
+                ),
               ),
             );
           },
@@ -253,18 +271,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     if (user == null) return;
 
     try {
-      final messaging = FirebaseMessaging.instance;
-      final settings = await messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-
-      debugPrint(
-        'Notification permission status: ${settings.authorizationStatus}',
-      );
-
-      final token = await messaging.getToken();
+      // Sync FCM device token with multi-device array and VAPID key support
+      await NotificationService.instance.syncDeviceToken();
 
       // One-time build migration: ensure user phone visibility is reverted to show phone number by default
       final prefs = await SharedPreferences.getInstance();
@@ -277,15 +285,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
           'isSearchableByPhone': true,
         }, SetOptions(merge: true));
       }
-
-      if (token != null) {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-          'fcmToken': token,
-          'lastActive': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
     } catch (e) {
-      debugPrint('FCM Token error (expected on simulator): $e');
+      debugPrint('FCM Token sync error: $e');
     }
   }
 

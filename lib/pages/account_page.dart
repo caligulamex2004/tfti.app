@@ -17,6 +17,7 @@ import '../components/shared/tcg_profile_card.dart';
 import '../components/shared/web_camera_photo_dialog.dart';
 import '../pages/preferences_page.dart';
 import '../services/user_service.dart';
+import '../services/notification_service.dart';
 import '../utils/phone_formatter.dart';
 import '../utils/theme_provider.dart';
 import '../utils/responsive_layout.dart';
@@ -373,10 +374,7 @@ class _AccountPageState extends State<AccountPage> {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         try {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .update({'fcmToken': FieldValue.delete()});
+          await NotificationService.instance.removeTokenOnLogout(user.uid);
         } catch (e) {
           debugPrint("Failed to remove FCM token on logout: $e");
         }

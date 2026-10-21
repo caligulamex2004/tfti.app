@@ -178,7 +178,46 @@ void main() {
         expect(json['flutter']['platforms'], contains('android'));
         expect(json['flutter']['platforms'], contains('ios'));
         expect(json['flutter']['platforms'], contains('dart'));
+
+        // Verify firebase-messaging-sw.js cache headers
+        final headers = hosting['headers'] as List<dynamic>;
+        final swHeader = headers.firstWhere(
+          (h) => h['source'] == '/firebase-messaging-sw.js',
+          orElse: () => null,
+        );
+        expect(
+          swHeader,
+          isNotNull,
+          reason: 'firebase-messaging-sw.js must have explicit cache headers',
+        );
       },
     );
+
+    test('web/firebase-messaging-sw.js exists and configures background push', () {
+      final swFile = File('web/firebase-messaging-sw.js');
+      expect(
+        swFile.existsSync(),
+        isTrue,
+        reason: 'firebase-messaging-sw.js must exist for web push',
+      );
+
+      final content = swFile.readAsStringSync();
+      expect(content, contains('firebase-app-compat.js'));
+      expect(content, contains('firebase-messaging-compat.js'));
+      expect(content, contains('firebase.initializeApp'));
+      expect(content, contains('messaging.onBackgroundMessage'));
+      expect(content, contains('notificationclick'));
+      expect(content, contains('clients.matchAll'));
+    });
+
+    test('secrets.json.example includes FCM_WEB_VAPID_KEY placeholder', () {
+      final exampleFile = File('secrets.json.example');
+      expect(exampleFile.existsSync(), isTrue);
+
+      final content = exampleFile.readAsStringSync();
+      final Map<String, dynamic> json = jsonDecode(content);
+      expect(json, contains('FCM_WEB_VAPID_KEY'));
+      expect(json, contains('PLACES_API_KEY'));
+    });
   });
 }

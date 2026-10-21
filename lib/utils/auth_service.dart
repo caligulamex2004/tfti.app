@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import '../services/notification_service.dart';
 
 // --- AUTH PHONE FIELD ---
 class AuthPhoneField extends StatelessWidget {
@@ -52,16 +52,7 @@ class AuthPhoneField extends StatelessWidget {
 class AuthService {
   static Future<void> saveDeviceToken(User user) async {
     try {
-      final token = await FirebaseMessaging.instance.getToken();
-
-      if (token != null) {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-          'fcmToken': token,
-          'lastLogin': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-
-        debugPrint("✅ FCM Token saved successfully");
-      }
+      await NotificationService.instance.syncDeviceToken();
     } catch (e) {
       debugPrint("❌ Error saving FCM token: $e");
     }
@@ -85,7 +76,8 @@ class AuthService {
     }
 
     final data = docSnapshot.data();
-    final isNewUser = !docSnapshot.exists ||
+    final isNewUser =
+        !docSnapshot.exists ||
         data == null ||
         !data.containsKey('username') ||
         !data.containsKey('createdAt');

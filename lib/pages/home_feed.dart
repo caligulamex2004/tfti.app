@@ -14,6 +14,7 @@ import '../components/feed/empty_feed_states.dart';
 import '../components/feed/feed_skeleton.dart';
 import '../components/feed/contextual_empty_card.dart';
 import '../components/feed/carousel_feed_list.dart';
+import '../components/feed/web_notification_prompt_banner.dart';
 import '../models/feed_snapshot.dart';
 import '../services/feed_service.dart';
 import '../services/friend_service.dart';
@@ -498,6 +499,9 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ],
+            ),
+            const SliverToBoxAdapter(
+              child: WebNotificationPromptBanner(),
             ),
             SliverToBoxAdapter(
               child: Padding(

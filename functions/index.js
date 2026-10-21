@@ -6,6 +6,97 @@ const admin = require("firebase-admin");
 admin.initializeApp();
 const db = admin.firestore();
 
+// --- NOTIFICATION HELPERS (Multi-Device & Web Push) ---
+function getUserTokens(userData) {
+    if (!userData) return [];
+    const tokens = new Set();
+    if (Array.isArray(userData.fcmTokens)) {
+        for (const t of userData.fcmTokens) {
+            if (typeof t === "string" && t.trim().length > 0) {
+                tokens.add(t.trim());
+            }
+        }
+    }
+    if (typeof userData.fcmToken === "string" && userData.fcmToken.trim().length > 0) {
+        tokens.add(userData.fcmToken.trim());
+    }
+    return Array.from(tokens);
+}
+
+function createWebPushConfig(title, body, eventId, type) {
+    const link = eventId
+        ? `https://tfti-app.web.app/?eventId=${encodeURIComponent(eventId)}&type=${encodeURIComponent(type || 'event')}`
+        : "https://tfti-app.web.app/";
+    return {
+        notification: {
+            title: title,
+            body: body,
+            icon: "/icons/Icon-192.png",
+            badge: "/icons/Icon-192.png"
+        },
+        fcmOptions: {
+            link: link
+        }
+    };
+}
+
+async function sendMulticastToTokens(tokens, basePayload) {
+    if (!tokens || tokens.length === 0) return;
+    const uniqueTokens = Array.from(new Set(tokens.filter(t => typeof t === "string" && t.length > 0)));
+    if (uniqueTokens.length === 0) return;
+
+    const message = {
+        ...basePayload,
+        tokens: uniqueTokens
+    };
+
+    try {
+        const response = await admin.messaging().sendEachForMulticast(message);
+        logger.log(`Multicast sent to ${uniqueTokens.length} devices: ${response.successCount} succeeded, ${response.failureCount} failed.`);
+
+        if (response.failureCount > 0) {
+            const deadTokens = [];
+            response.responses.forEach((resp, idx) => {
+                if (!resp.success) {
+                    const errCode = resp.error?.code;
+                    if (
+                        errCode === "messaging/registration-token-not-registered" ||
+                        errCode === "messaging/invalid-registration-token"
+                    ) {
+                        deadTokens.push(uniqueTokens[idx]);
+                    }
+                }
+            });
+
+            if (deadTokens.length > 0) {
+                for (let i = 0; i < deadTokens.length; i += 10) {
+                    const chunk = deadTokens.slice(i, i + 10);
+                    try {
+                        const usersToPrune = await db.collection("users")
+                            .where("fcmTokens", "array-contains-any", chunk)
+                            .get();
+
+                        const batch = db.batch();
+                        usersToPrune.docs.forEach(doc => {
+                            batch.update(doc.ref, {
+                                fcmTokens: admin.firestore.FieldValue.arrayRemove(...chunk)
+                            });
+                        });
+                        if (!usersToPrune.empty) {
+                            await batch.commit();
+                            logger.log(`Pruned ${deadTokens.length} stale FCM token(s) from user profiles.`);
+                        }
+                    } catch (pruneErr) {
+                        logger.error("Failed to prune stale tokens:", pruneErr);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        logger.error("Error executing sendMulticastToTokens:", error);
+    }
+}
+
 // --- 1. THE JANITOR: Delete events that have expired past their keepAlive limit ---
 exports.dailyCleanup = onSchedule({
     schedule: "0 0,12 * * *", // Runs exactly at Midnight and Noon
@@ -129,7 +220,7 @@ exports.sendInviteNotification = onDocumentCreated("events/{eventId}/invitations
 
     const userDoc = await db.collection("users").doc(userId).get();
     const userData = userDoc.data();
-    const fcmToken = userData?.fcmToken;
+    const tokens = getUserTokens(userData);
 
     // --- NEW: SHADOW BAN CHECK ---
     const blockedUids = userData?.blockedUids || [];
@@ -139,10 +230,9 @@ exports.sendInviteNotification = onDocumentCreated("events/{eventId}/invitations
     }
 
     const wantsInvites = userData?.notificationSettings?.invites ?? true;
-    if (!fcmToken || !wantsInvites) return;
+    if (tokens.length === 0 || !wantsInvites) return;
 
-    const message = {
-        token: fcmToken,
+    const payload = {
         notification: {
             title: "You're Invited! 📨",
             body: `You have been invited to ${eventTitle}`
@@ -162,14 +252,11 @@ exports.sendInviteNotification = onDocumentCreated("events/{eventId}/invitations
                     sound: "default"
                 }
             }
-        }
+        },
+        webpush: createWebPushConfig("You're Invited! 📨", `You have been invited to ${eventTitle}`, eventId, "invite")
     };
 
-    try {
-        await admin.messaging().send(message);
-    } catch (error) {
-        logger.error("Error sending invite:", error);
-    }
+    await sendMulticastToTokens(tokens, payload);
 });
 
 // --- 4. SMART POSTMAN: Event Update Notification ---
@@ -211,8 +298,9 @@ exports.notifyEventUpdate = onDocumentUpdated("events/{eventId}", async (event) 
 
         const wantsUpdates = userData?.notificationSettings?.updates ?? true;
         
-        if (userData?.fcmToken && wantsUpdates) {
-            tokens.push(userData.fcmToken);
+        const userTokens = getUserTokens(userData);
+        if (userTokens.length > 0 && wantsUpdates) {
+            tokens.push(...userTokens);
         }
     }
 
@@ -231,8 +319,7 @@ exports.notifyEventUpdate = onDocumentUpdated("events/{eventId}", async (event) 
         bodyText = "📍 New Location: The venue has changed!";
     }
 
-    const message = {
-        tokens: tokens, 
+    const payload = {
         notification: {
             title: notifTitle,
             body: bodyText
@@ -255,15 +342,11 @@ exports.notifyEventUpdate = onDocumentUpdated("events/{eventId}", async (event) 
                     sound: "default"
                 }
             }
-        }
+        },
+        webpush: createWebPushConfig(notifTitle, bodyText, eventId, "event_update")
     };
 
-    try {
-        await admin.messaging().sendEachForMulticast(message);
-        logger.log(`Update notification sent to ${tokens.length} guests.`);
-    } catch (error) {
-        logger.error("Error sending update notification:", error);
-    }
+    await sendMulticastToTokens(tokens, payload);
 });
 
 // --- 5. SMART POSTMAN: New Chat Message & Mentions ---
@@ -295,7 +378,8 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
 
         const userDoc = await db.collection("users").doc(userId).get();
         const userData = userDoc.data();
-        if (!userData?.fcmToken) continue;
+        const userTokens = getUserTokens(userData);
+        if (userTokens.length === 0) continue;
 
         // --- NEW: SHADOW BAN CHECK ---
         const blockedUids = userData?.blockedUids || [];
@@ -312,18 +396,17 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
         // Local Event Setting (From the mute button!)
         const isChatMuted = inviteData?.isMuted ?? false;
 
-        // Route the token based on global AND local preferences
+        // Route the tokens based on global AND local preferences
         if (isMentioned && wantsMentions) {
-            mentionedTokens.push(userData.fcmToken);
+            mentionedTokens.push(...userTokens);
         } else if (wantsChat && !isChatMuted && !isMentioned) {
-            standardTokens.push(userData.fcmToken);
+            standardTokens.push(...userTokens);
         }
     }
 
     // 1. Send High-Priority Mention Notifications
     if (mentionedTokens.length > 0) {
-        const mentionMessage = {
-            tokens: mentionedTokens,
+        const mentionPayload = {
             notification: {
                 title: `${senderName} mentioned you in ${eventTitle}`,
                 body: text
@@ -332,21 +415,19 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
             android: {
                 priority: "high", 
                 notification: { channelId: "high_importance_channel" } 
-            }
+            },
+            apns: {
+                payload: { aps: { sound: "default" } }
+            },
+            webpush: createWebPushConfig(`${senderName} mentioned you in ${eventTitle}`, text, eventId, "chat_mention")
         };
 
-        try {
-            await admin.messaging().sendEachForMulticast(mentionMessage);
-            logger.log(`Mention notification sent to ${mentionedTokens.length} users.`);
-        } catch (error) {
-            logger.error("Error sending mention notification:", error);
-        }
+        await sendMulticastToTokens(mentionedTokens, mentionPayload);
     }
 
     // 2. Send Standard Chat Notifications
     if (standardTokens.length > 0) {
-        const standardMessage = {
-            tokens: standardTokens,
+        const standardPayload = {
             notification: {
                 title: eventTitle,
                 body: `${senderName}: ${text}`
@@ -355,15 +436,14 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
             android: {
                 priority: "normal", 
                 notification: { channelId: "chat_channel" } 
-            }
+            },
+            apns: {
+                payload: { aps: { sound: "default" } }
+            },
+            webpush: createWebPushConfig(eventTitle, `${senderName}: ${text}`, eventId, "chat")
         };
 
-        try {
-            await admin.messaging().sendEachForMulticast(standardMessage);
-            logger.log(`Standard chat notification sent to ${standardTokens.length} users.`);
-        } catch (error) {
-            logger.error("Error sending standard chat notification:", error);
-        }
+        await sendMulticastToTokens(standardTokens, standardPayload);
     }
 });
 
@@ -371,7 +451,7 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
 exports.notifyBetterGetGoing = onSchedule({
     schedule: "every 5 minutes",
     timeZone: "America/New_York",
-}, async (event) => {
+    }, async (event) => {
     const now = new Date();
     const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
 
@@ -408,15 +488,15 @@ exports.notifyBetterGetGoing = onSchedule({
 
             // Respect notification settings (defaulting to true if undefined)
             const wantsReminders = userData?.notificationSettings?.reminder_hour ?? true;
-            if (userData?.fcmToken && wantsReminders) {
-                tokens.push(userData.fcmToken);
+            const userTokens = getUserTokens(userData);
+            if (userTokens.length > 0 && wantsReminders) {
+                tokens.push(...userTokens);
             }
         }
 
         if (tokens.length === 0) continue;
 
-        const message = {
-            tokens: tokens,
+        const payload = {
             notification: {
                 title: "Better get going! 🏃",
                 body: `${eventData.title} starts in less than an hour.`
@@ -425,15 +505,14 @@ exports.notifyBetterGetGoing = onSchedule({
             android: {
                 priority: "high",
                 notification: { channelId: "high_importance_channel" }
-            }
+            },
+            apns: {
+                payload: { aps: { sound: "default" } }
+            },
+            webpush: createWebPushConfig("Better get going! 🏃", `${eventData.title} starts in less than an hour.`, eventId, "event_reminder")
         };
 
-        try {
-            await admin.messaging().sendEachForMulticast(message);
-            logger.log(`"Better Get Going" sent to ${tokens.length} users for event ${eventId}`);
-        } catch (error) {
-            logger.error(`Error sending Better Get Going for ${eventId}:`, error);
-        }
+        await sendMulticastToTokens(tokens, payload);
     }
 });
 
@@ -477,15 +556,15 @@ exports.notifyHappeningNow = onSchedule({
             const userData = userDoc.data();
 
             const wantsReminders = userData?.notificationSettings?.reminder_start ?? true;
-            if (userData?.fcmToken && wantsReminders) {
-                tokens.push(userData.fcmToken);
+            const userTokens = getUserTokens(userData);
+            if (userTokens.length > 0 && wantsReminders) {
+                tokens.push(...userTokens);
             }
         }
 
         if (tokens.length === 0) continue;
 
-        const message = {
-            tokens: tokens,
+        const payload = {
             notification: {
                 title: "Happening Now! 🔥",
                 body: `${eventData.title} is officially starting!`
@@ -494,15 +573,14 @@ exports.notifyHappeningNow = onSchedule({
             android: {
                 priority: "high",
                 notification: { channelId: "high_importance_channel" }
-            }
+            },
+            apns: {
+                payload: { aps: { sound: "default" } }
+            },
+            webpush: createWebPushConfig("Happening Now! 🔥", `${eventData.title} is officially starting!`, eventId, "event_start")
         };
 
-        try {
-            await admin.messaging().sendEachForMulticast(message);
-            logger.log(`"Happening Now" sent to ${tokens.length} users for event ${eventId}`);
-        } catch (error) {
-            logger.error(`Error sending Happening Now for ${eventId}:`, error);
-        }
+        await sendMulticastToTokens(tokens, payload);
     }
 });
 
@@ -631,10 +709,10 @@ exports.resolveExpiredVibeChecks = onSchedule({
             try {
                 const hostDoc = await db.collection("users").doc(notif.hostId).get();
                 const hostData = hostDoc.data();
+                const hostTokens = getUserTokens(hostData);
                 
-                if (hostData && hostData.fcmToken) {
-                    const message = {
-                        token: hostData.fcmToken,
+                if (hostTokens.length > 0) {
+                    const payload = {
                         notification: {
                             title: "Tie Breaker Needed! ⚖️",
                             body: `The squad is split! Open '${notif.eventTitle}' to lock in the final plan.`
@@ -651,9 +729,10 @@ exports.resolveExpiredVibeChecks = onSchedule({
                             payload: {
                                 aps: { badge: 1, sound: "default" }
                             }
-                        }
+                        },
+                        webpush: createWebPushConfig("Tie Breaker Needed! ⚖️", `The squad is split! Open '${notif.eventTitle}' to lock in the final plan.`, notif.eventId, "event_update")
                     };
-                    await admin.messaging().send(message);
+                    await sendMulticastToTokens(hostTokens, payload);
                     logger.log(`Tie-breaker notification sent to host ${notif.hostId} for event ${notif.eventId}`);
                 }
             } catch (err) {
@@ -743,23 +822,30 @@ exports.awardLootDrops = onSchedule("every 15 minutes", async (event) => {
             if (hostDoc.exists) {
                 const hostInfo = hostDoc.data();
                 const notificationSettings = hostInfo.notificationSettings || {};
-                const fcmToken = hostInfo.fcmToken; 
+                const hostTokens = getUserTokens(hostInfo); 
 
-                if (notificationSettings.points !== false && fcmToken) {
-                    const message = {
+                if (notificationSettings.points !== false && hostTokens.length > 0) {
+                    const hostPayload = {
                         notification: {
                             title: "Loot Drop! 📦",
                             body: `Congratulations! "${eventData.title}" earned you ${hpEarned} HP and ${manaEarned} Mana!`,
                         },
-                        token: fcmToken,
+                        data: {
+                            type: "points",
+                            eventId: eventId
+                        },
+                        android: {
+                            priority: "high",
+                            notification: { channelId: "high_importance_channel" }
+                        },
+                        apns: {
+                            payload: { aps: { sound: "default" } }
+                        },
+                        webpush: createWebPushConfig("Loot Drop! 📦", `Congratulations! "${eventData.title}" earned you ${hpEarned} HP and ${manaEarned} Mana!`, eventId, "points")
                     };
 
-                    try {
-                        await admin.messaging().send(message);
-                        console.log(`Push sent to host of ${eventId}.`);
-                    } catch (error) {
-                        console.error(`Failed to send push to host ${hostId}:`, error);
-                    }
+                    await sendMulticastToTokens(hostTokens, hostPayload);
+                    console.log(`Push sent to host of ${eventId}.`);
                 }
             }
 
@@ -769,23 +855,30 @@ exports.awardLootDrops = onSchedule("every 15 minutes", async (event) => {
                 if (coHostDoc.exists) {
                     const coHostInfo = coHostDoc.data();
                     const notificationSettings = coHostInfo.notificationSettings || {};
-                    const fcmToken = coHostInfo.fcmToken; 
+                    const coHostTokens = getUserTokens(coHostInfo); 
 
-                    if (notificationSettings.points !== false && fcmToken) {
-                        const message = {
+                    if (notificationSettings.points !== false && coHostTokens.length > 0) {
+                        const coHostPayload = {
                             notification: {
                                 title: "Loot Drop! 📦",
                                 body: `Thanks for the assist! "${eventData.title}" earned you ${coHostHpEarned} HP!`,
                             },
-                            token: fcmToken,
+                            data: {
+                                type: "points",
+                                eventId: eventId
+                            },
+                            android: {
+                                priority: "high",
+                                notification: { channelId: "high_importance_channel" }
+                            },
+                            apns: {
+                                payload: { aps: { sound: "default" } }
+                            },
+                            webpush: createWebPushConfig("Loot Drop! 📦", `Thanks for the assist! "${eventData.title}" earned you ${coHostHpEarned} HP!`, eventId, "points")
                         };
 
-                        try {
-                            await admin.messaging().send(message);
-                            console.log(`Push sent to co-host of ${eventId}.`);
-                        } catch (error) {
-                            console.error(`Failed to send push to co-host ${coHostId}:`, error);
-                        }
+                        await sendMulticastToTokens(coHostTokens, coHostPayload);
+                        console.log(`Push sent to co-host of ${eventId}.`);
                     }
                 }
             }

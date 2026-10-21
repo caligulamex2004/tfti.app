@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,6 +9,7 @@ import 'saved_places_page.dart';
 import '../utils/theme_provider.dart';
 import '../utils/responsive_layout.dart';
 import '../components/shared/shared_sliver_app_bar.dart';
+import '../services/notification_service.dart';
 
 class PreferencesPage extends StatefulWidget {
   const PreferencesPage({super.key});
@@ -262,6 +265,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
           isDark: isDark,
           child: Column(
             children: [
+              _buildWebNotificationStatusTile(isDark, primaryColor),
               _buildModernSwitch(
                 title: "Event Invites",
                 subtitle: "When you get invited",
@@ -361,6 +365,140 @@ class _PreferencesPageState extends State<PreferencesPage> {
               const SizedBox(height: 8),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildWebNotificationStatusTile(bool isDark, Color primaryColor) {
+    if (!kIsWeb) return const SizedBox.shrink();
+
+    return FutureBuilder<AuthorizationStatus>(
+      future: NotificationService.instance.getAuthorizationStatus(),
+      builder: (context, snapshot) {
+        final status = snapshot.data ?? AuthorizationStatus.notDetermined;
+        final isEnabled =
+            status == AuthorizationStatus.authorized ||
+            status == AuthorizationStatus.provisional;
+        final isDenied = status == AuthorizationStatus.denied;
+
+        Widget trailing;
+        String subtitle;
+        Color iconColor;
+        IconData icon;
+
+        if (isEnabled) {
+          icon = Icons.notifications_active_rounded;
+          iconColor = Colors.green;
+          subtitle = "Active — alerts will fire even when tab is closed";
+          trailing = Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.check, size: 14, color: Colors.green),
+                SizedBox(width: 4),
+                Text(
+                  "Active",
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
+          );
+        } else if (isDenied) {
+          icon = Icons.notifications_off_rounded;
+          iconColor = Colors.red;
+          subtitle = "Blocked. Please allow notifications in site settings.";
+          trailing = Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Text(
+              "Blocked",
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
+          );
+        } else {
+          icon = Icons.notifications_outlined;
+          iconColor = primaryColor;
+          subtitle = "Receive desktop alerts when you are invited or messaged";
+          trailing = ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              elevation: 0,
+            ),
+            onPressed: () async {
+              final granted = await NotificationService.instance
+                  .requestPermissionAndRegister();
+              if (context.mounted) {
+                setState(() {});
+                if (!granted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        "Permission not granted or blocked by browser settings.",
+                      ),
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text(
+              "Enable",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+          );
+        }
+
+        return Column(
+          children: [
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 6,
+              ),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: iconColor, size: 22),
+              ),
+              title: const Text(
+                "Browser Push Notifications",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+              subtitle: Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                ),
+              ),
+              trailing: trailing,
+            ),
+            _buildDivider(isDark),
+          ],
         );
       },
     );
