@@ -1,8 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../models/place_model.dart';
 import '../services/place_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -67,57 +66,60 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
       return;
     }
 
-    if (_apiKey.isEmpty) {
-      setState(() {
-        _error = "Places API key is not configured.";
-        _isLoading = false;
-      });
-      debugPrint("Warning: PLACES_API_KEY is not defined. Run with --dart-define-from-file=secrets.json");
-      return;
-    }
-
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
-    final url =
-        "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$input&key=$_apiKey&sessiontoken=$_sessionToken";
-
     try {
-      final response = await http.get(Uri.parse(url));
+      final callable =
+          FirebaseFunctions.instance.httpsCallable('placesAutocomplete');
+      final result = await callable.call({
+        'input': input.trim(),
+        'sessionToken': _sessionToken ?? '',
+        if (_apiKey.isNotEmpty) 'apiKey': _apiKey,
+      });
+
       if (!mounted) return;
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['status'] == 'OK') {
-          setState(() {
-            _placePredictions = data['predictions'];
-            _isLoading = false;
-          });
-        } else if (data['status'] == 'ZERO_RESULTS') {
-           setState(() {
-            _placePredictions = [];
-            _isLoading = false;
-          });
-        } else {
-          setState(() {
-            _error = "Error: ${data['status']}";
-            _isLoading = false;
-          });
-        }
+
+      final data = Map<String, dynamic>.from(result.data as Map);
+      final String status = data['status']?.toString() ?? 'OK';
+
+      if (status == 'OK') {
+        final List<dynamic> predictions = data['predictions'] is List
+            ? data['predictions'] as List<dynamic>
+            : [];
+        setState(() {
+          _placePredictions = predictions;
+          _isLoading = false;
+        });
+      } else if (status == 'ZERO_RESULTS') {
+        setState(() {
+          _placePredictions = [];
+          _isLoading = false;
+        });
       } else {
-         setState(() {
-          _error = "Failed to load suggestions.";
+        setState(() {
+          _error = "Error: $status";
           _isLoading = false;
         });
       }
+    } on FirebaseFunctionsException catch (fe) {
+      if (!mounted) return;
+      setState(() {
+        _error = fe.message ?? "Search failed. Please try again.";
+        _isLoading = false;
+      });
+      debugPrint(
+        "FirebaseFunctionsException in placesAutocomplete: ${fe.code} - ${fe.message}",
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = "Network error. Please try again.";
         _isLoading = false;
       });
-      debugPrint("Error fetching maps data: $e");
+      debugPrint("Error fetching maps data via Cloud Function: $e");
     }
   }
 

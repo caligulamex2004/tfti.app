@@ -9,7 +9,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_app_badger/flutter_app_badger.dart';
 
 import 'pages/login_page.dart';
 import 'pages/chat_page.dart';
@@ -53,7 +52,9 @@ void main() async {
       if (Platform.isIOS) {
         await Purchases.configure(PurchasesConfiguration("YOUR_APPLE_API_KEY"));
       } else if (Platform.isAndroid) {
-        await Purchases.configure(PurchasesConfiguration("YOUR_GOOGLE_API_KEY"));
+        await Purchases.configure(
+          PurchasesConfiguration("YOUR_GOOGLE_API_KEY"),
+        );
       }
     }
   } catch (e) {
@@ -217,8 +218,9 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
             return;
           }
 
-          final eventsMap =
-              await UserCacheRepository.instance.getEvents(eventIds);
+          final eventsMap = await UserCacheRepository.instance.getEvents(
+            eventIds,
+          );
 
           bool foundRealPending = false;
           for (final eventId in eventIds) {
@@ -273,17 +275,24 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
       // Self-heal: If Firestore doc lost its displayName, restore from Auth profile
       try {
-        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
         if (userDoc.exists) {
           final data = userDoc.data();
-          final currentDocName = (data?['displayName'] as String?)?.trim() ?? '';
+          final currentDocName =
+              (data?['displayName'] as String?)?.trim() ?? '';
           final authName = (user.displayName ?? '').trim();
           if (currentDocName.isEmpty && authName.isNotEmpty) {
-            await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-              'displayName': authName,
-            }, SetOptions(merge: true));
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .set({'displayName': authName}, SetOptions(merge: true));
             UserCacheRepository.instance.invalidateUser(user.uid);
-            debugPrint('✨ Healed empty Firestore displayName from Auth profile: $authName');
+            debugPrint(
+              '✨ Healed empty Firestore displayName from Auth profile: $authName',
+            );
           }
         }
       } catch (healErr) {
@@ -292,7 +301,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
       // One-time build migration: ensure user phone visibility is reverted to show phone number by default
       final prefs = await SharedPreferences.getInstance();
-      final hasReverted = prefs.getBool('phone_visibility_reverted_to_show_v1') ?? false;
+      final hasReverted =
+          prefs.getBool('phone_visibility_reverted_to_show_v1') ?? false;
       if (!hasReverted) {
         await prefs.setBool('phone_visibility_reverted_to_show_v1', true);
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({

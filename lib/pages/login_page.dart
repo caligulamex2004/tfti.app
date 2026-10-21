@@ -35,6 +35,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _agreedToPrivacy = false;
 
   Timer? _timer;
+  Timer? _verificationWatchdogTimer;
   int _start = 60;
   bool _canResend = false;
 
@@ -68,6 +69,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void dispose() {
     _timer?.cancel();
+    _verificationWatchdogTimer?.cancel();
     _nameController.removeListener(_onTextChanged);
     _usernameController.removeListener(_onTextChanged);
     _nameController.dispose();
@@ -233,11 +235,30 @@ class _LoginPageState extends State<LoginPage> {
       _isLoading = true;
     });
 
+    _verificationWatchdogTimer?.cancel();
+    _verificationWatchdogTimer = Timer(const Duration(seconds: 35), () {
+      if (mounted && _isLoading && !_codeSent) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Verification timed out. Check your connection and try again.",
+            ),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    });
+
     await FirebaseAuth.instance.verifyPhoneNumber(
       phoneNumber: _completePhoneNumber,
       forceResendingToken: isResend ? _resendToken : null,
 
       verificationCompleted: (PhoneAuthCredential credential) async {
+        _verificationWatchdogTimer?.cancel();
         final currentName = _nameController.text.trim();
         final currentUsername = _usernameController.text.trim();
 
@@ -261,6 +282,7 @@ class _LoginPageState extends State<LoginPage> {
       },
 
       verificationFailed: (FirebaseAuthException e) {
+        _verificationWatchdogTimer?.cancel();
         if (!mounted) {
           return;
         }
@@ -285,6 +307,7 @@ class _LoginPageState extends State<LoginPage> {
       },
 
       codeSent: (String verificationId, int? resendToken) {
+        _verificationWatchdogTimer?.cancel();
         if (mounted) {
           setState(() {
             _verificationId = verificationId;

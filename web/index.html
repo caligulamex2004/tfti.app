@@ -105,10 +105,15 @@
       right: 0;
     }
   </style>
-  <!-- Hide Google reCAPTCHA v2/v3 floating badge per Google Terms (attribution displayed in UI) -->
+  <!-- Position Google reCAPTCHA v2/v3 badge unobtrusively without suppressing interactive challenge overlays -->
   <style>
     .grecaptcha-badge {
-      visibility: hidden !important;
+      opacity: 0.01;
+      transition: opacity 0.3s ease;
+    }
+    .grecaptcha-badge:hover,
+    .grecaptcha-badge:focus-within {
+      opacity: 1;
     }
   </style>
   <script id="splash-screen-script">

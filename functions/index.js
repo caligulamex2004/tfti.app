@@ -1,5 +1,6 @@
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {onDocumentCreated, onDocumentUpdated} = require("firebase-functions/v2/firestore");
+const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 
@@ -887,3 +888,65 @@ exports.awardLootDrops = onSchedule("every 15 minutes", async (event) => {
         console.error("Critical error in awardLootDrops:", error);
     }
 });
+
+/**
+ * Callable Cloud Function: placesAutocomplete
+ * Proxies Google Places Autocomplete API server-to-server to eradicate browser CORS limitations
+ * and avoid exposing the Google Maps API key on the client.
+ */
+exports.placesAutocomplete = onCall(
+    {
+        cors: true,
+        enforceAppCheck: false,
+    },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError(
+                "unauthenticated",
+                "Authentication is required to search locations."
+            );
+        }
+
+        const input = request.data?.input;
+        const sessionToken = request.data?.sessionToken || "";
+
+        if (!input || typeof input !== "string" || input.trim().length === 0) {
+            return {
+                status: "OK",
+                predictions: [],
+            };
+        }
+
+        const apiKey = process.env.PLACES_API_KEY || request.data?.apiKey;
+        if (!apiKey) {
+            logger.error("PLACES_API_KEY is not configured on Cloud Functions.");
+            throw new HttpsError(
+                "failed-precondition",
+                "Places service is temporarily unavailable."
+            );
+        }
+
+        const encodedInput = encodeURIComponent(input.trim());
+        const sessionParam = sessionToken ? `&sessiontoken=${encodeURIComponent(sessionToken)}` : "";
+        const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodedInput}&key=${apiKey}${sessionParam}`;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                logger.error(`Google Places API HTTP error: ${response.status} ${response.statusText}`);
+                throw new HttpsError("internal", "Failed to contact Google Places service.");
+            }
+
+            const data = await response.json();
+            return {
+                status: data.status || "OK",
+                predictions: data.predictions || [],
+                errorMessage: data.error_message || null,
+            };
+        } catch (error) {
+            if (error instanceof HttpsError) throw error;
+            logger.error("Exception in placesAutocomplete proxy:", error);
+            throw new HttpsError("internal", "Network error communicating with Google Places.");
+        }
+    }
+);

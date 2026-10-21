@@ -50,7 +50,7 @@ void main() {
         expect(html, contains('favicon.png'));
         expect(html, contains('favicon.ico'));
         expect(html, contains('.grecaptcha-badge'));
-        expect(html, contains('visibility: hidden !important;'));
+        expect(html, contains('opacity: 0.01;'));
       },
     );
 
