@@ -219,6 +219,11 @@ exports.sendInviteNotification = onDocumentCreated("events/{eventId}/invitations
     const hostId = eventData.hostId;
     const eventTitle = eventData.title || "New Event";
 
+    if (userId === hostId) {
+        logger.log(`Skipping invite notification for host ${userId}`);
+        return;
+    }
+
     const userDoc = await db.collection("users").doc(userId).get();
     const userData = userDoc.data();
     const tokens = getUserTokens(userData);

@@ -23,6 +23,25 @@ class NotificationService {
     _foregroundStreamController.add(message);
   }
 
+  /// Displays an in-app foreground toast banner for local app actions
+  /// (e.g. Hangout creation, updates) without altering the app badge count.
+  void showLocalNotification({
+    required String title,
+    required String body,
+    String type = 'success',
+    Map<String, dynamic>? data,
+  }) {
+    final message = RemoteMessage(
+      data: {
+        'title': title,
+        'body': body,
+        'type': type,
+        ...?data,
+      },
+    );
+    _foregroundStreamController.add(message);
+  }
+
   StreamSubscription<String>? _tokenRefreshSub;
   bool _initialized = false;
 

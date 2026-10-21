@@ -12,6 +12,7 @@ import '../models/vibe_check_submission_request.dart';
 import '../utils/event_service.dart';
 import '../utils/theme_provider.dart';
 import '../utils/responsive_layout.dart';
+import '../services/notification_service.dart';
 import 'places_search_page.dart';
 
 class VibeCheckEditorPage extends StatefulWidget {
@@ -252,13 +253,12 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       onSuccess: () {
         if (mounted) {
           Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                isEditing ? "Changes saved!" : "Feeler sent out! 🎣",
-              ),
-              backgroundColor: Colors.green,
-            ),
+          NotificationService.instance.showLocalNotification(
+            title: isEditing ? "Changes saved! 💾" : "Feeler sent out! 🎣",
+            body: isEditing
+                ? "Your event details have been updated."
+                : "Your crew has been polled! 📨",
+            type: 'success',
           );
         }
       },

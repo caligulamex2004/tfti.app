@@ -103,6 +103,8 @@ class _InAppNotificationToastWrapperState
 
   IconData _getIconForType(String? type) {
     switch (type) {
+      case 'success':
+        return Icons.check_circle_outline_rounded;
       case 'chat':
       case 'chat_mention':
         return Icons.chat_bubble_outline_rounded;
