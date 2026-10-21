@@ -28,6 +28,7 @@ import '../components/feed/empty_feed_states.dart';
 import '../components/shared/user_profile_sheet.dart';
 import '../components/shared/event_type_pill.dart';
 import '../services/contact_resolver.dart';
+import '../services/badge_service.dart';
 
 class HangoutDetailsPage extends StatefulWidget {
   final String eventId;
@@ -59,6 +60,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
   @override
   void initState() {
     super.initState();
+    BadgeService.instance.clearBadge();
 
     final user = FirebaseAuth.instance.currentUser;
     _eventStream = FirebaseFirestore.instance

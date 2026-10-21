@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../shared/app_avatar.dart';
+import '../../services/contact_resolver.dart';
 
 // --- FULL DETAILS SHEET ---
 class FullDetailsSheet extends StatelessWidget {
@@ -173,11 +174,57 @@ class SeenBySheet extends StatelessWidget {
                 itemCount: seenGuests.length,
                 itemBuilder: (context, index) {
                   final guest = seenGuests[index];
-                  final String name = guest['displayName'];
-                  final String username = guest['username'] ?? "";
+                  final String displayName =
+                      (guest['displayName'] as String?)?.trim() ?? 'Attendee';
+                  final String rawPhone =
+                      (guest['phoneNumber'] ?? '').toString();
+                  final contactName =
+                      ContactResolver.instance.resolveName(rawPhone);
+                  final bool hasContactName =
+                      contactName != null && contactName.trim().isNotEmpty;
+                  final String primaryName =
+                      hasContactName ? contactName.trim() : displayName;
+
+                  final String username =
+                      (guest['username'] as String?)?.trim() ?? '';
                   final String? avatarUrl = guest['avatarUrl'];
                   final int avatarColor =
                       guest['avatarColor'] ?? Colors.blue.toARGB32();
+
+                  Widget? subtitleWidget;
+                  if (hasContactName &&
+                      displayName.isNotEmpty &&
+                      displayName != primaryName) {
+                    subtitleWidget = Padding(
+                      padding: const EdgeInsets.only(top: 2.0),
+                      child: Text(
+                        "~ $displayName${username.isNotEmpty ? ' (@$username)' : ''}",
+                        style: TextStyle(
+                          color: primaryColor,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  } else if (username.isNotEmpty) {
+                    subtitleWidget = Padding(
+                      padding: const EdgeInsets.only(top: 2.0),
+                      child: Text(
+                        "@$username",
+                        style: TextStyle(
+                          color: isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }
 
                   return ListTile(
                     contentPadding: const EdgeInsets.symmetric(
@@ -199,31 +246,38 @@ class SeenBySheet extends StatelessWidget {
                         radius: 20,
                         avatarColor: avatarColor,
                         avatarUrl: avatarUrl,
-                        displayName: name,
+                        displayName: primaryName,
                         fontSize: 16,
                       ),
                     ),
-                    title: Text(
-                      name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
-                    ),
-                    subtitle: username.isNotEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.only(top: 2.0),
-                            child: Text(
-                              "@$username",
-                              style: TextStyle(
-                                color: primaryColor,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
+                    title: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            primaryName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: isDark ? Colors.white : Colors.black87,
                             ),
-                          )
-                        : null,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (hasContactName)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 6.0),
+                            child: Icon(
+                              Icons.contact_phone_outlined,
+                              size: 14,
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                            ),
+                          ),
+                      ],
+                    ),
+                    subtitle: subtitleWidget,
                   );
                 },
               ),

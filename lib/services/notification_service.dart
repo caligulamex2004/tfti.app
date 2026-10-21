@@ -18,6 +18,11 @@ class NotificationService {
   Stream<RemoteMessage> get onForegroundMessage =>
       _foregroundStreamController.stream;
 
+  @visibleForTesting
+  void emitForegroundMessageForTesting(RemoteMessage message) {
+    _foregroundStreamController.add(message);
+  }
+
   StreamSubscription<String>? _tokenRefreshSub;
   bool _initialized = false;
 

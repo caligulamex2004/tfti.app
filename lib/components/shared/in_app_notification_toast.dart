@@ -79,6 +79,7 @@ class _InAppNotificationToastWrapperState
 
   void _dismissToast() {
     _dismissTimer?.cancel();
+    BadgeService.instance.clearBadge();
     if (!mounted) return;
     _animController.reverse().then((_) {
       if (mounted) {

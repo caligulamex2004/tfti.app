@@ -23,8 +23,12 @@ void setWebBadge(int count) {
     if (nav != null) {
       if (count > 0 && nav['setAppBadge'] != null) {
         nav.callMethod('setAppBadge', [count]);
-      } else if (count <= 0 && nav['clearAppBadge'] != null) {
-        nav.callMethod('clearAppBadge');
+      } else if (count <= 0) {
+        if (nav['clearAppBadge'] != null) {
+          nav.callMethod('clearAppBadge');
+        } else if (nav['setAppBadge'] != null) {
+          nav.callMethod('setAppBadge', [0]);
+        }
       }
     }
   } catch (_) {

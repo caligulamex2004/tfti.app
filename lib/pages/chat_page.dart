@@ -17,6 +17,7 @@ import '../components/chat/mentions_overlay.dart';
 import '../components/chat/chat_action_dialogs.dart';
 import '../components/chat/chat_feed.dart';
 import '../services/user_cache_repository.dart';
+import '../services/badge_service.dart';
 
 class ChatPage extends StatefulWidget {
   final String eventId;
@@ -45,6 +46,7 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
+    BadgeService.instance.clearBadge();
     _listenToEventData();
     _listenToInvitations();
     _messageController.addListener(_onTextChanged);
