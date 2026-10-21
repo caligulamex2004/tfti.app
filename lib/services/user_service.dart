@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:tftiapp/models/user_profile.dart';
+import 'user_cache_repository.dart';
 
 class UserService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -41,10 +42,10 @@ class UserService {
   }) async {
     final Map<String, dynamic> updates = {};
 
-    if (displayName != null) {
+    if (displayName != null && displayName.trim().isNotEmpty) {
       updates['displayName'] = displayName.trim();
     }
-    if (username != null) {
+    if (username != null && username.trim().isNotEmpty) {
       updates['username'] = username.trim().toLowerCase();
     }
     if (status != null) {
@@ -78,7 +79,10 @@ class UserService {
 
     await _firestore.collection('users').doc(uid).update(updates);
 
-    if (displayName != null && _auth.currentUser != null) {
+    // Invalidate local memory cache so HomeFeed, teams, and chat immediately see changes
+    UserCacheRepository.instance.invalidateUser(uid);
+
+    if (displayName != null && displayName.trim().isNotEmpty && _auth.currentUser != null) {
       await _auth.currentUser!.updateDisplayName(displayName.trim());
     }
   }

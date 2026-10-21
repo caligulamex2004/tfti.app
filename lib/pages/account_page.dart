@@ -78,7 +78,9 @@ class _AccountPageState extends State<AccountPage> {
   void dispose() {
     _nameController.removeListener(_onFormChanged);
     _statusController.removeListener(_onFormChanged);
-    _autoSaveIdentity();
+    if (_hasLoadedInitialData) {
+      _autoSaveIdentity();
+    }
     _userSub?.cancel();
     _nameController.dispose();
     _statusController.dispose();
@@ -147,10 +149,13 @@ class _AccountPageState extends State<AccountPage> {
 
   Future<void> _autoSaveIdentity() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null || !_hasLoadedInitialData) return;
 
     final String name = _nameController.text.trim();
     final String status = _statusController.text.trim();
+
+    // Guard against saving an empty name (which wipes the user identity)
+    if (name.isEmpty) return;
 
     try {
       await UserService.updateProfile(
