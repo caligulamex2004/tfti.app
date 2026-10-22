@@ -457,6 +457,7 @@ class MessageOptionsSheet extends StatelessWidget {
                 }
               },
             ),
+          ],
         ],
       ),
     );

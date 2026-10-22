@@ -5,11 +5,13 @@ import '../shared/app_avatar.dart';
 class WhisperRecipientSheet extends StatefulWidget {
   final List<Map<String, dynamic>> eventGuests;
   final Function(Map<String, dynamic> recipient) onSelectRecipient;
+  final String? currentUserId;
 
   const WhisperRecipientSheet({
     super.key,
     required this.eventGuests,
     required this.onSelectRecipient,
+    this.currentUserId,
   });
 
   @override
@@ -28,7 +30,14 @@ class _WhisperRecipientSheetState extends State<WhisperRecipientSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    String? currentUid = widget.currentUserId;
+    if (currentUid == null) {
+      try {
+        currentUid = FirebaseAuth.instance.currentUser?.uid;
+      } catch (_) {
+        currentUid = null;
+      }
+    }
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
 
