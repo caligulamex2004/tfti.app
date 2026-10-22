@@ -61,5 +61,15 @@ class ContactHelper {
     }
     return '';
   }
+
+  /// Extracts the first name from a full name string by taking the first space-delimited word.
+  /// If [fullName] is null or empty, returns an empty string.
+  static String extractFirstName(String? fullName) {
+    if (fullName == null) return '';
+    final trimmed = fullName.trim();
+    if (trimmed.isEmpty) return '';
+    final parts = trimmed.split(RegExp(r'\s+'));
+    return parts.first;
+  }
 }
 

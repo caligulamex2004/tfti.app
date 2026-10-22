@@ -18,6 +18,7 @@ class ContactResolver extends ChangeNotifier {
   static const String _prefKeyGranted = 'contacts_permission_granted';
 
   final Map<String, String> _phoneToNameCache = {};
+  final Map<String, String> _phoneToFirstNameCache = {};
   String? _currentUserPhone;
   bool _isWarmingUp = false;
   bool _hasWarmedUp = false;
@@ -49,6 +50,7 @@ class ContactResolver extends ChangeNotifier {
       _currentUserPhone = normalized;
       if (normalized != null) {
         _phoneToNameCache.remove(normalized);
+        _phoneToFirstNameCache.remove(normalized);
       }
       notifyListeners();
     }
@@ -86,6 +88,7 @@ class ContactResolver extends ChangeNotifier {
         if (norm != null) {
           _currentUserPhone = norm;
           _phoneToNameCache.remove(norm);
+          _phoneToFirstNameCache.remove(norm);
           return;
         }
       }
@@ -100,6 +103,7 @@ class ContactResolver extends ChangeNotifier {
           if (norm != null) {
             _currentUserPhone = norm;
             _phoneToNameCache.remove(norm);
+            _phoneToFirstNameCache.remove(norm);
           }
         }
       }
@@ -118,11 +122,34 @@ class ContactResolver extends ChangeNotifier {
     return _phoneToNameCache[normalized];
   }
 
+  /// Returns the cached local contact first name for a phone number if known,
+  /// or extracts the first name from [fallbackName] if provided, or null.
+  /// Never matches the current user's own phone number.
+  String? resolveFirstName(String? rawPhone, {String? fallbackName}) {
+    if (rawPhone != null && rawPhone.isNotEmpty) {
+      final normalized = ContactHelper.normalizePhone(rawPhone);
+      if (normalized != null && !isCurrentUserPhone(normalized)) {
+        final cachedFirst = _phoneToFirstNameCache[normalized];
+        if (cachedFirst != null && cachedFirst.isNotEmpty) {
+          return cachedFirst;
+        }
+      }
+    }
+    if (fallbackName != null && fallbackName.trim().isNotEmpty) {
+      return ContactHelper.extractFirstName(fallbackName);
+    }
+    return null;
+  }
+
   /// Check if the cache has finished warming up at least once.
   bool get hasWarmedUp => _hasWarmedUp;
 
   /// Read-only snapshot of cached phone-to-name entries.
   Map<String, String> get cache => Map.unmodifiable(_phoneToNameCache);
+
+  /// Read-only snapshot of cached phone-to-first-name entries.
+  Map<String, String> get firstNameCache =>
+      Map.unmodifiable(_phoneToFirstNameCache);
 
   /// Warms up the in-memory cache if permission has previously been granted.
   /// Safe to call asynchronously on app startup or page loads without blocking the UI.
@@ -166,9 +193,15 @@ class ContactResolver extends ChangeNotifier {
       );
 
       _phoneToNameCache.clear();
+      _phoneToFirstNameCache.clear();
       for (final contact in contacts) {
         final name = contact.displayName.trim();
         if (name.isEmpty) continue;
+
+        String firstName = contact.name.first.trim();
+        if (firstName.isEmpty) {
+          firstName = ContactHelper.extractFirstName(name);
+        }
 
         for (final p in contact.phones) {
           final normalized = ContactHelper.normalizePhone(p.number);
@@ -176,6 +209,7 @@ class ContactResolver extends ChangeNotifier {
               !isCurrentUserPhone(normalized) &&
               !_phoneToNameCache.containsKey(normalized)) {
             _phoneToNameCache[normalized] = name;
+            _phoneToFirstNameCache[normalized] = firstName;
           }
         }
       }
@@ -204,8 +238,13 @@ class ContactResolver extends ChangeNotifier {
 
   /// Seeds the cache for unit and widget tests and notifies listeners.
   @visibleForTesting
-  void seedForTest(Map<String, String> entries, {String? currentUserPhone}) {
+  void seedForTest(
+    Map<String, String> entries, {
+    Map<String, String>? firstNames,
+    String? currentUserPhone,
+  }) {
     _phoneToNameCache.clear();
+    _phoneToFirstNameCache.clear();
     if (currentUserPhone != null) {
       _currentUserPhone = ContactHelper.normalizePhone(currentUserPhone);
     }
@@ -213,6 +252,11 @@ class ContactResolver extends ChangeNotifier {
       final normalized = ContactHelper.normalizePhone(phone) ?? phone;
       if (!isCurrentUserPhone(normalized)) {
         _phoneToNameCache[normalized] = name;
+        final explicitFirst = firstNames?[phone];
+        _phoneToFirstNameCache[normalized] = explicitFirst != null &&
+                explicitFirst.isNotEmpty
+            ? explicitFirst
+            : ContactHelper.extractFirstName(name);
       }
     });
     _hasWarmedUp = true;
@@ -223,6 +267,7 @@ class ContactResolver extends ChangeNotifier {
   @visibleForTesting
   void clearForTest() {
     _phoneToNameCache.clear();
+    _phoneToFirstNameCache.clear();
     _currentUserPhone = null;
     _hasWarmedUp = false;
     notifyListeners();

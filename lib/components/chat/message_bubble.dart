@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../utils/theme_provider.dart';
+import '../../services/contact_resolver.dart';
+import '../../services/contact_service.dart';
 import '../shared/app_avatar.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -313,6 +315,40 @@ class MessageBubble extends StatelessWidget {
         ? const Color(0xFF94A3B8)
         : const Color(0xFF334155);
 
+    // Dynamic on-device resolution for sender and recipient first names
+    String resolvedSenderFirstName = senderName;
+    try {
+      final senderGuest = eventGuests.firstWhere((g) => g['uid'] == senderId);
+      final phone = (senderGuest['phoneNumber'] ?? '').toString();
+      resolvedSenderFirstName = ContactResolver.instance.resolveFirstName(
+            phone,
+            fallbackName: senderName,
+          ) ??
+          senderName;
+    } catch (_) {
+      resolvedSenderFirstName = ContactHelper.extractFirstName(senderName);
+    }
+
+    String resolvedRecipientFirstName = whisperRecipientName ?? 'guest';
+    if (whisperRecipientId != null) {
+      try {
+        final recipientGuest =
+            eventGuests.firstWhere((g) => g['uid'] == whisperRecipientId);
+        final phone = (recipientGuest['phoneNumber'] ?? '').toString();
+        resolvedRecipientFirstName = ContactResolver.instance.resolveFirstName(
+              phone,
+              fallbackName: whisperRecipientName ?? 'guest',
+            ) ??
+            (whisperRecipientName ?? 'guest');
+      } catch (_) {
+        resolvedRecipientFirstName =
+            ContactHelper.extractFirstName(whisperRecipientName ?? 'guest');
+      }
+    } else if (whisperRecipientName != null) {
+      resolvedRecipientFirstName =
+          ContactHelper.extractFirstName(whisperRecipientName!);
+    }
+
     return GestureDetector(
       onLongPress: onOptionsTap,
       onTap: onReadByTap,
@@ -329,7 +365,7 @@ class MessageBubble extends StatelessWidget {
                 radius: 16,
                 avatarColor: senderColor,
                 avatarUrl: senderAvatarUrl,
-                displayName: senderName,
+                displayName: resolvedSenderFirstName,
                 fontSize: 12,
               ),
               const SizedBox(width: 8),
@@ -367,14 +403,18 @@ class MessageBubble extends StatelessWidget {
                               color: whisperPillFg,
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              isMe
-                                  ? "Whispered to ${whisperRecipientName ?? 'guest'}"
-                                  : "$senderName Whispered",
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.bold,
-                                color: whisperPillFg,
+                            Flexible(
+                              child: Text(
+                                isMe
+                                    ? "Whispered to $resolvedRecipientFirstName"
+                                    : "$resolvedSenderFirstName Whispered",
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: whisperPillFg,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -420,7 +460,7 @@ class MessageBubble extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(bottom: 6),
                             child: Text(
-                              senderName,
+                              resolvedSenderFirstName,
                               style: TextStyle(
                                 color: isDark
                                     ? Color(senderColor).withValues(alpha: 0.8)
@@ -428,6 +468,8 @@ class MessageBubble extends StatelessWidget {
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
 

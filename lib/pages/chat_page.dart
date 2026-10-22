@@ -136,6 +136,7 @@ class _ChatPageState extends State<ChatPage> {
                 'tag': realUsername,
                 'avatarUrl': profile.avatarUrl,
                 'avatarColor': profile.avatarColor,
+                'phoneNumber': profile.phoneNumber,
                 'status': data['status'],
                 'lastReadChat': data['lastReadChat'],
               });

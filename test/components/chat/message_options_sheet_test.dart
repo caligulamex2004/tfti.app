@@ -212,10 +212,10 @@ void main() {
           ),
         );
 
-        expect(find.text('Whisper Back'), findsOneWidget);
-        expect(find.byIcon(Icons.reply), findsOneWidget);
+        expect(find.text('Whisper Back to Adam'), findsOneWidget);
+        expect(find.byIcon(Icons.hearing_outlined), findsOneWidget);
 
-        await tester.tap(find.text('Whisper Back'));
+        await tester.tap(find.text('Whisper Back to Adam'));
         await tester.pumpAndSettle();
 
         expect(whisperBackRecipient, isNotNull);

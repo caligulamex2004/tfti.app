@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import '../../services/contact_resolver.dart';
 import '../shared/app_avatar.dart';
 
 // --- SHARED REACTION NORMALIZER ---
@@ -338,45 +339,73 @@ class MessageOptionsSheet extends StatelessWidget {
           ],
 
           if (!isMe) ...[
-            if (data['isWhisper'] == true && onWhisperBack != null)
-              ListTile(
-                leading: Icon(Icons.hearing_outlined, color: primaryColor),
-                title: const Text("Whisper Back"),
-                onTap: () {
-                  Navigator.pop(context);
-                  final senderUid = data['senderId'];
-                  final senderGuest = eventGuests?.firstWhere(
-                    (g) => g['uid'] == senderUid,
-                    orElse: () => {
-                      'uid': senderUid,
-                      'displayName': data['senderName'] ?? 'Unknown',
-                      'tag': '',
-                    },
-                  );
-                  if (senderGuest != null) {
-                    onWhisperBack!(senderGuest);
-                  }
-                },
-              ),
-
-            ListTile(
-              leading: Icon(
-                isSenderMuted
-                    ? Icons.notifications_active_outlined
-                    : Icons.notifications_off_outlined,
-                color: isSenderMuted
-                    ? primaryColor
-                    : (isDark ? Colors.grey.shade400 : Colors.grey.shade700),
-              ),
-              title: Text(
-                isSenderMuted ? "Unmute This Sender" : "Mute This Sender",
-              ),
-              onTap: () async {
-                Navigator.pop(context);
+            Builder(
+              builder: (context) {
                 final senderUid = data['senderId'];
-                if (senderUid != null && onToggleMuteSender != null) {
-                  await onToggleMuteSender!(senderUid);
-                }
+                final senderGuest = eventGuests?.firstWhere(
+                  (g) => g['uid'] == senderUid,
+                  orElse: () => {
+                    'uid': senderUid,
+                    'displayName': data['senderName'] ?? 'Unknown',
+                    'tag': '',
+                  },
+                );
+                final phone = (senderGuest?['phoneNumber'] ?? '').toString();
+                final displayName = data['senderName'] ?? 'Unknown';
+                final senderFirstName =
+                    ContactResolver.instance.resolveFirstName(
+                          phone,
+                          fallbackName: displayName,
+                        ) ??
+                        displayName;
+
+                final hasName =
+                    senderFirstName.isNotEmpty && senderFirstName != 'Unknown';
+                final whisperBackTitle = hasName
+                    ? "Whisper Back to $senderFirstName"
+                    : "Whisper Back";
+                final muteTitle = isSenderMuted
+                    ? (hasName
+                        ? "Unmute $senderFirstName"
+                        : "Unmute This Sender")
+                    : (hasName ? "Mute $senderFirstName" : "Mute This Sender");
+
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (data['isWhisper'] == true && onWhisperBack != null)
+                      ListTile(
+                        leading:
+                            Icon(Icons.hearing_outlined, color: primaryColor),
+                        title: Text(whisperBackTitle),
+                        onTap: () {
+                          Navigator.pop(context);
+                          if (senderGuest != null) {
+                            onWhisperBack!(senderGuest);
+                          }
+                        },
+                      ),
+                    ListTile(
+                      leading: Icon(
+                        isSenderMuted
+                            ? Icons.notifications_active_outlined
+                            : Icons.notifications_off_outlined,
+                        color: isSenderMuted
+                            ? primaryColor
+                            : (isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade700),
+                      ),
+                      title: Text(muteTitle),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        if (senderUid != null && onToggleMuteSender != null) {
+                          await onToggleMuteSender!(senderUid);
+                        }
+                      },
+                    ),
+                  ],
+                );
               },
             ),
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/contact_resolver.dart';
 import '../shared/app_avatar.dart';
 
 class WhisperRecipientSheet extends StatefulWidget {
@@ -45,9 +46,22 @@ class _WhisperRecipientSheetState extends State<WhisperRecipientSheet> {
       if (guest['status'] == 'declined') return false;
 
       if (_searchQuery.isNotEmpty) {
-        final name = (guest['displayName'] as String? ?? '').toLowerCase();
+        final displayName =
+            (guest['displayName'] as String? ?? '').toLowerCase();
+        final phone = (guest['phoneNumber'] ?? '').toString();
+        final contactName =
+            (ContactResolver.instance.resolveName(phone) ?? '').toLowerCase();
+        final firstName = (ContactResolver.instance.resolveFirstName(
+                  phone,
+                  fallbackName: guest['displayName'],
+                ) ??
+                '')
+            .toLowerCase();
         final tag = (guest['tag'] as String? ?? '').toLowerCase();
-        return name.contains(_searchQuery) || tag.contains(_searchQuery);
+        return firstName.contains(_searchQuery) ||
+            displayName.contains(_searchQuery) ||
+            contactName.contains(_searchQuery) ||
+            tag.contains(_searchQuery);
       }
       return true;
     }).toList();
@@ -186,7 +200,20 @@ class _WhisperRecipientSheetState extends State<WhisperRecipientSheet> {
                   itemCount: availableGuests.length,
                   itemBuilder: (context, index) {
                     final guest = availableGuests[index];
-                    final String name = guest['displayName'] ?? 'Unknown';
+                    final String displayName =
+                        guest['displayName'] ?? 'Unknown';
+                    final String phone =
+                        (guest['phoneNumber'] ?? '').toString();
+                    final String? contactFullName =
+                        ContactResolver.instance.resolveName(phone);
+                    final bool hasContact = contactFullName != null &&
+                        contactFullName.trim().isNotEmpty;
+                    final String firstName =
+                        ContactResolver.instance.resolveFirstName(
+                              phone,
+                              fallbackName: displayName,
+                            ) ??
+                            displayName;
                     final String tag = guest['tag'] ?? '';
                     final String? avatarUrl = guest['avatarUrl'];
                     final dynamic avatarColor = guest['avatarColor'];
@@ -200,24 +227,45 @@ class _WhisperRecipientSheetState extends State<WhisperRecipientSheet> {
                         radius: 20,
                         avatarColor: avatarColor,
                         avatarUrl: avatarUrl,
-                        displayName: name,
+                        displayName: firstName,
                         fontSize: 14,
                       ),
                       title: Text(
-                        name,
+                        firstName,
                         style: const TextStyle(fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      subtitle: tag.isNotEmpty
-                          ? Text(
-                              "@$tag",
+                      subtitle: Row(
+                        children: [
+                          if (hasContact) ...[
+                            Icon(
+                              Icons.contact_phone_outlined,
+                              size: 13,
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                            ),
+                            const SizedBox(width: 4),
+                          ],
+                          Expanded(
+                            child: Text(
+                              hasContact &&
+                                      displayName.trim() != firstName.trim()
+                                  ? "~ $displayName · @$tag"
+                                  : (tag.isNotEmpty ? "@$tag" : displayName),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: isDark
                                     ? Colors.grey.shade400
                                     : Colors.grey.shade600,
                               ),
-                            )
-                          : null,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                       trailing: Icon(
                         Icons.chevron_right,
                         color: isDark

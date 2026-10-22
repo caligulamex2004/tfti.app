@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/contact_resolver.dart';
 
 class ChatInputField extends StatelessWidget {
   final TextEditingController controller;
@@ -23,7 +24,14 @@ class ChatInputField extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isWhispering = whisperRecipient != null;
-    final recipientName = whisperRecipient?['displayName'] ?? 'someone';
+    final phone = (whisperRecipient?['phoneNumber'] ?? '').toString();
+    final displayName =
+        whisperRecipient?['displayName'] as String? ?? 'someone';
+    final recipientName = ContactResolver.instance.resolveFirstName(
+          phone,
+          fallbackName: displayName,
+        ) ??
+        displayName;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -69,14 +77,18 @@ class ChatInputField extends StatelessWidget {
                           : const Color(0xFF334155),
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      "Whispering to $recipientName",
-                      style: TextStyle(
-                        color: isDark
-                            ? const Color(0xFFCBD5E1)
-                            : const Color(0xFF334155),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                    Flexible(
+                      child: Text(
+                        "Whispering to $recipientName",
+                        style: TextStyle(
+                          color: isDark
+                              ? const Color(0xFFCBD5E1)
+                              : const Color(0xFF334155),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 6),

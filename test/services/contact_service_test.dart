@@ -91,6 +91,59 @@ void main() {
       expect(ContactResolver.instance.resolveName('999-999-9999'), isNull);
     });
 
+    test('ContactHelper.extractFirstName handles single, multi-word, and empty names', () {
+      expect(ContactHelper.extractFirstName(null), equals(''));
+      expect(ContactHelper.extractFirstName(''), equals(''));
+      expect(ContactHelper.extractFirstName('   '), equals(''));
+      expect(ContactHelper.extractFirstName('Adam'), equals('Adam'));
+      expect(ContactHelper.extractFirstName('Adam Smith'), equals('Adam'));
+      expect(ContactHelper.extractFirstName('Mary Jane Watson'), equals('Mary'));
+    });
+
+    test('resolveFirstName returns contact first name or fallback', () {
+      ContactResolver.instance.clearForTest();
+      ContactResolver.instance.seedForTest({
+        '+15551112222': 'Alexander Hamilton',
+        '+15553334444': 'Elizabeth Schuyler',
+      });
+
+      // Matches local contact
+      expect(
+        ContactResolver.instance.resolveFirstName('+15551112222'),
+        equals('Alexander'),
+      );
+      expect(
+        ContactResolver.instance.resolveFirstName('555-333-4444'),
+        equals('Elizabeth'),
+      );
+
+      // Unknown phone falls back to fallbackName
+      expect(
+        ContactResolver.instance.resolveFirstName(
+          '+15559990000',
+          fallbackName: 'Aaron Burr',
+        ),
+        equals('Aaron'),
+      );
+
+      // Unknown phone with no fallback returns null
+      expect(
+        ContactResolver.instance.resolveFirstName('+15559990000'),
+        isNull,
+      );
+
+      // Null phone with fallback returns fallback first name
+      expect(
+        ContactResolver.instance.resolveFirstName(
+          null,
+          fallbackName: 'Thomas Jefferson',
+        ),
+        equals('Thomas'),
+      );
+
+      ContactResolver.instance.clearForTest();
+    });
+
     test('cache property is unmodifiable', () {
       final cache = ContactResolver.instance.cache;
       expect(() => cache['+15551234567'] = 'Test', throwsUnsupportedError);
