@@ -37,5 +37,23 @@ void main() {
       await service.clearBadge();
       expect(service.badgeCount, 0);
     });
+
+    test('notifies listeners when badge count changes', () async {
+      final service = BadgeService.instance;
+      int notifications = 0;
+      void listener() => notifications++;
+
+      service.addListener(listener);
+      await service.setBadge(3);
+      expect(notifications, 1);
+
+      await service.incrementBadge();
+      expect(notifications, 2);
+
+      await service.clearBadge();
+      expect(notifications, 3);
+
+      service.removeListener(listener);
+    });
   });
 }

@@ -55,6 +55,7 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
+    _markChatAsRead();
     _messageController.removeListener(_onTextChanged);
     _messageController.dispose();
     _scrollController.dispose();
@@ -73,8 +74,12 @@ class _ChatPageState extends State<ChatPage> {
         .snapshots()
         .listen((doc) {
           if (doc.exists && mounted) {
+            final data = doc.data() as Map<String, dynamic>;
+            if (data['lastMessageAt'] != null) {
+              _markChatAsRead();
+            }
             setState(() {
-              _eventData = doc.data() as Map<String, dynamic>;
+              _eventData = data;
             });
           }
         });
@@ -161,7 +166,10 @@ class _ChatPageState extends State<ChatPage> {
         .doc(widget.eventId)
         .collection('invitations')
         .doc(user.uid)
-        .update({'lastReadChat': FieldValue.serverTimestamp()});
+        .set(
+          {'lastReadChat': FieldValue.serverTimestamp()},
+          SetOptions(merge: true),
+        );
   }
 
   // --- MENTIONS LOGIC ---

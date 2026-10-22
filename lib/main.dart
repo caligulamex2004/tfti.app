@@ -172,6 +172,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    BadgeService.instance.addListener(_onBadgeServiceChanged);
     _clearAppBadge();
     _silentProfileRefresh();
     _checkTutorialStatus();
@@ -181,8 +182,13 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    BadgeService.instance.removeListener(_onBadgeServiceChanged);
     _pendingInvitesSub?.cancel(); // Clean up the listener
     super.dispose();
+  }
+
+  void _onBadgeServiceChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -328,7 +334,9 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Use new smart variable to show the badge
-    final showBadge = _hasRealPending && _selectedIndex != 0;
+    final showBadge =
+        (_hasRealPending || BadgeService.instance.badgeCount > 0) &&
+            _selectedIndex != 0;
 
     return Stack(
       children: [
@@ -462,6 +470,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 }
 
 Future<void> handleNotificationRouting(Map<String, dynamic> data) async {
+  await BadgeService.instance.clearBadge();
   final eventId = data['eventId'];
   final type = data['type'];
 
