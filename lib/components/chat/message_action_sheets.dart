@@ -340,7 +340,7 @@ class MessageOptionsSheet extends StatelessWidget {
           if (!isMe) ...[
             if (data['isWhisper'] == true && onWhisperBack != null)
               ListTile(
-                leading: Icon(Icons.reply, color: primaryColor),
+                leading: Icon(Icons.hearing_outlined, color: primaryColor),
                 title: const Text("Whisper Back"),
                 onTap: () {
                   Navigator.pop(context);

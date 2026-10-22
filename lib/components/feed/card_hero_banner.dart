@@ -25,6 +25,7 @@ class CardHeroBanner extends StatelessWidget {
   final String location;
   final String? hostId;
   final Function(String hostId, Map<String, dynamic> hostData)? onHostTap;
+  final bool isExpanded;
 
   const CardHeroBanner({
     super.key,
@@ -43,6 +44,7 @@ class CardHeroBanner extends StatelessWidget {
     required this.location,
     this.hostId,
     this.onHostTap,
+    this.isExpanded = false,
   });
 
   @override
@@ -50,9 +52,7 @@ class CardHeroBanner extends StatelessWidget {
     final bool hasCustomBanner =
         bannerUrl != null && bannerUrl!.isNotEmpty;
 
-    return AspectRatio(
-      aspectRatio: 16 / 9,
-      child: Stack(
+    final content = Stack(
         fit: StackFit.expand,
         children: [
           if (hasCustomBanner)
@@ -361,7 +361,15 @@ class CardHeroBanner extends StatelessWidget {
             ),
           ),
         ],
-      ),
+      );
+
+    if (isExpanded) {
+      return content;
+    }
+
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: content,
     );
   }
 }

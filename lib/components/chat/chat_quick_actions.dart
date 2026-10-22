@@ -51,7 +51,7 @@ class ChatQuickActions extends StatelessWidget {
           const SizedBox(width: 8),
           ActionChip(
             avatar: Icon(
-              Icons.lock_outline,
+              Icons.hearing_outlined,
               size: 16,
               color: chipFg,
             ),

@@ -18,6 +18,11 @@ class NotificationService {
   Stream<RemoteMessage> get onForegroundMessage =>
       _foregroundStreamController.stream;
 
+  /// The ID of the event chat currently active/open on screen.
+  /// Used by in-app toast overlays to suppress redundant banners for conversations
+  /// the user is already viewing.
+  String? activeChatEventId;
+
   @visibleForTesting
   void emitForegroundMessageForTesting(RemoteMessage message) {
     _foregroundStreamController.add(message);

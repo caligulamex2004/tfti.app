@@ -19,6 +19,7 @@ import '../components/chat/chat_action_dialogs.dart';
 import '../components/chat/chat_feed.dart';
 import '../services/user_cache_repository.dart';
 import '../services/badge_service.dart';
+import '../services/notification_service.dart';
 
 class ChatPage extends StatefulWidget {
   final String eventId;
@@ -49,6 +50,7 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
+    NotificationService.instance.activeChatEventId = widget.eventId;
     BadgeService.instance.clearBadge();
     _listenToEventData();
     _listenToInvitations();
@@ -58,6 +60,9 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
+    if (NotificationService.instance.activeChatEventId == widget.eventId) {
+      NotificationService.instance.activeChatEventId = null;
+    }
     _markChatAsRead();
     _messageController.removeListener(_onTextChanged);
     _messageController.dispose();

@@ -340,7 +340,7 @@ class _HomePageState extends State<HomePage> {
         child: Padding(
           padding: EdgeInsets.only(bottom: carouselBottomPadding),
           child: SizedBox(
-            height: 240,
+            height: 248,
             child: CarouselFeedList(
               itemCount: items.length,
               itemBuilder: (context, index) => _buildEventSummaryCardWrapper(
@@ -367,7 +367,7 @@ class _HomePageState extends State<HomePage> {
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: isLandscape ? 16 : 20),
         child: SizedBox(
-          height: 240,
+          height: 248,
           child: ContextualEmptyCard(
             icon: icon,
             title: title,

@@ -207,10 +207,12 @@ class EventSummaryCard extends StatelessWidget {
         child: GestureDetector(
           onLongPress: onLongPress,
           onTap: onTap,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CardHeroBanner(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final bool canExpand =
+                  isHorizontal && constraints.hasBoundedHeight;
+
+              final heroBanner = CardHeroBanner(
                 bannerUrl: bannerUrl,
                 month: month,
                 day: day,
@@ -226,16 +228,27 @@ class EventSummaryCard extends StatelessWidget {
                 location: data['location'] ?? "TBD",
                 hostId: data['hostId'],
                 onHostTap: onHostTap,
-              ),
-              CardBottomBar(
-                isPending: isPending,
-                isVibeCheck: isVibeCheck,
-                hasUnreadChat: hasUnreadChat,
-                lastMessageSnippet: lastMessageSnippet,
-                eventId: eventId,
-                lastMessageAt: data['lastMessageAt'] as Timestamp?,
-              ),
-            ],
+                isExpanded: canExpand,
+              );
+
+              return Column(
+                mainAxisSize: canExpand ? MainAxisSize.max : MainAxisSize.min,
+                children: [
+                  if (canExpand)
+                    Expanded(child: heroBanner)
+                  else
+                    heroBanner,
+                  CardBottomBar(
+                    isPending: isPending,
+                    isVibeCheck: isVibeCheck,
+                    hasUnreadChat: hasUnreadChat,
+                    lastMessageSnippet: lastMessageSnippet,
+                    eventId: eventId,
+                    lastMessageAt: data['lastMessageAt'] as Timestamp?,
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),

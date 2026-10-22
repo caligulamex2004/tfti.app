@@ -45,23 +45,36 @@ class ChatInputField extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: primaryColor.withValues(alpha: 0.12),
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: primaryColor.withValues(alpha: 0.35),
+                    color: isDark
+                        ? const Color(0xFF475569)
+                        : const Color(0xFFCBD5E1),
                   ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.lock_outline, size: 14, color: primaryColor),
+                    Icon(
+                      Icons.hearing_outlined,
+                      size: 14,
+                      color: isDark
+                          ? const Color(0xFFCBD5E1)
+                          : const Color(0xFF334155),
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       "Whispering to $recipientName",
                       style: TextStyle(
-                        color: primaryColor,
+                        color: isDark
+                            ? const Color(0xFFCBD5E1)
+                            : const Color(0xFF334155),
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),
@@ -72,10 +85,19 @@ class ChatInputField extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(2),
                         decoration: BoxDecoration(
-                          color: primaryColor.withValues(alpha: 0.2),
+                          color: (isDark
+                                  ? const Color(0xFFCBD5E1)
+                                  : const Color(0xFF334155))
+                              .withValues(alpha: 0.15),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(Icons.close, size: 12, color: primaryColor),
+                        child: Icon(
+                          Icons.close,
+                          size: 12,
+                          color: isDark
+                              ? const Color(0xFFCBD5E1)
+                              : const Color(0xFF334155),
+                        ),
                       ),
                     ),
                   ],
@@ -121,12 +143,16 @@ class ChatInputField extends StatelessWidget {
                     )
                   : Container(
                       decoration: BoxDecoration(
-                        color: primaryColor,
+                        color: isWhispering
+                            ? (isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFF475569))
+                            : primaryColor,
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
                         icon: Icon(
-                          isWhispering ? Icons.lock : Icons.send,
+                          isWhispering ? Icons.hearing_outlined : Icons.send,
                           color: Colors.white,
                           size: 20,
                         ),

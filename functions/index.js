@@ -3,6 +3,7 @@ const {onDocumentCreated, onDocumentUpdated} = require("firebase-functions/v2/fi
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
+const geoip = require("geoip-lite");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -365,8 +366,13 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
     const senderName = messageData.senderName || "Someone";
     const text = messageData.text;
     const eventId = event.params.eventId;
-    const isWhisper = messageData.isWhisper === true;
-    const whisperRecipientId = messageData.whisperRecipientId;
+    const messageId = event.params.messageId;
+    const visibleTo = Array.isArray(messageData.visibleTo) ? messageData.visibleTo : null;
+    const isWhisper = messageData.isWhisper === true || visibleTo !== null;
+    let whisperRecipientId = messageData.whisperRecipientId;
+    if (!whisperRecipientId && visibleTo) {
+        whisperRecipientId = visibleTo.find(uid => uid !== senderId);
+    }
     
     const eventDoc = await db.collection("events").doc(eventId).get();
     const eventTitle = eventDoc.data()?.title || "Event Chat";
@@ -402,7 +408,15 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
                 title: eventTitle,
                 body: `🤫 ${senderName} sent you a whisper`
             },
-            data: { type: "chat", eventId: eventId, isWhisper: "true" },
+            data: { 
+                type: "chat", 
+                eventId: eventId, 
+                messageId: messageId || "",
+                senderId: senderId,
+                isWhisper: "true",
+                whisperRecipientId: whisperRecipientId || "",
+                visibleTo: visibleTo ? JSON.stringify(visibleTo) : JSON.stringify([senderId, whisperRecipientId])
+            },
             android: {
                 priority: "normal", 
                 notification: { channelId: "chat_channel" } 
@@ -429,6 +443,11 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
         const inviteData = invite.data();
         
         if (userId === senderId) continue; 
+
+        // Privacy check: If message has visibleTo restrictions, ignore any user not in visibleTo
+        if (visibleTo && !visibleTo.includes(userId)) {
+            continue;
+        } 
 
         const userDoc = await db.collection("users").doc(userId).get();
         const userData = userDoc.data();
@@ -471,7 +490,13 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
                 title: `${senderName} mentioned you in ${eventTitle}`,
                 body: text
             },
-            data: { type: "chat_mention", eventId: eventId },
+            data: { 
+                type: "chat_mention", 
+                eventId: eventId,
+                messageId: messageId || "",
+                senderId: senderId,
+                isWhisper: "false"
+            },
             android: {
                 priority: "high", 
                 notification: { channelId: "high_importance_channel" } 
@@ -492,7 +517,13 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
                 title: eventTitle,
                 body: `${senderName}: ${text}`
             },
-            data: { type: "chat", eventId: eventId },
+            data: { 
+                type: "chat", 
+                eventId: eventId,
+                messageId: messageId || "",
+                senderId: senderId,
+                isWhisper: "false"
+            },
             android: {
                 priority: "normal", 
                 notification: { channelId: "chat_channel" } 
@@ -985,9 +1016,74 @@ exports.placesAutocomplete = onCall(
             );
         }
 
+        // --- 1. Client IP & Location Biasing ---
+        let lat = null;
+        let lng = null;
+        let countryCode = null;
+
+        // A. Check App Engine / Cloud Load Balancer geo headers if present
+        const gcpLatLong = request.rawRequest?.headers?.["x-appengine-citylatlong"];
+        if (typeof gcpLatLong === "string" && gcpLatLong.includes(",")) {
+            const parts = gcpLatLong.split(",");
+            const parsedLat = parseFloat(parts[0]);
+            const parsedLng = parseFloat(parts[1]);
+            if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
+                lat = parsedLat;
+                lng = parsedLng;
+            }
+        }
+        if (request.rawRequest?.headers?.["x-appengine-country"]) {
+            countryCode = request.rawRequest.headers["x-appengine-country"];
+        }
+
+        // B. Resolve via geoip-lite using client IP
+        if (lat === null || lng === null) {
+            const rawForwarded = request.rawRequest?.headers?.["x-forwarded-for"];
+            const clientIp = (typeof rawForwarded === "string" ? rawForwarded.split(",")[0].trim() : null)
+                || request.rawRequest?.ip
+                || (typeof request.data?.clientIp === "string" ? request.data.clientIp : null);
+
+            if (clientIp) {
+                const geo = geoip.lookup(clientIp);
+                if (geo && Array.isArray(geo.ll) && geo.ll.length >= 2) {
+                    lat = geo.ll[0];
+                    lng = geo.ll[1];
+                    if (!countryCode && geo.country) {
+                        countryCode = geo.country;
+                    }
+                }
+            }
+        }
+
+        // C. Client-provided fallback (e.g. from saved/favorite places or user preferences)
+        if (lat === null || lng === null) {
+            const fallback = request.data?.fallbackLocation;
+            if (fallback && typeof fallback === "object") {
+                const fLat = parseFloat(fallback.lat ?? fallback.latitude);
+                const fLng = parseFloat(fallback.lng ?? fallback.longitude);
+                if (!isNaN(fLat) && !isNaN(fLng)) {
+                    lat = fLat;
+                    lng = fLng;
+                }
+                if (!countryCode && typeof fallback.country === "string") {
+                    countryCode = fallback.country;
+                }
+            }
+        }
+
+        // --- 2. Construct Google Places URL with locationbias ---
+        let biasParams = "";
+        if (lat !== null && lng !== null) {
+            // Tight City Bias (~15 km / 10 miles)
+            biasParams += `&locationbias=circle:15000@${lat},${lng}`;
+        }
+        if (countryCode) {
+            biasParams += `&components=country:${encodeURIComponent(countryCode.toLowerCase())}`;
+        }
+
         const encodedInput = encodeURIComponent(input.trim());
         const sessionParam = sessionToken ? `&sessiontoken=${encodeURIComponent(sessionToken)}` : "";
-        const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodedInput}&key=${apiKey}${sessionParam}`;
+        const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodedInput}&key=${apiKey}${sessionParam}${biasParams}`;
 
         try {
             const response = await fetch(url);

@@ -36,5 +36,19 @@ void main() {
 
       expect(find.text('Blue Bottle Coffee'), findsNothing);
     });
+
+    testWidgets('Accepts fallbackLocation parameter gracefully', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: PlacesSearchPage(
+            showFavorites: false,
+            fallbackLocation: {'lat': 40.7128, 'lng': -74.0060},
+          ),
+        ),
+      );
+
+      expect(find.text('Search Places'), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
+    });
   });
 }

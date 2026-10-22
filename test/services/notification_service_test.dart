@@ -14,6 +14,17 @@ void main() {
       expect(NotificationService.hasVapidKey, isA<bool>());
     });
 
+    test('activeChatEventId property sets and clears properly', () {
+      final service = NotificationService.instance;
+      expect(service.activeChatEventId, isNull);
+
+      service.activeChatEventId = 'event-123';
+      expect(service.activeChatEventId, equals('event-123'));
+
+      service.activeChatEventId = null;
+      expect(service.activeChatEventId, isNull);
+    });
+
     test('showLocalNotification emits message on onForegroundMessage stream', () async {
       final service = NotificationService.instance;
       expectLater(
@@ -48,6 +59,76 @@ void main() {
         );
 
         expect(find.text('Main Content'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'InAppNotificationToastWrapper renders whisper toast with badge and lock icon',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: InAppNotificationToastWrapper(
+              privacyFilter: (_) async => true,
+              child: const Scaffold(
+                body: Center(child: Text('Main Content')),
+              ),
+            ),
+          ),
+        );
+
+        NotificationService.instance.emitForegroundMessageForTesting(
+          const RemoteMessage(
+            data: {
+              'type': 'chat',
+              'eventId': 'event-abc',
+              'isWhisper': 'true',
+              'title': 'Board Game Night',
+              'body': '🤫 Alice sent you a whisper',
+            },
+          ),
+        );
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
+
+        expect(find.text('Board Game Night'), findsOneWidget);
+        expect(find.text('🤫 Alice sent you a whisper'), findsOneWidget);
+        expect(find.text('Whisper'), findsOneWidget);
+        expect(find.byIcon(Icons.hearing_outlined), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'InAppNotificationToastWrapper suppresses toast when privacy filter rejects message',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: InAppNotificationToastWrapper(
+              privacyFilter: (_) async => false, // Suppressed by privacy check
+              child: const Scaffold(
+                body: Center(child: Text('Main Content')),
+              ),
+            ),
+          ),
+        );
+
+        NotificationService.instance.emitForegroundMessageForTesting(
+          const RemoteMessage(
+            data: {
+              'type': 'chat',
+              'eventId': 'event-abc',
+              'isWhisper': 'true',
+              'title': 'Secret Hangout',
+              'body': '🤫 Secret whisper for someone else',
+            },
+          ),
+        );
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
+
+        expect(find.text('Secret Hangout'), findsNothing);
+        expect(find.text('Whisper'), findsNothing);
       },
     );
 

@@ -80,7 +80,7 @@ class FeedSkeleton extends StatelessWidget {
           
           // Horizontal Cards Skeleton
           SizedBox(
-            height: isLandscape ? 160 : 240,
+            height: isLandscape ? 160 : 248,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               physics: const NeverScrollableScrollPhysics(),
@@ -94,7 +94,7 @@ class FeedSkeleton extends StatelessWidget {
                     highlightColor: highlightColor,
                     child: Container(
                       width: 260,
-                      height: isLandscape ? 160 : 240,
+                      height: isLandscape ? 160 : 248,
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(24),

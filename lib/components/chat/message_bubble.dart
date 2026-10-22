@@ -83,9 +83,19 @@ class MessageBubble extends StatelessWidget {
     bool isDark,
     Color primaryColor,
   ) {
-    final defaultColor = isMe
-        ? themeProvider.onPrimaryColor
-        : (isDark ? Colors.white : Colors.black87);
+    Color defaultColor;
+    if (isWhisper) {
+      if (isMe) {
+        defaultColor = Colors.white;
+      } else {
+        defaultColor =
+            isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B);
+      }
+    } else {
+      defaultColor = isMe
+          ? themeProvider.onPrimaryColor
+          : (isDark ? Colors.white : Colors.black87);
+    }
     final RegExp mentionRegex = RegExp(r"\B@[a-zA-Z0-9_]+");
     final Iterable<RegExpMatch> matches = mentionRegex.allMatches(text);
 
@@ -266,7 +276,9 @@ class MessageBubble extends StatelessWidget {
     final bool needsExtraPadding = hasReactions || hasReceipts;
 
     final String? extractedUrl = _extractUrl(text);
-    final Color myTextColor = themeProvider.onPrimaryColor;
+    final Color myTextColor = isWhisper
+        ? Colors.white
+        : themeProvider.onPrimaryColor;
     final Color myTimeColor = myTextColor.withValues(alpha: 0.7);
 
     final screenWidth = MediaQuery.sizeOf(context).width;
@@ -275,20 +287,31 @@ class MessageBubble extends StatelessWidget {
     double maxBubbleWidth = screenWidth * (isLandscape ? 0.6 : 0.75);
     maxBubbleWidth = min(maxBubbleWidth, 450);
 
+    // Tone-Differentiated Cool Slate & Charcoal Glass for Whispers
     final Color bubbleColor = isWhisper
         ? (isMe
-            ? (isDark ? const Color(0xFF512DA8) : const Color(0xFF673AB7))
-            : (isDark ? const Color(0xFF26183C) : const Color(0xFFF3E5F5)))
+            ? (isDark ? const Color(0xFF1E293B) : const Color(0xFF334155))
+            : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)))
         : (isMe ? primaryColor : Theme.of(context).cardColor);
 
     final Border? bubbleBorder = isWhisper
         ? Border.all(
-            color: isDark
-                ? Colors.purple.shade400.withValues(alpha: 0.6)
-                : Colors.purple.shade300,
+            color: isMe
+                ? (isDark ? const Color(0xFF475569) : const Color(0xFF64748B))
+                : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
             width: 1.2,
           )
         : null;
+
+    final Color whisperPillBg = isDark
+        ? const Color(0xFF1E293B).withValues(alpha: 0.8)
+        : const Color(0xFFF1F5F9);
+    final Color whisperPillBorder = isDark
+        ? const Color(0xFF475569)
+        : const Color(0xFF94A3B8);
+    final Color whisperPillFg = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF334155);
 
     return GestureDetector(
       onLongPress: onOptionsTap,
@@ -328,14 +351,10 @@ class MessageBubble extends StatelessWidget {
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.purple.shade900.withValues(alpha: 0.45)
-                              : Colors.purple.shade50,
+                          color: whisperPillBg,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: isDark
-                                ? Colors.purple.shade400.withValues(alpha: 0.5)
-                                : Colors.purple.shade300,
+                            color: whisperPillBorder,
                             width: 1,
                           ),
                         ),
@@ -343,11 +362,9 @@ class MessageBubble extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              Icons.lock_outline,
+                              Icons.hearing_outlined,
                               size: 11,
-                              color: isDark
-                                  ? Colors.purple.shade200
-                                  : Colors.purple.shade800,
+                              color: whisperPillFg,
                             ),
                             const SizedBox(width: 4),
                             Text(
@@ -357,9 +374,7 @@ class MessageBubble extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.bold,
-                                color: isDark
-                                    ? Colors.purple.shade200
-                                    : Colors.purple.shade800,
+                                color: whisperPillFg,
                               ),
                             ),
                           ],
@@ -490,9 +505,13 @@ class MessageBubble extends StatelessWidget {
                             style: TextStyle(
                               color: isMe
                                   ? myTimeColor
-                                  : (isDark
-                                        ? Colors.grey.shade400
-                                        : Colors.grey.shade500),
+                                  : (isWhisper
+                                      ? (isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : const Color(0xFF64748B))
+                                      : (isDark
+                                          ? Colors.grey.shade400
+                                          : Colors.grey.shade500)),
                               fontSize: 10,
                             ),
                           ),

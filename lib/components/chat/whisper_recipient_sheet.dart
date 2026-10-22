@@ -39,7 +39,6 @@ class _WhisperRecipientSheetState extends State<WhisperRecipientSheet> {
       }
     }
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
 
     final availableGuests = widget.eventGuests.where((guest) {
       if (guest['uid'] == currentUid) return false;
@@ -84,12 +83,16 @@ class _WhisperRecipientSheetState extends State<WhisperRecipientSheet> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: primaryColor.withValues(alpha: 0.12),
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      Icons.lock_outline,
-                      color: primaryColor,
+                      Icons.hearing_outlined,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF334155),
                       size: 20,
                     ),
                   ),

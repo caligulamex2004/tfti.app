@@ -26,7 +26,9 @@ void main() {
       expect(find.textContaining('Whispering to'), findsNothing);
     });
 
-    testWidgets('Whisper mode renders recipient chip, lock icon, and cancel callback', (tester) async {
+    testWidgets(
+        'Whisper mode renders recipient chip, hearing icon, and cancel callback',
+        (tester) async {
       final controller = TextEditingController();
       final focusNode = FocusNode();
       bool cancelTapped = false;
@@ -53,7 +55,7 @@ void main() {
 
       expect(find.text('Whispering to Adam'), findsOneWidget);
       expect(find.text('Whisper to Adam...'), findsOneWidget);
-      expect(find.byIcon(Icons.lock), findsOneWidget);
+      expect(find.byIcon(Icons.hearing_outlined), findsNWidgets(2)); // Chip + Send button
 
       // Tap close icon on the chip
       await tester.tap(find.byIcon(Icons.close));

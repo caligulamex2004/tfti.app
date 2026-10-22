@@ -9,9 +9,14 @@ import '../utils/theme_provider.dart';
 
 class PlacesSearchPage extends StatefulWidget {
   final bool showFavorites;
+  final Map<String, dynamic>? fallbackLocation;
 
   // Defaults to true so it doesn't break the Hangout Editor Page!
-  const PlacesSearchPage({super.key, this.showFavorites = true});
+  const PlacesSearchPage({
+    super.key,
+    this.showFavorites = true,
+    this.fallbackLocation,
+  });
 
   @override
   State<PlacesSearchPage> createState() => _PlacesSearchPageState();
@@ -22,6 +27,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
   List<dynamic> _placePredictions = [];
   final _uuid = const Uuid();
   String? _sessionToken;
+  Map<String, dynamic>? _fallbackLocation;
   
   Timer? _debounce;
   bool _isLoading = false;
@@ -33,7 +39,33 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
   void initState() {
     super.initState();
     _sessionToken = _uuid.v4();
+    _fallbackLocation = widget.fallbackLocation;
     _controller.addListener(_onSearchChanged);
+    _initFallbackLocationFromSavedPlaces();
+  }
+
+  Future<void> _initFallbackLocationFromSavedPlaces() async {
+    if (_fallbackLocation != null) return;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final places = await PlaceService.placesStream(user.uid).first;
+      for (final place in places) {
+        if (place.lat != null && place.lng != null) {
+          if (mounted) {
+            setState(() {
+              _fallbackLocation = {
+                'lat': place.lat,
+                'lng': place.lng,
+              };
+            });
+          }
+          break;
+        }
+      }
+    } catch (_) {
+      // Ignored: fallback is optional and used only if IP cannot be geolocated
+    }
   }
 
   @override
@@ -78,6 +110,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
         'input': input.trim(),
         'sessionToken': _sessionToken ?? '',
         if (_apiKey.isNotEmpty) 'apiKey': _apiKey,
+        if (_fallbackLocation != null) 'fallbackLocation': _fallbackLocation,
       });
 
       if (!mounted) return;
