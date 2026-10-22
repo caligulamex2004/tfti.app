@@ -195,6 +195,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _clearAppBadge();
+      unawaited(ContactResolver.instance.warmUpIfPermitted());
     }
   }
 

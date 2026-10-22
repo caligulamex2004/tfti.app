@@ -126,8 +126,12 @@ class FriendListFeed extends StatelessWidget {
                         .toList();
 
                     if (friends.isEmpty) {
-                      return CustomScrollView(
-                        slivers: [
+                      return RefreshIndicator(
+                        onRefresh: () async {
+                          await ContactResolver.instance.refresh();
+                        },
+                        child: CustomScrollView(
+                          slivers: [
                           ...headerSlivers,
                           SliverFillRemaining(
                             hasScrollBody: false,
@@ -158,11 +162,16 @@ class FriendListFeed extends StatelessWidget {
                             ),
                           ),
                         ],
-                      );
+                      ),
+                    );
                     }
 
-                    return CustomScrollView(
-                      slivers: [
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        await ContactResolver.instance.refresh();
+                      },
+                      child: CustomScrollView(
+                        slivers: [
                         ...headerSlivers,
                         SliverAppBar(
                           pinned: true,
@@ -370,6 +379,7 @@ class FriendListFeed extends StatelessWidget {
                           ),
                         ),
                       ],
+                    ),
                     );
                   },
                 );

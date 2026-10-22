@@ -205,11 +205,17 @@ class ContactResolver extends ChangeNotifier {
 
         for (final p in contact.phones) {
           final normalized = ContactHelper.normalizePhone(p.number);
-          if (normalized != null &&
-              !isCurrentUserPhone(normalized) &&
-              !_phoneToNameCache.containsKey(normalized)) {
-            _phoneToNameCache[normalized] = name;
-            _phoneToFirstNameCache[normalized] = firstName;
+          if (normalized != null && !isCurrentUserPhone(normalized)) {
+            final existingFirst = _phoneToFirstNameCache[normalized];
+            final hasExistingExplicit =
+                existingFirst != null && existingFirst.isNotEmpty;
+            final hasNewExplicit = contact.name.first.trim().isNotEmpty;
+
+            if (!_phoneToNameCache.containsKey(normalized) ||
+                (!hasExistingExplicit && hasNewExplicit)) {
+              _phoneToNameCache[normalized] = name;
+              _phoneToFirstNameCache[normalized] = firstName;
+            }
           }
         }
       }

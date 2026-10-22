@@ -32,24 +32,27 @@ class UserProfileSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
+    return ListenableBuilder(
+      listenable: ContactResolver.instance,
+      builder: (context, _) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final primaryColor = Theme.of(context).colorScheme.primary;
 
-    final String targetUid = userData['uid'] ?? userData['id'] ?? "";
-    final bool isSelf = targetUid.isNotEmpty && targetUid == currentUserId;
-    final String displayName = userData['displayName'] ?? "No Name";
-    final String rawPhone = userData['phoneNumber'] ?? "";
-    final String? contactName =
-        isSelf ? null : ContactResolver.instance.resolveName(rawPhone);
+        final String targetUid = userData['uid'] ?? userData['id'] ?? "";
+        final bool isSelf = targetUid.isNotEmpty && targetUid == currentUserId;
+        final String displayName = userData['displayName'] ?? "No Name";
+        final String rawPhone = userData['phoneNumber'] ?? "";
+        final String? contactName =
+            isSelf ? null : ContactResolver.instance.resolveName(rawPhone);
 
-    final Timestamp? createdAt =
-        userData['createdAt'] ?? userData['created_at'];
-    String originDate = "";
-    if (createdAt != null) {
-      final DateTime dt = createdAt.toDate();
-      originDate =
-          "Joined ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][dt.month - 1]} ${dt.year}";
-    }
+        final Timestamp? createdAt =
+            userData['createdAt'] ?? userData['created_at'];
+        String originDate = "";
+        if (createdAt != null) {
+          final DateTime dt = createdAt.toDate();
+          originDate =
+              "Joined ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][dt.month - 1]} ${dt.year}";
+        }
 
     return SafeArea(
       child: Padding(
@@ -189,6 +192,8 @@ class UserProfileSheet extends StatelessWidget {
           ),
         ),
       ),
+    );
+      },
     );
   }
 }

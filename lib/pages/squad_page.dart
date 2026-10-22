@@ -71,8 +71,11 @@ class _SquadPageState extends State<SquadPage> {
   }
 
   void _onContactResolverUpdated() {
-    if (mounted && ContactResolver.instance.hasWarmedUp) {
-      _loadSuggestedContacts();
+    if (mounted) {
+      setState(() {});
+      if (ContactResolver.instance.hasWarmedUp) {
+        _loadSuggestedContacts();
+      }
     }
   }
 
