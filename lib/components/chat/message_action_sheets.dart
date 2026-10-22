@@ -33,6 +33,9 @@ class MessageOptionsSheet extends StatelessWidget {
   final List<Map<String, dynamic>>? eventGuests;
   final Future<void> Function(String newText)? onEditMessage;
   final String? currentUserId;
+  final bool isSenderMuted;
+  final Future<void> Function(String senderId)? onToggleMuteSender;
+  final void Function(Map<String, dynamic> senderGuest)? onWhisperBack;
 
   const MessageOptionsSheet({
     super.key,
@@ -42,6 +45,9 @@ class MessageOptionsSheet extends StatelessWidget {
     this.eventGuests,
     this.onEditMessage,
     this.currentUserId,
+    this.isSenderMuted = false,
+    this.onToggleMuteSender,
+    this.onWhisperBack,
   });
 
   Future<void> _handleQuickReaction(
@@ -331,7 +337,49 @@ class MessageOptionsSheet extends StatelessWidget {
             ),
           ],
 
-          if (!isMe)
+          if (!isMe) ...[
+            if (data['isWhisper'] == true && onWhisperBack != null)
+              ListTile(
+                leading: Icon(Icons.reply, color: primaryColor),
+                title: const Text("Whisper Back"),
+                onTap: () {
+                  Navigator.pop(context);
+                  final senderUid = data['senderId'];
+                  final senderGuest = eventGuests?.firstWhere(
+                    (g) => g['uid'] == senderUid,
+                    orElse: () => {
+                      'uid': senderUid,
+                      'displayName': data['senderName'] ?? 'Unknown',
+                      'tag': '',
+                    },
+                  );
+                  if (senderGuest != null) {
+                    onWhisperBack!(senderGuest);
+                  }
+                },
+              ),
+
+            ListTile(
+              leading: Icon(
+                isSenderMuted
+                    ? Icons.notifications_active_outlined
+                    : Icons.notifications_off_outlined,
+                color: isSenderMuted
+                    ? primaryColor
+                    : (isDark ? Colors.grey.shade400 : Colors.grey.shade700),
+              ),
+              title: Text(
+                isSenderMuted ? "Unmute This Sender" : "Mute This Sender",
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                final senderUid = data['senderId'];
+                if (senderUid != null && onToggleMuteSender != null) {
+                  await onToggleMuteSender!(senderUid);
+                }
+              },
+            ),
+
             ListTile(
               leading: const Icon(Icons.flag_outlined, color: Colors.red),
               title: const Text(

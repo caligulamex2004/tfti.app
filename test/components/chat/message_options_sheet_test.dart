@@ -62,6 +62,10 @@ void main() {
     required String currentUid,
     VoidCallback? onAddReaction,
     Future<void> Function(String)? onEditMessage,
+    bool isSenderMuted = false,
+    Future<void> Function(String)? onToggleMuteSender,
+    void Function(Map<String, dynamic>)? onWhisperBack,
+    List<Map<String, dynamic>>? eventGuests,
   }) {
     return MaterialApp(
       home: Scaffold(
@@ -71,6 +75,10 @@ void main() {
           currentUserId: currentUid,
           onAddReaction: onAddReaction ?? () {},
           onEditMessage: onEditMessage,
+          isSenderMuted: isSenderMuted,
+          onToggleMuteSender: onToggleMuteSender,
+          onWhisperBack: onWhisperBack,
+          eventGuests: eventGuests,
         ),
       ),
     );
@@ -114,7 +122,7 @@ void main() {
     );
 
     testWidgets(
-      'Other user message renders 3 actions: React, Copy Text, Report Message',
+      'Other user message renders: React, Copy Text, Mute This Sender, Report Message',
       (tester) async {
         final doc = FakeDocumentSnapshot({
           'senderId': otherUserId,
@@ -134,13 +142,84 @@ void main() {
         expect(find.text('Copy Text'), findsOneWidget);
         expect(find.byIcon(Icons.copy), findsOneWidget);
 
-        // 3. Report Message
+        // 3. Mute This Sender
+        expect(find.text('Mute This Sender'), findsOneWidget);
+        expect(find.byIcon(Icons.notifications_off_outlined), findsOneWidget);
+
+        // 4. Report Message
         expect(find.text('Report Message'), findsOneWidget);
         expect(find.byIcon(Icons.flag_outlined), findsOneWidget);
 
         // Edit and Delete must NOT be shown on other user's message
         expect(find.text('Edit Message'), findsNothing);
         expect(find.text('Delete Message'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'Other user message renders "Unmute This Sender" when isSenderMuted is true and triggers callback',
+      (tester) async {
+        String? toggledSender;
+        final doc = FakeDocumentSnapshot({
+          'senderId': otherUserId,
+          'text': 'Too many messages!',
+          'reactions': {},
+        });
+
+        await tester.pumpWidget(
+          buildTestWidget(
+            doc: doc,
+            currentUid: currentUserId,
+            isSenderMuted: true,
+            onToggleMuteSender: (senderId) async {
+              toggledSender = senderId;
+            },
+          ),
+        );
+
+        expect(find.text('Unmute This Sender'), findsOneWidget);
+        expect(find.byIcon(Icons.notifications_active_outlined), findsOneWidget);
+
+        await tester.tap(find.text('Unmute This Sender'));
+        await tester.pumpAndSettle();
+
+        expect(toggledSender, equals(otherUserId));
+      },
+    );
+
+    testWidgets(
+      'Whispered message from other user renders "Whisper Back" and triggers callback',
+      (tester) async {
+        Map<String, dynamic>? whisperBackRecipient;
+        final doc = FakeDocumentSnapshot({
+          'senderId': otherUserId,
+          'senderName': 'Adam',
+          'text': 'This is top secret',
+          'isWhisper': true,
+          'reactions': {},
+        });
+
+        await tester.pumpWidget(
+          buildTestWidget(
+            doc: doc,
+            currentUid: currentUserId,
+            eventGuests: [
+              {'uid': otherUserId, 'displayName': 'Adam', 'tag': 'adamb'},
+            ],
+            onWhisperBack: (recipient) {
+              whisperBackRecipient = recipient;
+            },
+          ),
+        );
+
+        expect(find.text('Whisper Back'), findsOneWidget);
+        expect(find.byIcon(Icons.reply), findsOneWidget);
+
+        await tester.tap(find.text('Whisper Back'));
+        await tester.pumpAndSettle();
+
+        expect(whisperBackRecipient, isNotNull);
+        expect(whisperBackRecipient!['uid'], equals(otherUserId));
       },
     );
 

@@ -21,6 +21,9 @@ class MessageBubble extends StatelessWidget {
   final Map<String, List<String>> reactions;
   final List<Map<String, dynamic>> readBy;
   final List<Map<String, dynamic>> eventGuests;
+  final bool isWhisper;
+  final String? whisperRecipientName;
+  final String? whisperRecipientId;
 
   final VoidCallback onOptionsTap;
   final VoidCallback onReadByTap;
@@ -42,6 +45,9 @@ class MessageBubble extends StatelessWidget {
     required this.reactions,
     required this.readBy,
     required this.eventGuests,
+    this.isWhisper = false,
+    this.whisperRecipientName,
+    this.whisperRecipientId,
     required this.onOptionsTap,
     required this.onReadByTap,
     required this.onReactionsTap,
@@ -269,6 +275,21 @@ class MessageBubble extends StatelessWidget {
     double maxBubbleWidth = screenWidth * (isLandscape ? 0.6 : 0.75);
     maxBubbleWidth = min(maxBubbleWidth, 450);
 
+    final Color bubbleColor = isWhisper
+        ? (isMe
+            ? (isDark ? const Color(0xFF512DA8) : const Color(0xFF673AB7))
+            : (isDark ? const Color(0xFF26183C) : const Color(0xFFF3E5F5)))
+        : (isMe ? primaryColor : Theme.of(context).cardColor);
+
+    final Border? bubbleBorder = isWhisper
+        ? Border.all(
+            color: isDark
+                ? Colors.purple.shade400.withValues(alpha: 0.6)
+                : Colors.purple.shade300,
+            width: 1.2,
+          )
+        : null;
+
     return GestureDetector(
       onLongPress: onOptionsTap,
       onTap: onReadByTap,
@@ -292,36 +313,90 @@ class MessageBubble extends StatelessWidget {
             ],
 
             Flexible(
-              child: Stack(
-                clipBehavior: Clip.none,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: isMe
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    constraints: BoxConstraints(maxWidth: maxBubbleWidth),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isMe ? primaryColor : Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(16),
-                        topRight: const Radius.circular(16),
-                        bottomLeft: isMe
-                            ? const Radius.circular(16)
-                            : const Radius.circular(2),
-                        bottomRight: isMe
-                            ? const Radius.circular(2)
-                            : const Radius.circular(16),
-                      ),
-                      boxShadow: [
-                        if (!isDark)
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 2,
-                            offset: const Offset(0, 1),
+                  if (isWhisper)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.purple.shade900.withValues(alpha: 0.45)
+                              : Colors.purple.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.purple.shade400.withValues(alpha: 0.5)
+                                : Colors.purple.shade300,
+                            width: 1,
                           ),
-                      ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.lock_outline,
+                              size: 11,
+                              color: isDark
+                                  ? Colors.purple.shade200
+                                  : Colors.purple.shade800,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              isMe
+                                  ? "Whispered to ${whisperRecipientName ?? 'guest'}"
+                                  : "$senderName Whispered",
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: isDark
+                                    ? Colors.purple.shade200
+                                    : Colors.purple.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        constraints: BoxConstraints(maxWidth: maxBubbleWidth),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: bubbleColor,
+                          border: bubbleBorder,
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(16),
+                            topRight: const Radius.circular(16),
+                            bottomLeft: isMe
+                                ? const Radius.circular(16)
+                                : const Radius.circular(2),
+                            bottomRight: isMe
+                                ? const Radius.circular(2)
+                                : const Radius.circular(16),
+                          ),
+                          boxShadow: [
+                            if (!isDark)
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.05),
+                                blurRadius: 2,
+                                offset: const Offset(0, 1),
+                              ),
+                          ],
+                        ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -443,8 +518,10 @@ class MessageBubble extends StatelessWidget {
                     ),
                 ],
               ),
-            ),
-            if (isMe) const SizedBox(width: 10),
+            ],
+          ),
+        ),
+        if (isMe) const SizedBox(width: 10),
           ],
         ),
       ),

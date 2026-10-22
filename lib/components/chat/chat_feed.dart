@@ -9,12 +9,18 @@ class ChatFeed extends StatelessWidget {
   final String eventId;
   final List<Map<String, dynamic>> eventGuests;
   final ScrollController scrollController;
+  final List<String> mutedSenderUids;
+  final Future<void> Function(String senderId)? onToggleMuteSender;
+  final void Function(Map<String, dynamic> senderGuest)? onWhisperBack;
 
   const ChatFeed({
     super.key,
     required this.eventId,
     required this.eventGuests,
     required this.scrollController,
+    this.mutedSenderUids = const [],
+    this.onToggleMuteSender,
+    this.onWhisperBack,
   });
 
   @override
@@ -31,7 +37,21 @@ class ChatFeed extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final messages = snapshot.data!.docs;
+        final rawMessages = snapshot.data!.docs;
+        final currentUid = FirebaseAuth.instance.currentUser?.uid;
+
+        // Filter out whispers that aren't intended for the current user
+        final messages = rawMessages.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final isWhisper = data['isWhisper'] == true;
+          if (!isWhisper) return true;
+          final visibleTo = data['visibleTo'] as List?;
+          if (visibleTo != null) {
+            return visibleTo.contains(currentUid);
+          }
+          return data['senderId'] == currentUid ||
+              data['whisperRecipientId'] == currentUid;
+        }).toList();
 
         // --- PRE-CALCULATE FACE PILES ---
         Map<String, List<Map<String, dynamic>>> latestReadReceipts = {};
@@ -88,6 +108,9 @@ class ChatFeed extends StatelessWidget {
               reactions: normalizedReactions,
               readBy: readBy,
               eventGuests: eventGuests,
+              isWhisper: data['isWhisper'] == true,
+              whisperRecipientName: data['whisperRecipientName'],
+              whisperRecipientId: data['whisperRecipientId'],
 
               // DELEGATING ALL ACTIONS TO OUR BOTTOM SHEETS
               onOptionsTap: () {
@@ -103,6 +126,10 @@ class ChatFeed extends StatelessWidget {
                     doc: doc,
                     eventId: eventId,
                     eventGuests: eventGuests,
+                    currentUserId: currentUid,
+                    isSenderMuted: mutedSenderUids.contains(data['senderId']),
+                    onToggleMuteSender: onToggleMuteSender,
+                    onWhisperBack: onWhisperBack,
                     onAddReaction: () {
                       showModalBottomSheet(
                         context: context,

@@ -14,6 +14,7 @@ import '../components/chat/pinned_context_card.dart';
 import '../components/chat/chat_quick_actions.dart';
 import '../components/chat/chat_input_field.dart';
 import '../components/chat/mentions_overlay.dart';
+import '../components/chat/whisper_recipient_sheet.dart';
 import '../components/chat/chat_action_dialogs.dart';
 import '../components/chat/chat_feed.dart';
 import '../services/user_cache_repository.dart';
@@ -38,6 +39,8 @@ class _ChatPageState extends State<ChatPage> {
   List<Map<String, dynamic>> _eventGuests = [];
   bool _isUploadingImage = false;
   bool _isMuted = false;
+  List<String> _mutedSenderUids = [];
+  Map<String, dynamic>? _whisperRecipient;
 
   StreamSubscription<QuerySnapshot>? _invitationsSub;
   StreamSubscription<DocumentSnapshot>? _eventSub;
@@ -101,9 +104,14 @@ class _ChatPageState extends State<ChatPage> {
           for (var doc in snapshot.docs) {
             final data = doc.data();
             if (currentUser != null && doc.id == currentUser.uid) {
+              final rawMuted = data['mutedSenderUids'];
+              final List<String> mutedList = rawMuted is List
+                  ? List<String>.from(rawMuted)
+                  : <String>[];
               if (mounted) {
                 setState(() {
                   _isMuted = data['isMuted'] ?? false;
+                  _mutedSenderUids = mutedList;
                 });
               }
             }
@@ -154,6 +162,85 @@ class _ChatPageState extends State<ChatPage> {
         .collection('invitations')
         .doc(user.uid)
         .update({'isMuted': _isMuted});
+  }
+
+  Future<void> _toggleMuteSender(String targetUid) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return;
+    }
+
+    final isCurrentlyMuted = _mutedSenderUids.contains(targetUid);
+    HapticFeedback.lightImpact();
+
+    setState(() {
+      if (isCurrentlyMuted) {
+        _mutedSenderUids.remove(targetUid);
+      } else {
+        _mutedSenderUids.add(targetUid);
+      }
+    });
+
+    try {
+      final docRef = FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.eventId)
+          .collection('invitations')
+          .doc(user.uid);
+
+      await docRef.set({
+        'mutedSenderUids': isCurrentlyMuted
+            ? FieldValue.arrayRemove([targetUid])
+            : FieldValue.arrayUnion([targetUid]),
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isCurrentlyMuted
+                  ? "Sender unmuted in this chat."
+                  : "Sender muted in this chat.",
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("Failed to toggle mute for sender: $e");
+    }
+  }
+
+  void _openWhisperRecipientSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => WhisperRecipientSheet(
+        eventGuests: _eventGuests,
+        onSelectRecipient: (recipient) {
+          setState(() {
+            _whisperRecipient = recipient;
+          });
+          _focusNode.requestFocus();
+        },
+      ),
+    );
+  }
+
+  void _cancelWhisper() {
+    setState(() {
+      _whisperRecipient = null;
+    });
+  }
+
+  void _handleWhisperBack(Map<String, dynamic> senderGuest) {
+    setState(() {
+      _whisperRecipient = senderGuest;
+    });
+    _focusNode.requestFocus();
   }
 
   Future<void> _markChatAsRead() async {
@@ -324,8 +411,12 @@ class _ChatPageState extends State<ChatPage> {
       return;
     }
 
+    final activeWhisper = _whisperRecipient;
     _messageController.clear();
-    setState(() => _mentionQuery = null);
+    setState(() {
+      _mentionQuery = null;
+      _whisperRecipient = null; // one-shot mode reset
+    });
 
     try {
       final userDoc = await FirebaseFirestore.instance
@@ -351,30 +442,45 @@ class _ChatPageState extends State<ChatPage> {
         }
       }
 
-      await FirebaseFirestore.instance
-          .collection('events')
-          .doc(widget.eventId)
-          .collection('messages')
-          .add({
-            'senderId': user.uid,
-            'senderName': userData['displayName'] ?? 'Unknown',
-            'senderAvatarUrl': userData['avatarUrl'],
-            'senderColor': userData['avatarColor'] ?? Colors.blue.toARGB32(),
-            'text': text,
-            'imageUrl': imageUrl,
-            'timestamp': FieldValue.serverTimestamp(),
-            'mentionedUids': mentionedUids.toSet().toList(), // Unique IDs
-          });
+      final Map<String, dynamic> messagePayload = {
+        'senderId': user.uid,
+        'senderName': userData['displayName'] ?? 'Unknown',
+        'senderAvatarUrl': userData['avatarUrl'],
+        'senderColor': userData['avatarColor'] ?? Colors.blue.toARGB32(),
+        'text': text,
+        'imageUrl': imageUrl,
+        'timestamp': FieldValue.serverTimestamp(),
+        'mentionedUids': mentionedUids.toSet().toList(), // Unique IDs
+      };
+
+      if (activeWhisper != null) {
+        final recipientUid = activeWhisper['uid'] as String;
+        final recipientName =
+            activeWhisper['displayName'] as String? ?? 'Guest';
+        messagePayload['isWhisper'] = true;
+        messagePayload['visibleTo'] = [user.uid, recipientUid];
+        messagePayload['whisperRecipientId'] = recipientUid;
+        messagePayload['whisperRecipientName'] = recipientName;
+      }
 
       await FirebaseFirestore.instance
           .collection('events')
           .doc(widget.eventId)
-          .update({
-            'lastMessageAt': FieldValue.serverTimestamp(),
-            'lastMessageSnippet': imageUrl != null
-                ? '📷 Image'
-                : text.substring(0, text.length > 30 ? 30 : text.length),
-          });
+          .collection('messages')
+          .add(messagePayload);
+
+      // Only update lastMessageSnippet if this is NOT a whisper!
+      if (activeWhisper == null) {
+        await FirebaseFirestore.instance
+            .collection('events')
+            .doc(widget.eventId)
+            .update({
+              'lastMessageAt': FieldValue.serverTimestamp(),
+              'lastMessageSnippet': imageUrl != null
+                  ? '📷 Image'
+                  : text.substring(0, text.length > 30 ? 30 : text.length),
+            });
+      }
 
       _scrollController.animateTo(
         0.0,
@@ -424,6 +530,9 @@ class _ChatPageState extends State<ChatPage> {
                 eventId: widget.eventId,
                 eventGuests: _eventGuests,
                 scrollController: _scrollController,
+                mutedSenderUids: _mutedSenderUids,
+                onToggleMuteSender: _toggleMuteSender,
+                onWhisperBack: _handleWhisperBack,
               ),
             ),
 
@@ -435,6 +544,7 @@ class _ChatPageState extends State<ChatPage> {
 
             ChatQuickActions(
               onMention: _triggerMentionAction,
+              onWhisper: _openWhisperRecipientSheet,
               onPhoto: _pickImage,
               onOmw: _sendOmw,
               onDibs: _showDibsSheet,
@@ -446,6 +556,8 @@ class _ChatPageState extends State<ChatPage> {
               focusNode: _focusNode,
               isUploadingImage: _isUploadingImage,
               onSend: _sendMessage,
+              whisperRecipient: _whisperRecipient,
+              onCancelWhisper: _cancelWhisper,
             ),
           ],
         ),

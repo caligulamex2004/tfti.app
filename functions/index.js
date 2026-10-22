@@ -365,11 +365,59 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
     const senderName = messageData.senderName || "Someone";
     const text = messageData.text;
     const eventId = event.params.eventId;
+    const isWhisper = messageData.isWhisper === true;
+    const whisperRecipientId = messageData.whisperRecipientId;
     
-    const mentionedUids = messageData.mentionedUids || [];
-
     const eventDoc = await db.collection("events").doc(eventId).get();
     const eventTitle = eventDoc.data()?.title || "Event Chat";
+
+    // --- WHISPER NOTIFICATION HANDLING ---
+    if (isWhisper) {
+        if (!whisperRecipientId || whisperRecipientId === senderId) return;
+
+        const userDoc = await db.collection("users").doc(whisperRecipientId).get();
+        const userData = userDoc.data();
+        const userTokens = getUserTokens(userData);
+        if (userTokens.length === 0) return;
+
+        // Shadow ban check
+        const blockedUids = userData?.blockedUids || [];
+        if (blockedUids.includes(senderId)) return;
+
+        // Global chat preference
+        const wantsChat = userData?.notificationSettings?.chat ?? true;
+        if (!wantsChat) return;
+
+        // Local invitation check (chat mute & sender mute)
+        const inviteDoc = await db.collection(`events/${eventId}/invitations`).doc(whisperRecipientId).get();
+        const inviteData = inviteDoc.data();
+        const isChatMuted = inviteData?.isMuted ?? false;
+        if (isChatMuted) return;
+
+        const mutedSenderUids = inviteData?.mutedSenderUids || [];
+        if (mutedSenderUids.includes(senderId)) return;
+
+        const whisperPayload = {
+            notification: {
+                title: eventTitle,
+                body: `🤫 ${senderName} sent you a whisper`
+            },
+            data: { type: "chat", eventId: eventId, isWhisper: "true" },
+            android: {
+                priority: "normal", 
+                notification: { channelId: "chat_channel" } 
+            },
+            apns: {
+                payload: { aps: { sound: "default" } }
+            },
+            webpush: createWebPushConfig(eventTitle, `🤫 ${senderName} sent you a whisper`, eventId, "chat")
+        };
+
+        await sendMulticastToTokens(userTokens, whisperPayload);
+        return;
+    }
+
+    const mentionedUids = messageData.mentionedUids || [];
 
     const invitationsSnap = await db.collection(`events/${eventId}/invitations`).get();
     
@@ -391,6 +439,12 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
         const blockedUids = userData?.blockedUids || [];
         if (blockedUids.includes(senderId)) {
             continue; // Shadow Ban: Completely ignore this message/mention for this user
+        }
+
+        // --- MUTE THIS SENDER CHECK ---
+        const mutedSenderUids = inviteData?.mutedSenderUids || [];
+        if (mutedSenderUids.includes(senderId)) {
+            continue; // Mute This Sender: Completely ignore this message/mention for this user in this chat
         }
 
         const isMentioned = mentionedUids.includes(userId);

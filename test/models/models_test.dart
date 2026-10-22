@@ -767,8 +767,42 @@ void main() {
         expect(msg.hasImage, isFalse);
         expect(msg.senderName, 'Guest'); // Default
         expect(msg.timestamp, DateTime.parse(isoString));
+        expect(msg.isWhisper, isFalse);
+        expect(msg.visibleTo, isNull);
       },
     );
+
+    test('ChatMessage supports whisper messaging fields roundtrip', () {
+      final now = DateTime(2026, 10, 21, 23, 0);
+      final whisperMsg = ChatMessage(
+        id: 'msg-whisper-1',
+        eventId: 'evt-100',
+        senderId: 'user-charlie',
+        senderName: 'Charlie',
+        text: 'Can you bring extra napkins? 🤫',
+        timestamp: now,
+        isWhisper: true,
+        visibleTo: ['user-charlie', 'user-adam'],
+        whisperRecipientId: 'user-adam',
+        whisperRecipientName: 'Adam',
+      );
+
+      final map = whisperMsg.toMap();
+      expect(map['isWhisper'], isTrue);
+      expect(map['visibleTo'], equals(['user-charlie', 'user-adam']));
+      expect(map['whisperRecipientId'], 'user-adam');
+      expect(map['whisperRecipientName'], 'Adam');
+
+      final restored = ChatMessage.fromMap(
+        map,
+        id: 'msg-whisper-1',
+        eventId: 'evt-100',
+      );
+      expect(restored.isWhisper, isTrue);
+      expect(restored.visibleTo, equals(['user-charlie', 'user-adam']));
+      expect(restored.whisperRecipientId, 'user-adam');
+      expect(restored.whisperRecipientName, 'Adam');
+    });
   });
 
   group('SavedPlace Model Tests', () {

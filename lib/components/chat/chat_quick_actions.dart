@@ -3,6 +3,7 @@ import '../../utils/theme_provider.dart';
 
 class ChatQuickActions extends StatelessWidget {
   final VoidCallback onMention;
+  final VoidCallback onWhisper;
   final VoidCallback onPhoto;
   final VoidCallback onOmw;
   final VoidCallback onDibs;
@@ -11,6 +12,7 @@ class ChatQuickActions extends StatelessWidget {
   const ChatQuickActions({
     super.key,
     required this.onMention,
+    required this.onWhisper,
     required this.onPhoto,
     required this.onOmw,
     required this.onDibs,
@@ -45,6 +47,27 @@ class ChatQuickActions extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             onPressed: onMention,
+          ),
+          const SizedBox(width: 8),
+          ActionChip(
+            avatar: Icon(
+              Icons.lock_outline,
+              size: 16,
+              color: chipFg,
+            ),
+            label: Text(
+              "Whisper",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: chipFg,
+              ),
+            ),
+            backgroundColor: chipBg,
+            side: BorderSide(color: chipBorder),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            onPressed: onWhisper,
           ),
           const SizedBox(width: 8),
           ActionChip(

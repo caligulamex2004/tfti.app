@@ -14,6 +14,10 @@ class ChatMessage {
   final Map<String, List<String>> reactions;
   final List<Map<String, dynamic>> readBy;
   final String type; // 'text', 'image', 'system'
+  final bool isWhisper;
+  final List<String>? visibleTo;
+  final String? whisperRecipientId;
+  final String? whisperRecipientName;
 
   const ChatMessage({
     required this.id,
@@ -29,6 +33,10 @@ class ChatMessage {
     this.reactions = const {},
     this.readBy = const [],
     this.type = 'text',
+    this.isWhisper = false,
+    this.visibleTo,
+    this.whisperRecipientId,
+    this.whisperRecipientName,
   });
 
   bool get hasImage => imageUrl != null && imageUrl!.isNotEmpty;
@@ -85,6 +93,12 @@ class ChatMessage {
             )
           : const [],
       type: data['type'] ?? 'text',
+      isWhisper: data['isWhisper'] == true,
+      visibleTo: data['visibleTo'] is List
+          ? List<String>.from(data['visibleTo'])
+          : null,
+      whisperRecipientId: data['whisperRecipientId'],
+      whisperRecipientName: data['whisperRecipientName'],
     );
   }
 
@@ -101,6 +115,10 @@ class ChatMessage {
       'reactions': reactions,
       'readBy': readBy,
       'type': type,
+      'isWhisper': isWhisper,
+      if (visibleTo != null) 'visibleTo': visibleTo,
+      if (whisperRecipientId != null) 'whisperRecipientId': whisperRecipientId,
+      if (whisperRecipientName != null) 'whisperRecipientName': whisperRecipientName,
     };
   }
 
@@ -118,6 +136,10 @@ class ChatMessage {
     Map<String, List<String>>? reactions,
     List<Map<String, dynamic>>? readBy,
     String? type,
+    bool? isWhisper,
+    List<String>? visibleTo,
+    String? whisperRecipientId,
+    String? whisperRecipientName,
   }) {
     return ChatMessage(
       id: id ?? this.id,
@@ -133,6 +155,10 @@ class ChatMessage {
       reactions: reactions ?? this.reactions,
       readBy: readBy ?? this.readBy,
       type: type ?? this.type,
+      isWhisper: isWhisper ?? this.isWhisper,
+      visibleTo: visibleTo ?? this.visibleTo,
+      whisperRecipientId: whisperRecipientId ?? this.whisperRecipientId,
+      whisperRecipientName: whisperRecipientName ?? this.whisperRecipientName,
     );
   }
 }
