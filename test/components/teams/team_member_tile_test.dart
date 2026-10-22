@@ -59,7 +59,7 @@ void main() {
     );
 
     testWidgets(
-      'Renders local contact name as primary title, contact badge, updated monogram, and ~ DisplayName (@username) subtitle when resolved',
+      'Renders local contact first name as primary title, contact badge, updated monogram, and ~ DisplayName (@username) subtitle when resolved',
       (tester) async {
         ContactResolver.instance.seedForTest({
           '(555) 123-4567': 'Dave Miller',
@@ -67,7 +67,7 @@ void main() {
 
         await tester.pumpWidget(buildTile());
 
-        expect(find.text('Dave Miller'), findsOneWidget);
+        expect(find.text('Dave'), findsOneWidget);
         expect(find.text('D'), findsOneWidget);
         expect(find.byIcon(Icons.contact_phone_outlined), findsOneWidget);
         expect(find.text('~ NightWolf (@nightwolf99)'), findsOneWidget);

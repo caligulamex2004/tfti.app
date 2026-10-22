@@ -68,11 +68,11 @@ void main() {
       expect(find.text('List'), findsOneWidget);
 
       // Attendee names in rail
-      expect(find.text('Marcus Miller'), findsOneWidget);
+      expect(find.text('Marcus'), findsOneWidget);
       expect(find.text('@marcus'), findsOneWidget);
-      expect(find.text('Sarah Connor'), findsOneWidget);
+      expect(find.text('Sarah'), findsOneWidget);
       expect(find.text('@sarah'), findsOneWidget);
-      expect(find.text('David Rose'), findsOneWidget);
+      expect(find.text('David'), findsOneWidget);
       expect(find.text('@david'), findsOneWidget);
     });
 
@@ -85,11 +85,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // Going guests remain
-      expect(find.text('Marcus Miller'), findsOneWidget);
-      expect(find.text('Sarah Connor'), findsOneWidget);
+      expect(find.text('Marcus'), findsOneWidget);
+      expect(find.text('Sarah'), findsOneWidget);
 
       // Pending guest is filtered out
-      expect(find.text('David Rose'), findsNothing);
+      expect(find.text('David'), findsNothing);
     });
 
     testWidgets('Tapping "List" switches to full list view and allows toggling back',

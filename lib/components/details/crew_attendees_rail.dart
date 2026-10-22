@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../shared/app_avatar.dart';
 import '../shared/user_profile_sheet.dart';
 import '../../services/contact_resolver.dart';
+import '../../services/contact_service.dart';
 
 /// Horizontal carousel displaying attendees with filter pills and a "View All" toggle.
 /// In rail mode, it breaks up vertical scrolling with interactive attendee cards.
@@ -278,8 +279,14 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
               : ContactResolver.instance.resolveName(guestPhone);
           final bool hasContact =
               contactName != null && contactName.trim().isNotEmpty;
+          final contactFirstName = isMe
+              ? ContactHelper.extractFirstName(displayName)
+              : ContactResolver.instance.resolveFirstName(
+                  guestPhone,
+                  fallbackName: displayName,
+                );
           final String primaryName =
-              hasContact ? contactName.trim() : displayName;
+              contactFirstName ?? displayName;
 
           final bool isHost = guestUid == widget.hostId;
           final bool isCoHost = guestUid == widget.coHostId;
@@ -572,8 +579,16 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
                 : ContactResolver.instance.resolveName(guestPhone);
             final bool hasContact =
                 contactName != null && contactName.trim().isNotEmpty;
+            final String guestDisplayName =
+                (guest['displayName'] ?? '').toString();
+            final contactFirstName = isMe
+                ? ContactHelper.extractFirstName(guestDisplayName)
+                : ContactResolver.instance.resolveFirstName(
+                    guestPhone,
+                    fallbackName: guestDisplayName,
+                  );
             final String primaryName =
-                hasContact ? contactName.trim() : guest['displayName'];
+                contactFirstName ?? guestDisplayName;
 
             return InkWell(
               onTap: () => _openUserProfile(

@@ -147,8 +147,9 @@ class _ContactImportSheetState extends State<ContactImportSheet> {
                       final contactName = item['contactName'] as String?;
                       final bool hasContactName =
                           contactName != null && contactName.trim().isNotEmpty;
-                      final primaryName =
-                          hasContactName ? contactName.trim() : profileName;
+                      final primaryName = hasContactName
+                          ? ContactHelper.extractFirstName(contactName)
+                          : ContactHelper.extractFirstName(profileName);
                       final username = item['username'] as String?;
                       final phone = PhoneFormatter.beautify(
                         item['phoneNumber'] ?? "",

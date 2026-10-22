@@ -79,12 +79,17 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
       } catch (_) {}
       final bool isMe = currentUid != null && uid == currentUid;
       final phone = item['phoneNumber'] as String?;
-      final contactName =
-          isMe ? null : ContactResolver.instance.resolveName(phone);
-      if (contactName != null && contactName.trim().isNotEmpty) {
-        return contactName.trim().toLowerCase();
+      final fallback = (item['displayName'] ?? '').toString();
+      final firstName = isMe
+          ? ContactHelper.extractFirstName(fallback)
+          : ContactResolver.instance.resolveFirstName(
+              phone,
+              fallbackName: fallback,
+            );
+      if (firstName != null && firstName.trim().isNotEmpty) {
+        return firstName.trim().toLowerCase();
       }
-      return (item['displayName'] ?? '').toString().toLowerCase();
+      return fallback.toLowerCase();
     }
 
     if (_sortByScore) {
@@ -497,15 +502,16 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                           final String rawPhone =
                                               profile['phoneNumber'] ?? "";
                                           final bool isMe = uid == user.uid;
-                                          final String? contactName = isMe
-                                              ? null
-                                              : ContactResolver.instance
-                                                  .resolveName(rawPhone);
-                                          final String effectiveName =
-                                              (contactName != null &&
-                                                  contactName.trim().isNotEmpty)
-                                              ? contactName.trim()
-                                              : displayName;
+                                          final String effectiveName = isMe
+                                              ? ContactHelper.extractFirstName(
+                                                  displayName,
+                                                )
+                                              : (ContactResolver.instance
+                                                      .resolveFirstName(
+                                                    rawPhone,
+                                                    fallbackName: displayName,
+                                                  ) ??
+                                                  displayName);
                                           final bool isBlocked = blockedUids
                                               .contains(uid);
 

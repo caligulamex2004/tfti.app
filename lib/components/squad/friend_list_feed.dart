@@ -54,11 +54,15 @@ class FriendListFeed extends StatelessWidget {
 
     String getEffectiveName(Map<String, dynamic> item) {
       final phone = item['phoneNumber'] as String?;
-      final contactName = ContactResolver.instance.resolveName(phone);
-      if (contactName != null && contactName.trim().isNotEmpty) {
-        return contactName.trim().toLowerCase();
+      final fallback = (item['displayName'] ?? '').toString();
+      final firstName = ContactResolver.instance.resolveFirstName(
+        phone,
+        fallbackName: fallback,
+      );
+      if (firstName != null && firstName.trim().isNotEmpty) {
+        return firstName.trim().toLowerCase();
       }
-      return (item['displayName'] ?? '').toString().toLowerCase();
+      return fallback.toLowerCase();
     }
 
     if (sortByScore) {

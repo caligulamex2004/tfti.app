@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../shared/app_avatar.dart';
+import '../../services/contact_service.dart';
 
 class SuggestedSquadRail extends StatelessWidget {
   final bool isDark;
@@ -116,8 +117,11 @@ class SuggestedSquadRail extends StatelessWidget {
                 final contactName = user['contactName'] as String?;
                 final hasContactName =
                     contactName != null && contactName.trim().isNotEmpty;
-                final primaryName =
-                    hasContactName ? contactName.trim() : (profileName.isNotEmpty ? profileName : "Friend");
+                final primaryName = hasContactName
+                    ? ContactHelper.extractFirstName(contactName)
+                    : (profileName.isNotEmpty
+                        ? ContactHelper.extractFirstName(profileName)
+                        : "Friend");
                 final username = user['username'] as String? ?? '';
                 final avatarUrl = user['avatarUrl'] as String?;
                 final avatarColor = user['avatarColor'] as int? ?? Colors.blue.toARGB32();

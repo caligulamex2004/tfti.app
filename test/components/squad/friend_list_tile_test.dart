@@ -57,7 +57,7 @@ void main() {
       'Renders local contact name, contact badge, and ~ DisplayName (@username) subtitle when resolved',
       (tester) async {
         ContactResolver.instance.seedForTest({
-          '(555) 987-6543': 'Harrison',
+          '(555) 987-6543': 'Harrison Ford',
         });
 
         await tester.pumpWidget(buildTile());

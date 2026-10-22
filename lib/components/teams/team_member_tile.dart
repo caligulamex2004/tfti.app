@@ -40,9 +40,13 @@ class TeamMemberTile extends StatelessWidget {
         isMe ? null : ContactResolver.instance.resolveName(rawPhone);
     final bool hasContactName =
         contactName != null && contactName.trim().isNotEmpty;
-    final String primaryName = hasContactName
-        ? contactName.trim()
-        : displayName;
+    final String? contactFirstName = isMe
+        ? null
+        : ContactResolver.instance.resolveFirstName(
+            rawPhone,
+            fallbackName: displayName,
+          );
+    final String primaryName = contactFirstName ?? displayName;
     final String? avatarUrl = profile['avatarUrl'];
     final Color avatarColor = profile['avatarColor'] is int
         ? Color(profile['avatarColor'])

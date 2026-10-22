@@ -46,7 +46,7 @@ void main() {
       expect(find.byType(Divider), findsOneWidget);
     });
 
-    testWidgets('Resolves contact name as primary and shows ~ displayName as subtitle',
+    testWidgets('Resolves contact first name as primary and shows ~ displayName as subtitle',
         (tester) async {
       ContactResolver.instance.seedForTest({
         '+15551234567': 'Bob Contact Book',
@@ -54,13 +54,13 @@ void main() {
 
       await tester.pumpWidget(buildWidget(mockSeenGuests));
 
-      // Bob: Should show contact name as primary title, and icon
-      expect(find.text('Bob Contact Book'), findsOneWidget);
+      // Bob: Should show contact first name as primary title, and icon
+      expect(find.text('Bob'), findsOneWidget);
       expect(find.text('~ TheRealBob (@bob99)'), findsOneWidget);
       expect(find.byIcon(Icons.contact_phone_outlined), findsOneWidget);
 
-      // Alice: No contact match, should show original displayName as primary title
-      expect(find.text('Alice Wonderland'), findsOneWidget);
+      // Alice: No contact match, should show extracted first name as primary title
+      expect(find.text('Alice'), findsOneWidget);
       expect(find.text('@alicew'), findsOneWidget);
     });
 

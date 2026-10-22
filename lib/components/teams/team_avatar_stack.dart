@@ -103,13 +103,12 @@ class TeamAvatarStack extends StatelessWidget {
                         final String displayName =
                             uData['displayName'] ?? "Unknown";
                         final String rawPhone = uData['phoneNumber'] ?? "";
-                        final String? contactName = ContactResolver.instance
-                            .resolveName(rawPhone);
-                        final String name =
-                            (contactName != null &&
-                                contactName.trim().isNotEmpty)
-                            ? contactName.trim()
-                            : displayName;
+                        final String name = ContactResolver.instance
+                                .resolveFirstName(
+                              rawPhone,
+                              fallbackName: displayName,
+                            ) ??
+                            displayName;
                         String? avatarUrl = uData['avatarUrl'];
                         int avatarColor =
                             uData['avatarColor'] ?? Colors.blue.toARGB32();

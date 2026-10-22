@@ -28,6 +28,7 @@ import '../components/feed/empty_feed_states.dart';
 import '../components/shared/user_profile_sheet.dart';
 import '../components/shared/event_type_pill.dart';
 import '../services/contact_resolver.dart';
+import '../services/contact_service.dart';
 import '../services/badge_service.dart';
 
 class HangoutDetailsPage extends StatefulWidget {
@@ -332,12 +333,12 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
       if (weightA != weightB) {
         return weightA.compareTo(weightB);
       }
-      final nameA = (ContactResolver.instance.resolveName(a['phoneNumber']) ??
+      final nameA = (ContactResolver.instance.resolveFirstName(a['phoneNumber'], fallbackName: a['displayName']) ??
               a['displayName'] ??
               '')
           .toString()
           .toLowerCase();
-      final nameB = (ContactResolver.instance.resolveName(b['phoneNumber']) ??
+      final nameB = (ContactResolver.instance.resolveFirstName(b['phoneNumber'], fallbackName: b['displayName']) ??
               b['displayName'] ??
               '')
           .toString()
@@ -813,10 +814,19 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                     final bool hasContact = contactName !=
                                             null &&
                                         contactName.trim().isNotEmpty;
-                                    final String hostDisplayName = hasContact
-                                        ? contactName.trim()
-                                        : (hostData['displayName'] ??
-                                            'Someone');
+                                    final fallbackHost =
+                                        (hostData['displayName'] ?? 'Someone')
+                                            .toString();
+                                    final String hostDisplayName = isHostMe
+                                        ? ContactHelper.extractFirstName(
+                                            fallbackHost,
+                                          )
+                                        : (ContactResolver.instance
+                                                .resolveFirstName(
+                                              hostPhone,
+                                              fallbackName: fallbackHost,
+                                            ) ??
+                                            fallbackHost);
 
                                     return GestureDetector(
                                       onTap: () {

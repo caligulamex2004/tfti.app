@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../shared/app_avatar.dart';
 import '../shared/info_card.dart';
 import '../../services/contact_resolver.dart';
+import '../../services/contact_service.dart';
 import 'vibe_check_poll_ui.dart';
 import 'vote_tally_sheet.dart';
 
@@ -347,13 +348,18 @@ class EventRsvpCard extends StatelessWidget {
       final guestUid = (guest['uid'] ?? '').toString();
       final bool isMe = guestUid == myUid;
       final phone = (guest['phoneNumber'] ?? '').toString();
-      final contactName =
-          isMe ? null : ContactResolver.instance.resolveName(phone);
-      if (contactName != null && contactName.trim().isNotEmpty) {
-        return contactName.trim();
-      }
       final displayName = (guest['displayName'] ?? '').toString().trim();
-      return displayName.isNotEmpty ? displayName : 'Someone';
+      final fallback = displayName.isNotEmpty ? displayName : 'Someone';
+      if (isMe) {
+        return ContactHelper.extractFirstName(fallback);
+      }
+      final firstName = ContactResolver.instance.resolveFirstName(
+        phone,
+        fallbackName: fallback,
+      );
+      return (firstName != null && firstName.trim().isNotEmpty)
+          ? firstName.trim()
+          : fallback;
     }
 
     String socialText;

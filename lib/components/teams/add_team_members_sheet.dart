@@ -74,11 +74,15 @@ class AddTeamMembersSheet extends StatefulWidget {
 
     String getEffectiveName(Map<String, dynamic> item) {
       final phone = item['phoneNumber'] as String?;
-      final contactName = ContactResolver.instance.resolveName(phone);
-      if (contactName != null && contactName.trim().isNotEmpty) {
-        return contactName.trim().toLowerCase();
+      final fallback = (item['displayName'] ?? '').toString();
+      final firstName = ContactResolver.instance.resolveFirstName(
+        phone,
+        fallbackName: fallback,
+      );
+      if (firstName != null && firstName.trim().isNotEmpty) {
+        return firstName.trim().toLowerCase();
       }
-      return (item['displayName'] ?? '').toString().toLowerCase();
+      return fallback.toLowerCase();
     }
 
     sortedAvailable.sort(
@@ -154,11 +158,15 @@ class _AddTeamMembersSheetState extends State<AddTeamMembersSheet> {
 
     String getEffectiveName(Map<String, dynamic> item) {
       final phone = item['phoneNumber'] as String?;
-      final contactName = ContactResolver.instance.resolveName(phone);
-      if (contactName != null && contactName.trim().isNotEmpty) {
-        return contactName.trim().toLowerCase();
+      final fallback = (item['displayName'] ?? '').toString();
+      final firstName = ContactResolver.instance.resolveFirstName(
+        phone,
+        fallbackName: fallback,
+      );
+      if (firstName != null && firstName.trim().isNotEmpty) {
+        return firstName.trim().toLowerCase();
       }
-      return (item['displayName'] ?? '').toString().toLowerCase();
+      return fallback.toLowerCase();
     }
 
     list.sort((a, b) => getEffectiveName(a).compareTo(getEffectiveName(b)));
@@ -233,9 +241,12 @@ class _AddTeamMembersSheetState extends State<AddTeamMembersSheet> {
                             final bool hasContactName =
                                 contactName != null &&
                                 contactName.trim().isNotEmpty;
-                            final String primaryName = hasContactName
-                                ? contactName.trim()
-                                : displayName;
+                            final String primaryName =
+                                ContactResolver.instance.resolveFirstName(
+                                      rawPhone,
+                                      fallbackName: displayName,
+                                    ) ??
+                                    displayName;
                             final avatarUrl = profile['avatarUrl'];
                             final avatarColor = Color(
                               profile['avatarColor'] is int

@@ -43,8 +43,14 @@ class FriendListTile extends StatelessWidget {
         isMe ? null : ContactResolver.instance.resolveName(rawPhone);
     final bool hasContactName =
         contactName != null && contactName.trim().isNotEmpty;
+    final String? contactFirstName = isMe
+        ? null
+        : ContactResolver.instance.resolveFirstName(
+            rawPhone,
+            fallbackName: displayName,
+          );
     final String primaryName =
-        hasContactName ? contactName.trim() : displayName;
+        contactFirstName ?? displayName;
     final String? avatarUrl = userData['avatarUrl'];
     final Color avatarColor = userData['avatarColor'] is int
         ? Color(userData['avatarColor'])

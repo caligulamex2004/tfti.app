@@ -183,7 +183,11 @@ class SeenBySheet extends StatelessWidget {
                   final bool hasContactName =
                       contactName != null && contactName.trim().isNotEmpty;
                   final String primaryName =
-                      hasContactName ? contactName.trim() : displayName;
+                      ContactResolver.instance.resolveFirstName(
+                            rawPhone,
+                            fallbackName: displayName,
+                          ) ??
+                          displayName;
 
                   final String username =
                       (guest['username'] as String?)?.trim() ?? '';

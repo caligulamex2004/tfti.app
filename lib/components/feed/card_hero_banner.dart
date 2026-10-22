@@ -6,6 +6,7 @@ import '../shared/event_type_pill.dart';
 import 'default_event_banner.dart';
 import '../../models/user_profile.dart';
 import '../../services/contact_resolver.dart';
+import '../../services/contact_service.dart';
 import '../../services/user_cache_repository.dart';
 
 /// The 16:9 hero image banner with date badge, status pill, title, location and host pill.
@@ -314,17 +315,16 @@ class CardHeroBanner extends StatelessWidget {
                       } catch (_) {}
                       final bool isMe =
                           currentUid != null && hostId == currentUid;
-                      final contactName = isMe
-                          ? null
-                          : ContactResolver.instance
-                              .resolveName(hostProfile.phoneNumber);
-                      final bool hasContact = contactName != null &&
-                          contactName.trim().isNotEmpty;
-                      final hostName = hasContact
-                          ? contactName.trim()
-                          : (hostProfile.displayName.isNotEmpty
-                              ? hostProfile.displayName
-                              : 'Someone');
+                      final fallbackHost = hostProfile.displayName.isNotEmpty
+                          ? hostProfile.displayName
+                          : 'Someone';
+                      final hostName = isMe
+                          ? ContactHelper.extractFirstName(fallbackHost)
+                          : (ContactResolver.instance.resolveFirstName(
+                                hostProfile.phoneNumber,
+                                fallbackName: fallbackHost,
+                              ) ??
+                              fallbackHost);
                       final avatarUrl = hostProfile.avatarUrl;
                       final avatarColor = hostProfile.resolvedColor;
                       return GestureDetector(
