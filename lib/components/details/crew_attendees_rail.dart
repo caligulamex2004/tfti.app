@@ -286,7 +286,7 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
                   fallbackName: displayName,
                 );
           final String primaryName =
-              contactFirstName ?? displayName;
+              contactFirstName ?? ContactHelper.extractFirstName(displayName);
 
           final bool isHost = guestUid == widget.hostId;
           final bool isCoHost = guestUid == widget.coHostId;
@@ -588,7 +588,7 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
                     fallbackName: guestDisplayName,
                   );
             final String primaryName =
-                contactFirstName ?? guestDisplayName;
+                contactFirstName ?? ContactHelper.extractFirstName(guestDisplayName);
 
             return InkWell(
               onTap: () => _openUserProfile(

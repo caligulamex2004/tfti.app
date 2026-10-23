@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import '../../services/contact_resolver.dart';
+import '../../services/contact_service.dart';
 import '../shared/app_avatar.dart';
 
 // --- SHARED REACTION NORMALIZER ---
@@ -357,7 +358,7 @@ class MessageOptionsSheet extends StatelessWidget {
                           phone,
                           fallbackName: displayName,
                         ) ??
-                        displayName;
+                        ContactHelper.extractFirstName(displayName);
 
                 final hasName =
                     senderFirstName.isNotEmpty && senderFirstName != 'Unknown';

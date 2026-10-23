@@ -6,6 +6,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import '../shared/user_profile_sheet.dart';
 import '../shared/app_avatar.dart';
 import '../../services/contact_resolver.dart';
+import '../../services/contact_service.dart';
 
 class FriendListTile extends StatelessWidget {
   final Map<String, dynamic> userData;
@@ -44,13 +45,13 @@ class FriendListTile extends StatelessWidget {
     final bool hasContactName =
         contactName != null && contactName.trim().isNotEmpty;
     final String? contactFirstName = isMe
-        ? null
+        ? ContactHelper.extractFirstName(displayName)
         : ContactResolver.instance.resolveFirstName(
             rawPhone,
             fallbackName: displayName,
           );
     final String primaryName =
-        contactFirstName ?? displayName;
+        contactFirstName ?? ContactHelper.extractFirstName(displayName);
     final String? avatarUrl = userData['avatarUrl'];
     final Color avatarColor = userData['avatarColor'] is int
         ? Color(userData['avatarColor'])

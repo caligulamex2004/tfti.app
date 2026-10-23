@@ -511,7 +511,9 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                                     rawPhone,
                                                     fallbackName: displayName,
                                                   ) ??
-                                                  displayName);
+                                                  ContactHelper.extractFirstName(
+                                                    displayName,
+                                                  ));
                                           final bool isBlocked = blockedUids
                                               .contains(uid);
 

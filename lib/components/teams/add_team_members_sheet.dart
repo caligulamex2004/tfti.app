@@ -246,7 +246,7 @@ class _AddTeamMembersSheetState extends State<AddTeamMembersSheet> {
                                       rawPhone,
                                       fallbackName: displayName,
                                     ) ??
-                                    displayName;
+                                    ContactHelper.extractFirstName(displayName);
                             final avatarUrl = profile['avatarUrl'];
                             final avatarColor = Color(
                               profile['avatarColor'] is int

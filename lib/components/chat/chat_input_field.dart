@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/contact_resolver.dart';
+import '../../services/contact_service.dart';
 
 class ChatInputField extends StatelessWidget {
   final TextEditingController controller;
@@ -31,7 +32,7 @@ class ChatInputField extends StatelessWidget {
           phone,
           fallbackName: displayName,
         ) ??
-        displayName;
+        ContactHelper.extractFirstName(displayName);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),

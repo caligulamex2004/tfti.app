@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import '../shared/app_avatar.dart';
 import '../../services/contact_resolver.dart';
+import '../../services/contact_service.dart';
 
 class TeamMemberTile extends StatelessWidget {
   final Map<String, dynamic> profile;
@@ -41,12 +42,13 @@ class TeamMemberTile extends StatelessWidget {
     final bool hasContactName =
         contactName != null && contactName.trim().isNotEmpty;
     final String? contactFirstName = isMe
-        ? null
+        ? ContactHelper.extractFirstName(displayName)
         : ContactResolver.instance.resolveFirstName(
             rawPhone,
             fallbackName: displayName,
           );
-    final String primaryName = contactFirstName ?? displayName;
+    final String primaryName =
+        contactFirstName ?? ContactHelper.extractFirstName(displayName);
     final String? avatarUrl = profile['avatarUrl'];
     final Color avatarColor = profile['avatarColor'] is int
         ? Color(profile['avatarColor'])

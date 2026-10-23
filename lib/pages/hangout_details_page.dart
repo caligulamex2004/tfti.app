@@ -826,7 +826,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                               hostPhone,
                                               fallbackName: fallbackHost,
                                             ) ??
-                                            fallbackHost);
+                                            ContactHelper.extractFirstName(
+                                              fallbackHost,
+                                            ));
 
                                     return GestureDetector(
                                       onTap: () {

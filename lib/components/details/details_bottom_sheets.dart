@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../shared/app_avatar.dart';
 import '../../services/contact_resolver.dart';
+import '../../services/contact_service.dart';
 
 // --- FULL DETAILS SHEET ---
 class FullDetailsSheet extends StatelessWidget {
@@ -187,7 +188,7 @@ class SeenBySheet extends StatelessWidget {
                             rawPhone,
                             fallbackName: displayName,
                           ) ??
-                          displayName;
+                          ContactHelper.extractFirstName(displayName);
 
                   final String username =
                       (guest['username'] as String?)?.trim() ?? '';

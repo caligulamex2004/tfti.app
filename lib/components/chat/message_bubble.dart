@@ -245,7 +245,8 @@ class MessageBubble extends StatelessWidget {
       children: readBy.map((guest) {
         final String? avatarUrl = guest['avatarUrl'];
         final int colorValue = guest['avatarColor'] ?? Colors.blue.toARGB32();
-        final String name = guest['displayName'] ?? '?';
+        final String name =
+            ContactHelper.extractFirstName(guest['displayName'] ?? '?');
 
         return Container(
           margin: const EdgeInsets.only(left: 2),
@@ -324,7 +325,7 @@ class MessageBubble extends StatelessWidget {
             phone,
             fallbackName: senderName,
           ) ??
-          senderName;
+          ContactHelper.extractFirstName(senderName);
     } catch (_) {
       resolvedSenderFirstName = ContactHelper.extractFirstName(senderName);
     }
@@ -339,7 +340,7 @@ class MessageBubble extends StatelessWidget {
               phone,
               fallbackName: whisperRecipientName ?? 'guest',
             ) ??
-            (whisperRecipientName ?? 'guest');
+            ContactHelper.extractFirstName(whisperRecipientName ?? 'guest');
       } catch (_) {
         resolvedRecipientFirstName =
             ContactHelper.extractFirstName(whisperRecipientName ?? 'guest');

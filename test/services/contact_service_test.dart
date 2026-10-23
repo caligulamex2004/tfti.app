@@ -91,12 +91,15 @@ void main() {
       expect(ContactResolver.instance.resolveName('999-999-9999'), isNull);
     });
 
-    test('ContactHelper.extractFirstName handles single, multi-word, comma-separated, and empty names', () {
+    test('ContactHelper.extractFirstName handles single, multi-word, comma-separated, compound, and empty names', () {
       expect(ContactHelper.extractFirstName(null), equals(''));
       expect(ContactHelper.extractFirstName(''), equals(''));
       expect(ContactHelper.extractFirstName('   '), equals(''));
       expect(ContactHelper.extractFirstName('Adam'), equals('Adam'));
       expect(ContactHelper.extractFirstName('Adam Smith'), equals('Adam'));
+      expect(ContactHelper.extractFirstName('Adam Robert Bun'), equals('Adam'));
+      expect(ContactHelper.extractFirstName('Robert Michael Yen'), equals('Robert'));
+      expect(ContactHelper.extractFirstName('Robert Michael'), equals('Robert'));
       expect(ContactHelper.extractFirstName('Mary Jane Watson'), equals('Mary'));
       expect(ContactHelper.extractFirstName('Smith, John'), equals('John'));
       expect(ContactHelper.extractFirstName('Watson, Mary Jane'), equals('Mary'));
@@ -142,6 +145,38 @@ void main() {
           fallbackName: 'Thomas Jefferson',
         ),
         equals('Thomas'),
+      );
+
+      ContactResolver.instance.clearForTest();
+    });
+
+    test('resolveFirstName strictly returns single first name even if compound name was seeded/cached', () {
+      ContactResolver.instance.clearForTest();
+      ContactResolver.instance.seedForTest({
+        '+15551112222': 'Robert Michael Yen',
+        '+15553334444': 'Adam Robert Bun',
+      }, firstNames: {
+        '+15551112222': 'Robert Michael', // Simulates Android bundling middle name into GIVEN_NAME
+        '+15553334444': 'Adam',
+      });
+
+      expect(
+        ContactResolver.instance.resolveFirstName('+15551112222'),
+        equals('Robert'),
+      );
+      expect(
+        ContactResolver.instance.resolveFirstName('+15553334444'),
+        equals('Adam'),
+      );
+
+      // Verify TCG profile still accesses the full name via resolveName
+      expect(
+        ContactResolver.instance.resolveName('+15551112222'),
+        equals('Robert Michael Yen'),
+      );
+      expect(
+        ContactResolver.instance.resolveName('+15553334444'),
+        equals('Adam Robert Bun'),
       );
 
       ContactResolver.instance.clearForTest();

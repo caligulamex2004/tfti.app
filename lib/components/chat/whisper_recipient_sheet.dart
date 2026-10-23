@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/contact_resolver.dart';
+import '../../services/contact_service.dart';
 import '../shared/app_avatar.dart';
 
 class WhisperRecipientSheet extends StatefulWidget {
@@ -213,7 +214,7 @@ class _WhisperRecipientSheetState extends State<WhisperRecipientSheet> {
                               phone,
                               fallbackName: displayName,
                             ) ??
-                            displayName;
+                            ContactHelper.extractFirstName(displayName);
                     final String tag = guest['tag'] ?? '';
                     final String? avatarUrl = guest['avatarUrl'];
                     final dynamic avatarColor = guest['avatarColor'];

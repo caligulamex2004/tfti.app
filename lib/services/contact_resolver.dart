@@ -125,14 +125,15 @@ class ContactResolver extends ChangeNotifier {
 
   /// Returns the cached local contact first name for a phone number if known,
   /// or extracts the first name from [fallbackName] if provided, or null.
-  /// Never matches the current user's own phone number.
+  /// Never matches the current user's own phone number. Always guarantees
+  /// returning strictly the single first name (no middle names or compound words).
   String? resolveFirstName(String? rawPhone, {String? fallbackName}) {
     if (rawPhone != null && rawPhone.isNotEmpty) {
       final normalized = ContactHelper.normalizePhone(rawPhone);
       if (normalized != null && !isCurrentUserPhone(normalized)) {
         final cachedFirst = _phoneToFirstNameCache[normalized];
         if (cachedFirst != null && cachedFirst.isNotEmpty) {
-          return cachedFirst;
+          return ContactHelper.extractFirstName(cachedFirst);
         }
       }
     }
@@ -218,9 +219,11 @@ class ContactResolver extends ChangeNotifier {
             caseSensitive: false,
           );
           if (pattern.hasMatch(name)) {
-            firstName = structuredFirst;
+            firstName = ContactHelper.extractFirstName(structuredFirst);
           }
         }
+        // Enforce strictly single first name (stripping any middle names that Android bundled into GIVEN_NAME)
+        firstName = ContactHelper.extractFirstName(firstName);
 
         for (final p in contact.phones) {
           final normalized = ContactHelper.normalizePhone(p.number);
@@ -287,7 +290,7 @@ class ContactResolver extends ChangeNotifier {
         final explicitFirst = firstNames?[phone];
         _phoneToFirstNameCache[normalized] = explicitFirst != null &&
                 explicitFirst.isNotEmpty
-            ? explicitFirst
+            ? ContactHelper.extractFirstName(explicitFirst)
             : ContactHelper.extractFirstName(name);
       }
     });
