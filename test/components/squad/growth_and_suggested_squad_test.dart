@@ -124,7 +124,7 @@ void main() {
       );
 
       expect(find.text('SUGGESTED SQUAD'), findsOneWidget);
-      expect(find.text('Brock Gym'), findsOneWidget);
+      expect(find.text('Brock'), findsOneWidget);
       expect(find.text('@brock_pewter'), findsOneWidget);
       expect(find.text('Misty'), findsOneWidget);
       expect(find.text('@misty_water'), findsOneWidget);

@@ -21,6 +21,7 @@ class ContactResolver extends ChangeNotifier {
   final Map<String, String> _phoneToFirstNameCache = {};
   String? _currentUserPhone;
   bool _isWarmingUp = false;
+  bool _needsRefreshAgain = false;
   bool _hasWarmedUp = false;
   bool _listenerRegistered = false;
 
@@ -181,7 +182,10 @@ class ContactResolver extends ChangeNotifier {
   /// Refreshes the local in-memory phone -> contact name cache.
   Future<void> refresh() async {
     if (kIsWeb) return;
-    if (_isWarmingUp) return;
+    if (_isWarmingUp) {
+      _needsRefreshAgain = true;
+      return;
+    }
     _isWarmingUp = true;
 
     try {
@@ -198,21 +202,33 @@ class ContactResolver extends ChangeNotifier {
         final name = contact.displayName.trim();
         if (name.isEmpty) continue;
 
-        String firstName = contact.name.first.trim();
-        if (firstName.isEmpty) {
-          firstName = ContactHelper.extractFirstName(name);
+        final extractedFirst = ContactHelper.extractFirstName(name);
+        final structuredFirst = contact.name.first.trim();
+
+        // If structuredFirst is present as a distinct word in the display name
+        // (e.g. "Dr. John Doe" -> "John" or "Doe, John" -> "John"), use it.
+        // If structuredFirst does not match the display name (e.g. on Android
+        // where raw contact StructuredName.GIVEN_NAME can be stale or desynced
+        // from Contacts.DISPLAY_NAME_PRIMARY after editing in Google Contacts),
+        // fallback to extractedFirst from the authoritative display name.
+        String firstName = extractedFirst;
+        if (structuredFirst.isNotEmpty) {
+          final pattern = RegExp(
+            r'\b' + RegExp.escape(structuredFirst) + r'\b',
+            caseSensitive: false,
+          );
+          if (pattern.hasMatch(name)) {
+            firstName = structuredFirst;
+          }
         }
 
         for (final p in contact.phones) {
           final normalized = ContactHelper.normalizePhone(p.number);
           if (normalized != null && !isCurrentUserPhone(normalized)) {
-            final existingFirst = _phoneToFirstNameCache[normalized];
-            final hasExistingExplicit =
-                existingFirst != null && existingFirst.isNotEmpty;
-            final hasNewExplicit = contact.name.first.trim().isNotEmpty;
-
-            if (!_phoneToNameCache.containsKey(normalized) ||
-                (!hasExistingExplicit && hasNewExplicit)) {
+            final existingName = _phoneToNameCache[normalized];
+            // If phone not yet cached, or if existing name is single-word and new one has more details
+            if (existingName == null ||
+                (!existingName.contains(' ') && name.contains(' '))) {
               _phoneToNameCache[normalized] = name;
               _phoneToFirstNameCache[normalized] = firstName;
             }
@@ -220,6 +236,12 @@ class ContactResolver extends ChangeNotifier {
         }
       }
       _hasWarmedUp = true;
+
+      // Ensure permission is persisted since contacts read succeeded
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_prefKeyGranted, true);
+      } catch (_) {}
 
       // Register device contacts change listener once
       if (!_listenerRegistered) {
@@ -232,6 +254,10 @@ class ContactResolver extends ChangeNotifier {
       debugPrint("Error refreshing ContactResolver: $e");
     } finally {
       _isWarmingUp = false;
+      if (_needsRefreshAgain) {
+        _needsRefreshAgain = false;
+        unawaited(refresh());
+      }
     }
   }
 

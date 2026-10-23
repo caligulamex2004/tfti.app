@@ -91,13 +91,16 @@ void main() {
       expect(ContactResolver.instance.resolveName('999-999-9999'), isNull);
     });
 
-    test('ContactHelper.extractFirstName handles single, multi-word, and empty names', () {
+    test('ContactHelper.extractFirstName handles single, multi-word, comma-separated, and empty names', () {
       expect(ContactHelper.extractFirstName(null), equals(''));
       expect(ContactHelper.extractFirstName(''), equals(''));
       expect(ContactHelper.extractFirstName('   '), equals(''));
       expect(ContactHelper.extractFirstName('Adam'), equals('Adam'));
       expect(ContactHelper.extractFirstName('Adam Smith'), equals('Adam'));
       expect(ContactHelper.extractFirstName('Mary Jane Watson'), equals('Mary'));
+      expect(ContactHelper.extractFirstName('Smith, John'), equals('John'));
+      expect(ContactHelper.extractFirstName('Watson, Mary Jane'), equals('Mary'));
+      expect(ContactHelper.extractFirstName('Solo,'), equals('Solo'));
     });
 
     test('resolveFirstName returns contact first name or fallback', () {

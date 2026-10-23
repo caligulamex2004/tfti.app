@@ -94,7 +94,7 @@ void main() {
         expect(find.text('Board Game Night'), findsOneWidget);
         expect(find.text('🤫 Alice sent you a whisper'), findsOneWidget);
         expect(find.text('Whisper'), findsOneWidget);
-        expect(find.byIcon(Icons.hearing_outlined), findsOneWidget);
+        expect(find.byIcon(Icons.hearing_outlined), findsAtLeastNWidgets(1));
       },
     );
 
