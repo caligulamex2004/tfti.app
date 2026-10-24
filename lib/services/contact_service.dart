@@ -2,6 +2,32 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'contact_resolver.dart';
 
+/// User-configurable priority for how display names are formatted.
+enum DisplayNameFormat {
+  fullName,
+  firstName,
+  firstNameLastInitial,
+  givenName;
+
+  String get label => switch (this) {
+    DisplayNameFormat.fullName => 'Full Name',
+    DisplayNameFormat.firstName => 'First Name',
+    DisplayNameFormat.firstNameLastInitial => 'First Name Last Initial',
+    DisplayNameFormat.givenName => 'First Name Middle Name (Given Name)',
+  };
+
+  static DisplayNameFormat fromStorageKey(
+    String? raw, {
+    required DisplayNameFormat fallback,
+  }) {
+    if (raw == null || raw.isEmpty) return fallback;
+    for (final value in DisplayNameFormat.values) {
+      if (value.name == raw) return value;
+    }
+    return fallback;
+  }
+}
+
 class ContactHelper {
   /// Requests permission and fetches contacts with phone numbers.
   static Future<List<Contact>?> getContacts() async {
@@ -87,6 +113,126 @@ class ContactHelper {
 
     final parts = trimmed.split(RegExp(r'\s+'));
     return parts.first;
+  }
+
+  /// Extracts "First L." (First Name + Last Initial) from a full name string.
+  /// Falls back to just the first name if only a single name word exists.
+  static String extractFirstNameLastInitial(
+    String? fullName, {
+    String? firstName,
+    String? lastName,
+  }) {
+    if (fullName == null) return '';
+    final trimmed = fullName.trim();
+    if (trimmed.isEmpty) return '';
+
+    final String first = (firstName != null && firstName.trim().isNotEmpty)
+        ? extractFirstName(firstName)
+        : extractFirstName(trimmed);
+    if (first.isEmpty) return '';
+
+    String? lastWord;
+    if (lastName != null && lastName.trim().isNotEmpty) {
+      lastWord = lastName.trim().split(RegExp(r'\s+')).last;
+    } else if (trimmed.contains(',')) {
+      final commaParts = trimmed.split(',');
+      if (commaParts.length > 1 &&
+          commaParts[1].trim().isNotEmpty &&
+          commaParts[0].trim().isNotEmpty) {
+        lastWord = commaParts[0].trim().split(RegExp(r'\s+')).last;
+      }
+    } else {
+      final parts = trimmed.split(RegExp(r'\s+'));
+      if (parts.length >= 2) {
+        lastWord = parts.last;
+      }
+    }
+
+    if (lastWord != null && lastWord.isNotEmpty) {
+      return '$first ${lastWord[0].toUpperCase()}.';
+    }
+    return first;
+  }
+
+  /// Extracts "First Middle" (Given Name) from a full name string.
+  /// Uses structured [structuredFirst] + [structuredMiddle] when available and valid;
+  /// for plain strings, takes all words before the last word when 3+ words
+  /// ("Robert Michael Yen" -> "Robert Michael"), and the first word when 1–2 words
+  /// ("John Smith" -> "John") so last names are not mistaken for middle names.
+  static String extractGivenName(
+    String? fullName, {
+    String? structuredFirst,
+    String? structuredMiddle,
+  }) {
+    if (fullName == null) return '';
+    final trimmed = fullName.trim();
+    if (trimmed.isEmpty) return '';
+
+    final sFirst = structuredFirst?.trim() ?? '';
+    final sMiddle = structuredMiddle?.trim() ?? '';
+    if (sFirst.isNotEmpty) {
+      final combined = (sMiddle.isNotEmpty &&
+              !sFirst.toLowerCase().endsWith(sMiddle.toLowerCase()))
+          ? '$sFirst $sMiddle'
+          : sFirst;
+      final normalizedCombined = combined.split(RegExp(r'\s+')).join(' ');
+      if (normalizedCombined.contains(' ')) {
+        final pattern = RegExp(
+          r'\b' + RegExp.escape(normalizedCombined) + r'\b',
+          caseSensitive: false,
+        );
+        if (pattern.hasMatch(trimmed)) {
+          return normalizedCombined;
+        }
+      }
+    }
+
+    if (trimmed.contains(',')) {
+      final commaParts = trimmed.split(',');
+      if (commaParts.length > 1) {
+        final afterComma = commaParts[1].trim();
+        if (afterComma.isNotEmpty) {
+          return afterComma.split(RegExp(r'\s+')).join(' ');
+        }
+      }
+      return commaParts.first.trim();
+    }
+
+    final parts = trimmed.split(RegExp(r'\s+'));
+    if (parts.length >= 3) {
+      return parts.sublist(0, parts.length - 1).join(' ');
+    }
+    return parts.first;
+  }
+
+  /// Formats [fullName] according to the user's chosen [DisplayNameFormat].
+  static String formatName(
+    String? fullName,
+    DisplayNameFormat format, {
+    String? firstName,
+    String? givenName,
+    String? lastName,
+  }) {
+    if (fullName == null) return '';
+    final trimmed = fullName.trim();
+    if (trimmed.isEmpty) return '';
+
+    return switch (format) {
+      DisplayNameFormat.fullName => trimmed,
+      DisplayNameFormat.firstName =>
+        (firstName != null && firstName.trim().isNotEmpty)
+            ? extractFirstName(firstName)
+            : extractFirstName(trimmed),
+      DisplayNameFormat.firstNameLastInitial => extractFirstNameLastInitial(
+        trimmed,
+        firstName: firstName,
+        lastName: lastName,
+      ),
+      DisplayNameFormat.givenName =>
+        (givenName != null && givenName.trim().isNotEmpty)
+            ? givenName.trim()
+            : extractGivenName(trimmed, structuredFirst: firstName),
+    };
   }
 }
 

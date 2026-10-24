@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tftiapp/components/squad/friend_list_tile.dart';
 import 'package:tftiapp/services/contact_resolver.dart';
+import 'package:tftiapp/services/contact_service.dart';
 
 void main() {
   final sampleUserData = {
@@ -115,5 +117,40 @@ void main() {
       expect(confirmCalled, isTrue);
       expect(dismissedCalled, isTrue);
     });
+
+    testWidgets(
+      'Renders contact name according to miniProfileFormat preference (Full, First, First+LastInitial, GivenName)',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        ContactResolver.instance.seedForTest({
+          '(555) 987-6543': 'Robert Michael Yen',
+        });
+
+        // Default miniProfileFormat is firstName
+        await tester.pumpWidget(buildTile());
+        expect(find.text('Robert'), findsOneWidget);
+
+        // Full Name
+        await ContactResolver.instance.setMiniProfileFormat(
+          DisplayNameFormat.fullName,
+        );
+        await tester.pumpWidget(buildTile());
+        expect(find.text('Robert Michael Yen'), findsOneWidget);
+
+        // First Name Last Initial
+        await ContactResolver.instance.setMiniProfileFormat(
+          DisplayNameFormat.firstNameLastInitial,
+        );
+        await tester.pumpWidget(buildTile());
+        expect(find.text('Robert Y.'), findsOneWidget);
+
+        // Given Name (First + Middle)
+        await ContactResolver.instance.setMiniProfileFormat(
+          DisplayNameFormat.givenName,
+        );
+        await tester.pumpWidget(buildTile());
+        expect(find.text('Robert Michael'), findsOneWidget);
+      },
+    );
   });
 }

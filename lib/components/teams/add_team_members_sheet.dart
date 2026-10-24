@@ -75,12 +75,12 @@ class AddTeamMembersSheet extends StatefulWidget {
     String getEffectiveName(Map<String, dynamic> item) {
       final phone = item['phoneNumber'] as String?;
       final fallback = (item['displayName'] ?? '').toString();
-      final firstName = ContactResolver.instance.resolveFirstName(
+      final resolvedName = ContactResolver.instance.resolveMiniProfileName(
         phone,
         fallbackName: fallback,
       );
-      if (firstName != null && firstName.trim().isNotEmpty) {
-        return firstName.trim().toLowerCase();
+      if (resolvedName != null && resolvedName.trim().isNotEmpty) {
+        return resolvedName.trim().toLowerCase();
       }
       return fallback.toLowerCase();
     }
@@ -159,12 +159,12 @@ class _AddTeamMembersSheetState extends State<AddTeamMembersSheet> {
     String getEffectiveName(Map<String, dynamic> item) {
       final phone = item['phoneNumber'] as String?;
       final fallback = (item['displayName'] ?? '').toString();
-      final firstName = ContactResolver.instance.resolveFirstName(
+      final resolvedName = ContactResolver.instance.resolveMiniProfileName(
         phone,
         fallbackName: fallback,
       );
-      if (firstName != null && firstName.trim().isNotEmpty) {
-        return firstName.trim().toLowerCase();
+      if (resolvedName != null && resolvedName.trim().isNotEmpty) {
+        return resolvedName.trim().toLowerCase();
       }
       return fallback.toLowerCase();
     }
@@ -242,11 +242,12 @@ class _AddTeamMembersSheetState extends State<AddTeamMembersSheet> {
                                 contactName != null &&
                                 contactName.trim().isNotEmpty;
                             final String primaryName =
-                                ContactResolver.instance.resolveFirstName(
+                                ContactResolver.instance.resolveMiniProfileName(
                                       rawPhone,
                                       fallbackName: displayName,
                                     ) ??
-                                    ContactHelper.extractFirstName(displayName);
+                                    ContactResolver.instance
+                                        .formatMiniProfileFallback(displayName);
                             final avatarUrl = profile['avatarUrl'];
                             final avatarColor = Color(
                               profile['avatarColor'] is int

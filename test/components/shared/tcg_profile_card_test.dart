@@ -2,7 +2,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tftiapp/components/shared/tcg_profile_card.dart';
+import 'package:tftiapp/components/shared/user_profile_sheet.dart';
+import 'package:tftiapp/services/contact_resolver.dart';
+import 'package:tftiapp/services/contact_service.dart';
 
 void main() {
   group('TcgProfileCard Tests', () {
@@ -207,5 +211,92 @@ void main() {
       expect(find.text('User A'), findsNothing);
       expect(find.byIcon(Icons.contact_phone_outlined), findsNothing);
     });
+
+    testWidgets(
+      'isSelf: true (AccountPage Profile Preview) never alters displayName regardless of fullProfileFormat',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        ContactResolver.instance.clearForTest();
+        await ContactResolver.instance.setFullProfileFormat(
+          DisplayNameFormat.firstName,
+        );
+
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: TcgProfileCard(
+                  displayName: 'Alex Michael Sanchez',
+                  username: 'alex_s',
+                  statusText: 'Building',
+                  hp: 100,
+                  mana: 50,
+                  originDate: 'Joined Oct 2026',
+                  showPhone: false,
+                  displayPhone: '',
+                  avatarColor: Colors.blue,
+                  isSelf: true,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final richTextFinder = find.byWidgetPredicate(
+          (w) =>
+              w is RichText &&
+              w.text.toPlainText().contains('Alex Michael Sanchez'),
+        );
+        expect(richTextFinder, findsOneWidget);
+        ContactResolver.instance.clearForTest();
+      },
+    );
+
+    testWidgets(
+      'UserProfileSheet applies fullProfileFormat to other users and updates reactively',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        ContactResolver.instance.clearForTest();
+        ContactResolver.instance.seedForTest({
+          '+15551112222': 'Robert Michael Yen',
+        });
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: UserProfileSheet(
+                userData: const {
+                  'uid': 'user-2',
+                  'displayName': 'BobbyY',
+                  'username': 'bobby_y',
+                  'phoneNumber': '+15551112222',
+                },
+                currentUserId: 'user-1',
+              ),
+            ),
+          ),
+        );
+
+        // Default fullProfileFormat is fullName
+        expect(find.text('Robert Michael Yen'), findsOneWidget);
+        expect(find.text('~ BobbyY (@bobby_y)'), findsOneWidget);
+
+        // Switch to First Name Last Initial
+        await ContactResolver.instance.setFullProfileFormat(
+          DisplayNameFormat.firstNameLastInitial,
+        );
+        await tester.pump();
+        expect(find.text('Robert Y.'), findsOneWidget);
+
+        // Switch to Given Name (First + Middle)
+        await ContactResolver.instance.setFullProfileFormat(
+          DisplayNameFormat.givenName,
+        );
+        await tester.pump();
+        expect(find.text('Robert Michael'), findsOneWidget);
+
+        ContactResolver.instance.clearForTest();
+      },
+    );
   });
 }

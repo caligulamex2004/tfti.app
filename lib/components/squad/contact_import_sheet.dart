@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 
 import '../../utils/phone_formatter.dart';
+import '../../services/contact_resolver.dart';
 import '../../services/contact_service.dart';
 import '../shared/app_avatar.dart';
 
@@ -147,9 +148,11 @@ class _ContactImportSheetState extends State<ContactImportSheet> {
                       final contactName = item['contactName'] as String?;
                       final bool hasContactName =
                           contactName != null && contactName.trim().isNotEmpty;
+                      final miniFormat =
+                          ContactResolver.instance.miniProfileFormat;
                       final primaryName = hasContactName
-                          ? ContactHelper.extractFirstName(contactName)
-                          : ContactHelper.extractFirstName(profileName);
+                          ? ContactHelper.formatName(contactName, miniFormat)
+                          : ContactHelper.formatName(profileName, miniFormat);
                       final username = item['username'] as String?;
                       final phone = PhoneFormatter.beautify(
                         item['phoneNumber'] ?? "",

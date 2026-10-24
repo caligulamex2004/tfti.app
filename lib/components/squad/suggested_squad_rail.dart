@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../shared/app_avatar.dart';
+import '../../services/contact_resolver.dart';
 import '../../services/contact_service.dart';
 
 class SuggestedSquadRail extends StatelessWidget {
@@ -117,10 +118,11 @@ class SuggestedSquadRail extends StatelessWidget {
                 final contactName = user['contactName'] as String?;
                 final hasContactName =
                     contactName != null && contactName.trim().isNotEmpty;
+                final miniFormat = ContactResolver.instance.miniProfileFormat;
                 final primaryName = hasContactName
-                    ? ContactHelper.extractFirstName(contactName)
+                    ? ContactHelper.formatName(contactName, miniFormat)
                     : (profileName.isNotEmpty
-                        ? ContactHelper.extractFirstName(profileName)
+                        ? ContactHelper.formatName(profileName, miniFormat)
                         : "Friend");
                 final username = user['username'] as String? ?? '';
                 final avatarUrl = user['avatarUrl'] as String?;

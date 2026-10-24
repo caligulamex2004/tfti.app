@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../shared/app_avatar.dart';
+import '../../services/contact_resolver.dart';
 
 class VoteTallySheet extends StatelessWidget {
   final List<dynamic> options;
@@ -144,7 +145,18 @@ class VoteTallySheet extends StatelessWidget {
                                   v['avatarColor'] ?? Colors.blue.toARGB32(),
                                 );
                                 final avatarUrl = v['avatarUrl'];
-                                final name = v['displayName'];
+                                final rawName =
+                                    (v['displayName'] ?? 'Voter').toString();
+                                final phone =
+                                    (v['phoneNumber'] ?? '').toString();
+                                final name =
+                                    ContactResolver.instance
+                                        .resolveMiniProfileName(
+                                          phone,
+                                          fallbackName: rawName,
+                                        ) ??
+                                    ContactResolver.instance
+                                        .formatMiniProfileFallback(rawName);
 
                                 return Chip(
                                   avatar: AppAvatar(

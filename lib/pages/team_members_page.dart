@@ -81,8 +81,8 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
       final phone = item['phoneNumber'] as String?;
       final fallback = (item['displayName'] ?? '').toString();
       final firstName = isMe
-          ? ContactHelper.extractFirstName(fallback)
-          : ContactResolver.instance.resolveFirstName(
+          ? ContactResolver.instance.formatMiniProfileFallback(fallback)
+          : ContactResolver.instance.resolveMiniProfileName(
               phone,
               fallbackName: fallback,
             );
@@ -503,15 +503,17 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                               profile['phoneNumber'] ?? "";
                                           final bool isMe = uid == user.uid;
                                           final String effectiveName = isMe
-                                              ? ContactHelper.extractFirstName(
+                                              ? ContactResolver.instance
+                                                  .formatMiniProfileFallback(
                                                   displayName,
                                                 )
                                               : (ContactResolver.instance
-                                                      .resolveFirstName(
+                                                      .resolveMiniProfileName(
                                                     rawPhone,
                                                     fallbackName: displayName,
                                                   ) ??
-                                                  ContactHelper.extractFirstName(
+                                                  ContactResolver.instance
+                                                      .formatMiniProfileFallback(
                                                     displayName,
                                                   ));
                                           final bool isBlocked = blockedUids

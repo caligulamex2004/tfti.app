@@ -10,6 +10,8 @@ import '../utils/theme_provider.dart';
 import '../utils/responsive_layout.dart';
 import '../components/shared/shared_sliver_app_bar.dart';
 import '../services/notification_service.dart';
+import '../services/contact_resolver.dart';
+import '../services/contact_service.dart';
 
 class PreferencesPage extends StatefulWidget {
   const PreferencesPage({super.key});
@@ -19,6 +21,11 @@ class PreferencesPage extends StatefulWidget {
 }
 
 class _PreferencesPageState extends State<PreferencesPage> {
+  @override
+  void initState() {
+    super.initState();
+    ContactResolver.instance.loadFormatPreferences();
+  }
   // Theme metadata for the new visual selector
   final List<Map<String, dynamic>> _themeOptions = [
     // --- 6 LIGHT THEMES ---
@@ -546,11 +553,14 @@ class _PreferencesPageState extends State<PreferencesPage> {
     );
   }
 
-  // Modernized Theme Selector
+  // Modernized Theme & Display Name Selector
   Widget _buildAppearanceSection(bool isDark, Color primaryColor) {
     return ListenableBuilder(
-      listenable: themeProvider,
+      listenable: Listenable.merge([themeProvider, ContactResolver.instance]),
       builder: (context, child) {
+        final miniFormat = ContactResolver.instance.miniProfileFormat;
+        final fullFormat = ContactResolver.instance.fullProfileFormat;
+
         return _buildSettingsCard(
           title: "Appearance",
           isDark: isDark,
@@ -594,11 +604,129 @@ class _PreferencesPageState extends State<PreferencesPage> {
                       .map((opt) => _buildThemeChip(opt, isDark, primaryColor))
                       .toList(),
                 ),
+                const SizedBox(height: 24),
+                Divider(
+                  height: 1,
+                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  "Mini Profiles (Tiles & Mini Cards)",
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Display name priority • Fallback: DisplayName | @username",
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: DisplayNameFormat.values
+                      .map(
+                        (fmt) => _buildNameFormatChip(
+                          key: ValueKey('mini_format_${fmt.name}'),
+                          format: fmt,
+                          isSelected: miniFormat == fmt,
+                          onTap: () =>
+                              ContactResolver.instance.setMiniProfileFormat(fmt),
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 20),
+                Divider(
+                  height: 1,
+                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  "Full Profiles (Bottom Sheet Profile)",
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Display name priority • Fallback: DisplayName | @username",
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: DisplayNameFormat.values
+                      .map(
+                        (fmt) => _buildNameFormatChip(
+                          key: ValueKey('full_format_${fmt.name}'),
+                          format: fmt,
+                          isSelected: fullFormat == fmt,
+                          onTap: () =>
+                              ContactResolver.instance.setFullProfileFormat(fmt),
+                        ),
+                      )
+                      .toList(),
+                ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildNameFormatChip({
+    Key? key,
+    required DisplayNameFormat format,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      key: key,
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? themeProvider.pillBackgroundColor
+                : themeProvider.chipUnselectedBackgroundColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected
+                  ? themeProvider.pillBackgroundColor
+                  : themeProvider.chipBorderColor,
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Text(
+            format.label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              color: isSelected
+                  ? themeProvider.pillTextColor
+                  : themeProvider.chipUnselectedTextColor,
+            ),
+          ),
+        ),
+      ),
     );
   }
 

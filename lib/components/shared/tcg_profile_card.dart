@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import '../../services/contact_resolver.dart';
 
 class TcgProfileCard extends StatelessWidget {
   final String displayName;
@@ -138,11 +139,14 @@ class TcgProfileCard extends StatelessWidget {
     }
 
     final double avatarSize = isLandscape ? 120 : 160;
+    final String formattedDisplayName = isSelf
+        ? displayName
+        : ContactResolver.instance.formatFullProfileFallback(displayName);
     final String effectiveName = (!isSelf &&
             contactName != null &&
             contactName!.trim().isNotEmpty)
         ? contactName!.trim()
-        : displayName.trim();
+        : formattedDisplayName.trim();
     final String monogram = effectiveName.isNotEmpty
         ? effectiveName[0].toUpperCase()
         : "?";
@@ -243,8 +247,7 @@ class TcgProfileCard extends StatelessWidget {
 
     final bool hasContact = !isSelf &&
         contactName != null &&
-        contactName!.trim().isNotEmpty &&
-        contactName!.trim() != displayName.trim();
+        contactName!.trim().isNotEmpty;
 
     Widget titleWidget = Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -286,16 +289,28 @@ class TcgProfileCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      Text(
-                        "~ $displayName${username.isNotEmpty ? ' (@$username)' : ''}",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: primaryColor,
+                      if (contactName!.trim() != displayName.trim())
+                        Text(
+                          "~ $displayName${username.isNotEmpty ? ' (@$username)' : ''}",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        )
+                      else if (username.isNotEmpty)
+                        Text(
+                          "@$username",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
                     ],
                   )
                 : RichText(
@@ -313,7 +328,7 @@ class TcgProfileCard extends StatelessWidget {
                             ),
                           ),
                         TextSpan(
-                          text: displayName,
+                          text: formattedDisplayName,
                           style: TextStyle(
                             fontSize: isLandscape ? 20 : 18,
                             fontWeight: FontWeight.w900,

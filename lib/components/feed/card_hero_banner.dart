@@ -6,7 +6,6 @@ import '../shared/event_type_pill.dart';
 import 'default_event_banner.dart';
 import '../../models/user_profile.dart';
 import '../../services/contact_resolver.dart';
-import '../../services/contact_service.dart';
 import '../../services/user_cache_repository.dart';
 
 /// The 16:9 hero image banner with date badge, status pill, title, location and host pill.
@@ -319,8 +318,10 @@ class CardHeroBanner extends StatelessWidget {
                           ? hostProfile.displayName
                           : 'Someone';
                       final hostName = isMe
-                          ? ContactHelper.extractFirstName(fallbackHost)
-                          : (ContactResolver.instance.resolveFirstName(
+                          ? ContactResolver.instance.formatMiniProfileFallback(
+                              fallbackHost,
+                            )
+                          : (ContactResolver.instance.resolveMiniProfileName(
                                 hostProfile.phoneNumber,
                                 fallbackName: fallbackHost,
                               ) ??

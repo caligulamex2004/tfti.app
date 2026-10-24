@@ -42,8 +42,12 @@ class UserProfileSheet extends StatelessWidget {
         final bool isSelf = targetUid.isNotEmpty && targetUid == currentUserId;
         final String displayName = userData['displayName'] ?? "No Name";
         final String rawPhone = userData['phoneNumber'] ?? "";
-        final String? contactName =
+        final String? rawContactName =
             isSelf ? null : ContactResolver.instance.resolveName(rawPhone);
+        final String? contactName =
+            (rawContactName != null && rawContactName.trim().isNotEmpty)
+                ? ContactResolver.instance.resolveFullProfileName(rawPhone)
+                : null;
 
         final Timestamp? createdAt =
             userData['createdAt'] ?? userData['created_at'];

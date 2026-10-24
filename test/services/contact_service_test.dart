@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tftiapp/services/contact_service.dart';
 import 'package:tftiapp/services/contact_resolver.dart';
 
@@ -205,6 +206,132 @@ void main() {
       expect(ContactResolver.instance.resolveName('555-222-3333'), 'Bob Friend');
 
       // Cleanup
+      ContactResolver.instance.clearForTest();
+    });
+
+    test('extractFirstNameLastInitial formats single, 2-word, 3-word, and comma names', () {
+      expect(ContactHelper.extractFirstNameLastInitial(null), equals(''));
+      expect(ContactHelper.extractFirstNameLastInitial(''), equals(''));
+      expect(ContactHelper.extractFirstNameLastInitial('Prince'), equals('Prince'));
+      expect(ContactHelper.extractFirstNameLastInitial('John Smith'), equals('John S.'));
+      expect(
+        ContactHelper.extractFirstNameLastInitial('Robert Michael Yen'),
+        equals('Robert Y.'),
+      );
+      expect(
+        ContactHelper.extractFirstNameLastInitial('Smith, John'),
+        equals('John S.'),
+      );
+      expect(
+        ContactHelper.extractFirstNameLastInitial('Watson, Mary Jane'),
+        equals('Mary W.'),
+      );
+    });
+
+    test('extractGivenName formats 1-word, 2-word, 3-word, comma, and structured names', () {
+      expect(ContactHelper.extractGivenName(null), equals(''));
+      expect(ContactHelper.extractGivenName(''), equals(''));
+      expect(ContactHelper.extractGivenName('Prince'), equals('Prince'));
+      // 2-word plain string does not mistake last name for middle name
+      expect(ContactHelper.extractGivenName('John Smith'), equals('John'));
+      // 3+ word plain string extracts first + middle
+      expect(
+        ContactHelper.extractGivenName('Robert Michael Yen'),
+        equals('Robert Michael'),
+      );
+      expect(
+        ContactHelper.extractGivenName('Watson, Mary Jane'),
+        equals('Mary Jane'),
+      );
+      expect(
+        ContactHelper.extractGivenName('Smith, John'),
+        equals('John'),
+      );
+      // Structured given name with 2 words in given name field
+      expect(
+        ContactHelper.extractGivenName(
+          'Robert Michael',
+          structuredFirst: 'Robert Michael',
+        ),
+        equals('Robert Michael'),
+      );
+      expect(
+        ContactHelper.extractGivenName(
+          'Robert Michael Yen',
+          structuredFirst: 'Robert',
+          structuredMiddle: 'Michael',
+        ),
+        equals('Robert Michael'),
+      );
+    });
+
+    test('resolveMiniProfileName and resolveFullProfileName respect DisplayNameFormat preferences', () async {
+      SharedPreferences.setMockInitialValues({});
+      ContactResolver.instance.clearForTest();
+      ContactResolver.instance.seedForTest({
+        '+15551112222': 'Robert Michael Yen',
+        '+15553334444': 'John Smith',
+      });
+
+      // Defaults: Mini = firstName, Full = fullName
+      expect(
+        ContactResolver.instance.miniProfileFormat,
+        equals(DisplayNameFormat.firstName),
+      );
+      expect(
+        ContactResolver.instance.fullProfileFormat,
+        equals(DisplayNameFormat.fullName),
+      );
+      expect(
+        ContactResolver.instance.resolveMiniProfileName('+15551112222'),
+        equals('Robert'),
+      );
+      expect(
+        ContactResolver.instance.resolveFullProfileName('+15551112222'),
+        equals('Robert Michael Yen'),
+      );
+
+      // Switch Mini to firstNameLastInitial & Full to givenName
+      await ContactResolver.instance.setMiniProfileFormat(
+        DisplayNameFormat.firstNameLastInitial,
+      );
+      await ContactResolver.instance.setFullProfileFormat(
+        DisplayNameFormat.givenName,
+      );
+
+      expect(
+        ContactResolver.instance.resolveMiniProfileName('+15551112222'),
+        equals('Robert Y.'),
+      );
+      expect(
+        ContactResolver.instance.resolveMiniProfileName('+15553334444'),
+        equals('John S.'),
+      );
+      expect(
+        ContactResolver.instance.resolveFullProfileName('+15551112222'),
+        equals('Robert Michael'),
+      );
+      expect(
+        ContactResolver.instance.resolveFullProfileName('+15553334444'),
+        equals('John'),
+      );
+
+      // Non-contact fallback formatting
+      expect(
+        ContactResolver.instance.resolveMiniProfileName(
+          '+15559999999',
+          fallbackName: 'Sarah Connor',
+        ),
+        equals('Sarah C.'),
+      );
+      expect(
+        ContactResolver.instance.resolveFullProfileName(
+          '+15559999999',
+          fallbackName: 'Sarah Louise Connor',
+        ),
+        equals('Sarah Louise'),
+      );
+
       ContactResolver.instance.clearForTest();
     });
   });

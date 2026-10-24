@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../services/contact_resolver.dart';
-import '../../services/contact_service.dart';
 import '../shared/app_avatar.dart';
 
 class MentionsOverlay extends StatelessWidget {
@@ -23,12 +22,14 @@ class MentionsOverlay extends StatelessWidget {
 
     final filteredGuests = eventGuests.where((g) {
       final phone = (g['phoneNumber'] ?? '').toString();
-      final contactFirst = ContactResolver.instance.resolveFirstName(phone);
+      final contactName = ContactResolver.instance.resolveMiniProfileName(phone);
       final rawName = (g['displayName'] as String? ?? '').toLowerCase();
-      final firstName = (contactFirst ?? ContactHelper.extractFirstName(rawName)).toLowerCase();
+      final resolvedName = (contactName ??
+              ContactResolver.instance.formatMiniProfileFallback(rawName))
+          .toLowerCase();
       final tag = (g['tag'] as String? ?? '').toLowerCase();
       return (rawName.contains(mentionQuery!) ||
-              firstName.contains(mentionQuery!) ||
+              resolvedName.contains(mentionQuery!) ||
               tag.contains(mentionQuery!)) &&
           g['status'] != 'declined';
     }).toList();
@@ -67,11 +68,14 @@ class MentionsOverlay extends StatelessWidget {
             final guest = filteredGuests[index];
             final String displayName = guest['displayName'] ?? '';
             final String phone = (guest['phoneNumber'] ?? '').toString();
-            final String name = ContactResolver.instance.resolveFirstName(
-                  phone,
-                  fallbackName: displayName,
-                ) ??
-                ContactHelper.extractFirstName(displayName);
+            final String name =
+                ContactResolver.instance.resolveMiniProfileName(
+                      phone,
+                      fallbackName: displayName,
+                    ) ??
+                    ContactResolver.instance.formatMiniProfileFallback(
+                      displayName,
+                    );
             final String tag = guest['tag'];
             final String? avatarUrl = guest['avatarUrl'];
             final Color avatarColor = Color(guest['avatarColor']);
