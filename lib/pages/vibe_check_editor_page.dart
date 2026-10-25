@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
+import '../components/shared/rpg_glass_card.dart';
 import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/forms/vibe_options_card.dart';
 import '../components/forms/crew_form_card.dart';
+import '../components/forms/team_selection_field.dart';
+import '../components/forms/last_minute_invite_field.dart';
 import '../components/forms/vibe_host_actions_card.dart';
 import '../components/forms/vitals_form_card.dart';
 import '../components/forms/extras_form_card.dart';
@@ -31,6 +36,8 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
   // Page State
   bool get isEditing => widget.eventData != null;
   bool _isLoading = false;
+  bool _isMainHost = true;
+  bool _isCoHost = false;
 
   // Form Controllers
   final _titleController = TextEditingController();
@@ -41,6 +48,7 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
 
   bool _inviteAll = false;
   List<String> _selectedCircleIds = [];
+  List<String> _lastMinuteInviteIds = [];
   int _rsvpDeadlineOffset = -60; // Default: 1 hour before
 
   // Co-Captain State
@@ -59,7 +67,15 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
 
     if (isEditing) {
       // --- EDIT MODE INITIALIZATION ---
+      final user = FirebaseAuth.instance.currentUser;
       final data = widget.eventData!;
+      _isCoHost = user != null && data['coHostId'] == user.uid;
+      _isMainHost =
+          user == null ||
+          data['hostId'] == null ||
+          data['hostId'] == user.uid ||
+          !_isCoHost;
+
       _titleController.text = data['title'] ?? '';
       _detailsController.text = data['details'] ?? '';
 
@@ -70,8 +86,21 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       }
 
       _rsvpDeadlineOffset = data['rsvpDeadline'] ?? -60;
-      _inviteAll = data['inviteAll'] ?? true;
-      _selectedCircleIds = List<String>.from(data['invitedCircles'] ?? []);
+      if (_isCoHost && !_isMainHost) {
+        _inviteAll = data['coHostInviteAll'] ?? false;
+        _selectedCircleIds = List<String>.from(
+          data['coHostInvitedCircles'] ?? [],
+        );
+        _lastMinuteInviteIds = List<String>.from(
+          data['coHostLastMinuteInvites'] ?? [],
+        );
+      } else {
+        _inviteAll = data['inviteAll'] ?? true;
+        _selectedCircleIds = List<String>.from(data['invitedCircles'] ?? []);
+        _lastMinuteInviteIds = List<String>.from(
+          data['lastMinuteInvites'] ?? [],
+        );
+      }
 
       _selectedCoHostId = data['coHostId'];
       _selectedCoHostName = data['coHostName'];
@@ -192,7 +221,7 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
   // --- DATABASE METHODS ---
 
   Future<void> _submitVibeCheck() async {
-    if (!_formKey.currentState!.validate()) {
+    if (_formKey.currentState != null && !_formKey.currentState!.validate()) {
       return;
     }
 
@@ -220,7 +249,7 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       }
     }
 
-    if (validOptions < 2) {
+    if (validOptions < 2 && _isMainHost) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Please provide at least two Activity Options."),
@@ -231,6 +260,8 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
 
     final request = VibeCheckSubmissionRequest(
       isEditing: isEditing,
+      isMainHost: _isMainHost,
+      isCoHost: _isCoHost,
       eventId: widget.eventId,
       eventData: widget.eventData,
       title: _titleController.text.trim(),
@@ -240,6 +271,7 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       pollOptions: finalPollOptions,
       inviteAll: _inviteAll,
       selectedCircleIds: _selectedCircleIds,
+      lastMinuteInviteIds: _lastMinuteInviteIds,
       rsvpDeadlineOffset: _rsvpDeadlineOffset,
       coHostId: _selectedCoHostId,
       coHostName: _selectedCoHostName,
@@ -501,6 +533,100 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
     );
   }
 
+  Widget _buildCoHostView(Widget submitButton) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            children: [
+              RpgGlassCard(
+                title: "Co-Captain Dashboard",
+                icon: Symbols.military_tech,
+                iconColor: Colors.teal,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.teal.withValues(alpha: 0.1)
+                            : Colors.teal.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.teal.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Symbols.military_tech,
+                            color: Colors.teal,
+                            size: 28,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              "You are the Co-Captain! You can manage your own crew for this Vibe Check.",
+                              style: TextStyle(
+                                color: isDark
+                                    ? Colors.tealAccent
+                                    : Colors.teal.shade900,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    TeamSelectionField(
+                      inviteAll: _inviteAll,
+                      selectedCircleIds: _selectedCircleIds,
+                      enabled: true,
+                      onChanged: (newAll, newIds) {
+                        setState(() {
+                          _inviteAll = newAll;
+                          _selectedCircleIds = newIds;
+                          if (newAll || newIds.isEmpty) {
+                            _lastMinuteInviteIds = [];
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    LastMinuteInviteField(
+                      inviteAll: _inviteAll,
+                      selectedCircleIds: _selectedCircleIds,
+                      lastMinuteInviteIds: _lastMinuteInviteIds,
+                      enabled: true,
+                      excludeUids: {
+                        if (widget.eventData?['hostId'] != null)
+                          widget.eventData!['hostId'] as String,
+                      },
+                      onChanged: (newIds) {
+                        setState(() {
+                          _lastMinuteInviteIds = newIds;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              submitButton,
+              const SizedBox(height: 60),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
@@ -646,9 +772,11 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                 },
               ),
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Form(
+                child: (isEditing && _isCoHost && !_isMainHost)
+                    ? _buildCoHostView(submitButton)
+                    : Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Form(
                     key: _formKey,
                     child: Center(
                       child: ConstrainedBox(
@@ -718,6 +846,8 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                                           isPast: false,
                                           inviteAll: _inviteAll,
                                           selectedCircleIds: _selectedCircleIds,
+                                          lastMinuteInviteIds:
+                                              _lastMinuteInviteIds,
                                           coHostId: _selectedCoHostId,
                                           coHostName: _selectedCoHostName,
                                           coHostUsername:
@@ -730,9 +860,14 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                                             setState(() {
                                               _inviteAll = newAll;
                                               _selectedCircleIds = newIds;
+                                              if (newAll || newIds.isEmpty) {
+                                                _lastMinuteInviteIds = [];
+                                              }
 
                                               if (!_inviteAll &&
-                                                  _selectedCircleIds.isEmpty) {
+                                                  _selectedCircleIds.isEmpty &&
+                                                  _lastMinuteInviteIds
+                                                      .isEmpty) {
                                                 _selectedCoHostId = null;
                                                 _selectedCoHostName = null;
                                                 _selectedCoHostUsername = null;
@@ -740,6 +875,11 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                                                 _selectedCoHostAvatarColor =
                                                     null;
                                               }
+                                            });
+                                          },
+                                          onLastMinuteChanged: (newIds) {
+                                            setState(() {
+                                              _lastMinuteInviteIds = newIds;
                                             });
                                           },
                                           onCoCaptainChanged:
@@ -833,6 +973,7 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                                     isPast: false,
                                     inviteAll: _inviteAll,
                                     selectedCircleIds: _selectedCircleIds,
+                                    lastMinuteInviteIds: _lastMinuteInviteIds,
                                     coHostId: _selectedCoHostId,
                                     coHostName: _selectedCoHostName,
                                     coHostUsername: _selectedCoHostUsername,
@@ -843,15 +984,24 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
                                       setState(() {
                                         _inviteAll = newAll;
                                         _selectedCircleIds = newIds;
+                                        if (newAll || newIds.isEmpty) {
+                                          _lastMinuteInviteIds = [];
+                                        }
 
                                         if (!_inviteAll &&
-                                            _selectedCircleIds.isEmpty) {
+                                            _selectedCircleIds.isEmpty &&
+                                            _lastMinuteInviteIds.isEmpty) {
                                           _selectedCoHostId = null;
                                           _selectedCoHostName = null;
                                           _selectedCoHostUsername = null;
                                           _selectedCoHostAvatarUrl = null;
                                           _selectedCoHostAvatarColor = null;
                                         }
+                                      });
+                                    },
+                                    onLastMinuteChanged: (newIds) {
+                                      setState(() {
+                                        _lastMinuteInviteIds = newIds;
                                       });
                                     },
                                     onCoCaptainChanged:

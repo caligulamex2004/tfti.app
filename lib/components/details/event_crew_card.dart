@@ -13,8 +13,11 @@ class EventCrewCard extends StatelessWidget {
   final String? coHostId;
   final List<String> invitedCircles;
   final bool inviteAll;
+  final List<String> lastMinuteInvites;
   final List<String>? coHostInvitedCircles;
   final bool coHostInviteAll;
+  final List<String>? coHostLastMinuteInvites;
+  final bool isPast;
   final VoidCallback? onEditTeamsTap;
   final Function(String uid, String phone, String name) onAddFriend;
   final Function(String uid, String name) onReportUser;
@@ -29,8 +32,11 @@ class EventCrewCard extends StatelessWidget {
     required this.coHostId,
     this.invitedCircles = const [],
     this.inviteAll = true,
+    this.lastMinuteInvites = const [],
     this.coHostInvitedCircles,
     this.coHostInviteAll = false,
+    this.coHostLastMinuteInvites,
+    this.isPast = false,
     this.onEditTeamsTap,
     required this.onAddFriend,
     required this.onReportUser,
@@ -140,8 +146,11 @@ class EventCrewCard extends StatelessWidget {
                 coHostId: coHostId,
                 invitedCircles: invitedCircles,
                 inviteAll: inviteAll,
+                lastMinuteInvites: lastMinuteInvites,
                 coHostInvitedCircles: coHostInvitedCircles,
                 coHostInviteAll: coHostInviteAll,
+                coHostLastMinuteInvites: coHostLastMinuteInvites,
+                isPast: isPast,
                 onEditTap: onEditTeamsTap,
                 eventId: eventId,
               ),

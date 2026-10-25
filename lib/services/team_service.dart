@@ -83,6 +83,13 @@ class TeamService {
     }
 
     await batch.commit();
+
+    // Sync any active events that invited this deleted team
+    await EventService.syncActiveEventsForUser(
+      uid,
+      circleId: circleId,
+      deletedCircleId: circleId,
+    );
   }
 
   /// Add members to a team circle
@@ -118,6 +125,9 @@ class TeamService {
     if (count > 0) {
       await batch.commit();
     }
+
+    // Automatically sync all active hangouts/vibe checks inviting this team
+    await EventService.syncActiveEventsForUser(uid, circleId: circleId);
   }
 
   /// Remove a member from a team circle
@@ -136,38 +146,7 @@ class TeamService {
       'circles': FieldValue.arrayRemove([circleId]),
     });
 
-    // Also sync any events where this user is host or co-host and this circle is invited
-    try {
-      final hostedEvents = await _firestore
-          .collection('events')
-          .where('hostId', isEqualTo: uid)
-          .get();
-
-      for (var doc in hostedEvents.docs) {
-        final data = doc.data();
-        final bool inviteAll = data['inviteAll'] ?? true;
-        final circles = List<String>.from(data['invitedCircles'] ?? []);
-        if (!inviteAll && circles.contains(circleId)) {
-          await EventService.syncEventInvitesWithTeams(doc.id);
-        }
-      }
-
-      final coHostedEvents = await _firestore
-          .collection('events')
-          .where('coHostId', isEqualTo: uid)
-          .get();
-
-      for (var doc in coHostedEvents.docs) {
-        final data = doc.data();
-        final bool coHostInviteAll = data['coHostInviteAll'] ?? false;
-        final coHostCircles =
-            List<String>.from(data['coHostInvitedCircles'] ?? []);
-        if (!coHostInviteAll && coHostCircles.contains(circleId)) {
-          await EventService.syncEventInvitesWithTeams(doc.id);
-        }
-      }
-    } catch (_) {
-      // Non-blocking background sync
-    }
+    // Automatically sync all active hangouts/vibe checks inviting this team
+    await EventService.syncActiveEventsForUser(uid, circleId: circleId);
   }
 }

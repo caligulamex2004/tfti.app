@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tftiapp/models/friend_model.dart';
 import 'package:tftiapp/models/squad_request_model.dart';
+import 'package:tftiapp/utils/event_service.dart';
 
 class FriendService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -56,6 +57,8 @@ class FriendService {
       'isGoated': isGoated,
       'addedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+
+    await EventService.syncActiveEventsForUser(myUid);
   }
 
   /// Remove a friend from the squad
@@ -69,6 +72,8 @@ class FriendService {
         .collection('friends')
         .doc(friendUid)
         .delete();
+
+    await EventService.syncActiveEventsForUser(myUid);
   }
 
   /// Toggle goated / favorite status of a friend
@@ -117,6 +122,8 @@ class FriendService {
         .set({
       'circles': circleIds,
     }, SetOptions(merge: true));
+
+    await EventService.syncActiveEventsForUser(myUid);
   }
 
   /// Find user UID by unique username

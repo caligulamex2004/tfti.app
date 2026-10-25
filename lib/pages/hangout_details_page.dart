@@ -14,6 +14,7 @@ import 'vibe_check_editor_page.dart';
 
 // --- UTILS & COMPONENTS ---
 import '../utils/calendar_export_helper.dart';
+import '../utils/event_service.dart';
 import '../utils/theme_provider.dart';
 import '../utils/responsive_layout.dart';
 import '../components/details/event_crew_card.dart';
@@ -187,6 +188,8 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
             if (guestPhone.isNotEmpty) 'phoneNumber': guestPhone,
             'addedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
+
+      await EventService.syncActiveEventsForUser(user.uid);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -565,6 +568,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                             data['invitedCircles'] ?? [],
                           ),
                           inviteAll: data['inviteAll'] ?? true,
+                          lastMinuteInvites: List<String>.from(
+                            data['lastMinuteInvites'] ?? [],
+                          ),
                           coHostInvitedCircles:
                               data['coHostInvitedCircles'] != null
                                   ? List<String>.from(
@@ -572,6 +578,13 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                     )
                                   : null,
                           coHostInviteAll: data['coHostInviteAll'] ?? false,
+                          coHostLastMinuteInvites:
+                              data['coHostLastMinuteInvites'] != null
+                                  ? List<String>.from(
+                                      data['coHostLastMinuteInvites'],
+                                    )
+                                  : null,
+                          isPast: isPast,
                           onEditTeamsTap: canEdit
                               ? () => Navigator.push(
                                   context,

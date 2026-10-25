@@ -24,8 +24,10 @@ class Event {
   // Audience
   final bool inviteAll;
   final List<String> invitedCircles;
+  final List<String> lastMinuteInvites;
   final bool? coHostInviteAll;
   final List<String>? coHostInvitedCircles;
+  final List<String>? coHostLastMinuteInvites;
   final List<String> visibleTo;
 
   // Seasons
@@ -64,8 +66,10 @@ class Event {
     this.pointsAwarded = false,
     this.inviteAll = false,
     this.invitedCircles = const [],
+    this.lastMinuteInvites = const [],
     this.coHostInviteAll,
     this.coHostInvitedCircles,
+    this.coHostLastMinuteInvites,
     this.visibleTo = const [],
     this.seasonId,
     this.seasonInstance,
@@ -143,9 +147,13 @@ class Event {
 
       inviteAll: data['inviteAll'] == true,
       invitedCircles: List<String>.from(data['invitedCircles'] ?? []),
+      lastMinuteInvites: List<String>.from(data['lastMinuteInvites'] ?? []),
       coHostInviteAll: data['coHostInviteAll'],
       coHostInvitedCircles: data['coHostInvitedCircles'] != null
           ? List<String>.from(data['coHostInvitedCircles'])
+          : null,
+      coHostLastMinuteInvites: data['coHostLastMinuteInvites'] != null
+          ? List<String>.from(data['coHostLastMinuteInvites'])
           : null,
       visibleTo: List<String>.from(data['visibleTo'] ?? []),
 
@@ -194,9 +202,12 @@ class Event {
 
       'inviteAll': inviteAll,
       'invitedCircles': invitedCircles,
+      'lastMinuteInvites': lastMinuteInvites,
       if (coHostInviteAll != null) 'coHostInviteAll': coHostInviteAll,
       if (coHostInvitedCircles != null)
         'coHostInvitedCircles': coHostInvitedCircles,
+      if (coHostLastMinuteInvites != null)
+        'coHostLastMinuteInvites': coHostLastMinuteInvites,
       'visibleTo': visibleTo,
 
       if (seasonId != null) 'seasonId': seasonId,
@@ -240,8 +251,10 @@ class Event {
     bool? pointsAwarded,
     bool? inviteAll,
     List<String>? invitedCircles,
+    List<String>? lastMinuteInvites,
     bool? coHostInviteAll,
     List<String>? coHostInvitedCircles,
+    List<String>? coHostLastMinuteInvites,
     List<String>? visibleTo,
     String? seasonId,
     int? seasonInstance,
@@ -274,8 +287,11 @@ class Event {
       pointsAwarded: pointsAwarded ?? this.pointsAwarded,
       inviteAll: inviteAll ?? this.inviteAll,
       invitedCircles: invitedCircles ?? this.invitedCircles,
+      lastMinuteInvites: lastMinuteInvites ?? this.lastMinuteInvites,
       coHostInviteAll: coHostInviteAll ?? this.coHostInviteAll,
       coHostInvitedCircles: coHostInvitedCircles ?? this.coHostInvitedCircles,
+      coHostLastMinuteInvites:
+          coHostLastMinuteInvites ?? this.coHostLastMinuteInvites,
       visibleTo: visibleTo ?? this.visibleTo,
       seasonId: seasonId ?? this.seasonId,
       seasonInstance: seasonInstance ?? this.seasonInstance,

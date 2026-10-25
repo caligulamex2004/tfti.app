@@ -47,6 +47,7 @@ class HangoutSubmissionRequest {
   final TimeOfDay selectedTime;
   final bool inviteAll;
   final List<String> selectedCircleIds;
+  final List<String> lastMinuteInviteIds;
   final int rsvpDeadlineOffset;
   final int keepAliveDays;
   final bool isImportantDetails;
@@ -83,6 +84,7 @@ class HangoutSubmissionRequest {
     required this.selectedTime,
     required this.inviteAll,
     required this.selectedCircleIds,
+    this.lastMinuteInviteIds = const [],
     required this.rsvpDeadlineOffset,
     required this.keepAliveDays,
     required this.isImportantDetails,

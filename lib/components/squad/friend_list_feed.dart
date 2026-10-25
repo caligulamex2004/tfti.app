@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tftiapp/services/user_cache_repository.dart';
 import 'package:tftiapp/services/contact_resolver.dart';
 import 'package:tftiapp/services/contact_service.dart';
+import 'package:tftiapp/utils/event_service.dart';
 import 'friend_list_tile.dart';
 
 class FriendListFeed extends StatelessWidget {
@@ -361,6 +362,9 @@ class FriendListFeed extends StatelessWidget {
                                           .doc(uid)
                                           .delete()
                                           .then((_) {
+                                            EventService.syncActiveEventsForUser(
+                                              myUid,
+                                            );
                                             messenger.showSnackBar(
                                               SnackBar(
                                                 content: Text(

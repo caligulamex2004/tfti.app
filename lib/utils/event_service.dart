@@ -122,10 +122,6 @@ class EventService {
           'endTime': Timestamp.fromDate(newEndTime),
           'pollOptions': request.pollOptions,
           'rsvpDeadline': request.rsvpDeadlineOffset,
-          'inviteAll': request.inviteAll,
-          'invitedCircles': request.selectedCircleIds,
-          'coHostId': request.coHostId,
-          'coHostName': request.coHostName,
           'lastUpdatedAt': FieldValue.serverTimestamp(),
         };
 
@@ -143,15 +139,46 @@ class EventService {
             .doc(user.uid)
             .collection('friends')
             .get();
-        Set<String> newIntendedIds = {};
+        final Set<String> allFriendIds =
+            friendsSnapshot.docs.map((d) => d.id).toSet();
+        Set<String> teamMemberIds = {};
         for (var friendDoc in friendsSnapshot.docs) {
           final data = friendDoc.data();
           final friendCircles = List<String>.from(data['circles'] ?? []);
           if (request.inviteAll ||
               request.selectedCircleIds.any((id) => friendCircles.contains(id))) {
-            newIntendedIds.add(friendDoc.id);
+            teamMemberIds.add(friendDoc.id);
           }
         }
+
+        final List<String> effectiveLastMinuteIds =
+            (request.inviteAll || request.selectedCircleIds.isEmpty)
+                ? <String>[]
+                : request.lastMinuteInviteIds
+                    .where(
+                      (id) =>
+                          allFriendIds.contains(id) &&
+                          !teamMemberIds.contains(id),
+                    )
+                    .toSet()
+                    .toList();
+
+        if (request.isMainHost) {
+          updateData['inviteAll'] = request.inviteAll;
+          updateData['invitedCircles'] = request.selectedCircleIds;
+          updateData['lastMinuteInvites'] = effectiveLastMinuteIds;
+          updateData['coHostId'] = request.coHostId;
+          updateData['coHostName'] = request.coHostName;
+        } else {
+          updateData['coHostInviteAll'] = request.inviteAll;
+          updateData['coHostInvitedCircles'] = request.selectedCircleIds;
+          updateData['coHostLastMinuteInvites'] = effectiveLastMinuteIds;
+        }
+
+        Set<String> newIntendedIds = {
+          ...teamMemberIds,
+          ...effectiveLastMinuteIds,
+        };
 
         final currentInvitesSnap = await FirebaseFirestore.instance
             .collection('events')
@@ -165,8 +192,9 @@ class EventService {
         Set<String> toRemove = {};
 
         final String? hostId = request.eventData?['hostId'];
-        final String? coHostId =
-            request.coHostId ?? request.eventData?['coHostId'];
+        final String? coHostId = request.isMainHost
+            ? (request.coHostId ?? request.eventData?['coHostId'])
+            : request.eventData?['coHostId'];
 
         for (var doc in currentInvitesSnap.docs) {
           final uid = doc.id;
@@ -175,8 +203,13 @@ class EventService {
 
           final inviteData = doc.data();
           final invitedBy = inviteData['invitedBy'];
-          // Preserve guests invited by co-host
-          if (coHostId != null && invitedBy == coHostId) continue;
+          if (request.isMainHost) {
+            // Preserve guests invited by co-host
+            if (coHostId != null && invitedBy == coHostId) continue;
+          } else {
+            // Co-host only removes guests they personally invited
+            if (invitedBy != user.uid) continue;
+          }
 
           if (!newIntendedIds.contains(uid)) {
             toRemove.add(uid);
@@ -188,14 +221,14 @@ class EventService {
             .doc(request.eventId!);
 
         if (toAdd.isNotEmpty) {
-          updateData['visibleTo'] = FieldValue.arrayUnion(toAdd.toList());
           for (String uid in toAdd) {
             if (!currentlyInvitedIds.contains(uid)) {
               batch.set(eventRef.collection('invitations').doc(uid), {
                 'uid': uid,
-                'role': 'guest',
+                'role': uid == coHostId ? 'co-host' : 'guest',
                 'status': 'pending',
                 'votes': [],
+                'invitedBy': user.uid,
                 'sentAt': FieldValue.serverTimestamp(),
               });
             }
@@ -203,10 +236,25 @@ class EventService {
         }
 
         if (toRemove.isNotEmpty) {
-          updateData['visibleTo'] = FieldValue.arrayRemove(toRemove.toList());
           for (String uid in toRemove) {
             batch.delete(eventRef.collection('invitations').doc(uid));
           }
+        }
+
+        if (toAdd.isNotEmpty || toRemove.isNotEmpty) {
+          final Set<String> updatedVisibleTo = Set<String>.from(
+            request.eventData?['visibleTo'] ?? [],
+          );
+          updatedVisibleTo.removeAll(toRemove);
+          updatedVisibleTo.addAll(toAdd);
+          if (hostId != null && hostId.isNotEmpty) {
+            updatedVisibleTo.add(hostId);
+          }
+          if (coHostId != null && coHostId.isNotEmpty) {
+            updatedVisibleTo.add(coHostId);
+          }
+          updatedVisibleTo.add(user.uid);
+          updateData['visibleTo'] = updatedVisibleTo.toList();
         }
 
         batch.update(eventRef, updateData);
@@ -224,24 +272,44 @@ class EventService {
             .collection('friends')
             .get();
 
+        final Set<String> allFriendIds =
+            friendsSnapshot.docs.map((d) => d.id).toSet();
         Set<String> visibleToIds = {user.uid};
-        Set<DocumentSnapshot> friendsToInvite = {};
+        Set<String> teamMemberIds = {};
 
         for (var friendDoc in friendsSnapshot.docs) {
           final data = friendDoc.data();
           final friendCircles = List<String>.from(data['circles'] ?? []);
           if (request.inviteAll ||
               request.selectedCircleIds.any((id) => friendCircles.contains(id))) {
-            friendsToInvite.add(friendDoc);
+            teamMemberIds.add(friendDoc.id);
             visibleToIds.add(friendDoc.id);
           }
         }
 
-        if (friendsToInvite.isEmpty && !request.inviteAll) {
+        if (teamMemberIds.isEmpty && !request.inviteAll) {
           onError?.call("No friends found in selected teams!");
           onLoadingChanged?.call(false);
           return;
         }
+
+        final List<String> effectiveLastMinuteIds =
+            (request.inviteAll || request.selectedCircleIds.isEmpty)
+                ? <String>[]
+                : request.lastMinuteInviteIds
+                    .where(
+                      (id) =>
+                          allFriendIds.contains(id) &&
+                          !teamMemberIds.contains(id),
+                    )
+                    .toSet()
+                    .toList();
+
+        final Set<String> allInvitedFriendIds = {
+          ...teamMemberIds,
+          ...effectiveLastMinuteIds,
+        };
+        visibleToIds.addAll(allInvitedFriendIds);
 
         final eventRef =
             FirebaseFirestore.instance.collection('events').doc();
@@ -263,15 +331,17 @@ class EventService {
           'visibleTo': visibleToIds.toList(),
           'inviteAll': request.inviteAll,
           'invitedCircles': request.selectedCircleIds,
+          'lastMinuteInvites': effectiveLastMinuteIds,
           'rsvpDeadline': request.rsvpDeadlineOffset,
         });
 
-        for (var friendDoc in friendsToInvite) {
-          batch.set(eventRef.collection('invitations').doc(friendDoc.id), {
-            'uid': friendDoc.id,
-            'role': 'guest',
+        for (var friendId in allInvitedFriendIds) {
+          batch.set(eventRef.collection('invitations').doc(friendId), {
+            'uid': friendId,
+            'role': friendId == request.coHostId ? 'co-host' : 'guest',
             'status': 'pending',
             'votes': [],
+            'invitedBy': user.uid,
             'sentAt': FieldValue.serverTimestamp(),
           });
         }
@@ -493,6 +563,9 @@ class EventService {
             .map((d) => d.id)
             .toSet();
 
+        final Set<String> allFriendIds =
+            friendsSnapshot.docs.map((d) => d.id).toSet();
+
         if (request.isMainHost) {
           // Host: full roster control (add + remove) & co-captain assignment
           updateData['inviteAll'] = request.inviteAll;
@@ -500,16 +573,35 @@ class EventService {
           updateData['coHostId'] = request.coHostId;
           updateData['coHostName'] = request.coHostName;
 
-          Set<String> newIntendedIds = {};
+          Set<String> teamMemberIds = {};
           for (var friendDoc in friendsSnapshot.docs) {
             final friendCircles = List<String>.from(
               friendDoc.data()['circles'] ?? [],
             );
             if (request.inviteAll ||
                 request.selectedCircleIds.any((id) => friendCircles.contains(id))) {
-              newIntendedIds.add(friendDoc.id);
+              teamMemberIds.add(friendDoc.id);
             }
           }
+
+          final List<String> effectiveLastMinuteIds =
+              (request.inviteAll || request.selectedCircleIds.isEmpty)
+                  ? <String>[]
+                  : request.lastMinuteInviteIds
+                      .where(
+                        (id) =>
+                            allFriendIds.contains(id) &&
+                            !teamMemberIds.contains(id),
+                      )
+                      .toSet()
+                      .toList();
+
+          updateData['lastMinuteInvites'] = effectiveLastMinuteIds;
+
+          Set<String> newIntendedIds = {
+            ...teamMemberIds,
+            ...effectiveLastMinuteIds,
+          };
 
           Set<String> toAdd = newIntendedIds.difference(currentlyInvitedIds);
           Set<String> toRemove = {};
@@ -534,12 +626,11 @@ class EventService {
           }
 
           if (toAdd.isNotEmpty) {
-            updateData['visibleTo'] = FieldValue.arrayUnion(toAdd.toList());
             for (String uid in toAdd) {
               if (!currentlyInvitedIds.contains(uid)) {
                 batch.set(eventRef.collection('invitations').doc(uid), {
                   'uid': uid,
-                  'role': 'guest',
+                  'role': uid == coHostId ? 'co-host' : 'guest',
                   'status': 'pending',
                   'invitedBy': user.uid,
                   'sentAt': FieldValue.serverTimestamp(),
@@ -548,7 +639,6 @@ class EventService {
             }
           }
           if (toRemove.isNotEmpty) {
-            updateData['visibleTo'] = FieldValue.arrayRemove(toRemove.toList());
             for (String uid in toRemove) {
               batch.delete(eventRef.collection('invitations').doc(uid));
             }
@@ -563,26 +653,61 @@ class EventService {
               }
             }
           }
+          if (toAdd.isNotEmpty || toRemove.isNotEmpty) {
+            final Set<String> updatedVisibleTo = Set<String>.from(
+              request.eventData?['visibleTo'] ?? [],
+            );
+            updatedVisibleTo.removeAll(toRemove);
+            updatedVisibleTo.addAll(toAdd);
+            if (hostId != null && hostId.isNotEmpty) {
+              updatedVisibleTo.add(hostId);
+            }
+            if (coHostId != null && coHostId.isNotEmpty) {
+              updatedVisibleTo.add(coHostId);
+            }
+            updatedVisibleTo.add(user.uid);
+            updateData['visibleTo'] = updatedVisibleTo.toList();
+          }
         } else {
           // Co-host: full diff on their own scope (add + remove)
+          final String? hostId = request.eventData?['hostId'];
           updateData['coHostInviteAll'] = request.inviteAll;
           updateData['coHostInvitedCircles'] = request.selectedCircleIds;
 
-          Set<String> newCoHostFriendIds = {};
+          Set<String> coHostTeamMemberIds = {};
           for (var friendDoc in friendsSnapshot.docs) {
             final friendCircles = List<String>.from(
               friendDoc.data()['circles'] ?? [],
             );
             if (request.inviteAll ||
                 request.selectedCircleIds.any((id) => friendCircles.contains(id))) {
-              newCoHostFriendIds.add(friendDoc.id);
+              coHostTeamMemberIds.add(friendDoc.id);
             }
           }
+
+          final List<String> effectiveCoHostLastMinuteIds =
+              (request.inviteAll || request.selectedCircleIds.isEmpty)
+                  ? <String>[]
+                  : request.lastMinuteInviteIds
+                      .where(
+                        (id) =>
+                            allFriendIds.contains(id) &&
+                            !coHostTeamMemberIds.contains(id) &&
+                            id != hostId,
+                      )
+                      .toSet()
+                      .toList();
+
+          updateData['coHostLastMinuteInvites'] = effectiveCoHostLastMinuteIds;
+
+          Set<String> newCoHostFriendIds = {
+            ...coHostTeamMemberIds,
+            ...effectiveCoHostLastMinuteIds,
+          };
 
           // Add new guests
           Set<String> toAdd = newCoHostFriendIds.difference(currentlyInvitedIds);
           if (toAdd.isNotEmpty) {
-            updateData['visibleTo'] = FieldValue.arrayUnion(toAdd.toList());
             for (String uid in toAdd) {
               batch.set(eventRef.collection('invitations').doc(uid), {
                 'uid': uid,
@@ -595,7 +720,6 @@ class EventService {
           }
 
           // Remove guests the co-host previously added who are no longer intended
-          final String? hostId = request.eventData?['hostId'];
           Set<String> potentialRemoves = {};
           for (var doc in currentInvitesSnap.docs) {
             final uid = doc.id;
@@ -612,8 +736,6 @@ class EventService {
             for (String uid in potentialRemoves) {
               batch.delete(eventRef.collection('invitations').doc(uid));
             }
-            updateData['visibleTo'] =
-                FieldValue.arrayRemove(potentialRemoves.toList());
 
             final rolesSnap = await eventRef.collection('roles').get();
             for (var roleDoc in rolesSnap.docs) {
@@ -626,6 +748,19 @@ class EventService {
               }
             }
           }
+
+          if (toAdd.isNotEmpty || potentialRemoves.isNotEmpty) {
+            final Set<String> updatedVisibleTo = Set<String>.from(
+              request.eventData?['visibleTo'] ?? [],
+            );
+            updatedVisibleTo.removeAll(potentialRemoves);
+            updatedVisibleTo.addAll(toAdd);
+            if (hostId != null && hostId.isNotEmpty) {
+              updatedVisibleTo.add(hostId);
+            }
+            updatedVisibleTo.add(user.uid);
+            updateData['visibleTo'] = updatedVisibleTo.toList();
+          }
         }
 
         // --- Scoped batch commit ---
@@ -633,6 +768,9 @@ class EventService {
           batch.update(eventRef, updateData);
           await batch.commit();
         } else if (updateScope == 'future' && seasonId != null) {
+          // Ensure current event gets all its specific updates (including lastMinuteInvites & visibleTo)
+          batch.update(eventRef, updateData);
+
           final currentEventTime = request.eventData!['time'] as Timestamp;
           final futureEvents = await FirebaseFirestore.instance
               .collection('events')
@@ -661,7 +799,11 @@ class EventService {
             'lastUpdatedAt': FieldValue.serverTimestamp(),
           };
 
+          final List<String> otherFutureEventIds = [];
           for (var doc in futureEvents.docs) {
+            if (doc.id == request.eventId) continue;
+            otherFutureEventIds.add(doc.id);
+
             final docTime = (doc.data()['time'] as Timestamp).toDate();
             final updatedInstanceTime = DateTime(
               docTime.year,
@@ -684,6 +826,12 @@ class EventService {
             });
           }
           await batch.commit();
+
+          for (final futureId in otherFutureEventIds) {
+            try {
+              await syncEventInvitesWithTeams(futureId);
+            } catch (_) {}
+          }
 
           await FirebaseFirestore.instance
               .collection('seasons')
@@ -760,24 +908,36 @@ class EventService {
             .collection('friends')
             .get();
 
-        Set<String> visibleToIds = {user.uid};
-        Set<DocumentSnapshot> friendsToInvite = {};
+        final Set<String> allFriendIds =
+            friendsSnapshot.docs.map((d) => d.id).toSet();
+        Set<String> teamMemberIds = {};
 
         for (var friendDoc in friendsSnapshot.docs) {
           final data = friendDoc.data() as Map<String, dynamic>? ?? {};
           final friendCircles = List<String>.from(data['circles'] ?? []);
           if (request.inviteAll ||
               request.selectedCircleIds.any((id) => friendCircles.contains(id))) {
-            friendsToInvite.add(friendDoc);
-            visibleToIds.add(friendDoc.id);
+            teamMemberIds.add(friendDoc.id);
           }
         }
 
-        if (friendsToInvite.isEmpty && !request.inviteAll) {
+        if (teamMemberIds.isEmpty && !request.inviteAll) {
           onError?.call("No friends found in selected teams!");
           onLoadingChanged?.call(false);
           return;
         }
+
+        final List<String> effectiveLastMinuteIds =
+            (request.inviteAll || request.selectedCircleIds.isEmpty)
+                ? <String>[]
+                : request.lastMinuteInviteIds
+                    .where(
+                      (id) =>
+                          allFriendIds.contains(id) &&
+                          !teamMemberIds.contains(id),
+                    )
+                    .toSet()
+                    .toList();
 
         // Dynamic batch engine
         WriteBatch batch = FirebaseFirestore.instance.batch();
@@ -824,6 +984,20 @@ class EventService {
               : 240;
           final DateTime endTime = date.add(Duration(minutes: durMins));
 
+          // Last Minute Invites apply strictly per-hangout ("on this one"), so only to the first instance on creation
+          final List<String> instanceLastMinuteIds =
+              (i == 0) ? effectiveLastMinuteIds : <String>[];
+          final Set<String> instanceFriendIds = {
+            ...teamMemberIds,
+            ...instanceLastMinuteIds,
+            if (request.coHostId != null && request.coHostId!.isNotEmpty)
+              request.coHostId!,
+          };
+          final Set<String> instanceVisibleToIds = {
+            user.uid,
+            ...instanceFriendIds,
+          };
+
           batch.set(eventRef, {
             'hostId': user.uid,
             'coHostId': request.coHostId,
@@ -835,9 +1009,10 @@ class EventService {
             'endTime': Timestamp.fromDate(endTime),
             'isPast': false,
             'created_at': FieldValue.serverTimestamp(),
-            'visibleTo': visibleToIds.toList(),
+            'visibleTo': instanceVisibleToIds.toList(),
             'inviteAll': request.inviteAll,
             'invitedCircles': request.selectedCircleIds,
+            'lastMinuteInvites': instanceLastMinuteIds,
             'isImportantDetails': request.isImportantDetails,
             'rsvpDeadline': request.rsvpDeadlineOffset,
             'keepAliveDays': request.keepAliveDays,
@@ -849,10 +1024,10 @@ class EventService {
           operationCount++;
           await commitBatchIfNeeded();
 
-          for (var friendDoc in friendsToInvite) {
-            final isCoHostFriend = friendDoc.id == request.coHostId;
-            batch.set(eventRef.collection('invitations').doc(friendDoc.id), {
-              'uid': friendDoc.id,
+          for (var friendId in instanceFriendIds) {
+            final isCoHostFriend = friendId == request.coHostId;
+            batch.set(eventRef.collection('invitations').doc(friendId), {
+              'uid': friendId,
               'role': isCoHostFriend ? 'co-host' : 'guest',
               'status': 'pending',
               'invitedBy': user.uid,
@@ -1150,139 +1325,342 @@ class EventService {
         }, SetOptions(merge: true));
   }
 
-  /// Synchronizes an event's invitations and visibleTo with the current team/circle members.
-  /// If members were removed from or added to the invited teams, their invitations are
-  /// deleted or created accordingly.
+  /// Updates a hangout's Last Minute Invites directly (e.g. from HangoutDetailsPage)
+  /// and synchronizes invitations and visibleTo immediately.
+  static Future<void> updateLastMinuteInvites({
+    required String eventId,
+    required List<String> lastMinuteInviteIds,
+    required bool isMainHost,
+  }) async {
+    final eventRef =
+        FirebaseFirestore.instance.collection('events').doc(eventId);
+    await eventRef.update({
+      if (isMainHost)
+        'lastMinuteInvites': lastMinuteInviteIds
+      else
+        'coHostLastMinuteInvites': lastMinuteInviteIds,
+      'lastUpdatedAt': FieldValue.serverTimestamp(),
+    });
+    await syncEventInvitesWithTeams(eventId);
+  }
+
+  /// Checks whether an event document represents an active (non-past) event.
+  static bool _isEventActive(Map<String, dynamic> eventData, [DateTime? now]) {
+    if (eventData['isPast'] == true) return false;
+    final currentTime = now ?? DateTime.now();
+    final Timestamp? endTs = eventData['endTime'] as Timestamp?;
+    if (endTs != null) {
+      return endTs.toDate().isAfter(currentTime);
+    }
+    final Timestamp? timeTs = eventData['time'] as Timestamp?;
+    if (timeTs != null) {
+      final int keepAliveDays = eventData['keepAliveDays'] ?? 0;
+      final int durMins = keepAliveDays > 0 ? (keepAliveDays * 24 * 60) : 240;
+      final DateTime fallbackEnd =
+          timeTs.toDate().add(Duration(minutes: durMins));
+      return fallbackEnd.isAfter(currentTime);
+    }
+    return false;
+  }
+
+  /// Synchronizes all active/upcoming Hangouts and Vibe Checks for [uid]
+  /// (where [uid] is Host or Co-Captain).
+  /// If [circleId] is provided, only syncs events where that team is invited
+  /// (or where "Entire Squad" is active).
+  /// If [deletedCircleId] is provided, removes that circle ID from the event's
+  /// invitedCircles / coHostInvitedCircles before syncing.
+  static Future<void> syncActiveEventsForUser(
+    String uid, {
+    String? circleId,
+    String? deletedCircleId,
+  }) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null || currentUser.uid != uid) return;
+
+    final firestore = FirebaseFirestore.instance;
+    final now = DateTime.now();
+
+    try {
+      final results = await Future.wait([
+        firestore.collection('events').where('hostId', isEqualTo: uid).get(),
+        firestore.collection('events').where('coHostId', isEqualTo: uid).get(),
+      ]);
+
+      final hostedDocs = results[0].docs;
+      final coHostedDocs = results[1].docs;
+
+      for (final doc in hostedDocs) {
+        final data = doc.data();
+        if (!_isEventActive(data, now)) continue;
+
+        final bool inviteAll = data['inviteAll'] ?? true;
+        final List<String> circles =
+            List<String>.from(data['invitedCircles'] ?? []);
+
+        if (deletedCircleId != null && circles.contains(deletedCircleId)) {
+          circles.remove(deletedCircleId);
+          await doc.reference.update({'invitedCircles': circles});
+        }
+
+        if (circleId == null || inviteAll || circles.contains(circleId)) {
+          try {
+            await syncEventInvitesWithTeams(doc.id);
+          } catch (e) {
+            debugPrint("Error syncing hosted event ${doc.id}: $e");
+          }
+        }
+      }
+
+      for (final doc in coHostedDocs) {
+        final data = doc.data();
+        if (data['hostId'] == uid) continue; // Already handled above
+        if (!_isEventActive(data, now)) continue;
+
+        final bool coHostInviteAll = data['coHostInviteAll'] ?? false;
+        final List<String> coHostCircles =
+            List<String>.from(data['coHostInvitedCircles'] ?? []);
+
+        if (deletedCircleId != null &&
+            coHostCircles.contains(deletedCircleId)) {
+          coHostCircles.remove(deletedCircleId);
+          await doc.reference.update({'coHostInvitedCircles': coHostCircles});
+        }
+
+        if (circleId == null ||
+            coHostInviteAll ||
+            coHostCircles.contains(circleId)) {
+          try {
+            await syncEventInvitesWithTeams(doc.id);
+          } catch (e) {
+            debugPrint("Error syncing co-hosted event ${doc.id}: $e");
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error in syncActiveEventsForUser: $e");
+    }
+  }
+
+  /// Synchronizes an event's invitations and visibleTo with the current user's
+  /// team/circle members and Last Minute Invites.
+  /// Strictly queries only the authenticated user's own friends collection to
+  /// respect Firestore security rules (`isOwner`), while preserving the other
+  /// host/co-host's invitations.
   static Future<void> syncEventInvitesWithTeams(String eventId) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
     final eventRef =
         FirebaseFirestore.instance.collection('events').doc(eventId);
     final eventSnap = await eventRef.get();
     if (!eventSnap.exists) return;
     final eventData = eventSnap.data()!;
 
+    // Skip past/ended events (Firestore security rules block updates after endTime)
+    if (!_isEventActive(eventData)) return;
+
     final String hostId = eventData['hostId'] ?? '';
     final String? coHostId = eventData['coHostId'];
-    final bool inviteAll = eventData['inviteAll'] ?? true;
-    final List<String> invitedCircles =
-        List<String>.from(eventData['invitedCircles'] ?? []);
-    final bool coHostInviteAll = eventData['coHostInviteAll'] ?? false;
-    final List<String> coHostInvitedCircles =
-        List<String>.from(eventData['coHostInvitedCircles'] ?? []);
+    final bool isVibeCheck = eventData['type'] == 'vibe_check';
 
-    // 1. Gather host's intended friends
-    final Set<String> intendedHostFriendIds = {};
-    if (hostId.isNotEmpty) {
-      final hostFriendsSnap = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(hostId)
-          .collection('friends')
-          .get();
+    final bool isMainHost = currentUser.uid == hostId;
+    final bool isCoHost = coHostId != null && currentUser.uid == coHostId;
+    if (!isMainHost && !isCoHost) return;
 
-      for (var doc in hostFriendsSnap.docs) {
-        final friendCircles =
-            List<String>.from(doc.data()['circles'] ?? []);
-        if (inviteAll ||
-            invitedCircles.any((c) => friendCircles.contains(c))) {
-          intendedHostFriendIds.add(doc.id);
-        }
-      }
-    }
+    final myFriendsSnap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .collection('friends')
+        .get();
+    final Set<String> allMyFriendIds =
+        myFriendsSnap.docs.map((d) => d.id).toSet();
 
-    // 2. Gather co-host's intended friends (if co-host exists)
-    final Set<String> intendedCoHostFriendIds = {};
-    if (coHostId != null && coHostId.isNotEmpty) {
-      final coHostFriendsSnap = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(coHostId)
-          .collection('friends')
-          .get();
-
-      for (var doc in coHostFriendsSnap.docs) {
-        final friendCircles =
-            List<String>.from(doc.data()['circles'] ?? []);
-        if (coHostInviteAll ||
-            coHostInvitedCircles.any((c) => friendCircles.contains(c))) {
-          intendedCoHostFriendIds.add(doc.id);
-        }
-      }
-    }
-
-    // 3. Current invitations
     final invitesSnap = await eventRef.collection('invitations').get();
     final Set<String> currentUids = invitesSnap.docs.map((d) => d.id).toSet();
 
     final Set<String> toRemove = {};
     final Set<String> toAdd = {};
+    final Set<String> toClaimHostOwnership = {};
+    final Map<String, dynamic> updateData = {};
 
-    for (var doc in invitesSnap.docs) {
-      final uid = doc.id;
-      if (uid == hostId) continue;
-      if (uid == coHostId) continue;
+    if (isMainHost) {
+      final bool inviteAll = eventData['inviteAll'] ?? true;
+      final List<String> invitedCircles =
+          List<String>.from(eventData['invitedCircles'] ?? []);
+      final List<String> rawLastMinute =
+          List<String>.from(eventData['lastMinuteInvites'] ?? []);
 
-      final inviteData = doc.data();
-      final invitedBy = inviteData['invitedBy'];
+      final Set<String> teamMemberIds = {};
+      for (final doc in myFriendsSnap.docs) {
+        final friendCircles = List<String>.from(doc.data()['circles'] ?? []);
+        if (inviteAll ||
+            invitedCircles.any((c) => friendCircles.contains(c))) {
+          teamMemberIds.add(doc.id);
+        }
+      }
 
-      if (invitedBy != null && invitedBy == coHostId) {
-        // Co-host scope
-        if (!intendedCoHostFriendIds.contains(uid)) {
+      // Deduplicate Last Minute Invites against team members & current squad
+      final List<String> effectiveLastMinute =
+          (inviteAll || invitedCircles.isEmpty)
+              ? <String>[]
+              : rawLastMinute
+                  .where(
+                    (id) =>
+                        allMyFriendIds.contains(id) &&
+                        !teamMemberIds.contains(id),
+                  )
+                  .toSet()
+                  .toList();
+
+      if (effectiveLastMinute.length != rawLastMinute.length ||
+          !effectiveLastMinute.every((id) => rawLastMinute.contains(id))) {
+        updateData['lastMinuteInvites'] = effectiveLastMinute;
+      }
+
+      final Set<String> intendedHostFriendIds = {
+        ...teamMemberIds,
+        ...effectiveLastMinute,
+      };
+
+      for (final doc in invitesSnap.docs) {
+        final uid = doc.id;
+        if (uid == hostId || uid == coHostId) continue;
+
+        final inviteData = doc.data();
+        final invitedBy = inviteData['invitedBy'];
+
+        if (coHostId != null && invitedBy == coHostId) {
+          // If the main host also now intends to invite this friend, claim host ownership
+          if (intendedHostFriendIds.contains(uid)) {
+            toClaimHostOwnership.add(uid);
+          }
+          continue;
+        }
+
+        if (!intendedHostFriendIds.contains(uid)) {
           toRemove.add(uid);
         }
-      } else {
-        // Host scope (invitedBy == hostId or null)
-        if (!intendedHostFriendIds.contains(uid)) {
-          // If co-host also invited them, keep them
+      }
+
+      for (final uid in intendedHostFriendIds) {
+        if (!currentUids.contains(uid)) {
+          toAdd.add(uid);
+        }
+      }
+    } else {
+      // Co-Host scope
+      final bool coHostInviteAll = eventData['coHostInviteAll'] ?? false;
+      final List<String> coHostInvitedCircles =
+          List<String>.from(eventData['coHostInvitedCircles'] ?? []);
+      final List<String> rawCoHostLastMinute =
+          List<String>.from(eventData['coHostLastMinuteInvites'] ?? []);
+
+      final Set<String> coHostTeamMemberIds = {};
+      for (final doc in myFriendsSnap.docs) {
+        final friendCircles = List<String>.from(doc.data()['circles'] ?? []);
+        if (coHostInviteAll ||
+            coHostInvitedCircles.any((c) => friendCircles.contains(c))) {
+          if (doc.id != hostId) {
+            coHostTeamMemberIds.add(doc.id);
+          }
+        }
+      }
+
+      final List<String> effectiveCoHostLastMinute =
+          (coHostInviteAll || coHostInvitedCircles.isEmpty)
+              ? <String>[]
+              : rawCoHostLastMinute
+                  .where(
+                    (id) =>
+                        allMyFriendIds.contains(id) &&
+                        !coHostTeamMemberIds.contains(id) &&
+                        id != hostId,
+                  )
+                  .toSet()
+                  .toList();
+
+      if (effectiveCoHostLastMinute.length != rawCoHostLastMinute.length ||
+          !effectiveCoHostLastMinute.every(
+            (id) => rawCoHostLastMinute.contains(id),
+          )) {
+        updateData['coHostLastMinuteInvites'] = effectiveCoHostLastMinute;
+      }
+
+      final Set<String> intendedCoHostFriendIds = {
+        ...coHostTeamMemberIds,
+        ...effectiveCoHostLastMinute,
+      };
+
+      for (final doc in invitesSnap.docs) {
+        final uid = doc.id;
+        if (uid == hostId || uid == coHostId) continue;
+
+        final inviteData = doc.data();
+        if (inviteData['invitedBy'] == coHostId) {
           if (!intendedCoHostFriendIds.contains(uid)) {
             toRemove.add(uid);
           }
         }
       }
-    }
 
-    // Additions
-    for (var uid in intendedHostFriendIds) {
-      if (!currentUids.contains(uid)) {
-        toAdd.add(uid);
-      }
-    }
-    for (var uid in intendedCoHostFriendIds) {
-      if (!currentUids.contains(uid)) {
-        toAdd.add(uid);
+      for (final uid in intendedCoHostFriendIds) {
+        if (!currentUids.contains(uid)) {
+          toAdd.add(uid);
+        }
       }
     }
 
-    if (toRemove.isEmpty && toAdd.isEmpty) return;
+    if (toRemove.isEmpty &&
+        toAdd.isEmpty &&
+        toClaimHostOwnership.isEmpty &&
+        updateData.isEmpty) {
+      return;
+    }
 
     final batch = FirebaseFirestore.instance.batch();
 
-    for (var uid in toRemove) {
+    for (final uid in toClaimHostOwnership) {
+      batch.update(eventRef.collection('invitations').doc(uid), {
+        'invitedBy': hostId,
+      });
+    }
+
+    for (final uid in toRemove) {
       batch.delete(eventRef.collection('invitations').doc(uid));
     }
 
-    for (var uid in toAdd) {
-      final isCoHostScope = intendedCoHostFriendIds.contains(uid) &&
-          !intendedHostFriendIds.contains(uid);
+    for (final uid in toAdd) {
       batch.set(eventRef.collection('invitations').doc(uid), {
         'uid': uid,
-        'role': 'guest',
+        'role': uid == coHostId ? 'co-host' : 'guest',
         'status': 'pending',
-        'invitedBy': isCoHostScope ? coHostId : hostId,
+        if (isVibeCheck) 'votes': [],
+        'invitedBy': currentUser.uid,
         'sentAt': FieldValue.serverTimestamp(),
       });
     }
 
-    final Map<String, dynamic> updateData = {};
-    if (toRemove.isNotEmpty) {
-      updateData['visibleTo'] = FieldValue.arrayRemove(toRemove.toList());
+    if (toRemove.isNotEmpty || toAdd.isNotEmpty) {
+      final Set<String> updatedVisibleTo = Set<String>.from(
+        eventData['visibleTo'] ?? [],
+      );
+      updatedVisibleTo.removeAll(toRemove);
+      updatedVisibleTo.addAll(toAdd);
+      if (hostId.isNotEmpty) updatedVisibleTo.add(hostId);
+      if (coHostId != null && coHostId.isNotEmpty) {
+        updatedVisibleTo.add(coHostId);
+      }
+      updateData['visibleTo'] = updatedVisibleTo.toList();
     }
-    if (toAdd.isNotEmpty) {
-      updateData['visibleTo'] = FieldValue.arrayUnion(toAdd.toList());
+
+    if (updateData.isNotEmpty) {
+      batch.update(eventRef, updateData);
     }
-    batch.update(eventRef, updateData);
 
     // Also unclaim any roles claimed by removed users
     if (toRemove.isNotEmpty) {
       final rolesSnap = await eventRef.collection('roles').get();
-      for (var roleDoc in rolesSnap.docs) {
+      for (final roleDoc in rolesSnap.docs) {
         final claimedBy = roleDoc.data()['claimedByUid'];
         if (claimedBy != null && toRemove.contains(claimedBy)) {
           batch.update(roleDoc.reference, {

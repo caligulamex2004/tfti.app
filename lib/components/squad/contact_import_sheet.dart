@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 
 import '../../utils/phone_formatter.dart';
+import '../../utils/event_service.dart';
 import '../../services/contact_resolver.dart';
 import '../../services/contact_service.dart';
 import '../shared/app_avatar.dart';
@@ -262,6 +263,10 @@ class _ContactImportSheetState extends State<ContactImportSheet> {
                                         'phoneNumber': item['phoneNumber'],
                                         'addedAt': FieldValue.serverTimestamp(),
                                       }, SetOptions(merge: true));
+
+                                  EventService.syncActiveEventsForUser(
+                                    widget.myUid,
+                                  );
 
                                   if (!mounted) return;
                                   setState(() => _addedUids.add(uid));

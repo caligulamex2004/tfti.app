@@ -8,6 +8,7 @@ class CoCaptainSelector extends StatelessWidget {
   final bool isPast;
   final bool inviteAll;
   final List<String> selectedCircleIds;
+  final List<String> lastMinuteInviteIds;
   final String? coHostId;
   final String? coHostName;
   final String? coHostUsername;
@@ -27,6 +28,7 @@ class CoCaptainSelector extends StatelessWidget {
     required this.isPast,
     required this.inviteAll,
     required this.selectedCircleIds,
+    this.lastMinuteInviteIds = const [],
     required this.coHostId,
     required this.coHostName,
     required this.coHostUsername,
@@ -103,6 +105,9 @@ class CoCaptainSelector extends StatelessWidget {
                       final allFriends = snapshot.data!.docs;
                       final friends = allFriends.where((doc) {
                         if (inviteAll) {
+                          return true;
+                        }
+                        if (lastMinuteInviteIds.contains(doc.id)) {
                           return true;
                         }
                         final data = doc.data() as Map<String, dynamic>? ?? {};

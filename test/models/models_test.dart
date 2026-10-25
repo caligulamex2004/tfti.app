@@ -44,6 +44,39 @@ void main() {
       expect(fromMap.title, 'Friday Night Tacos');
       expect(fromMap.hostId, 'host-abc');
       expect(fromMap.visibleTo, contains('guest-1'));
+      expect(fromMap.lastMinuteInvites, isEmpty);
+      expect(fromMap.coHostLastMinuteInvites, isNull);
+    });
+
+    test('Event serializes and deserializes lastMinuteInvites and coHostLastMinuteInvites', () {
+      final now = DateTime(2026, 9, 25, 18, 30);
+      final event = Event(
+        id: 'evt-lmi',
+        type: 'event',
+        hostId: 'host-abc',
+        title: 'Last Minute Hangout',
+        location: 'Coffee Shop',
+        time: now,
+        inviteAll: false,
+        invitedCircles: ['circle-1'],
+        lastMinuteInvites: ['friend-x', 'friend-y'],
+        coHostId: 'cohost-def',
+        coHostInviteAll: false,
+        coHostInvitedCircles: ['circle-2'],
+        coHostLastMinuteInvites: ['friend-z'],
+      );
+
+      final map = event.toMap();
+      expect(map['lastMinuteInvites'], equals(['friend-x', 'friend-y']));
+      expect(map['coHostLastMinuteInvites'], equals(['friend-z']));
+
+      final fromMap = Event.fromMap(map, id: 'evt-lmi');
+      expect(fromMap.lastMinuteInvites, equals(['friend-x', 'friend-y']));
+      expect(fromMap.coHostLastMinuteInvites, equals(['friend-z']));
+
+      final updated = fromMap.copyWith(lastMinuteInvites: ['friend-x']);
+      expect(updated.lastMinuteInvites, equals(['friend-x']));
+      expect(updated.coHostLastMinuteInvites, equals(['friend-z']));
     });
   });
 
@@ -169,6 +202,57 @@ void main() {
         expect(combined.day, 20);
         expect(combined.hour, 17);
         expect(combined.minute, 15);
+        expect(req.lastMinuteInviteIds, isEmpty);
+        expect(req.isMainHost, isTrue);
+        expect(req.isCoHost, isFalse);
+      },
+    );
+
+    test(
+      'HangoutSubmissionRequest and VibeCheckSubmissionRequest store lastMinuteInviteIds',
+      () {
+        final hangoutReq = HangoutSubmissionRequest(
+          selectedDate: DateTime(2026, 10, 15),
+          selectedTime: const TimeOfDay(hour: 20, minute: 45),
+          isEditing: true,
+          isMainHost: false,
+          isCoHost: true,
+          title: 'Board Game Night',
+          location: 'Game Lounge',
+          details: 'Settlers of Catan tournament',
+          inviteAll: false,
+          selectedCircleIds: const ['circle-1'],
+          lastMinuteInviteIds: const ['friend-1', 'friend-2'],
+          rsvpDeadlineOffset: 0,
+          keepAliveDays: 1,
+          isImportantDetails: false,
+          isRecurring: false,
+        );
+        expect(
+          hangoutReq.lastMinuteInviteIds,
+          equals(['friend-1', 'friend-2']),
+        );
+
+        final vibeReq = VibeCheckSubmissionRequest(
+          selectedDate: DateTime(2026, 11, 20),
+          selectedTime: const TimeOfDay(hour: 17, minute: 15),
+          isEditing: true,
+          isMainHost: false,
+          isCoHost: true,
+          title: 'Where should we eat?',
+          details: 'Vote on options',
+          pollOptions: const [
+            {'id': '1', 'text': 'Sushi'},
+            {'id': '2', 'text': 'Burgers'},
+          ],
+          inviteAll: false,
+          selectedCircleIds: const ['circle-2'],
+          lastMinuteInviteIds: const ['friend-3'],
+          rsvpDeadlineOffset: 0,
+        );
+        expect(vibeReq.lastMinuteInviteIds, equals(['friend-3']));
+        expect(vibeReq.isMainHost, isFalse);
+        expect(vibeReq.isCoHost, isTrue);
       },
     );
   });

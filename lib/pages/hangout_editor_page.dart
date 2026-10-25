@@ -17,6 +17,7 @@ import '../components/forms/local_squad_needs_sheet.dart';
 import '../components/forms/squad_needs_form_card.dart';
 import '../components/forms/squad_needs_sheet.dart';
 import '../components/forms/team_selection_field.dart';
+import '../components/forms/last_minute_invite_field.dart';
 import '../components/forms/editor_action_buttons.dart';
 import '../components/dialogs/season_dialogs.dart';
 import '../components/forms/recurring_season_toggle.dart';
@@ -56,6 +57,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
 
   bool _inviteAll = false;
   List<String> _selectedCircleIds = [];
+  List<String> _lastMinuteInviteIds = [];
 
   int _rsvpDeadlineOffset = 0;
   int _keepAliveDays = 0;
@@ -114,9 +116,15 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
         _selectedCircleIds = List<String>.from(
           data['coHostInvitedCircles'] ?? [],
         );
+        _lastMinuteInviteIds = List<String>.from(
+          data['coHostLastMinuteInvites'] ?? [],
+        );
       } else {
         _inviteAll = data['inviteAll'] ?? true;
         _selectedCircleIds = List<String>.from(data['invitedCircles'] ?? []);
+        _lastMinuteInviteIds = List<String>.from(
+          data['lastMinuteInvites'] ?? [],
+        );
       }
       _rsvpDeadlineOffset = data['rsvpDeadline'] ?? 0;
       _keepAliveDays = data['keepAliveDays'] ?? 0;
@@ -306,6 +314,7 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
       selectedTime: _selectedTime,
       inviteAll: _inviteAll,
       selectedCircleIds: _selectedCircleIds,
+      lastMinuteInviteIds: _lastMinuteInviteIds,
       rsvpDeadlineOffset: _rsvpDeadlineOffset,
       keepAliveDays: _keepAliveDays,
       isImportantDetails: _isImportantDetails,
@@ -520,6 +529,27 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                         setState(() {
                           _inviteAll = newAll;
                           _selectedCircleIds = newIds;
+                          if (newAll || newIds.isEmpty) {
+                            _lastMinuteInviteIds = [];
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Last Minute Invite (co-host's own scope)
+                    LastMinuteInviteField(
+                      inviteAll: _inviteAll,
+                      selectedCircleIds: _selectedCircleIds,
+                      lastMinuteInviteIds: _lastMinuteInviteIds,
+                      enabled: !_isPast,
+                      excludeUids: {
+                        if (widget.eventData?['hostId'] != null)
+                          widget.eventData!['hostId'] as String,
+                      },
+                      onChanged: (newIds) {
+                        setState(() {
+                          _lastMinuteInviteIds = newIds;
                         });
                       },
                     ),
@@ -842,6 +872,8 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                                           inviteAll: _inviteAll,
                                                           selectedCircleIds:
                                                               _selectedCircleIds,
+                                                          lastMinuteInviteIds:
+                                                              _lastMinuteInviteIds,
                                                           coHostId:
                                                               _selectedCoHostId,
                                                           coHostName:
@@ -861,9 +893,17 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                                                   newAll;
                                                               _selectedCircleIds =
                                                                   newIds;
+                                                              if (newAll ||
+                                                                  newIds
+                                                                      .isEmpty) {
+                                                                _lastMinuteInviteIds =
+                                                                    [];
+                                                              }
 
                                                               if (!_inviteAll &&
                                                                   _selectedCircleIds
+                                                                      .isEmpty &&
+                                                                  _lastMinuteInviteIds
                                                                       .isEmpty) {
                                                                 _selectedCoHostId =
                                                                     null;
@@ -876,6 +916,14 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                                                 _selectedCoHostAvatarColor =
                                                                     null;
                                                               }
+                                                            });
+                                                          },
+                                                          onLastMinuteChanged: (
+                                                            newIds,
+                                                          ) {
+                                                            setState(() {
+                                                              _lastMinuteInviteIds =
+                                                                  newIds;
                                                             });
                                                           },
                                                           onCoCaptainChanged:
@@ -1021,6 +1069,8 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                                 inviteAll: _inviteAll,
                                                 selectedCircleIds:
                                                     _selectedCircleIds,
+                                                lastMinuteInviteIds:
+                                                    _lastMinuteInviteIds,
                                                 coHostId: _selectedCoHostId,
                                                 coHostName: _selectedCoHostName,
                                                 coHostUsername:
@@ -1036,9 +1086,15 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                                   setState(() {
                                                     _inviteAll = newAll;
                                                     _selectedCircleIds = newIds;
+                                                    if (newAll ||
+                                                        newIds.isEmpty) {
+                                                      _lastMinuteInviteIds = [];
+                                                    }
 
                                                     if (!_inviteAll &&
                                                         _selectedCircleIds
+                                                            .isEmpty &&
+                                                        _lastMinuteInviteIds
                                                             .isEmpty) {
                                                       _selectedCoHostId = null;
                                                       _selectedCoHostName =
@@ -1050,6 +1106,12 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                                       _selectedCoHostAvatarColor =
                                                           null;
                                                     }
+                                                  });
+                                                },
+                                                onLastMinuteChanged: (newIds) {
+                                                  setState(() {
+                                                    _lastMinuteInviteIds =
+                                                        newIds;
                                                   });
                                                 },
                                                 onCoCaptainChanged:

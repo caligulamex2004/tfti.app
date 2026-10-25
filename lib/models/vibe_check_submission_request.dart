@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 /// Encapsulates all data required to create or update a Vibe Check (poll).
 class VibeCheckSubmissionRequest {
   final bool isEditing;
+  final bool isMainHost;
+  final bool isCoHost;
   final String? eventId;
   final Map<String, dynamic>? eventData;
   final String title;
@@ -12,12 +14,15 @@ class VibeCheckSubmissionRequest {
   final List<Map<String, dynamic>> pollOptions;
   final bool inviteAll;
   final List<String> selectedCircleIds;
+  final List<String> lastMinuteInviteIds;
   final int rsvpDeadlineOffset;
   final String? coHostId;
   final String? coHostName;
 
   const VibeCheckSubmissionRequest({
     required this.isEditing,
+    this.isMainHost = true,
+    this.isCoHost = false,
     this.eventId,
     this.eventData,
     required this.title,
@@ -27,6 +32,7 @@ class VibeCheckSubmissionRequest {
     required this.pollOptions,
     required this.inviteAll,
     required this.selectedCircleIds,
+    this.lastMinuteInviteIds = const [],
     required this.rsvpDeadlineOffset,
     this.coHostId,
     this.coHostName,
