@@ -347,18 +347,15 @@ class HostTeamBadge extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 6),
-        Tooltip(
-          message: "Select one or more to join the Crew on this one.",
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => LastMinuteInviteField.showInfoMessage(context),
-            child: Padding(
-              padding: const EdgeInsets.all(4.0),
-              child: Icon(
-                Icons.info_outline,
-                size: 16,
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              ),
+        InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => LastMinuteInviteField.showInfoMessage(context),
+          child: Padding(
+            padding: const EdgeInsets.all(4.0),
+            child: Icon(
+              Icons.info_outline,
+              size: 16,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
             ),
           ),
         ),

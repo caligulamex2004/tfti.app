@@ -132,19 +132,15 @@ class LastMinuteInviteField extends StatelessWidget {
             suffixIcon: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Tooltip(
-                  message: "Select one or more to join the Crew on this one.",
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.info_outline,
-                      size: 20,
-                      color: isDark
-                          ? Colors.grey.shade400
-                          : Colors.grey.shade600,
-                    ),
-                    onPressed: () => showInfoMessage(context),
-                    tooltip: "Select one or more to join the Crew on this one.",
+                IconButton(
+                  icon: Icon(
+                    Icons.info_outline,
+                    size: 20,
+                    color: isDark
+                        ? Colors.grey.shade400
+                        : Colors.grey.shade600,
                   ),
+                  onPressed: () => showInfoMessage(context),
                 ),
                 const Icon(Icons.arrow_drop_down),
                 const SizedBox(width: 8),
