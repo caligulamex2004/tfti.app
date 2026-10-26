@@ -453,9 +453,6 @@ class SquadNeedsRail extends StatelessWidget {
                                 ? Colors.grey.shade400
                                 : Colors.grey.shade700)
                             : (isDark ? Colors.white : Colors.black87),
-                        decoration: isClaimed
-                            ? TextDecoration.lineThrough
-                            : null,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
