@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -8,6 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/places/goated_place_card.dart';
+import '../components/places/place_summary_sheet.dart';
+import '../models/place_model.dart';
 import '../services/place_service.dart';
 import '../utils/theme_provider.dart';
 import '../utils/responsive_layout.dart';
@@ -135,31 +135,32 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
     }
   }
 
-  Future<void> _openMap(String address) async {
-    final query = Uri.encodeComponent(address);
-
-    final Uri url = Platform.isIOS
-        ? Uri.parse("https://maps.apple.com/?q=$query")
-        : Uri.parse("https://www.google.com/maps/search/?api=1&query=$query");
-
-    try {
-      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-        await launchUrl(url, mode: LaunchMode.platformDefault);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not open the map application.")),
-        );
-      }
-    }
+  Future<void> _openSavedPlaceSummary(Map<String, dynamic> data) async {
+    final savedPlace = SavedPlace.fromMap(data, id: data['id']?.toString());
+    await PlaceSummarySheet.show(
+      context,
+      placeId: savedPlace.placeId,
+      initialName:
+          savedPlace.name.isNotEmpty ? savedPlace.name : 'Saved Place',
+      initialAddress: savedPlace.address,
+      initialTypes:
+          savedPlace.category != null ? [savedPlace.category!] : const [],
+      initialLat: savedPlace.lat,
+      initialLng: savedPlace.lng,
+      existingSavedDocId: savedPlace.id,
+      primaryActionLabel: null,
+    );
   }
 
   Future<void> _addNewPlace() async {
+    PlaceSummaryResult? richSelection;
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const PlacesSearchPage(showFavorites: false),
+        builder: (context) => PlacesSearchPage(
+          showFavorites: false,
+          onPlaceSelected: (sel) => richSelection = sel,
+        ),
       ),
     );
 
@@ -167,19 +168,35 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         final parts = result.split(',');
-        final name = parts.isNotEmpty ? parts[0] : "Saved Place";
+        final fallbackName = parts.isNotEmpty ? parts[0].trim() : "Saved Place";
+        final name = (richSelection?.name.trim().isNotEmpty ?? false)
+            ? richSelection!.name.trim()
+            : fallbackName;
 
-        await PlaceService.savePlace(
+        // Avoid duplicate if user already tapped "Save VIP" inside the summary sheet
+        final existingId = await PlaceService.findPlaceIdByAddress(
           uid: user.uid,
-          name: name,
           address: result,
+          googlePlaceId: richSelection?.placeId,
         );
+
+        if (existingId == null) {
+          await PlaceService.savePlace(
+            uid: user.uid,
+            name: name,
+            address: result,
+            placeId: richSelection?.placeId,
+            latitude: richSelection?.lat,
+            longitude: richSelection?.lng,
+            category: richSelection?.category,
+          );
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                "Added to VIP Places! ⭐",
+                "Added to VIP Places!",
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
@@ -410,7 +427,7 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
                         id: docId,
                         name: name,
                         address: address,
-                        onTap: () => _openMap(address),
+                        onTap: () => _openSavedPlaceSummary(data),
                         onRename: () => _renamePlace(docId, name),
                         onDelete: () => _deletePlace(docId, name),
                       );

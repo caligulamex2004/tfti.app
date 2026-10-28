@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import 'custom_input_field.dart';
+import '../places/place_summary_sheet.dart';
 import '../../pages/places_search_page.dart';
 import '../../services/place_service.dart';
 
@@ -24,6 +25,7 @@ class LocationInputField extends StatefulWidget {
 class _LocationInputFieldState extends State<LocationInputField> {
   bool _isLocFavorite = false;
   String? _favoriteDocId;
+  PlaceSummaryResult? _lastSelectedPlace;
 
   @override
   void initState() {
@@ -43,6 +45,7 @@ class _LocationInputFieldState extends State<LocationInputField> {
     final placeId = await PlaceService.findPlaceIdByAddress(
       uid: user.uid,
       address: widget.controller.text,
+      googlePlaceId: _lastSelectedPlace?.placeId,
     );
 
     if (mounted) {
@@ -132,6 +135,10 @@ class _LocationInputFieldState extends State<LocationInputField> {
         uid: user.uid,
         name: confirmedName,
         address: widget.controller.text,
+        placeId: _lastSelectedPlace?.placeId,
+        latitude: _lastSelectedPlace?.lat,
+        longitude: _lastSelectedPlace?.lng,
+        category: _lastSelectedPlace?.category,
       );
 
       if (!mounted) return;
@@ -140,20 +147,25 @@ class _LocationInputFieldState extends State<LocationInputField> {
         _favoriteDocId = placeId;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Added to VIP Places! ⭐")),
+        const SnackBar(content: Text("Added to VIP Places!")),
       );
     }
   }
 
   Future<void> _selectLocation() async {
+    PlaceSummaryResult? richSelection;
     final selectedAddress = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const PlacesSearchPage(showFavorites: true),
+        builder: (context) => PlacesSearchPage(
+          showFavorites: true,
+          onPlaceSelected: (sel) => richSelection = sel,
+        ),
       ),
     );
     if (selectedAddress != null && mounted) {
       setState(() {
+        _lastSelectedPlace = richSelection;
         widget.controller.text = selectedAddress;
       });
       _checkFavoriteStatus();

@@ -3,7 +3,14 @@ const {onDocumentCreated, onDocumentUpdated} = require("firebase-functions/v2/fi
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
-const geoip = require("geoip-lite");
+
+let _geoip = null;
+function getGeoIp() {
+    if (!_geoip) {
+        _geoip = require("geoip-lite");
+    }
+    return _geoip;
+}
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -980,6 +987,115 @@ exports.awardLootDrops = onSchedule("every 15 minutes", async (event) => {
 });
 
 /**
+ * Resolves the user's location anchor for Google Places biasing.
+ * Priority:
+ * 1. Client-provided saved/VIP place coordinates (fallbackLocation)
+ * 2. App Engine / Cloud Load Balancer city lat/long header
+ * 3. Server-side IP lookup via geoip-lite
+ */
+function resolveLocationAnchor(request) {
+    let lat = null;
+    let lng = null;
+    let countryCode = null;
+
+    // 1. Prioritize client-provided saved VIP place coordinates
+    const fallback = request.data?.fallbackLocation;
+    if (fallback && typeof fallback === "object") {
+        const fLat = parseFloat(fallback.lat ?? fallback.latitude);
+        const fLng = parseFloat(fallback.lng ?? fallback.longitude);
+        if (!isNaN(fLat) && !isNaN(fLng)) {
+            lat = fLat;
+            lng = fLng;
+        }
+        if (typeof fallback.country === "string" && fallback.country.trim().length > 0) {
+            countryCode = fallback.country.trim();
+        }
+    }
+
+    // 2. Check App Engine / Cloud Load Balancer geo headers
+    if (lat === null || lng === null) {
+        const gcpLatLong = request.rawRequest?.headers?.["x-appengine-citylatlong"];
+        if (typeof gcpLatLong === "string" && gcpLatLong.includes(",")) {
+            const parts = gcpLatLong.split(",");
+            const parsedLat = parseFloat(parts[0]);
+            const parsedLng = parseFloat(parts[1]);
+            if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
+                lat = parsedLat;
+                lng = parsedLng;
+            }
+        }
+    }
+    if (!countryCode && request.rawRequest?.headers?.["x-appengine-country"]) {
+        countryCode = request.rawRequest.headers["x-appengine-country"];
+    }
+
+    // 3. Fallback to geoip-lite using client IP
+    if (lat === null || lng === null || !countryCode) {
+        const rawForwarded = request.rawRequest?.headers?.["x-forwarded-for"];
+        const clientIp = (typeof rawForwarded === "string" ? rawForwarded.split(",")[0].trim() : null)
+            || request.rawRequest?.ip
+            || (typeof request.data?.clientIp === "string" ? request.data.clientIp : null);
+
+        if (clientIp) {
+            const geo = getGeoIp().lookup(clientIp);
+            if (geo) {
+                if ((lat === null || lng === null) && Array.isArray(geo.ll) && geo.ll.length >= 2) {
+                    lat = geo.ll[0];
+                    lng = geo.ll[1];
+                }
+                if (!countryCode && geo.country) {
+                    countryCode = geo.country;
+                }
+            }
+        }
+    }
+
+    return {lat, lng, countryCode};
+}
+
+/**
+ * Haversine distance in meters between two lat/lng coordinates.
+ */
+function calculateDistanceMeters(lat1, lng1, lat2, lng2) {
+    if (
+        lat1 === null || lng1 === null || lat2 === null || lng2 === null ||
+        isNaN(lat1) || isNaN(lng1) || isNaN(lat2) || isNaN(lng2)
+    ) {
+        return null;
+    }
+    const R = 6371000; // Earth radius in meters
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c);
+}
+
+/**
+ * Helper to fetch an image URL and encode it as a base64 data URL so the API key
+ * stays server-side and Flutter Web / Mobile never hits CORS restrictions.
+ */
+async function fetchImageAsDataUrl(url, defaultMime = "image/jpeg") {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4500);
+        const res = await fetch(url, {signal: controller.signal});
+        clearTimeout(timeoutId);
+        if (!res.ok) return null;
+        const contentType = res.headers.get("content-type") || defaultMime;
+        const arrayBuffer = await res.arrayBuffer();
+        const base64 = Buffer.from(arrayBuffer).toString("base64");
+        return `data:${contentType};base64,${base64}`;
+    } catch (_) {
+        return null;
+    }
+}
+
+/**
  * Callable Cloud Function: placesAutocomplete
  * Proxies Google Places Autocomplete API server-to-server to eradicate browser CORS limitations
  * and avoid exposing the Google Maps API key on the client.
@@ -1016,66 +1132,12 @@ exports.placesAutocomplete = onCall(
             );
         }
 
-        // --- 1. Client IP & Location Biasing ---
-        let lat = null;
-        let lng = null;
-        let countryCode = null;
+        const {lat, lng, countryCode} = resolveLocationAnchor(request);
 
-        // A. Check App Engine / Cloud Load Balancer geo headers if present
-        const gcpLatLong = request.rawRequest?.headers?.["x-appengine-citylatlong"];
-        if (typeof gcpLatLong === "string" && gcpLatLong.includes(",")) {
-            const parts = gcpLatLong.split(",");
-            const parsedLat = parseFloat(parts[0]);
-            const parsedLng = parseFloat(parts[1]);
-            if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
-                lat = parsedLat;
-                lng = parsedLng;
-            }
-        }
-        if (request.rawRequest?.headers?.["x-appengine-country"]) {
-            countryCode = request.rawRequest.headers["x-appengine-country"];
-        }
-
-        // B. Resolve via geoip-lite using client IP
-        if (lat === null || lng === null) {
-            const rawForwarded = request.rawRequest?.headers?.["x-forwarded-for"];
-            const clientIp = (typeof rawForwarded === "string" ? rawForwarded.split(",")[0].trim() : null)
-                || request.rawRequest?.ip
-                || (typeof request.data?.clientIp === "string" ? request.data.clientIp : null);
-
-            if (clientIp) {
-                const geo = geoip.lookup(clientIp);
-                if (geo && Array.isArray(geo.ll) && geo.ll.length >= 2) {
-                    lat = geo.ll[0];
-                    lng = geo.ll[1];
-                    if (!countryCode && geo.country) {
-                        countryCode = geo.country;
-                    }
-                }
-            }
-        }
-
-        // C. Client-provided fallback (e.g. from saved/favorite places or user preferences)
-        if (lat === null || lng === null) {
-            const fallback = request.data?.fallbackLocation;
-            if (fallback && typeof fallback === "object") {
-                const fLat = parseFloat(fallback.lat ?? fallback.latitude);
-                const fLng = parseFloat(fallback.lng ?? fallback.longitude);
-                if (!isNaN(fLat) && !isNaN(fLng)) {
-                    lat = fLat;
-                    lng = fLng;
-                }
-                if (!countryCode && typeof fallback.country === "string") {
-                    countryCode = fallback.country;
-                }
-            }
-        }
-
-        // --- 2. Construct Google Places URL with locationbias ---
         let biasParams = "";
         if (lat !== null && lng !== null) {
-            // Tight City Bias (~15 km / 10 miles)
-            biasParams += `&locationbias=circle:15000@${lat},${lng}`;
+            // Local priority bias (~20 km / ~12.5 miles) + origin for distance_meters
+            biasParams += `&locationbias=circle:20000@${lat},${lng}&origin=${lat},${lng}`;
         }
         if (countryCode) {
             biasParams += `&components=country:${encodeURIComponent(countryCode.toLowerCase())}`;
@@ -1097,10 +1159,252 @@ exports.placesAutocomplete = onCall(
                 status: data.status || "OK",
                 predictions: data.predictions || [],
                 errorMessage: data.error_message || null,
+                anchor: (lat !== null && lng !== null) ? {lat, lng} : null,
             };
         } catch (error) {
             if (error instanceof HttpsError) throw error;
             logger.error("Exception in placesAutocomplete proxy:", error);
+            throw new HttpsError("internal", "Network error communicating with Google Places.");
+        }
+    }
+);
+
+/**
+ * Callable Cloud Function: placesTextSearch
+ * Proxies Google Places Text Search API for Vibe Discovery (e.g. "Date Night", "Coffee & Tea")
+ * and full search submissions, returning ratings, price levels, open status, and distances.
+ */
+exports.placesTextSearch = onCall(
+    {
+        cors: true,
+        enforceAppCheck: false,
+    },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError(
+                "unauthenticated",
+                "Authentication is required to search locations."
+            );
+        }
+
+        const query = request.data?.query || request.data?.input;
+        if (!query || typeof query !== "string" || query.trim().length === 0) {
+            return {
+                status: "OK",
+                results: [],
+            };
+        }
+
+        const apiKey = process.env.PLACES_API_KEY || request.data?.apiKey;
+        if (!apiKey) {
+            logger.error("PLACES_API_KEY is not configured on Cloud Functions.");
+            throw new HttpsError(
+                "failed-precondition",
+                "Places service is temporarily unavailable."
+            );
+        }
+
+        const {lat, lng, countryCode} = resolveLocationAnchor(request);
+
+        let locationParams = "";
+        if (lat !== null && lng !== null) {
+            locationParams += `&location=${lat},${lng}&radius=20000`;
+        }
+        if (countryCode) {
+            locationParams += `&region=${encodeURIComponent(countryCode.toLowerCase())}`;
+        }
+
+        const encodedQuery = encodeURIComponent(query.trim());
+        const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodedQuery}&key=${apiKey}${locationParams}`;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                logger.error(`Google Places TextSearch HTTP error: ${response.status} ${response.statusText}`);
+                throw new HttpsError("internal", "Failed to contact Google Places service.");
+            }
+
+            const data = await response.json();
+            const rawResults = Array.isArray(data.results) ? data.results.slice(0, 15) : [];
+
+            const results = rawResults.map((item) => {
+                const itemLat = item.geometry?.location?.lat ?? null;
+                const itemLng = item.geometry?.location?.lng ?? null;
+                const distanceMeters = calculateDistanceMeters(lat, lng, itemLat, itemLng);
+
+                return {
+                    place_id: item.place_id || "",
+                    name: item.name || "",
+                    formatted_address: item.formatted_address || "",
+                    rating: typeof item.rating === "number" ? item.rating : null,
+                    user_ratings_total: typeof item.user_ratings_total === "number" ? item.user_ratings_total : null,
+                    price_level: typeof item.price_level === "number" ? item.price_level : null,
+                    open_now: typeof item.opening_hours?.open_now === "boolean" ? item.opening_hours.open_now : null,
+                    types: Array.isArray(item.types) ? item.types : [],
+                    lat: itemLat,
+                    lng: itemLng,
+                    distance_meters: distanceMeters,
+                    structured_formatting: {
+                        main_text: item.name || "",
+                        secondary_text: item.formatted_address || "",
+                    },
+                };
+            });
+
+            return {
+                status: data.status || "OK",
+                results,
+                errorMessage: data.error_message || null,
+                anchor: (lat !== null && lng !== null) ? {lat, lng} : null,
+            };
+        } catch (error) {
+            if (error instanceof HttpsError) throw error;
+            logger.error("Exception in placesTextSearch proxy:", error);
+            throw new HttpsError("internal", "Network error communicating with Google Places.");
+        }
+    }
+);
+
+/**
+ * Callable Cloud Function: placeDetails
+ * Fetches Google Place Details (summary info, rating, hours, editorial summary, website, phone)
+ * and proxies the top Place Photo + Static Map Pin Thumbnail as data URLs.
+ */
+exports.placeDetails = onCall(
+    {
+        cors: true,
+        enforceAppCheck: false,
+    },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError(
+                "unauthenticated",
+                "Authentication is required to view place details."
+            );
+        }
+
+        const apiKey = process.env.PLACES_API_KEY || request.data?.apiKey;
+        if (!apiKey) {
+            logger.error("PLACES_API_KEY is not configured on Cloud Functions.");
+            throw new HttpsError(
+                "failed-precondition",
+                "Places service is temporarily unavailable."
+            );
+        }
+
+        let placeId = typeof request.data?.placeId === "string" ? request.data.placeId.trim() : "";
+        const queryFallback = typeof request.data?.query === "string" ? request.data.query.trim() : "";
+        const sessionToken = typeof request.data?.sessionToken === "string" ? request.data.sessionToken.trim() : "";
+        const isDark = Boolean(request.data?.isDark);
+
+        try {
+            // If a legacy saved place doesn't have a placeId yet, resolve it via Find Place From Text
+            if (!placeId && queryFallback) {
+                const findUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(queryFallback)}&inputtype=textquery&fields=place_id&key=${apiKey}`;
+                const findRes = await fetch(findUrl);
+                if (findRes.ok) {
+                    const findData = await findRes.json();
+                    if (Array.isArray(findData.candidates) && findData.candidates.length > 0) {
+                        placeId = findData.candidates[0].place_id || "";
+                    }
+                }
+            }
+
+            if (!placeId) {
+                return {
+                    status: "NOT_FOUND",
+                    details: null,
+                };
+            }
+
+            const fields = [
+                "place_id",
+                "name",
+                "formatted_address",
+                "geometry",
+                "types",
+                "rating",
+                "user_ratings_total",
+                "price_level",
+                "opening_hours",
+                "editorial_summary",
+                "website",
+                "formatted_phone_number",
+                "url",
+                "photos",
+            ].join(",");
+
+            const sessionParam = sessionToken ? `&sessiontoken=${encodeURIComponent(sessionToken)}` : "";
+            const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=${fields}${sessionParam}&key=${apiKey}`;
+
+            const response = await fetch(detailsUrl);
+            if (!response.ok) {
+                logger.error(`Google Place Details HTTP error: ${response.status} ${response.statusText}`);
+                throw new HttpsError("internal", "Failed to contact Google Places service.");
+            }
+
+            const data = await response.json();
+            if (data.status !== "OK" || !data.result) {
+                return {
+                    status: data.status || "NOT_FOUND",
+                    details: null,
+                    errorMessage: data.error_message || null,
+                };
+            }
+
+            const r = data.result;
+            const lat = r.geometry?.location?.lat ?? null;
+            const lng = r.geometry?.location?.lng ?? null;
+
+            // Prepare parallel image fetches:
+            // 1. Primary Place Photo (if available)
+            let photoPromise = Promise.resolve(null);
+            if (Array.isArray(r.photos) && r.photos.length > 0 && r.photos[0].photo_reference) {
+                const photoRef = encodeURIComponent(r.photos[0].photo_reference);
+                const photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=640&photo_reference=${photoRef}&key=${apiKey}`;
+                photoPromise = fetchImageAsDataUrl(photoUrl, "image/jpeg");
+            }
+
+            // 2. Static Map Pin Thumbnail (if coordinates available and Static Maps API enabled)
+            let staticMapPromise = Promise.resolve(null);
+            if (lat !== null && lng !== null) {
+                const darkStyles = isDark
+                    ? "&style=element:geometry%7Ccolor:0x1d2c4d&style=element:labels.text.fill%7Ccolor:0x8ec3b9&style=element:labels.text.stroke%7Ccolor:0x1a3646&style=feature:road%7Celement:geometry%7Ccolor:0x304a7d&style=feature:water%7Celement:geometry%7Ccolor:0x0e1626"
+                    : "";
+                const staticMapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=15&size=480x280&scale=2&maptype=roadmap&markers=color:red%7C${lat},${lng}${darkStyles}&key=${apiKey}`;
+                staticMapPromise = fetchImageAsDataUrl(staticMapUrl, "image/png");
+            }
+
+            const [photoDataUrl, staticMapDataUrl] = await Promise.all([
+                photoPromise,
+                staticMapPromise,
+            ]);
+
+            return {
+                status: "OK",
+                details: {
+                    placeId: r.place_id || placeId,
+                    name: r.name || "",
+                    formattedAddress: r.formatted_address || "",
+                    lat,
+                    lng,
+                    types: Array.isArray(r.types) ? r.types : [],
+                    rating: typeof r.rating === "number" ? r.rating : null,
+                    userRatingsTotal: typeof r.user_ratings_total === "number" ? r.user_ratings_total : null,
+                    priceLevel: typeof r.price_level === "number" ? r.price_level : null,
+                    openNow: typeof r.opening_hours?.open_now === "boolean" ? r.opening_hours.open_now : null,
+                    weekdayText: Array.isArray(r.opening_hours?.weekday_text) ? r.opening_hours.weekday_text : [],
+                    editorialSummary: r.editorial_summary?.overview || null,
+                    website: r.website || null,
+                    phoneNumber: r.formatted_phone_number || null,
+                    googleMapsUrl: r.url || null,
+                    photoDataUrl,
+                    staticMapDataUrl,
+                },
+            };
+        } catch (error) {
+            if (error instanceof HttpsError) throw error;
+            logger.error("Exception in placeDetails proxy:", error);
             throw new HttpsError("internal", "Network error communicating with Google Places.");
         }
     }
