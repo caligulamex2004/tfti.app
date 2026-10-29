@@ -83,7 +83,9 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
   List<PlaceSearchResult> _searchResults = [];
   String? _sessionToken;
   Map<String, dynamic>? _fallbackLocation;
+  Future<void>? _fallbackInitFuture;
   String? _selectedChipId;
+  String? _lastTextSearchQuery;
   bool _isTextSearchMode = false;
 
   Timer? _debounce;
@@ -99,7 +101,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
     _fallbackLocation = widget.fallbackLocation;
     _selectedChipId = widget.showFavorites ? 'vip' : null;
     _controller.addListener(_onSearchChanged);
-    _initFallbackLocationFromSavedPlaces();
+    _fallbackInitFuture = _initFallbackLocationFromSavedPlaces();
   }
 
   Future<void> _initFallbackLocationFromSavedPlaces() async {
@@ -208,6 +210,39 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
     return false;
   }
 
+  bool _isTransientFunctionError(FirebaseFunctionsException fe) {
+    final code = fe.code.toLowerCase();
+    return code == 'internal' ||
+        code == 'unavailable' ||
+        code == 'deadline-exceeded';
+  }
+
+  String _friendlyErrorMessage(FirebaseFunctionsException fe) {
+    final msg = (fe.message ?? '').trim();
+    if (msg.isEmpty ||
+        msg.toLowerCase() == 'internal' ||
+        fe.code.toLowerCase() == 'internal') {
+      return 'Places service is warming up or temporarily busy. Please try again.';
+    }
+    return msg;
+  }
+
+  Future<HttpsCallableResult<dynamic>> _callFunctionWithRetry(
+    String functionName,
+    Map<String, dynamic> payload,
+  ) async {
+    final callable = FirebaseFunctions.instance.httpsCallable(functionName);
+    try {
+      return await callable.call(payload);
+    } on FirebaseFunctionsException catch (fe) {
+      if (_isTransientFunctionError(fe)) {
+        await Future<void>.delayed(const Duration(milliseconds: 450));
+        return await callable.call(payload);
+      }
+      rethrow;
+    }
+  }
+
   Future<void> _fetchAutocompleteSuggestions(String input) async {
     final trimmed = input.trim();
     if (trimmed.isEmpty) return;
@@ -219,9 +254,14 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
     });
 
     try {
-      final callable =
-          FirebaseFunctions.instance.httpsCallable('placesAutocomplete');
-      final result = await callable.call({
+      if (_fallbackLocation == null && _fallbackInitFuture != null) {
+        await _fallbackInitFuture!.timeout(
+          const Duration(milliseconds: 450),
+          onTimeout: () {},
+        );
+      }
+
+      final result = await _callFunctionWithRetry('placesAutocomplete', {
         'input': trimmed,
         'sessionToken': _sessionToken ?? '',
         if (_apiKey.isNotEmpty) 'apiKey': _apiKey,
@@ -282,7 +322,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
     } on FirebaseFunctionsException catch (fe) {
       if (!mounted) return;
       setState(() {
-        _error = fe.message ?? 'Search failed. Please try again.';
+        _error = _friendlyErrorMessage(fe);
         _isLoading = false;
       });
     } catch (e) {
@@ -302,6 +342,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
     if (trimmed.isEmpty) return;
 
     _debounce?.cancel();
+    _lastTextSearchQuery = trimmed;
     setState(() {
       _isLoading = true;
       _error = null;
@@ -309,9 +350,14 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
     });
 
     try {
-      final callable =
-          FirebaseFunctions.instance.httpsCallable('placesTextSearch');
-      final result = await callable.call({
+      if (_fallbackLocation == null && _fallbackInitFuture != null) {
+        await _fallbackInitFuture!.timeout(
+          const Duration(milliseconds: 450),
+          onTimeout: () {},
+        );
+      }
+
+      final result = await _callFunctionWithRetry('placesTextSearch', {
         'query': trimmed,
         if (_apiKey.isNotEmpty) 'apiKey': _apiKey,
         if (_fallbackLocation != null) 'fallbackLocation': _fallbackLocation,
@@ -352,7 +398,7 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
     } on FirebaseFunctionsException catch (fe) {
       if (!mounted) return;
       setState(() {
-        _error = fe.message ?? 'Search failed. Please try again.';
+        _error = _friendlyErrorMessage(fe);
         _isLoading = false;
       });
     } catch (_) {
@@ -361,6 +407,24 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
         _error = 'Network error. Please try again.';
         _isLoading = false;
       });
+    }
+  }
+
+  void _retryLastSearch() {
+    HapticFeedback.lightImpact();
+    if (_isTextSearchMode &&
+        _lastTextSearchQuery != null &&
+        _lastTextSearchQuery!.isNotEmpty) {
+      _executeTextSearch(_lastTextSearchQuery!, keepSearchText: true);
+    } else if (_controller.text.trim().isNotEmpty) {
+      _fetchAutocompleteSuggestions(_controller.text);
+    } else if (_selectedChipId != null && _selectedChipId != 'vip') {
+      for (final preset in _vibePresets) {
+        if (preset.id == _selectedChipId) {
+          _executeTextSearch(preset.query);
+          return;
+        }
+      }
     }
   }
 
@@ -658,7 +722,25 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: isDark ? Colors.white70 : Colors.black87,
-                fontSize: 16,
+                fontSize: 15.5,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _retryLastSearch,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeProvider.pillBackgroundColor,
+                foregroundColor: themeProvider.pillTextColor,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text(
+                'Try Again',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ],

@@ -1031,22 +1031,26 @@ function resolveLocationAnchor(request) {
 
     // 3. Fallback to geoip-lite using client IP
     if (lat === null || lng === null || !countryCode) {
-        const rawForwarded = request.rawRequest?.headers?.["x-forwarded-for"];
-        const clientIp = (typeof rawForwarded === "string" ? rawForwarded.split(",")[0].trim() : null)
-            || request.rawRequest?.ip
-            || (typeof request.data?.clientIp === "string" ? request.data.clientIp : null);
+        try {
+            const rawForwarded = request.rawRequest?.headers?.["x-forwarded-for"];
+            const clientIp = (typeof rawForwarded === "string" ? rawForwarded.split(",")[0].trim() : null)
+                || request.rawRequest?.ip
+                || (typeof request.data?.clientIp === "string" ? request.data.clientIp : null);
 
-        if (clientIp) {
-            const geo = getGeoIp().lookup(clientIp);
-            if (geo) {
-                if ((lat === null || lng === null) && Array.isArray(geo.ll) && geo.ll.length >= 2) {
-                    lat = geo.ll[0];
-                    lng = geo.ll[1];
-                }
-                if (!countryCode && geo.country) {
-                    countryCode = geo.country;
+            if (clientIp) {
+                const geo = getGeoIp().lookup(clientIp);
+                if (geo) {
+                    if ((lat === null || lng === null) && Array.isArray(geo.ll) && geo.ll.length >= 2) {
+                        lat = geo.ll[0];
+                        lng = geo.ll[1];
+                    }
+                    if (!countryCode && geo.country) {
+                        countryCode = geo.country;
+                    }
                 }
             }
+        } catch (geoErr) {
+            logger.warn("Non-fatal error in geoip lookup:", geoErr);
         }
     }
 
@@ -1104,6 +1108,7 @@ exports.placesAutocomplete = onCall(
     {
         cors: true,
         enforceAppCheck: false,
+        memory: "512MiB",
     },
     async (request) => {
         if (!request.auth) {
@@ -1132,22 +1137,22 @@ exports.placesAutocomplete = onCall(
             );
         }
 
-        const {lat, lng, countryCode} = resolveLocationAnchor(request);
-
-        let biasParams = "";
-        if (lat !== null && lng !== null) {
-            // Local priority bias (~20 km / ~12.5 miles) + origin for distance_meters
-            biasParams += `&locationbias=circle:20000@${lat},${lng}&origin=${lat},${lng}`;
-        }
-        if (countryCode) {
-            biasParams += `&components=country:${encodeURIComponent(countryCode.toLowerCase())}`;
-        }
-
-        const encodedInput = encodeURIComponent(input.trim());
-        const sessionParam = sessionToken ? `&sessiontoken=${encodeURIComponent(sessionToken)}` : "";
-        const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodedInput}&key=${apiKey}${sessionParam}${biasParams}`;
-
         try {
+            const {lat, lng, countryCode} = resolveLocationAnchor(request);
+
+            let biasParams = "";
+            if (lat !== null && lng !== null) {
+                // Local priority bias (~20 km / ~12.5 miles) + origin for distance_meters
+                biasParams += `&locationbias=circle:20000@${lat},${lng}&origin=${lat},${lng}`;
+            }
+            if (countryCode) {
+                biasParams += `&components=country:${encodeURIComponent(countryCode.toLowerCase())}`;
+            }
+
+            const encodedInput = encodeURIComponent(input.trim());
+            const sessionParam = sessionToken ? `&sessiontoken=${encodeURIComponent(sessionToken)}` : "";
+            const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodedInput}&key=${apiKey}${sessionParam}${biasParams}`;
+
             const response = await fetch(url);
             if (!response.ok) {
                 logger.error(`Google Places API HTTP error: ${response.status} ${response.statusText}`);
@@ -1178,6 +1183,7 @@ exports.placesTextSearch = onCall(
     {
         cors: true,
         enforceAppCheck: false,
+        memory: "512MiB",
     },
     async (request) => {
         if (!request.auth) {
@@ -1204,20 +1210,20 @@ exports.placesTextSearch = onCall(
             );
         }
 
-        const {lat, lng, countryCode} = resolveLocationAnchor(request);
-
-        let locationParams = "";
-        if (lat !== null && lng !== null) {
-            locationParams += `&location=${lat},${lng}&radius=20000`;
-        }
-        if (countryCode) {
-            locationParams += `&region=${encodeURIComponent(countryCode.toLowerCase())}`;
-        }
-
-        const encodedQuery = encodeURIComponent(query.trim());
-        const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodedQuery}&key=${apiKey}${locationParams}`;
-
         try {
+            const {lat, lng, countryCode} = resolveLocationAnchor(request);
+
+            let locationParams = "";
+            if (lat !== null && lng !== null) {
+                locationParams += `&location=${lat},${lng}&radius=20000`;
+            }
+            if (countryCode) {
+                locationParams += `&region=${encodeURIComponent(countryCode.toLowerCase())}`;
+            }
+
+            const encodedQuery = encodeURIComponent(query.trim());
+            const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodedQuery}&key=${apiKey}${locationParams}`;
+
             const response = await fetch(url);
             if (!response.ok) {
                 logger.error(`Google Places TextSearch HTTP error: ${response.status} ${response.statusText}`);
@@ -1274,6 +1280,7 @@ exports.placeDetails = onCall(
     {
         cors: true,
         enforceAppCheck: false,
+        memory: "512MiB",
     },
     async (request) => {
         if (!request.auth) {

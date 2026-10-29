@@ -175,7 +175,7 @@ class PlaceService {
     }
 
     final callable = FirebaseFunctions.instance.httpsCallable('placeDetails');
-    final result = await callable.call({
+    final payload = <String, dynamic>{
       if (placeId != null && placeId.isNotEmpty) 'placeId': placeId,
       if (queryFallback != null && queryFallback.isNotEmpty)
         'query': queryFallback,
@@ -183,7 +183,22 @@ class PlaceService {
         'sessionToken': sessionToken,
       'isDark': isDark,
       if (_apiKey.isNotEmpty) 'apiKey': _apiKey,
-    });
+    };
+
+    HttpsCallableResult<dynamic> result;
+    try {
+      result = await callable.call(payload);
+    } on FirebaseFunctionsException catch (fe) {
+      final code = fe.code.toLowerCase();
+      if (code == 'internal' ||
+          code == 'unavailable' ||
+          code == 'deadline-exceeded') {
+        await Future<void>.delayed(const Duration(milliseconds: 450));
+        result = await callable.call(payload);
+      } else {
+        rethrow;
+      }
+    }
 
     if (result.data is! Map) return null;
     final data = Map<String, dynamic>.from(result.data as Map);
