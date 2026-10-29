@@ -2,7 +2,7 @@ name: tftiapp
 description: "The low-friction social coordination and friend circle platform."
 publish_to: 'none' 
 
-version: 1.0.0+15
+version: 1.0.0+16
 
 environment:
   sdk: ^3.10.4
