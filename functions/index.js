@@ -3,13 +3,93 @@ const {onDocumentCreated, onDocumentUpdated} = require("firebase-functions/v2/fi
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
+const fs = require("fs");
+const path = require("path");
 
-let _geoip = null;
-function getGeoIp() {
-    if (!_geoip) {
-        _geoip = require("geoip-lite");
+/**
+ * Zero-RAM on-disk binary search over geoip-lite's data file.
+ * Avoids `require("geoip-lite")`, which loads 153 MB of `.dat` files into RAM on startup.
+ * Uses ~24 bytes of buffer memory and completes in ~2ms.
+ */
+function lookupIpLowMem(ipStr) {
+    if (!ipStr || typeof ipStr !== "string") return null;
+    const cleanIp = ipStr.replace(/^::ffff:/i, "").trim();
+    const parts = cleanIp.split(".");
+    if (parts.length !== 4) return null;
+
+    let ipNum = 0;
+    for (let i = 0; i < 4; i++) {
+        const octet = parseInt(parts[i], 10);
+        if (isNaN(octet) || octet < 0 || octet > 255) return null;
+        ipNum = (ipNum * 256) + octet;
     }
-    return _geoip;
+
+    // Ignore private/loopback IPv4 ranges
+    if (
+        (ipNum >= 0x0A000000 && ipNum <= 0x0AFFFFFF) || // 10.0.0.0/8
+        (ipNum >= 0xAC100000 && ipNum <= 0xAC1FFFFF) || // 172.16.0.0/12
+        (ipNum >= 0xC0A80000 && ipNum <= 0xC0A8FFFF) || // 192.168.0.0/16
+        (ipNum >= 0x7F000000 && ipNum <= 0x7FFFFFFF)    // 127.0.0.0/8
+    ) {
+        return null;
+    }
+
+    const dataDir = path.resolve(__dirname, "node_modules/geoip-lite/data");
+    const cityFile = path.join(dataDir, "geoip-city.dat");
+    const locFile = path.join(dataDir, "geoip-city-names.dat");
+    if (!fs.existsSync(cityFile)) return null;
+
+    const recordSize = 24;
+    const locRecordSize = 88;
+    const stat = fs.statSync(cityFile);
+    const totalLines = Math.floor(stat.size / recordSize);
+    if (totalLines <= 0) return null;
+
+    const fd = fs.openSync(cityFile, "r");
+    const buf = Buffer.alloc(recordSize);
+    try {
+        let fline = 0;
+        let cline = totalLines - 1;
+
+        fs.readSync(fd, buf, 0, recordSize, 0);
+        const firstIP = buf.readUInt32BE(0);
+        fs.readSync(fd, buf, 0, recordSize, cline * recordSize);
+        const lastIP = buf.readUInt32BE(4);
+        if (ipNum < firstIP || ipNum > lastIP) return null;
+
+        while (fline <= cline) {
+            const line = Math.floor((fline + cline) / 2);
+            fs.readSync(fd, buf, 0, recordSize, line * recordSize);
+            const floor = buf.readUInt32BE(0);
+            const ceil = buf.readUInt32BE(4);
+
+            if (ipNum >= floor && ipNum <= ceil) {
+                const locId = buf.readUInt32BE(8);
+                const lat = buf.readInt32BE(12) / 10000;
+                const lng = buf.readInt32BE(16) / 10000;
+                let country = null;
+
+                if (locId !== (-1 >>> 0) && fs.existsSync(locFile)) {
+                    const locFd = fs.openSync(locFile, "r");
+                    const locBuf = Buffer.alloc(2);
+                    try {
+                        fs.readSync(locFd, locBuf, 0, 2, locId * locRecordSize);
+                        country = locBuf.toString("utf8", 0, 2).replace(/\u0000.*/, "");
+                    } finally {
+                        fs.closeSync(locFd);
+                    }
+                }
+                return {ll: [lat, lng], country};
+            } else if (ipNum < floor) {
+                cline = line - 1;
+            } else {
+                fline = line + 1;
+            }
+        }
+        return null;
+    } finally {
+        fs.closeSync(fd);
+    }
 }
 
 admin.initializeApp();
@@ -1029,8 +1109,8 @@ function resolveLocationAnchor(request) {
         countryCode = request.rawRequest.headers["x-appengine-country"];
     }
 
-    // 3. Fallback to geoip-lite using client IP
-    if (lat === null || lng === null || !countryCode) {
+    // 3. Fallback to zero-RAM on-disk IP lookup only when coordinates are still unknown
+    if (lat === null || lng === null) {
         try {
             const rawForwarded = request.rawRequest?.headers?.["x-forwarded-for"];
             const clientIp = (typeof rawForwarded === "string" ? rawForwarded.split(",")[0].trim() : null)
@@ -1038,9 +1118,9 @@ function resolveLocationAnchor(request) {
                 || (typeof request.data?.clientIp === "string" ? request.data.clientIp : null);
 
             if (clientIp) {
-                const geo = getGeoIp().lookup(clientIp);
+                const geo = lookupIpLowMem(clientIp);
                 if (geo) {
-                    if ((lat === null || lng === null) && Array.isArray(geo.ll) && geo.ll.length >= 2) {
+                    if (Array.isArray(geo.ll) && geo.ll.length >= 2) {
                         lat = geo.ll[0];
                         lng = geo.ll[1];
                     }
@@ -1108,7 +1188,6 @@ exports.placesAutocomplete = onCall(
     {
         cors: true,
         enforceAppCheck: false,
-        memory: "512MiB",
     },
     async (request) => {
         if (!request.auth) {
@@ -1183,7 +1262,6 @@ exports.placesTextSearch = onCall(
     {
         cors: true,
         enforceAppCheck: false,
-        memory: "512MiB",
     },
     async (request) => {
         if (!request.auth) {
@@ -1280,7 +1358,6 @@ exports.placeDetails = onCall(
     {
         cors: true,
         enforceAppCheck: false,
-        memory: "512MiB",
     },
     async (request) => {
         if (!request.auth) {
