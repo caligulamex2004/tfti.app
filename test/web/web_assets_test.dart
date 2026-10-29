@@ -94,7 +94,7 @@ void main() {
       expect(html.length, greaterThan(500));
       expect(html, contains('Support & Help'));
       expect(html, contains('Frequently Asked Questions'));
-      expect(html, contains('support@tfti.app'));
+      expect(html, contains('tfti.bearmoose@gmail.com'));
     });
 
     test(
@@ -111,7 +111,7 @@ void main() {
         expect(html.length, greaterThan(1000));
         expect(html, contains('Delete Account'));
         expect(html, contains('Method 1: Delete Directly in the App'));
-        expect(html, contains('support@tfti.app'));
+        expect(html, contains('tfti.bearmoose@gmail.com'));
       },
     );
 

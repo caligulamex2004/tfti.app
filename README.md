@@ -113,7 +113,7 @@ A multi-layered defense system that blocks random phone scraping and unsolicited
 - **Public Legal & Store Compliance**:
   - [Privacy Policy](https://tfti-app.web.app/privacy): Detailed disclosure of data collection, storage, and user rights.
   - [Terms of Service](https://tfti-app.web.app/terms): User conduct and circle coordination terms.
-  - [Support & FAQ](https://tfti-app.web.app/support): Help center and technical inquiries (`support@tfti.app`).
+  - [Support & FAQ](https://tfti-app.web.app/support): Help center and technical inquiries (`tfti.bearmoose@gmail.com`).
   - [Account Deletion](https://tfti-app.web.app/delete-account): Web-accessible deletion instructions satisfying Apple App Store Guideline 5.1.1(v).
 - **Social Link Previews**: Rich Open Graph and Twitter Card tags for crisp link previews across iMessage, WhatsApp, Slack, Discord, and Twitter/X.
 - **Google Calendar Web Integration**: Instant web event creation via standard Google Calendar URL templates.
