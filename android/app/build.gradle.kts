@@ -68,8 +68,12 @@ android {
             signingConfig = signingConfigs.getByName("release")
             
             // Standard optimization settings
-            isMinifyEnabled = false
-            isShrinkResources = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
         getByName("debug") {
             // Force the local debug build to use your official key.properties signature
