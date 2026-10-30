@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/Firebase-Auth_%7C_Firestore_%7C_FCM_%7C_Storage_%7C_Hosting-FFCA28?logo=firebase&logoColor=black" alt="Firebase" />
   <img src="https://img.shields.io/badge/Google_Maps-Places_API-4285F4?logo=googlemaps&logoColor=white" alt="Google Maps" />
   <img src="https://img.shields.io/badge/Platforms-iOS_15%2B_%7C_Android_5.0%2B_%7C_Web-brightgreen" alt="Platforms" />
-  <img src="https://img.shields.io/badge/Tests-141_Passing-success" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-289_Passing-success" alt="Tests" />
   <img src="https://img.shields.io/badge/License-Proprietary-blue" alt="License" />
 </p>
 
@@ -288,7 +288,7 @@ tftiapp/
 
 ## 🧪 Testing & Quality Assurance
 
-This codebase enforces strict automated testing for logic, models, privacy controls, UI components, responsive layouts, and web store compliance. **141 automated tests** run across the test suite with 100% pass rate.
+This codebase enforces strict automated testing for logic, models, privacy controls, UI components, responsive layouts, and web store compliance. **289 automated tests** run across the test suite with 100% pass rate.
 
 ### Run the Test Suite
 ```bash

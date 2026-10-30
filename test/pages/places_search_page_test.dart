@@ -11,12 +11,14 @@ void main() {
 
   group('PlacesSearchPage UI Tests', () {
     testWidgets('Renders search bar with hint text and icon', (tester) async {
-      await tester.pumpWidget(buildPlacesSearchPage());
+      await tester.pumpWidget(buildPlacesSearchPage(showFavorites: false));
 
-      expect(find.text('Search Places'), findsOneWidget);
+      expect(find.text('Add VIP Place'), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.text('e.g. Starbucks, Central Park'), findsOneWidget);
-      expect(find.text('Search for an address'), findsOneWidget);
+      expect(
+        find.text('Search address, venue, or vibe (e.g. date spot)...'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('Entering and clearing text updates input controller', (tester) async {
@@ -47,7 +49,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Search Places'), findsOneWidget);
+      expect(find.text('Add VIP Place'), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
     });
   });
