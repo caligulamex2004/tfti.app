@@ -77,7 +77,7 @@ Modern group chats are broken for planning hangouts. They drown in endless back-
 ### 3. Squad Circles & Social Graph
 - **Dynamic Circles**: Segment your friends into custom interest-based circles so notifications only reach the people who care.
 - **Streamlined Team Creation Flow**: Type-safe modal return architecture (`CreateTeamSheet.showCreate<T>`) enabling instantaneous selection and navigation to newly created circles across mobile portrait and split-view landscape layouts.
-- **Goated Friends**: Mark your favorite / best friends as "Goated" (⭐) to highlight them in feeds and filter event views.
+- **VIP Friends**: Mark your favorite / best friends as "VIP" (⭐) to highlight them in feeds and filter event views.
 - **Contextual Empty States & Shimmer Skeletons**: Fluid animations and informative empty cards guide users when their squad or circles are fresh.
 
 ### 4. Squad Request Security & Privacy Shield
