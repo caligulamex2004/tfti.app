@@ -118,7 +118,8 @@ A multi-layered defense system that blocks random phone scraping and unsolicited
 - **Social Link Previews**: Rich Open Graph and Twitter Card tags for crisp link previews across iMessage, WhatsApp, Slack, Discord, and Twitter/X.
 - **Google Calendar Web Integration**: Instant web event creation via standard Google Calendar URL templates.
 - **Responsive Layout & Polished Presentation**: Adaptive container constraints across desktop browsers, iPads/tablets, and mobile viewports with centered cards, dedicated scroll boundaries, and overflow-safe footer links.
-- **Platform-Aware Media Delivery**: Dual-engine image rendering (`AppBannerImage`) using native browser HTTP caching on web to avoid canvas detachment, alongside custom Cloud Storage CORS rules (`cors.json`) for secure cross-origin asset access.
+- **Platform-Aware Media Delivery**: Dual-engine image rendering (`AppBannerImage`, `AppAvatar`) using native browser HTTP caching on web to avoid IndexedDB/Blob URL detachment across route transitions, paired with Cloud Storage CORS bucket rules (`cors.json`) so Flutter Web's WebGL (`CanvasKit`/`Skwasm`) renderer can decode cross-origin avatars, event banners, and chat photos.
+- **Server-Proxied Location & Place Previews**: Callable Cloud Functions (`placesAutocomplete`, `placesTextSearch`, `placeDetails`) proxy Google Places API queries server-to-server and inline Place Photos and Static Map pin thumbnails as base64 data URLs, keeping API keys off the client and bypassing third-party browser CORS restrictions.
 - **Cross-Platform Byte Uploads**: Decoupled file handling with `Uint8List` byte streams, eliminating `dart:io` `File` limitations across Flutter Web, desktop, and mobile for user avatars, event banners, and in-chat photos.
 
 ---
@@ -165,7 +166,7 @@ flowchart TD
 | **Media & Storage** | `firebase_storage`, `image_picker`, `image_cropper`, `flutter_image_compress` | Profile photos and event attachments |
 | **Hardware / Sensors** | `mobile_scanner`, `qr_flutter` | High-speed QR code generation and camera scanning |
 | **Device Integration** | `flutter_contacts`, `add_2_calendar`, `url_launcher` | Address book imports and native calendar syncing |
-| **Location & Maps** | Google Maps Platform Places API, `http` | Location search and favorite place autocomplete |
+| **Location & Maps** | Google Maps Platform Places API, `cloud_functions`, `http` | Server-proxied location search, place details, and favorite place autocomplete |
 | **Monetization** | `purchases_flutter` (RevenueCat) | In-app purchases and supporter tip jar |
 
 ---
@@ -176,7 +177,7 @@ flowchart TD
 tftiapp/
 ├── assets/
 │   └── icon/                     # App launcher icons and splash assets
-├── functions/                    # Cloud Functions for Firebase triggers & FCM
+├── functions/                    # Cloud Functions for Firebase triggers, FCM & Places API proxy
 ├── lib/
 │   ├── components/
 │   │   ├── account/              # AccountEditCard, settings cards, danger cards
@@ -207,7 +208,7 @@ tftiapp/
 │   ├── terms.html                # Public Terms of Service
 │   ├── support.html              # Public Support and Help Center
 │   └── delete-account.html       # Apple Guideline 5.1.1(v) Account Deletion instructions
-├── cors.json                     # Firebase Storage CORS cross-origin headers configuration
+├── cors.json                     # Firebase Storage bucket CORS policy (applied via gcloud/gsutil for Flutter Web)
 ├── firebase.json                 # Firebase CLI project configuration (Hosting, Firestore, Functions)
 ├── firestore.rules               # Production Firestore Security Rules
 └── pubspec.yaml                  # Flutter package dependencies and metadata
@@ -253,7 +254,21 @@ tftiapp/
    firebase deploy --only firestore:rules
    ```
 
-3. **Run or Deploy**:
+3. **Apply Firebase Storage CORS Configuration (Required for Flutter Web)**:
+   [`cors.json`](cors.json) defines the cross-origin headers required for Flutter Web (`CanvasKit`/`Skwasm`) to load avatars, event banners, and chat images from Cloud Storage. Because `firebase deploy` does not apply bucket CORS policies automatically, apply it once via the Google Cloud CLI:
+   ```bash
+   gcloud storage buckets update gs://tfti-app.firebasestorage.app --cors-file=cors.json
+   # Or via gsutil:
+   # gsutil cors set cors.json gs://tfti-app.firebasestorage.app
+   ```
+
+4. **Deploy Cloud Functions**:
+   Deploys background Firestore/FCM triggers and the `cors: true` Callable Functions that proxy Google Places API queries:
+   ```bash
+   firebase deploy --only functions
+   ```
+
+5. **Run or Deploy**:
    ```bash
    # Launch on iOS Simulator
    flutter run -d ios
