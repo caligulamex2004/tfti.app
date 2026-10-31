@@ -226,7 +226,6 @@ class EventSummaryCard extends StatelessWidget {
                 keepAliveDays: keepAliveDays,
                 title: eventTitle,
                 location: data['location'] ?? "TBD",
-                hostLocationLabel: data['hostLocationLabel']?.toString(),
                 hostId: data['hostId'],
                 onHostTap: onHostTap,
                 isExpanded: canExpand,

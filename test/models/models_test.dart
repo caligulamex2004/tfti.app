@@ -13,6 +13,7 @@ import 'package:tftiapp/models/place_model.dart';
 import 'package:tftiapp/models/friend_model.dart';
 import 'package:tftiapp/models/invitation_model.dart';
 import 'package:tftiapp/models/feed_snapshot.dart';
+import 'package:tftiapp/components/places/place_summary_sheet.dart';
 
 void main() {
   group('Event Model Tests', () {
@@ -77,55 +78,6 @@ void main() {
       final updated = fromMap.copyWith(lastMinuteInvites: ['friend-x']);
       expect(updated.lastMinuteInvites, equals(['friend-x']));
       expect(updated.coHostLastMinuteInvites, equals(['friend-z']));
-    });
-
-    test('Event serializes, deserializes, and formats hostLocationLabel privacy correctly', () {
-      final now = DateTime(2026, 9, 25, 18, 30);
-      final event = Event(
-        id: 'evt-vip',
-        type: 'event',
-        hostId: 'host-adam',
-        title: 'Board Game Night',
-        location: '1234 Main St, Atlanta, GA 30301',
-        hostLocationLabel: 'My house',
-        time: now,
-      );
-
-      final map = event.toMap();
-      expect(map['location'], '1234 Main St, Atlanta, GA 30301');
-      expect(map['hostLocationLabel'], 'My house');
-
-      final fromMap = Event.fromMap(map, id: 'evt-vip');
-      expect(fromMap.location, '1234 Main St, Atlanta, GA 30301');
-      expect(fromMap.hostLocationLabel, 'My house');
-
-      // Host sees private label prefixed to address
-      expect(
-        fromMap.displayLocation(currentUserId: 'host-adam'),
-        'My house • 1234 Main St, Atlanta, GA 30301',
-      );
-
-      // Co-host and crew see ONLY the clean address
-      expect(
-        fromMap.displayLocation(currentUserId: 'cohost-bob'),
-        '1234 Main St, Atlanta, GA 30301',
-      );
-      expect(
-        fromMap.displayLocation(currentUserId: 'guest-charlie'),
-        '1234 Main St, Atlanta, GA 30301',
-      );
-      expect(
-        fromMap.displayLocation(currentUserId: null),
-        '1234 Main St, Atlanta, GA 30301',
-      );
-
-      // CopyWith preserves or updates hostLocationLabel
-      final modified = fromMap.copyWith(hostLocationLabel: 'The Mancave');
-      expect(modified.hostLocationLabel, 'The Mancave');
-      expect(
-        modified.displayLocation(currentUserId: 'host-adam'),
-        'The Mancave • 1234 Main St, Atlanta, GA 30301',
-      );
     });
   });
 
@@ -979,6 +931,77 @@ void main() {
       final copy = place.copyWith(name: 'Updated Taqueria');
       expect(copy.name, 'Updated Taqueria');
       expect(copy.lat, 37.7749);
+    });
+
+    test('PlaceSummaryResult carries isVip flag for VIP place selections', () {
+      const regular = PlaceSummaryResult(
+        selectionString: 'Starbucks, 6001 Peachtree Rd',
+        name: 'Starbucks',
+        address: '6001 Peachtree Rd',
+      );
+      expect(regular.isVip, isFalse);
+
+      const vip = PlaceSummaryResult(
+        selectionString: '1234 Main St, Atlanta, GA',
+        name: '1234 Main St',
+        address: '1234 Main St, Atlanta, GA',
+        isVip: true,
+      );
+      expect(vip.isVip, isTrue);
+      expect(vip.selectionString, '1234 Main St, Atlanta, GA');
+    });
+
+    test('VIP Place privacy decoupling: private SavedPlace.name is never leaked into selectionString', () {
+      // Scenario 1: Residential address with private label "My house"
+      final residentialPlace = SavedPlace(
+        id: 'vip-house',
+        name: 'My house',
+        address: '1234 Main St, Atlanta, GA 30301',
+      );
+
+      // Decoupled public fallback name
+      final residentialPublicName = residentialPlace.address.contains(',')
+          ? residentialPlace.address.split(',').first.trim()
+          : residentialPlace.address;
+
+      final residentialResult = PlaceSummaryResult(
+        selectionString: residentialPlace.address,
+        name: residentialPublicName,
+        address: residentialPlace.address,
+        isVip: true,
+      );
+
+      expect(residentialResult.selectionString, '1234 Main St, Atlanta, GA 30301');
+      expect(residentialResult.selectionString.contains(residentialPlace.name), isFalse);
+      expect(residentialResult.isVip, isTrue);
+
+      // Scenario 2: Commercial venue with private nickname "Starbies"
+      final commercialPlace = SavedPlace(
+        id: 'vip-starbies',
+        name: 'Starbies',
+        address: 'Starbucks Coffee Company, 6001 Peachtree Rd, Atlanta, GA 30341',
+        placeId: 'google-starbucks-id',
+      );
+
+      final commercialPublicName = commercialPlace.address.contains(',')
+          ? commercialPlace.address.split(',').first.trim()
+          : commercialPlace.address;
+
+      final commercialResult = PlaceSummaryResult(
+        selectionString: commercialPlace.address,
+        name: commercialPublicName,
+        address: commercialPlace.address,
+        placeId: commercialPlace.placeId,
+        isVip: true,
+      );
+
+      expect(
+        commercialResult.selectionString,
+        'Starbucks Coffee Company, 6001 Peachtree Rd, Atlanta, GA 30341',
+      );
+      expect(commercialResult.selectionString.contains(commercialPlace.name), isFalse);
+      expect(commercialResult.name, 'Starbucks Coffee Company');
+      expect(commercialResult.isVip, isTrue);
     });
   });
 

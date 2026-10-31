@@ -7,8 +7,6 @@ class EventVitalsCard extends StatelessWidget {
   final DateTime eventTime;
   final int keepAliveDays;
   final String location;
-  final String? hostLocationLabel;
-  final bool isHost;
   final bool isVibeCheck;
   final VoidCallback onCalendarTap;
   final VoidCallback onMapTap;
@@ -19,8 +17,6 @@ class EventVitalsCard extends StatelessWidget {
     required this.eventTime,
     required this.keepAliveDays,
     required this.location,
-    this.hostLocationLabel,
-    this.isHost = false,
     required this.isVibeCheck,
     required this.onCalendarTap,
     required this.onMapTap,
@@ -313,12 +309,7 @@ class EventVitalsCard extends StatelessWidget {
                     String? line1;
                     String? line2;
 
-                    if (isHost &&
-                        hostLocationLabel != null &&
-                        hostLocationLabel!.trim().isNotEmpty) {
-                      line1 = hostLocationLabel!.trim();
-                      line2 = trimmedLoc.isNotEmpty ? trimmedLoc : null;
-                    } else if (trimmedLoc.isNotEmpty) {
+                    if (trimmedLoc.isNotEmpty) {
                       int splitIdx = trimmedLoc.indexOf('\n');
                       if (splitIdx != -1) {
                         line1 = trimmedLoc.substring(0, splitIdx).trim();

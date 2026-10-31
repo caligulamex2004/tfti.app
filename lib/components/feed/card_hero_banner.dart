@@ -23,7 +23,6 @@ class CardHeroBanner extends StatelessWidget {
   final int keepAliveDays;
   final String title;
   final String location;
-  final String? hostLocationLabel;
   final String? hostId;
   final Function(String hostId, Map<String, dynamic> hostData)? onHostTap;
   final bool isExpanded;
@@ -43,7 +42,6 @@ class CardHeroBanner extends StatelessWidget {
     required this.keepAliveDays,
     required this.title,
     required this.location,
-    this.hostLocationLabel,
     this.hostId,
     this.onHostTap,
     this.isExpanded = false,
@@ -53,15 +51,6 @@ class CardHeroBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool hasCustomBanner =
         bannerUrl != null && bannerUrl!.isNotEmpty;
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    final bool isHost = hostId != null && currentUserId == hostId;
-    final String displayLocation = (isHost &&
-            hostLocationLabel != null &&
-            hostLocationLabel!.trim().isNotEmpty)
-        ? (location.trim().isNotEmpty
-            ? '$hostLocationLabel • $location'
-            : hostLocationLabel!)
-        : location;
 
     final content = Stack(
         fit: StackFit.expand,
@@ -298,7 +287,7 @@ class CardHeroBanner extends StatelessWidget {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        displayLocation,
+                        location,
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 14,

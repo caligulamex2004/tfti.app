@@ -320,10 +320,6 @@ class _PlaceSummarySheetState extends State<PlaceSummarySheet> {
       : widget.initialAddress;
 
   String get _currentSelectionString {
-    if (_isSavedVip && widget.initialName.isNotEmpty) {
-      if (_currentAddress.isEmpty) return widget.initialName;
-      return '${widget.initialName} • $_currentAddress';
-    }
     if (_details != null) return _details!.fullSelectionString;
     if (widget.initialAddress.isEmpty) return widget.initialName;
     if (widget.initialName.isEmpty ||

@@ -4,24 +4,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import 'custom_input_field.dart';
-import '../places/place_summary_sheet.dart';
 import '../../pages/places_search_page.dart';
 import '../../services/place_service.dart';
 
 class LocationInputField extends StatefulWidget {
   final TextEditingController controller;
   final bool isPast;
-  final String? initialHostLocationLabel;
-  final ValueChanged<String?>? onHostLocationLabelChanged;
-  final ValueChanged<String>? onCleanLocationChanged;
 
   const LocationInputField({
     super.key,
     required this.controller,
     required this.isPast,
-    this.initialHostLocationLabel,
-    this.onHostLocationLabelChanged,
-    this.onCleanLocationChanged,
   });
 
   @override
@@ -32,46 +25,25 @@ class _LocationInputFieldState extends State<LocationInputField> {
   bool _isLocFavorite = false;
   String? _favoriteDocId;
   PlaceSummaryResult? _lastSelectedPlace;
-  String? _hostLocationLabel;
-  String? _cleanLocation;
 
   @override
   void initState() {
     super.initState();
-    _hostLocationLabel = widget.initialHostLocationLabel;
     // If the controller already has text (e.g. editing an event), check if it's favorited
     if (widget.controller.text.isNotEmpty) {
       _checkFavoriteStatus();
     }
   }
 
-  String get _addressForLookup {
-    if (_cleanLocation != null && _cleanLocation!.isNotEmpty) {
-      return _cleanLocation!;
-    }
-    final text = widget.controller.text;
-    if (_hostLocationLabel != null && text.contains(' • ')) {
-      return text.split(' • ').last.trim();
-    }
-    return text;
-  }
-
   Future<void> _checkFavoriteStatus() async {
     final user = FirebaseAuth.instance.currentUser;
-    final lookupAddr = _addressForLookup;
-    if (user == null || lookupAddr.isEmpty) {
-      if (mounted) {
-        setState(() {
-          _isLocFavorite = false;
-          _favoriteDocId = null;
-        });
-      }
+    if (user == null || widget.controller.text.isEmpty) {
       return;
     }
 
     final placeId = await PlaceService.findPlaceIdByAddress(
       uid: user.uid,
-      address: lookupAddr,
+      address: widget.controller.text,
       googlePlaceId: _lastSelectedPlace?.placeId,
     );
 
@@ -85,31 +57,26 @@ class _LocationInputFieldState extends State<LocationInputField> {
 
   Future<void> _toggleFavoriteStatus() async {
     final user = FirebaseAuth.instance.currentUser;
-    final lookupAddr = _addressForLookup;
-    if (user == null || lookupAddr.isEmpty) {
+    if (user == null || widget.controller.text.isEmpty) {
       return;
     }
 
     HapticFeedback.lightImpact();
 
     if (_isLocFavorite && _favoriteDocId != null) {
-      await PlaceService.deletePlace(
-        uid: user.uid,
-        placeId: _favoriteDocId!,
-      );
+      await PlaceService.deletePlace(uid: user.uid, placeId: _favoriteDocId!);
 
       if (!mounted) return;
       setState(() {
         _isLocFavorite = false;
         _favoriteDocId = null;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Removed from VIP Places")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Removed from VIP Places")));
     } else {
       final isDark = Theme.of(context).brightness == Brightness.dark;
-      final defaultName =
-          _hostLocationLabel ?? lookupAddr.split(',').first.trim();
+      final defaultName = widget.controller.text.split(',').first;
       final nameController = TextEditingController(text: defaultName);
 
       final String? confirmedName;
@@ -163,7 +130,7 @@ class _LocationInputFieldState extends State<LocationInputField> {
       final placeId = await PlaceService.savePlace(
         uid: user.uid,
         name: confirmedName,
-        address: lookupAddr,
+        address: widget.controller.text,
         placeId: _lastSelectedPlace?.placeId,
         latitude: _lastSelectedPlace?.lat,
         longitude: _lastSelectedPlace?.lng,
@@ -174,13 +141,10 @@ class _LocationInputFieldState extends State<LocationInputField> {
       setState(() {
         _isLocFavorite = true;
         _favoriteDocId = placeId;
-        _hostLocationLabel = confirmedName;
-        widget.onHostLocationLabelChanged?.call(confirmedName);
-        widget.controller.text = '$confirmedName • $lookupAddr';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Added to VIP Places!")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Added to VIP Places!")));
     }
   }
 
@@ -196,28 +160,11 @@ class _LocationInputFieldState extends State<LocationInputField> {
       ),
     );
     if (selectedAddress != null && mounted) {
-      final isVip = richSelection?.isVip ?? false;
-      final vipName = (richSelection?.name.isNotEmpty ?? false)
-          ? richSelection!.name
-          : null;
-      final cleanAddr = (richSelection?.address.isNotEmpty ?? false)
-          ? richSelection!.address
-          : selectedAddress;
-
       setState(() {
         _lastSelectedPlace = richSelection;
-        if (isVip && vipName != null) {
-          _hostLocationLabel = vipName;
-          _cleanLocation = cleanAddr;
-          widget.controller.text = '$vipName • $cleanAddr';
-          widget.onHostLocationLabelChanged?.call(vipName);
-          widget.onCleanLocationChanged?.call(cleanAddr);
-        } else {
-          _hostLocationLabel = null;
-          _cleanLocation = selectedAddress;
-          widget.controller.text = selectedAddress;
-          widget.onHostLocationLabelChanged?.call(null);
-          widget.onCleanLocationChanged?.call(selectedAddress);
+        widget.controller.text = selectedAddress;
+        if (richSelection?.isVip ?? false) {
+          _isLocFavorite = true;
         }
       });
       _checkFavoriteStatus();
