@@ -8,6 +8,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../components/places/place_summary_sheet.dart';
+export '../components/places/place_summary_sheet.dart' show PlaceSummaryResult;
 import '../models/place_model.dart';
 import '../services/place_service.dart';
 import '../utils/responsive_layout.dart';
@@ -504,10 +505,17 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
     HapticFeedback.lightImpact();
     FocusScope.of(context).unfocus();
 
+    // Decouple private SavedPlace.name from place search/summary sheet.
+    // Pass public address info to the search in the background.
+    final hasComma = place.address.contains(',');
+    final publicName = hasComma
+        ? place.address.split(',').first.trim()
+        : place.address;
+
     final selected = await PlaceSummarySheet.show(
       context,
       placeId: place.placeId,
-      initialName: place.name.isNotEmpty ? place.name : 'Saved Place',
+      initialName: publicName,
       initialAddress: place.address,
       initialTypes: place.category != null ? [place.category!] : const [],
       initialLat: place.lat,
@@ -643,12 +651,13 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
               onQuickSelectTap: () => _completeWithSelection(
                 PlaceSummaryResult(
                   selectionString: place.address,
-                  name: title,
+                  name: place.address.split(',').first.trim(),
                   address: place.address,
                   placeId: place.placeId,
                   lat: place.lat,
                   lng: place.lng,
                   category: place.category,
+                  isVip: true,
                 ),
               ),
             );

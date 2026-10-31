@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -9,6 +8,7 @@ import '../utils/theme_provider.dart';
 import '../utils/auth_service.dart';
 import '../components/auth/auth_ui_components.dart';
 import '../components/dialogs/mobile_waitlist_dialog.dart';
+import '../components/shared/app_logo.dart';
 
 
 class LoginPage extends StatefulWidget {
@@ -406,8 +406,7 @@ class _LoginPageState extends State<LoginPage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Symbols.how_to_vote,
+                          AppLogo(
                             size: isCompactHeight ? 56 : 80,
                             color: themeProvider.onGradientColor,
                           ),

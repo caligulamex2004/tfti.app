@@ -129,6 +129,7 @@ class PlaceSummaryResult {
   final double? lat;
   final double? lng;
   final String? category;
+  final bool isVip;
 
   const PlaceSummaryResult({
     required this.selectionString,
@@ -138,6 +139,7 @@ class PlaceSummaryResult {
     this.lat,
     this.lng,
     this.category,
+    this.isVip = false,
   });
 }
 
@@ -459,6 +461,7 @@ class _PlaceSummarySheetState extends State<PlaceSummarySheet> {
         lat: _currentLat,
         lng: _currentLng,
         category: categoryVisuals.label,
+        isVip: _isSavedVip,
       ),
     );
   }

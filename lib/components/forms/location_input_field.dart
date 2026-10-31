@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import 'custom_input_field.dart';
-import '../places/place_summary_sheet.dart';
 import '../../pages/places_search_page.dart';
 import '../../services/place_service.dart';
 
@@ -65,19 +64,16 @@ class _LocationInputFieldState extends State<LocationInputField> {
     HapticFeedback.lightImpact();
 
     if (_isLocFavorite && _favoriteDocId != null) {
-      await PlaceService.deletePlace(
-        uid: user.uid,
-        placeId: _favoriteDocId!,
-      );
+      await PlaceService.deletePlace(uid: user.uid, placeId: _favoriteDocId!);
 
       if (!mounted) return;
       setState(() {
         _isLocFavorite = false;
         _favoriteDocId = null;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Removed from VIP Places")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Removed from VIP Places")));
     } else {
       final isDark = Theme.of(context).brightness == Brightness.dark;
       final defaultName = widget.controller.text.split(',').first;
@@ -146,9 +142,9 @@ class _LocationInputFieldState extends State<LocationInputField> {
         _isLocFavorite = true;
         _favoriteDocId = placeId;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Added to VIP Places!")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Added to VIP Places!")));
     }
   }
 
@@ -167,6 +163,9 @@ class _LocationInputFieldState extends State<LocationInputField> {
       setState(() {
         _lastSelectedPlace = richSelection;
         widget.controller.text = selectedAddress;
+        if (richSelection?.isVip ?? false) {
+          _isLocFavorite = true;
+        }
       });
       _checkFavoriteStatus();
     }

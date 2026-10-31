@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/Firebase-Auth_%7C_Firestore_%7C_FCM_%7C_Storage_%7C_Hosting-FFCA28?logo=firebase&logoColor=black" alt="Firebase" />
   <img src="https://img.shields.io/badge/Google_Maps-Places_API-4285F4?logo=googlemaps&logoColor=white" alt="Google Maps" />
   <img src="https://img.shields.io/badge/Platforms-iOS_15%2B_%7C_Android_5.0%2B_%7C_Web-brightgreen" alt="Platforms" />
-  <img src="https://img.shields.io/badge/Tests-289_Passing-success" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-297_Passing-success" alt="Tests" />
   <img src="https://img.shields.io/badge/License-Proprietary-blue" alt="License" />
 </p>
 
@@ -288,7 +288,7 @@ tftiapp/
 
 ## 🧪 Testing & Quality Assurance
 
-This codebase enforces strict automated testing for logic, models, privacy controls, UI components, responsive layouts, and web store compliance. **289 automated tests** run across the test suite with 100% pass rate.
+This codebase enforces strict automated testing for logic, models, privacy controls, UI components, responsive layouts, and web store compliance. **297 automated tests** run across the test suite with 100% pass rate.
 
 ### Run the Test Suite
 ```bash
@@ -301,8 +301,9 @@ flutter analyze
 ```
 
 ### Test Coverage Highlights
-- **Model Tests (`test/models/`)**: Event serialization/deserialization, season recurring generator logic, `HangoutSubmissionRequest` duration & web `Uint8List` byte propagation, 14-day squad request expiration TTL calculations, and phone privacy parsing.
+- **Model Tests (`test/models/`)**: Event serialization/deserialization, season recurring generator logic, `HangoutSubmissionRequest` duration & web `Uint8List` byte propagation, 14-day squad request expiration TTL calculations, phone privacy parsing, and VIP place privacy decoupling (ensuring private `SavedPlace.name` nicknames are never leaked into event locations).
 - **Component Tests (`test/components/`)**:
+  - `location_input_field_test.dart`: Clean address rendering, VIP amber star button indicator for saved spots, and past-event read-only lock.
   - `account_edit_card_test.dart`: Phone privacy toggle, modal explanations, and auto-save handlers.
   - `account_settings_card_test.dart`: Preferences, legal document navigation (Terms & Privacy web URLs), and tip jar callbacks with Material splash safety.
   - `auth_ui_components_test.dart`: Text field validation, dynamic loading button states, and clickable checkbox terms/privacy links.
@@ -315,6 +316,7 @@ flutter analyze
   - `friend_list_tile_test.dart`: Friend row layout, status badges, and action triggers.
   - `swipe_rsvp_widget_test.dart` & `critical_alert_banner_test.dart`: Haptic RSVP swipe mechanics and urgent notification banners.
 - **Page & Layout Tests (`test/pages/`, `test/`)**:
+  - `places_search_page_test.dart`: Search bar interactions, clear button handling, fallback coordinate acceptance, and `onPlaceSelected` VIP callback integration.
   - `team_members_page_test.dart`: SafeArea notch clearance and `SharedSliverAppBar` expanded title offset spacing relative to back buttons.
   - `login_page_validation_test.dart`: Phone number OTP validation, responsive maxWidth constraint (440px on web/desktop/tablets), and mobile viewport overflow safety.
   - `onboarding_tutorial_test.dart`: Multi-slide carousel progression and landscape stability.

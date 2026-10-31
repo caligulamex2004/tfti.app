@@ -4,9 +4,7 @@ import 'package:tftiapp/pages/places_search_page.dart';
 
 void main() {
   Widget buildPlacesSearchPage({bool showFavorites = false}) {
-    return MaterialApp(
-      home: PlacesSearchPage(showFavorites: showFavorites),
-    );
+    return MaterialApp(home: PlacesSearchPage(showFavorites: showFavorites));
   }
 
   group('PlacesSearchPage UI Tests', () {
@@ -21,7 +19,9 @@ void main() {
       );
     });
 
-    testWidgets('Entering and clearing text updates input controller', (tester) async {
+    testWidgets('Entering and clearing text updates input controller', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildPlacesSearchPage());
 
       final textField = find.byType(TextField);
@@ -39,7 +39,9 @@ void main() {
       expect(find.text('Blue Bottle Coffee'), findsNothing);
     });
 
-    testWidgets('Accepts fallbackLocation parameter gracefully', (tester) async {
+    testWidgets('Accepts fallbackLocation parameter gracefully', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: PlacesSearchPage(
@@ -51,6 +53,21 @@ void main() {
 
       expect(find.text('Add VIP Place'), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
+    });
+
+    testWidgets('Accepts onPlaceSelected callback parameter', (tester) async {
+      PlaceSummaryResult? captured;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PlacesSearchPage(
+            showFavorites: true,
+            onPlaceSelected: (sel) => captured = sel,
+          ),
+        ),
+      );
+
+      expect(find.text('Add VIP Place'), findsOneWidget);
+      expect(captured, isNull);
     });
   });
 }
