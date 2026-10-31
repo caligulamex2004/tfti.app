@@ -66,16 +66,54 @@ class _WhisperRecipientSheetState extends State<WhisperRecipientSheet> {
       return true;
     }).toList();
 
-    return SafeArea(
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.7,
-        ),
-        padding: const EdgeInsets.only(top: 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+    String getEffectiveName(Map<String, dynamic> guest) {
+      final String displayName = guest['displayName'] ?? 'Unknown';
+      final String phone = (guest['phoneNumber'] ?? '').toString();
+      final String resolved = ContactResolver.instance.resolveMiniProfileName(
+            phone,
+            fallbackName: displayName,
+          ) ??
+          ContactResolver.instance.formatMiniProfileFallback(displayName);
+      return resolved.trim().toLowerCase();
+    }
+
+    availableGuests.sort((a, b) {
+      final nameA = getEffectiveName(a);
+      final nameB = getEffectiveName(b);
+      final comp = nameA.compareTo(nameB);
+      if (comp != 0) return comp;
+      final tagA = (a['tag'] as String? ?? '').toLowerCase();
+      final tagB = (b['tag'] as String? ?? '').toLowerCase();
+      return tagA.compareTo(tagB);
+    });
+
+    final mediaQuery = MediaQuery.of(context);
+    final bottomInset = mediaQuery.viewInsets.bottom;
+    final topPadding = mediaQuery.padding.top;
+    final screenHeight = mediaQuery.size.height;
+    final isKeyboardOpen = bottomInset > 0;
+
+    final double maxHeight;
+    if (isKeyboardOpen) {
+      final availableHeight = screenHeight - bottomInset - topPadding - 16;
+      maxHeight = availableHeight.clamp(200.0, screenHeight * 0.9);
+    } else {
+      maxHeight = screenHeight * 0.72;
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: maxHeight,
+          ),
+          padding: const EdgeInsets.only(top: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             // Grab handle
             Center(
               child: Container(
@@ -197,6 +235,8 @@ class _WhisperRecipientSheetState extends State<WhisperRecipientSheet> {
               Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   itemCount: availableGuests.length,
                   itemBuilder: (context, index) {
                     final guest = availableGuests[index];
@@ -285,6 +325,7 @@ class _WhisperRecipientSheetState extends State<WhisperRecipientSheet> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
