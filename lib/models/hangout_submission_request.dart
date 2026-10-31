@@ -42,6 +42,7 @@ class HangoutSubmissionRequest {
   // Form values
   final String title;
   final String location;
+  final String? hostLocationLabel;
   final String details;
   final DateTime selectedDate;
   final TimeOfDay selectedTime;
@@ -79,6 +80,7 @@ class HangoutSubmissionRequest {
     this.eventData,
     required this.title,
     required this.location,
+    this.hostLocationLabel,
     required this.details,
     required this.selectedDate,
     required this.selectedTime,

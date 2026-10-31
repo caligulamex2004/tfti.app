@@ -78,6 +78,55 @@ void main() {
       expect(updated.lastMinuteInvites, equals(['friend-x']));
       expect(updated.coHostLastMinuteInvites, equals(['friend-z']));
     });
+
+    test('Event serializes, deserializes, and formats hostLocationLabel privacy correctly', () {
+      final now = DateTime(2026, 9, 25, 18, 30);
+      final event = Event(
+        id: 'evt-vip',
+        type: 'event',
+        hostId: 'host-adam',
+        title: 'Board Game Night',
+        location: '1234 Main St, Atlanta, GA 30301',
+        hostLocationLabel: 'My house',
+        time: now,
+      );
+
+      final map = event.toMap();
+      expect(map['location'], '1234 Main St, Atlanta, GA 30301');
+      expect(map['hostLocationLabel'], 'My house');
+
+      final fromMap = Event.fromMap(map, id: 'evt-vip');
+      expect(fromMap.location, '1234 Main St, Atlanta, GA 30301');
+      expect(fromMap.hostLocationLabel, 'My house');
+
+      // Host sees private label prefixed to address
+      expect(
+        fromMap.displayLocation(currentUserId: 'host-adam'),
+        'My house • 1234 Main St, Atlanta, GA 30301',
+      );
+
+      // Co-host and crew see ONLY the clean address
+      expect(
+        fromMap.displayLocation(currentUserId: 'cohost-bob'),
+        '1234 Main St, Atlanta, GA 30301',
+      );
+      expect(
+        fromMap.displayLocation(currentUserId: 'guest-charlie'),
+        '1234 Main St, Atlanta, GA 30301',
+      );
+      expect(
+        fromMap.displayLocation(currentUserId: null),
+        '1234 Main St, Atlanta, GA 30301',
+      );
+
+      // CopyWith preserves or updates hostLocationLabel
+      final modified = fromMap.copyWith(hostLocationLabel: 'The Mancave');
+      expect(modified.hostLocationLabel, 'The Mancave');
+      expect(
+        modified.displayLocation(currentUserId: 'host-adam'),
+        'The Mancave • 1234 Main St, Atlanta, GA 30301',
+      );
+    });
   });
 
   group('UserProfile Model Tests', () {

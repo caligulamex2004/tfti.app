@@ -8,6 +8,7 @@ class Event {
 
   final String title;
   final String location;
+  final String? hostLocationLabel;
   final String details;
   final String? bannerUrl;
 
@@ -55,6 +56,7 @@ class Event {
     this.coHostId,
     required this.title,
     required this.location,
+    this.hostLocationLabel,
     this.details = '',
     this.bannerUrl,
     required this.time,
@@ -89,6 +91,19 @@ class Event {
   bool get isHangout => type != 'vibe_check';
   bool isHost(String uid) => hostId == uid;
   bool isCoHost(String? uid) => uid != null && coHostId == uid;
+
+  String displayLocation({required String? currentUserId}) {
+    if (currentUserId != null &&
+        currentUserId == hostId &&
+        hostLocationLabel != null &&
+        hostLocationLabel!.trim().isNotEmpty) {
+      if (location.trim().isNotEmpty) {
+        return '$hostLocationLabel • $location';
+      }
+      return hostLocationLabel!;
+    }
+    return location;
+  }
 
   DateTime get calculatedEndTime {
     if (endTime != null) return endTime!;
@@ -132,6 +147,7 @@ class Event {
       coHostId: data['coHostId'],
       title: data['title'] ?? '',
       location: data['location'] ?? '',
+      hostLocationLabel: data['hostLocationLabel']?.toString(),
       details: data['details'] ?? data['description'] ?? '',
       bannerUrl: data['bannerUrl'],
 
@@ -188,6 +204,7 @@ class Event {
       if (coHostId != null) 'coHostId': coHostId,
       'title': title,
       'location': location,
+      if (hostLocationLabel != null) 'hostLocationLabel': hostLocationLabel,
       'details': details,
       if (bannerUrl != null) 'bannerUrl': bannerUrl,
 
@@ -240,6 +257,7 @@ class Event {
     String? coHostId,
     String? title,
     String? location,
+    String? hostLocationLabel,
     String? details,
     String? bannerUrl,
     DateTime? time,
@@ -276,6 +294,7 @@ class Event {
       coHostId: coHostId ?? this.coHostId,
       title: title ?? this.title,
       location: location ?? this.location,
+      hostLocationLabel: hostLocationLabel ?? this.hostLocationLabel,
       details: details ?? this.details,
       bannerUrl: bannerUrl ?? this.bannerUrl,
       time: time ?? this.time,

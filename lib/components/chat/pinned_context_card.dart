@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class PinnedContextCard extends StatelessWidget {
   final Map<String, dynamic> eventData;
@@ -180,16 +181,36 @@ class PinnedContextCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Expanded(
-                      child: Text(
-                        eventData['location'] ?? 'TBD',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: Builder(
+                        builder: (context) {
+                          final currentUserId =
+                              FirebaseAuth.instance.currentUser?.uid;
+                          final bool isHost = eventData['hostId'] != null &&
+                              currentUserId == eventData['hostId'];
+                          final hostLocationLabel =
+                              eventData['hostLocationLabel']?.toString();
+                          final String baseLocation =
+                              (eventData['location'] ?? 'TBD').toString();
+                          final String displayLocation = (isHost &&
+                                  hostLocationLabel != null &&
+                                  hostLocationLabel.trim().isNotEmpty)
+                              ? (baseLocation.trim().isNotEmpty
+                                  ? '$hostLocationLabel • $baseLocation'
+                                  : hostLocationLabel)
+                              : baseLocation;
+
+                          return Text(
+                            displayLocation,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          );
+                        },
                       ),
                     ),
                   ],

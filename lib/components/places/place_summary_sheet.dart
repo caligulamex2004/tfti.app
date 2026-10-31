@@ -129,6 +129,7 @@ class PlaceSummaryResult {
   final double? lat;
   final double? lng;
   final String? category;
+  final bool isVip;
 
   const PlaceSummaryResult({
     required this.selectionString,
@@ -138,6 +139,7 @@ class PlaceSummaryResult {
     this.lat,
     this.lng,
     this.category,
+    this.isVip = false,
   });
 }
 
@@ -318,6 +320,10 @@ class _PlaceSummarySheetState extends State<PlaceSummarySheet> {
       : widget.initialAddress;
 
   String get _currentSelectionString {
+    if (_isSavedVip && widget.initialName.isNotEmpty) {
+      if (_currentAddress.isEmpty) return widget.initialName;
+      return '${widget.initialName} • $_currentAddress';
+    }
     if (_details != null) return _details!.fullSelectionString;
     if (widget.initialAddress.isEmpty) return widget.initialName;
     if (widget.initialName.isEmpty ||
@@ -459,6 +465,7 @@ class _PlaceSummarySheetState extends State<PlaceSummarySheet> {
         lat: _currentLat,
         lng: _currentLng,
         category: categoryVisuals.label,
+        isVip: _isSavedVip,
       ),
     );
   }

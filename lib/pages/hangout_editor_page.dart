@@ -51,6 +51,8 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
   final _titleController = TextEditingController();
   final _locController = TextEditingController();
   final _detailsController = TextEditingController();
+  String? _hostLocationLabel;
+  String? _cleanLocation;
 
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
@@ -101,7 +103,14 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
       _isCoHost = data['coHostId'] == user?.uid;
 
       _titleController.text = data['title'] ?? '';
-      _locController.text = data['location'] ?? '';
+      _hostLocationLabel = data['hostLocationLabel'];
+      final rawLoc = (data['location'] ?? '').toString();
+      _cleanLocation = rawLoc;
+      if (_hostLocationLabel != null && _hostLocationLabel!.isNotEmpty) {
+        _locController.text = '$_hostLocationLabel • $rawLoc';
+      } else {
+        _locController.text = rawLoc;
+      }
       _detailsController.text = data['details'] ?? data['description'] ?? '';
 
       if (data['time'] != null) {
@@ -301,6 +310,16 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
       updateScope = SeasonUpdateScope.toggleOff;
     }
 
+    final String effectiveLocation;
+    if (_cleanLocation != null && _cleanLocation!.isNotEmpty) {
+      effectiveLocation = _cleanLocation!;
+    } else if (_hostLocationLabel != null &&
+        _locController.text.contains(' • ')) {
+      effectiveLocation = _locController.text.split(' • ').last.trim();
+    } else {
+      effectiveLocation = _locController.text.trim();
+    }
+
     final request = HangoutSubmissionRequest(
       isEditing: isEditing,
       isMainHost: _isMainHost,
@@ -308,7 +327,8 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
       eventId: widget.eventId,
       eventData: widget.eventData,
       title: _titleController.text.trim(),
-      location: _locController.text.trim(),
+      location: effectiveLocation,
+      hostLocationLabel: _hostLocationLabel,
       details: _detailsController.text.trim(),
       selectedDate: _selectedDate,
       selectedTime: _selectedTime,
@@ -816,6 +836,20 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                                               _titleController,
                                                           locController:
                                                               _locController,
+                                                          initialHostLocationLabel:
+                                                              _hostLocationLabel,
+                                                          onHostLocationLabelChanged:
+                                                              (val) {
+                                                            setState(() =>
+                                                                _hostLocationLabel =
+                                                                    val);
+                                                          },
+                                                          onCleanLocationChanged:
+                                                              (val) {
+                                                            setState(() =>
+                                                                _cleanLocation =
+                                                                    val);
+                                                          },
                                                           isPast: _isPast,
                                                           selectedDate:
                                                               _selectedDate,
@@ -1029,6 +1063,20 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
                                                 titleController:
                                                     _titleController,
                                                 locController: _locController,
+                                                initialHostLocationLabel:
+                                                    _hostLocationLabel,
+                                                onHostLocationLabelChanged:
+                                                    (val) {
+                                                  setState(() =>
+                                                      _hostLocationLabel =
+                                                          val);
+                                                },
+                                                onCleanLocationChanged:
+                                                    (val) {
+                                                  setState(() =>
+                                                      _cleanLocation =
+                                                          val);
+                                                },
                                                 isPast: _isPast,
                                                 selectedDate: _selectedDate,
                                                 selectedTime: _selectedTime,

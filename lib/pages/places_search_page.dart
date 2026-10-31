@@ -642,13 +642,16 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
               onCardTap: () => _openSummarySheetForSavedPlace(place),
               onQuickSelectTap: () => _completeWithSelection(
                 PlaceSummaryResult(
-                  selectionString: place.address,
+                  selectionString: place.name.isNotEmpty
+                      ? '${place.name} • ${place.address}'
+                      : place.address,
                   name: title,
                   address: place.address,
                   placeId: place.placeId,
                   lat: place.lat,
                   lng: place.lng,
                   category: place.category,
+                  isVip: true,
                 ),
               ),
             );

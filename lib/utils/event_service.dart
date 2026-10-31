@@ -503,6 +503,16 @@ class EventService {
         // --- Standard updates (host & co-host) ---
         updateData['title'] = request.title;
         updateData['location'] = request.location;
+        if (request.isMainHost) {
+          if (request.hostLocationLabel != null &&
+              request.hostLocationLabel!.isNotEmpty) {
+            updateData['hostLocationLabel'] = request.hostLocationLabel;
+          } else {
+            updateData['hostLocationLabel'] = FieldValue.delete();
+          }
+        } else if (oldLoc != request.location) {
+          updateData['hostLocationLabel'] = FieldValue.delete();
+        }
         updateData['details'] = request.details;
         updateData['time'] = Timestamp.fromDate(newDateTime);
         updateData['endTime'] = Timestamp.fromDate(newEndTime);
@@ -781,6 +791,11 @@ class EventService {
           final seasonFields = {
             'title': request.title,
             'location': request.location,
+            if (request.isMainHost)
+              'hostLocationLabel': (request.hostLocationLabel != null &&
+                      request.hostLocationLabel!.isNotEmpty)
+                  ? request.hostLocationLabel
+                  : FieldValue.delete(),
             'details': request.details,
             if (request.isMainHost) ...{
               'inviteAll': request.inviteAll,
@@ -839,6 +854,11 @@ class EventService {
               .update({
                 'title': request.title,
                 'location': request.location,
+                if (request.isMainHost)
+                  'hostLocationLabel': (request.hostLocationLabel != null &&
+                          request.hostLocationLabel!.isNotEmpty)
+                      ? request.hostLocationLabel
+                      : FieldValue.delete(),
                 'details': request.details,
                 if (request.isMainHost) ...{
                   'coHostId': request.coHostId,
@@ -964,6 +984,9 @@ class EventService {
             'coHostId': request.coHostId,
             'title': request.title,
             'location': request.location,
+            if (request.hostLocationLabel != null &&
+                request.hostLocationLabel!.isNotEmpty)
+              'hostLocationLabel': request.hostLocationLabel,
             'details': request.details,
             'frequency': request.recurringFrequency,
             'totalInstances': eventDates.length,
@@ -1004,6 +1027,9 @@ class EventService {
             'coHostName': request.coHostName,
             'title': request.title,
             'location': request.location,
+            if (request.hostLocationLabel != null &&
+                request.hostLocationLabel!.isNotEmpty)
+              'hostLocationLabel': request.hostLocationLabel,
             'details': request.details,
             'time': Timestamp.fromDate(date),
             'endTime': Timestamp.fromDate(endTime),

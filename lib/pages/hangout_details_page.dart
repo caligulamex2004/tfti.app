@@ -513,6 +513,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                           eventTime: dt,
                           keepAliveDays: keepAliveDays,
                           location: location,
+                          hostLocationLabel:
+                              data['hostLocationLabel']?.toString(),
+                          isHost: isMainHost,
                           isVibeCheck: isVibeCheck,
                           margin: useTwoColumns
                               ? const EdgeInsets.only(

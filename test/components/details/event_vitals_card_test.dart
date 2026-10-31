@@ -7,6 +7,8 @@ void main() {
 
   Widget buildWidget({
     String location = 'Pebble Beach Golf Links',
+    String? hostLocationLabel,
+    bool isHost = false,
     bool isVibeCheck = false,
     EdgeInsetsGeometry? margin,
     VoidCallback? onCalendarTap,
@@ -19,6 +21,8 @@ void main() {
             eventTime: mockDate,
             keepAliveDays: 3,
             location: location,
+            hostLocationLabel: hostLocationLabel,
+            isHost: isHost,
             isVibeCheck: isVibeCheck,
             margin: margin,
             onCalendarTap: onCalendarTap ?? () {},
@@ -84,6 +88,39 @@ void main() {
 
       expect(find.text('Go'), findsNothing);
       expect(find.text('Pebble Beach Golf Links'), findsNothing);
+    });
+
+    testWidgets('VIP Place: Host sees private label as Line 1 and address as Line 2',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        buildWidget(
+          location: '1234 Main St, Atlanta, GA 30301',
+          hostLocationLabel: 'My house',
+          isHost: true,
+        ),
+      );
+
+      // Line 1 is the private VIP label
+      expect(find.text('My house'), findsOneWidget);
+      // Line 2 is the actual address
+      expect(find.text('1234 Main St, Atlanta, GA 30301'), findsOneWidget);
+    });
+
+    testWidgets('VIP Place: Crew / Guest does not see host private label',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        buildWidget(
+          location: '1234 Main St, Atlanta, GA 30301',
+          hostLocationLabel: 'My house',
+          isHost: false,
+        ),
+      );
+
+      // Private label must NEVER be displayed to non-hosts
+      expect(find.text('My house'), findsNothing);
+      // Standard address rendering (Line 1: 1234 Main St,, Line 2: Atlanta, GA 30301)
+      expect(find.text('1234 Main St,'), findsOneWidget);
+      expect(find.text('Atlanta, GA 30301'), findsOneWidget);
     });
   });
 }

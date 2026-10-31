@@ -9,6 +9,9 @@ import 'date_time_row.dart';
 class VitalsFormCard extends StatelessWidget {
   final TextEditingController titleController;
   final TextEditingController? locController; // Nullable for Vibe Checks
+  final String? initialHostLocationLabel;
+  final ValueChanged<String?>? onHostLocationLabelChanged;
+  final ValueChanged<String>? onCleanLocationChanged;
   final bool isPast;
   final DateTime selectedDate;
   final TimeOfDay selectedTime;
@@ -25,6 +28,9 @@ class VitalsFormCard extends StatelessWidget {
     super.key,
     required this.titleController,
     this.locController,
+    this.initialHostLocationLabel,
+    this.onHostLocationLabelChanged,
+    this.onCleanLocationChanged,
     required this.isPast,
     required this.selectedDate,
     required this.selectedTime,
@@ -60,7 +66,13 @@ class VitalsFormCard extends StatelessWidget {
           // Only render location if a controller is passed!
           if (locController != null) ...[
             const SizedBox(height: 16),
-            LocationInputField(controller: locController!, isPast: isPast),
+            LocationInputField(
+              controller: locController!,
+              isPast: isPast,
+              initialHostLocationLabel: initialHostLocationLabel,
+              onHostLocationLabelChanged: onHostLocationLabelChanged,
+              onCleanLocationChanged: onCleanLocationChanged,
+            ),
           ],
 
           const SizedBox(height: 16),
