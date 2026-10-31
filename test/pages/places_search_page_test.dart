@@ -60,7 +60,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: PlacesSearchPage(
-            showFavorites: true,
+            showFavorites: false,
             onPlaceSelected: (sel) => captured = sel,
           ),
         ),

@@ -288,7 +288,7 @@ class _ContactImportSheetState extends State<ContactImportSheet> {
                     }
 
                     if (item is Contact) {
-                      final name = item.displayName;
+                      final name = item.displayName?.trim() ?? '';
                       final rawPhone = item.phones.first.number;
                       final normPhone =
                           ContactHelper.normalizePhone(rawPhone) ?? rawPhone;

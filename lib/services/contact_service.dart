@@ -36,11 +36,13 @@ class ContactHelper {
       return null;
     }
     try {
-      // readonly: true is highly recommended for iOS to assure the user
+      // readonly permission is recommended for iOS to assure the user
       // you are only reading contacts, not modifying them.
-      final bool permission = await FlutterContacts.requestPermission(
-        readonly: true,
+      final status = await FlutterContacts.permissions.request(
+        PermissionType.read,
       );
+      final bool permission = status == PermissionStatus.granted ||
+          status == PermissionStatus.limited;
 
       if (!permission) {
         debugPrint("Contact permission denied by user.");
@@ -50,10 +52,9 @@ class ContactHelper {
       // Mark permission granted so ContactResolver can auto-warm cache in future sessions
       ContactResolver.instance.onPermissionGranted();
 
-      // Fetch contacts with their properties (specifically phone numbers)
-      final List<Contact> contacts = await FlutterContacts.getContacts(
-        withProperties: true,
-        withPhoto: false, // Keep it fast, skip photos to prevent memory spikes
+      // Fetch contacts with their properties (specifically names and phone numbers)
+      final List<Contact> contacts = await FlutterContacts.getAll(
+        properties: {ContactProperty.name, ContactProperty.phone},
       );
 
       return contacts;

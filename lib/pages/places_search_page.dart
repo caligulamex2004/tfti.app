@@ -610,7 +610,12 @@ class _PlacesSearchPageState extends State<PlacesSearchPage> {
   }
 
   Widget _buildFavoritesList(bool isDark, Color primaryColor) {
-    final user = FirebaseAuth.instance.currentUser;
+    User? user;
+    try {
+      user = FirebaseAuth.instance.currentUser;
+    } catch (_) {
+      user = null;
+    }
     if (user == null) return const SizedBox();
 
     return StreamBuilder<List<SavedPlace>>(
