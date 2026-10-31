@@ -162,7 +162,7 @@ flowchart TD
 | **Design & UI** | Material 3, `material_symbols_icons`, `shimmer`, `smooth_page_indicator` | Adaptive layouts, icon sets, loading animations |
 | **Authentication** | Firebase Authentication, `intl_phone_field` | Phone number authentication with international SMS OTP |
 | **Database** | Cloud Firestore | Real-time database with declarative security rules |
-| **Push & Badges** | `firebase_messaging` (FCM), `flutter_app_badger` | Notifications and smart badge counter management |
+| **Push & Badges** | `firebase_messaging` (FCM), `app_badge_plus` | Notifications and smart badge counter management |
 | **Media & Storage** | `firebase_storage`, `image_picker`, `image_cropper`, `flutter_image_compress` | Profile photos and event attachments |
 | **Hardware / Sensors** | `mobile_scanner`, `qr_flutter` | High-speed QR code generation and camera scanning |
 | **Device Integration** | `flutter_contacts`, `add_2_calendar`, `url_launcher` | Address book imports and native calendar syncing |

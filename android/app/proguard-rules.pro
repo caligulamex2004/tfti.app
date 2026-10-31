@@ -25,9 +25,8 @@
 # flutter_image_compress
 -keep class com.fluttercandies.flutter_image_compress.** { *; }
 
-# flutter_app_badger (ShortcutBadger uses reflection for OEM launcher badges)
--keep class me.leolin.shortcutbadger.** { *; }
--keep class fr.g123k.flutterappbadger.** { *; }
+# app_badge_plus (uses reflection/OEM launcher implementations for badges)
+-keep class me.liolin.app_badge_plus.** { *; }
 
 # mobile_scanner / Google ML Kit Barcode Scanning
 -keep class com.google.mlkit.** { *; }
