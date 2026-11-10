@@ -120,6 +120,33 @@ void main() {
       }
     });
 
+    test('secondaryColor matches colorScheme.secondary across all themes', () {
+      final provider = ThemeProvider();
+
+      for (final theme in AppTheme.values) {
+        provider.setTheme(theme);
+        expect(provider.secondaryColor, provider.themeData.colorScheme.secondary);
+      }
+    });
+
+    test('El Grito and E Pluribus gradients follow correct tricolor flows', () {
+      final provider = ThemeProvider();
+
+      provider.setTheme(AppTheme.elGrito);
+      final elGritoGradient = provider.appGradient;
+      expect(elGritoGradient.colors.length, 3);
+      expect(elGritoGradient.colors[0], const Color(0xFF1B553D)); // Agave emerald
+      expect(elGritoGradient.colors[1], const Color(0xFFEDE8DD)); // Warm ivory
+      expect(elGritoGradient.colors[2], const Color(0xFF9E2A38)); // Carmine red
+
+      provider.setTheme(AppTheme.ePluribus);
+      final ePluribusGradient = provider.appGradient;
+      expect(ePluribusGradient.colors.length, 3);
+      expect(ePluribusGradient.colors[0], const Color(0xFF9E2C38)); // Vintage crimson
+      expect(ePluribusGradient.colors[1], const Color(0xFFEDF2F7)); // Parchment white
+      expect(ePluribusGradient.colors[2], const Color(0xFF1E3A63)); // Constitutional navy
+    });
+
     test('setTheme notifies listeners and persists index to SharedPreferences', () async {
       final provider = ThemeProvider();
       bool notified = false;

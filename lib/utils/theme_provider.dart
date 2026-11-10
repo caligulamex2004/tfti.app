@@ -100,12 +100,22 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.ePluribus => const LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [Color(0xFF162D4D), Color(0xFF264B78)],
+      colors: [
+        Color(0xFF9E2C38), // Vintage muted crimson
+        Color(0xFFEDF2F7), // Parchment alabaster
+        Color(0xFF1E3A63), // Constitutional slate navy
+      ],
+      stops: [0.0, 0.5, 1.0],
     ),
     AppTheme.elGrito => const LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [Color(0xFF0A1812), Color(0xFF173829), Color(0xFF0F261C)],
+      colors: [
+        Color(0xFF1B553D), // Agave emerald
+        Color(0xFFEDE8DD), // Refined warm ivory / bone
+        Color(0xFF9E2A38), // Mexican carmine red
+      ],
+      stops: [0.0, 0.5, 1.0],
     ),
   };
 
@@ -129,6 +139,9 @@ class ThemeProvider extends ChangeNotifier {
 
   // Standardized background color for action pills and selected chips
   Color get pillBackgroundColor => themeData.colorScheme.primary;
+
+  // Standardized secondary accent color
+  Color get secondaryColor => themeData.colorScheme.secondary;
 
   // Standardized text & icon color for action pills and selected chips
   Color get pillTextColor => onPrimaryColor;

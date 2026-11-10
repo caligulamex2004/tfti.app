@@ -508,10 +508,29 @@ class _ChatPageState extends State<ChatPage> {
       appBar: AppBar(
         title: Text(
           widget.eventTitle,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            shadows: [
+              Shadow(
+                color: Colors.black45,
+                blurRadius: 4,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
         ),
         centerTitle: true,
         foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+          shadows: [
+            Shadow(
+              color: Colors.black45,
+              blurRadius: 4,
+              offset: Offset(0, 1),
+            ),
+          ],
+        ),
         flexibleSpace: Container(
           decoration: BoxDecoration(gradient: themeProvider.appGradient),
         ),

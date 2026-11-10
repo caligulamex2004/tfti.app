@@ -639,7 +639,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                               ),
                             ),
                             backgroundColor: wasMentioned
-                                ? Colors.redAccent
+                                ? Theme.of(context).colorScheme.secondary
                                 : Colors.orangeAccent,
                             offset: const Offset(-4, 4),
                             largeSize: 20,

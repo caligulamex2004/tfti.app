@@ -383,7 +383,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                           NavigationRailDestination(
                             icon: Badge(
                               isLabelVisible: showBadge,
-                              backgroundColor: Colors.redAccent,
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.secondary,
                               smallSize: 8,
                               child: const Icon(Symbols.cottage),
                             ),
@@ -434,7 +435,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                     NavigationDestination(
                       icon: Badge(
                         isLabelVisible: showBadge,
-                        backgroundColor: Colors.redAccent,
+                        backgroundColor:
+                            Theme.of(context).colorScheme.secondary,
                         smallSize: 8,
                         child: const Icon(Symbols.cottage),
                       ),

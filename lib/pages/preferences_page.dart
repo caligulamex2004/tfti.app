@@ -69,6 +69,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
       'name': 'E Pluribus',
       'theme': AppTheme.ePluribus,
       'color': const Color(0xFF1E3A63),
+      'secondaryColor': const Color(0xFFA83845),
       'isDark': false,
     },
 
@@ -113,6 +114,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
       'name': 'El Grito',
       'theme': AppTheme.elGrito,
       'color': const Color(0xFF228358),
+      'secondaryColor': const Color(0xFFC43C4A),
       'isDark': true,
     },
   ];
@@ -773,11 +775,23 @@ class _PreferencesPageState extends State<PreferencesPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 12,
-                height: 12,
+                width: 13,
+                height: 13,
                 decoration: BoxDecoration(
-                  color: opt['color'],
                   shape: BoxShape.circle,
+                  color: opt['secondaryColor'] == null
+                      ? opt['color'] as Color
+                      : null,
+                  gradient: opt['secondaryColor'] != null
+                      ? LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            opt['color'] as Color,
+                            opt['secondaryColor'] as Color,
+                          ],
+                        )
+                      : null,
                   border: Border.all(
                     color: isSelected
                         ? themeProvider.pillTextColor
