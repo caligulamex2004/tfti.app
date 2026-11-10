@@ -693,10 +693,10 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                         : "Untitled Event"),
                                 expandedTitleColor: hasBanner
                                     ? Colors.white
-                                    : (isDark ? Colors.white : Colors.black87),
+                                    : themeProvider.onGradientColor,
                                 expandedIconColor: hasBanner
                                     ? Colors.white
-                                    : null,
+                                    : themeProvider.onGradientColor,
                                 expandedHeight: hasBanner
                                     ? (isLandscape
                                           ? 220.0

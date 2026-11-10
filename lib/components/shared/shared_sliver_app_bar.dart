@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../utils/responsive_layout.dart';
+import '../../utils/theme_provider.dart';
 
 class SharedSliverAppBar extends StatelessWidget {
   final String title;
@@ -36,7 +37,11 @@ class SharedSliverAppBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final Color titleColor = expandedTitleColor ?? (isDark ? Colors.white : Colors.black87);
+    final bool hasCustomBg = background != null;
+    final Color titleColor = expandedTitleColor ??
+        (hasCustomBg
+            ? (isDark ? Colors.white : Colors.black87)
+            : themeProvider.onGradientColor);
 
     return SliverAppBar(
       expandedHeight: expandedHeight,
@@ -47,7 +52,18 @@ class SharedSliverAppBar extends StatelessWidget {
           : Colors.white.withValues(alpha: 0.7),
       elevation: 0,
       iconTheme: IconThemeData(
-        color: expandedIconColor ?? (isDark ? Colors.white : Colors.black87),
+        color: expandedIconColor ??
+            (hasCustomBg
+                ? (isDark ? Colors.white : Colors.black87)
+                : themeProvider.onGradientColor),
+        shadows: [
+          if (!hasCustomBg)
+            const Shadow(
+              color: Colors.black45,
+              blurRadius: 4,
+              offset: Offset(0, 1),
+            ),
+        ],
       ),
       actions: actionsBuilder != null ? null : actions,
       flexibleSpace: ClipRect(
@@ -84,16 +100,7 @@ class SharedSliverAppBar extends StatelessWidget {
                     child: background ??
                         Container(
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                primaryColor.withValues(alpha: 0.15),
-                                isDark
-                                    ? Colors.black.withValues(alpha: 0.1)
-                                    : Colors.white.withValues(alpha: 0.1),
-                              ],
-                            ),
+                            gradient: themeProvider.appGradient,
                           ),
                         ),
                   ),
@@ -144,7 +151,20 @@ class SharedSliverAppBar extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                color: !hasCustomBg
+                                    ? themeProvider.onGradientColor
+                                        .withValues(alpha: 0.9)
+                                    : (isDark
+                                        ? Colors.grey.shade400
+                                        : Colors.grey.shade600),
+                                shadows: [
+                                  if (!hasCustomBg)
+                                    const Shadow(
+                                      color: Colors.black45,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 1),
+                                    ),
+                                ],
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -157,6 +177,14 @@ class SharedSliverAppBar extends StatelessWidget {
                               color: titleColor,
                               height: 1.1,
                               letterSpacing: -0.5,
+                              shadows: [
+                                if (!hasCustomBg || expandedTitleColor != null)
+                                  const Shadow(
+                                    color: Colors.black45,
+                                    blurRadius: 6,
+                                    offset: Offset(0, 1),
+                                  ),
+                              ],
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
