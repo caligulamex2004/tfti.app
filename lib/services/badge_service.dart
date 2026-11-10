@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_app_badger/flutter_app_badger.dart';
+import 'package:app_badge_plus/app_badge_plus.dart';
 import 'badge_service_stub.dart'
     if (dart.library.html) 'badge_service_web.dart';
 
@@ -27,13 +27,9 @@ class BadgeService extends ChangeNotifier {
       setWebBadge(_badgeCount);
     } else {
       try {
-        final bool isSupported = await FlutterAppBadger.isAppBadgeSupported();
+        final bool isSupported = await AppBadgePlus.isSupported();
         if (isSupported) {
-          if (_badgeCount > 0) {
-            FlutterAppBadger.updateBadgeCount(_badgeCount);
-          } else {
-            FlutterAppBadger.removeBadge();
-          }
+          await AppBadgePlus.updateBadge(_badgeCount);
         }
       } catch (e) {
         debugPrint('BadgeService mobile error: $e');

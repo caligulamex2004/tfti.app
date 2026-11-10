@@ -273,8 +273,9 @@ class _SquadPageState extends State<SquadPage> {
             if (uid != myUid && !myFriendUids.contains(uid)) {
               data['uid'] = uid;
               final contact = phoneToContact[phone];
-              if (contact != null && contact.displayName.trim().isNotEmpty) {
-                data['contactName'] = contact.displayName.trim();
+              final contactDisplayName = contact?.displayName?.trim();
+              if (contactDisplayName != null && contactDisplayName.isNotEmpty) {
+                data['contactName'] = contactDisplayName;
               }
               onTfti.add(data);
             }
@@ -298,8 +299,9 @@ class _SquadPageState extends State<SquadPage> {
         },
       );
       notOnTfti.sort(
-        (a, b) =>
-            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
+        (a, b) => (a.displayName ?? '')
+            .toLowerCase()
+            .compareTo((b.displayName ?? '').toLowerCase()),
       );
 
       if (!mounted) return;

@@ -325,9 +325,8 @@ class ContactResolver extends ChangeNotifier {
     try {
       await _checkCurrentUserPhone();
 
-      final contacts = await FlutterContacts.getContacts(
-        withProperties: true,
-        withPhoto: false,
+      final contacts = await FlutterContacts.getAll(
+        properties: {ContactProperty.name, ContactProperty.phone},
       );
 
       _phoneToNameCache.clear();
@@ -336,13 +335,13 @@ class ContactResolver extends ChangeNotifier {
       _phoneToGivenNameCache.clear();
 
       for (final contact in contacts) {
-        final name = contact.displayName.trim();
+        final name = (contact.displayName ?? '').trim();
         if (name.isEmpty) continue;
 
         final extractedFirst = ContactHelper.extractFirstName(name);
-        final structuredFirst = contact.name.first.trim();
-        final structuredMiddle = contact.name.middle.trim();
-        final structuredLast = contact.name.last.trim();
+        final structuredFirst = contact.name?.first?.trim() ?? '';
+        final structuredMiddle = contact.name?.middle?.trim() ?? '';
+        final structuredLast = contact.name?.last?.trim() ?? '';
 
         // If structuredFirst is present as a distinct word in the display name
         // (e.g. "Dr. John Doe" -> "John" or "Doe, John" -> "John"), use it.
@@ -414,7 +413,7 @@ class ContactResolver extends ChangeNotifier {
       // Register device contacts change listener once
       if (!_listenerRegistered) {
         _listenerRegistered = true;
-        FlutterContacts.addListener(_onContactsChanged);
+        FlutterContacts.onDatabaseChange.listen((_) => _onContactsChanged());
       }
 
       notifyListeners();

@@ -34,7 +34,7 @@ subprojects {
             }
 
             // 2. Fix the SDK version ONLY for legacy plugins!
-            if (project.name == "flutter_app_badger" || project.name == "add_2_calendar") {
+            if (project.name == "add_2_calendar") {
                 try {
                     val compileSdkVersion = androidExt.javaClass.getMethod("compileSdkVersion", Int::class.java)
                     compileSdkVersion.invoke(androidExt, 34)

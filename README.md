@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/Firebase-Auth_%7C_Firestore_%7C_FCM_%7C_Storage_%7C_Hosting-FFCA28?logo=firebase&logoColor=black" alt="Firebase" />
   <img src="https://img.shields.io/badge/Google_Maps-Places_API-4285F4?logo=googlemaps&logoColor=white" alt="Google Maps" />
   <img src="https://img.shields.io/badge/Platforms-iOS_15%2B_%7C_Android_5.0%2B_%7C_Web-brightgreen" alt="Platforms" />
-  <img src="https://img.shields.io/badge/Tests-297_Passing-success" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-300_Passing-success" alt="Tests" />
   <img src="https://img.shields.io/badge/License-Proprietary-blue" alt="License" />
 </p>
 
@@ -162,7 +162,7 @@ flowchart TD
 | **Design & UI** | Material 3, `material_symbols_icons`, `shimmer`, `smooth_page_indicator` | Adaptive layouts, icon sets, loading animations |
 | **Authentication** | Firebase Authentication, `intl_phone_field` | Phone number authentication with international SMS OTP |
 | **Database** | Cloud Firestore | Real-time database with declarative security rules |
-| **Push & Badges** | `firebase_messaging` (FCM), `flutter_app_badger` | Notifications and smart badge counter management |
+| **Push & Badges** | `firebase_messaging` (FCM), `app_badge_plus` | Notifications and smart badge counter management |
 | **Media & Storage** | `firebase_storage`, `image_picker`, `image_cropper`, `flutter_image_compress` | Profile photos and event attachments |
 | **Hardware / Sensors** | `mobile_scanner`, `qr_flutter` | High-speed QR code generation and camera scanning |
 | **Device Integration** | `flutter_contacts`, `add_2_calendar`, `url_launcher` | Address book imports and native calendar syncing |
@@ -288,7 +288,7 @@ tftiapp/
 
 ## 🧪 Testing & Quality Assurance
 
-This codebase enforces strict automated testing for logic, models, privacy controls, UI components, responsive layouts, and web store compliance. **297 automated tests** run across the test suite with 100% pass rate.
+This codebase enforces strict automated testing for logic, models, privacy controls, UI components, responsive layouts, and web store compliance. **300 automated tests** run across the test suite with 100% pass rate.
 
 ### Run the Test Suite
 ```bash
