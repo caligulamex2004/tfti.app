@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum AppTheme {
-  // 6 Light Themes
+  // Light Themes
   original,
   royalPurple,
   lipGloss,
@@ -10,13 +10,19 @@ enum AppTheme {
   lavenderHaze,
   goldenHour,
 
-  // 6 Dark Themes
+  // Dark Themes
   darkBlue,
   dark,
   electricAmber,
   cyberPunk,
   beyondDark,
   velvetDust,
+
+  // Additional Light Theme (ordered at end to maintain stored SharedPreferences ordinal compatibility)
+  ePluribus,
+
+  // Additional Dark Theme (ordered at end to maintain stored SharedPreferences ordinal compatibility)
+  elGrito,
 }
 
 class ThemeProvider extends ChangeNotifier {
@@ -91,6 +97,16 @@ class ThemeProvider extends ChangeNotifier {
       end: Alignment.bottomRight,
       colors: [Color(0xFF2A0845), Color(0xFF170B14)],
     ),
+    AppTheme.ePluribus => const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0xFF162D4D), Color(0xFF264B78)],
+    ),
+    AppTheme.elGrito => const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0xFF0A1812), Color(0xFF173829), Color(0xFF0F261C)],
+    ),
   };
 
   // Standardized foreground color on primary backgrounds (buttons, pills, selected chips)
@@ -103,10 +119,12 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.jadeEdge ||
     AppTheme.lavenderHaze ||
     AppTheme.goldenHour ||
+    AppTheme.ePluribus ||
     AppTheme.darkBlue ||
     AppTheme.dark ||
     AppTheme.beyondDark ||
-    AppTheme.velvetDust => Colors.white,
+    AppTheme.velvetDust ||
+    AppTheme.elGrito => Colors.white,
   };
 
   // Standardized background color for action pills and selected chips
@@ -122,9 +140,11 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.lipGloss ||
     AppTheme.jadeEdge ||
     AppTheme.lavenderHaze ||
-    AppTheme.goldenHour => Colors.white,
+    AppTheme.goldenHour ||
+    AppTheme.ePluribus => Colors.white,
     AppTheme.darkBlue => const Color(0xFF1E293B),
     AppTheme.velvetDust => const Color(0xFF2D1626),
+    AppTheme.elGrito => const Color(0xFF1A2620),
     AppTheme.dark ||
     AppTheme.electricAmber ||
     AppTheme.cyberPunk ||
@@ -138,13 +158,15 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.lipGloss ||
     AppTheme.jadeEdge ||
     AppTheme.lavenderHaze ||
-    AppTheme.goldenHour => Colors.black87,
+    AppTheme.goldenHour ||
+    AppTheme.ePluribus => Colors.black87,
     AppTheme.darkBlue ||
     AppTheme.dark ||
     AppTheme.electricAmber ||
     AppTheme.cyberPunk ||
     AppTheme.beyondDark ||
-    AppTheme.velvetDust => Colors.white,
+    AppTheme.velvetDust ||
+    AppTheme.elGrito => Colors.white,
   };
 
   // Standardized border color for unselected chips and surface pills
@@ -154,13 +176,15 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.lipGloss ||
     AppTheme.jadeEdge ||
     AppTheme.lavenderHaze ||
-    AppTheme.goldenHour => const Color(0xFFE0E0E0),
+    AppTheme.goldenHour ||
+    AppTheme.ePluribus => const Color(0xFFE0E0E0),
     AppTheme.darkBlue ||
     AppTheme.dark ||
     AppTheme.electricAmber ||
     AppTheme.cyberPunk ||
     AppTheme.beyondDark ||
-    AppTheme.velvetDust => const Color(0xFF424242),
+    AppTheme.velvetDust ||
+    AppTheme.elGrito => const Color(0xFF424242),
   };
 
   // Standardized foreground color for text/icons rendered directly on appGradient
@@ -171,12 +195,14 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.jadeEdge ||
     AppTheme.lavenderHaze ||
     AppTheme.goldenHour ||
+    AppTheme.ePluribus ||
     AppTheme.darkBlue ||
     AppTheme.dark ||
     AppTheme.electricAmber ||
     AppTheme.cyberPunk ||
     AppTheme.beyondDark ||
-    AppTheme.velvetDust => Colors.white,
+    AppTheme.velvetDust ||
+    AppTheme.elGrito => Colors.white,
   };
 
   // --- THEME DATA HELPER ---
@@ -420,6 +446,32 @@ class ThemeProvider extends ChangeNotifier {
         tertiary: Color(0xFFFF8AAE),
         secondaryContainer: Color(0xFF4A233C),
         surfaceTint: Color(0xFFFF2A7A),
+      ),
+    ),
+    AppTheme.ePluribus => _buildTheme(
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: const Color(0xFFF4F6F9),
+      cardColor: Colors.white,
+      colorScheme: const ColorScheme.light(
+        primary: Color(0xFF1E3A63),
+        onPrimary: Colors.white,
+        secondary: Color(0xFFA83845),
+        tertiary: Color(0xFF4A6FA5),
+        secondaryContainer: Color(0xFFE2EAF4),
+        surfaceTint: Color(0xFF1E3A63),
+      ),
+    ),
+    AppTheme.elGrito => _buildTheme(
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: const Color(0xFF0E1512),
+      cardColor: const Color(0xFF16221D),
+      colorScheme: const ColorScheme.dark(
+        primary: Color(0xFF228358),
+        onPrimary: Colors.white,
+        secondary: Color(0xFFC43C4A),
+        tertiary: Color(0xFFD49B5A),
+        secondaryContainer: Color(0xFF1A382B),
+        surfaceTint: Color(0xFF228358),
       ),
     ),
   };

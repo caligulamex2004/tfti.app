@@ -28,7 +28,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
   }
   // Theme metadata for the new visual selector
   final List<Map<String, dynamic>> _themeOptions = [
-    // --- 6 LIGHT THEMES ---
+    // --- 7 LIGHT THEMES ---
     {
       'name': 'Daylight',
       'theme': AppTheme.original,
@@ -65,8 +65,14 @@ class _PreferencesPageState extends State<PreferencesPage> {
       'color': const Color(0xFFFF7E5F),
       'isDark': false,
     },
+    {
+      'name': 'E Pluribus',
+      'theme': AppTheme.ePluribus,
+      'color': const Color(0xFF1E3A63),
+      'isDark': false,
+    },
 
-    // --- 6 DARK THEMES ---
+    // --- 7 DARK THEMES ---
     {
       'name': 'Vigilante',
       'theme': AppTheme.darkBlue,
@@ -101,6 +107,12 @@ class _PreferencesPageState extends State<PreferencesPage> {
       'name': 'Velvet Dust',
       'theme': AppTheme.velvetDust,
       'color': const Color(0xFFFF2A7A),
+      'isDark': true,
+    },
+    {
+      'name': 'El Grito',
+      'theme': AppTheme.elGrito,
+      'color': const Color(0xFF228358),
       'isDark': true,
     },
   ];

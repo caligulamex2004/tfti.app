@@ -11,8 +11,8 @@ void main() {
   });
 
   group('ThemeProvider Tests', () {
-    test('All 12 AppTheme enum values are defined and partitioned into 6 light and 6 dark', () {
-      expect(AppTheme.values.length, 12);
+    test('All 14 AppTheme enum values are defined and partitioned into 7 light and 7 dark', () {
+      expect(AppTheme.values.length, 14);
 
       const lightThemes = [
         AppTheme.original,
@@ -21,6 +21,7 @@ void main() {
         AppTheme.jadeEdge,
         AppTheme.lavenderHaze,
         AppTheme.goldenHour,
+        AppTheme.ePluribus,
       ];
 
       const darkThemes = [
@@ -30,6 +31,7 @@ void main() {
         AppTheme.cyberPunk,
         AppTheme.beyondDark,
         AppTheme.velvetDust,
+        AppTheme.elGrito,
       ];
 
       final provider = ThemeProvider();
@@ -73,7 +75,7 @@ void main() {
         expect(provider.themeData.colorScheme.onPrimary, const Color(0xDD000000));
       }
 
-      // All other 10 themes use white text on primary colors
+      // All other 12 themes use white text on primary colors
       final whiteTextThemes = AppTheme.values.where(
         (t) => t != AppTheme.cyberPunk && t != AppTheme.electricAmber,
       );
