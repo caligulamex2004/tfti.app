@@ -81,7 +81,10 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
       final phone = item['phoneNumber'] as String?;
       final fallback = (item['displayName'] ?? '').toString();
       final firstName = isMe
-          ? ContactResolver.instance.formatMiniProfileFallback(fallback)
+          ? ContactResolver.instance.formatMiniProfileFallback(
+              fallback,
+              isCurrentUser: true,
+            )
           : ContactResolver.instance.resolveMiniProfileName(
               phone,
               fallbackName: fallback,
@@ -506,6 +509,7 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                               ? ContactResolver.instance
                                                   .formatMiniProfileFallback(
                                                   displayName,
+                                                  isCurrentUser: true,
                                                 )
                                               : (ContactResolver.instance
                                                       .resolveMiniProfileName(

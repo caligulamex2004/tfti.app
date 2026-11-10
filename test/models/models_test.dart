@@ -1071,11 +1071,24 @@ void main() {
 
   group('FeedSnapshot & FilteredFeedData Tests', () {
     test('FeedSnapshot.empty default values', () {
+      expect(FeedSnapshot.empty.displayName, 'there');
       expect(FeedSnapshot.empty.firstName, 'there');
       expect(FeedSnapshot.empty.blockedUids, isEmpty);
       expect(FeedSnapshot.empty.goatedUids, isEmpty);
       expect(FeedSnapshot.empty.myInvitesMap, isEmpty);
       expect(FeedSnapshot.empty.events, isEmpty);
+    });
+
+    test('FeedSnapshot preserves full display name', () {
+      const snapshot = FeedSnapshot(
+        displayName: 'Mi Rey',
+        blockedUids: [],
+        goatedUids: [],
+        myInvitesMap: {},
+        events: [],
+      );
+      expect(snapshot.displayName, 'Mi Rey');
+      expect(snapshot.firstName, 'Mi Rey');
     });
 
     test('FilteredFeedData defaults', () {

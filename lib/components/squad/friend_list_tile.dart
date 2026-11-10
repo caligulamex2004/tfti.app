@@ -44,14 +44,20 @@ class FriendListTile extends StatelessWidget {
     final bool hasContactName =
         contactName != null && contactName.trim().isNotEmpty;
     final String? contactFirstName = isMe
-        ? ContactResolver.instance.formatMiniProfileFallback(displayName)
+        ? ContactResolver.instance.formatMiniProfileFallback(
+            displayName,
+            isCurrentUser: true,
+          )
         : ContactResolver.instance.resolveMiniProfileName(
             rawPhone,
             fallbackName: displayName,
           );
     final String primaryName =
         contactFirstName ??
-        ContactResolver.instance.formatMiniProfileFallback(displayName);
+        ContactResolver.instance.formatMiniProfileFallback(
+          displayName,
+          isCurrentUser: isMe,
+        );
     final String? avatarUrl = userData['avatarUrl'];
     final Color avatarColor = userData['avatarColor'] is int
         ? Color(userData['avatarColor'])

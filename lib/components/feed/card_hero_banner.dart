@@ -320,6 +320,7 @@ class CardHeroBanner extends StatelessWidget {
                       final hostName = isMe
                           ? ContactResolver.instance.formatMiniProfileFallback(
                               fallbackHost,
+                              isCurrentUser: true,
                             )
                           : (ContactResolver.instance.resolveMiniProfileName(
                                 hostProfile.phoneNumber,

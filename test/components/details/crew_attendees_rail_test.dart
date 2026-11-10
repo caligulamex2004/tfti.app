@@ -67,8 +67,8 @@ void main() {
       // Toggle button in rail mode displays "List"
       expect(find.text('List'), findsOneWidget);
 
-      // Attendee names in rail
-      expect(find.text('Marcus'), findsOneWidget);
+      // Attendee names in rail (current user's own display name is preserved in full)
+      expect(find.text('Marcus Miller'), findsOneWidget);
       expect(find.text('@marcus'), findsOneWidget);
       expect(find.text('Sarah'), findsOneWidget);
       expect(find.text('@sarah'), findsOneWidget);
@@ -85,7 +85,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Going guests remain
-      expect(find.text('Marcus'), findsOneWidget);
+      expect(find.text('Marcus Miller'), findsOneWidget);
       expect(find.text('Sarah'), findsOneWidget);
 
       // Pending guest is filtered out

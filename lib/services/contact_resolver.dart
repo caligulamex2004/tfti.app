@@ -29,6 +29,7 @@ class ContactResolver extends ChangeNotifier {
   DisplayNameFormat _fullProfileFormat = DisplayNameFormat.fullName;
 
   String? _currentUserPhone;
+  String? _currentUserId;
   bool _isWarmingUp = false;
   bool _needsRefreshAgain = false;
   bool _hasWarmedUp = false;
@@ -96,12 +97,14 @@ class ContactResolver extends ChangeNotifier {
     try {
       FirebaseAuth.instance.authStateChanges().listen((user) {
         if (user != null) {
+          _currentUserId = user.uid;
           if (user.phoneNumber != null && user.phoneNumber!.isNotEmpty) {
             setCurrentUserPhone(user.phoneNumber);
           } else {
             unawaited(_checkCurrentUserPhone());
           }
         } else {
+          _currentUserId = null;
           setCurrentUserPhone(null);
         }
       });
@@ -115,6 +118,30 @@ class ContactResolver extends ChangeNotifier {
     _phoneToFirstNameCache.remove(normalized);
     _phoneToLastInitialNameCache.remove(normalized);
     _phoneToGivenNameCache.remove(normalized);
+  }
+
+  /// Sets or clears the current user ID.
+  void setCurrentUserId(String? uid) {
+    _currentUserId = uid;
+  }
+
+  /// Current user's UID, if known.
+  String? get currentUserId {
+    if (_currentUserId != null && _currentUserId!.isNotEmpty) {
+      return _currentUserId;
+    }
+    try {
+      return FirebaseAuth.instance.currentUser?.uid;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Returns true if [uid] matches the current user's UID.
+  bool isCurrentUserId(String? uid) {
+    if (uid == null || uid.isEmpty) return false;
+    final myUid = currentUserId;
+    return myUid != null && myUid == uid;
   }
 
   /// Sets or clears the current user's phone number to ignore from address book matching.
@@ -198,14 +225,29 @@ class ContactResolver extends ChangeNotifier {
   /// or extracts the first name from [fallbackName] if provided, or null.
   /// Never matches the current user's own phone number. Always guarantees
   /// returning strictly the single first name (no middle names or compound words).
-  String? resolveFirstName(String? rawPhone, {String? fallbackName}) {
-    if (rawPhone != null && rawPhone.isNotEmpty) {
-      final normalized = ContactHelper.normalizePhone(rawPhone);
-      if (normalized != null && !isCurrentUserPhone(normalized)) {
-        final cachedFirst = _phoneToFirstNameCache[normalized];
-        if (cachedFirst != null && cachedFirst.isNotEmpty) {
-          return ContactHelper.extractFirstName(cachedFirst);
-        }
+  /// If [isCurrentUser] is true or [rawPhone] matches the current user's phone,
+  /// returns the full [fallbackName] without abbreviation.
+  String? resolveFirstName(
+    String? rawPhone, {
+    String? fallbackName,
+    bool isCurrentUser = false,
+  }) {
+    final normalized =
+        rawPhone != null ? ContactHelper.normalizePhone(rawPhone) : null;
+    final bool isSelf =
+        isCurrentUser || (normalized != null && isCurrentUserPhone(normalized));
+
+    if (isSelf) {
+      if (fallbackName != null && fallbackName.trim().isNotEmpty) {
+        return fallbackName.trim();
+      }
+      return null;
+    }
+
+    if (normalized != null) {
+      final cachedFirst = _phoneToFirstNameCache[normalized];
+      if (cachedFirst != null && cachedFirst.isNotEmpty) {
+        return ContactHelper.extractFirstName(cachedFirst);
       }
     }
     if (fallbackName != null && fallbackName.trim().isNotEmpty) {
@@ -216,29 +258,41 @@ class ContactResolver extends ChangeNotifier {
 
   /// Resolves a contact name (or [fallbackName]) formatted with [format].
   /// Never matches the current user's own phone number.
+  /// If [isCurrentUser] is true or [rawPhone] matches the current user's phone,
+  /// formatting preferences are ignored and the full [fallbackName] is returned as entered.
   String? resolveFormattedName(
     String? rawPhone, {
     String? fallbackName,
     required DisplayNameFormat format,
+    bool isCurrentUser = false,
   }) {
-    if (rawPhone != null && rawPhone.isNotEmpty) {
-      final normalized = ContactHelper.normalizePhone(rawPhone);
-      if (normalized != null && !isCurrentUserPhone(normalized)) {
-        final cachedFull = _phoneToNameCache[normalized];
-        if (cachedFull != null && cachedFull.isNotEmpty) {
-          return switch (format) {
-            DisplayNameFormat.fullName => cachedFull,
-            DisplayNameFormat.firstName =>
-              _phoneToFirstNameCache[normalized] ??
-                  ContactHelper.extractFirstName(cachedFull),
-            DisplayNameFormat.firstNameLastInitial =>
-              _phoneToLastInitialNameCache[normalized] ??
-                  ContactHelper.extractFirstNameLastInitial(cachedFull),
-            DisplayNameFormat.givenName =>
-              _phoneToGivenNameCache[normalized] ??
-                  ContactHelper.extractGivenName(cachedFull),
-          };
-        }
+    final normalized =
+        rawPhone != null ? ContactHelper.normalizePhone(rawPhone) : null;
+    final bool isSelf =
+        isCurrentUser || (normalized != null && isCurrentUserPhone(normalized));
+
+    if (isSelf) {
+      if (fallbackName != null && fallbackName.trim().isNotEmpty) {
+        return fallbackName.trim();
+      }
+      return null;
+    }
+
+    if (normalized != null) {
+      final cachedFull = _phoneToNameCache[normalized];
+      if (cachedFull != null && cachedFull.isNotEmpty) {
+        return switch (format) {
+          DisplayNameFormat.fullName => cachedFull,
+          DisplayNameFormat.firstName =>
+            _phoneToFirstNameCache[normalized] ??
+                ContactHelper.extractFirstName(cachedFull),
+          DisplayNameFormat.firstNameLastInitial =>
+            _phoneToLastInitialNameCache[normalized] ??
+                ContactHelper.extractFirstNameLastInitial(cachedFull),
+          DisplayNameFormat.givenName =>
+            _phoneToGivenNameCache[normalized] ??
+                ContactHelper.extractGivenName(cachedFull),
+        };
       }
     }
     if (fallbackName != null && fallbackName.trim().isNotEmpty) {
@@ -248,30 +302,62 @@ class ContactResolver extends ChangeNotifier {
   }
 
   /// Resolves a name using the active [miniProfileFormat] preference.
-  String? resolveMiniProfileName(String? rawPhone, {String? fallbackName}) {
+  /// If [isCurrentUser] is true or [rawPhone] is the current user's phone,
+  /// formatting preferences are ignored and the full [fallbackName] is returned.
+  String? resolveMiniProfileName(
+    String? rawPhone, {
+    String? fallbackName,
+    bool isCurrentUser = false,
+  }) {
     return resolveFormattedName(
       rawPhone,
       fallbackName: fallbackName,
       format: _miniProfileFormat,
+      isCurrentUser: isCurrentUser,
     );
   }
 
   /// Resolves a contact name using the active [fullProfileFormat] preference.
-  String? resolveFullProfileName(String? rawPhone, {String? fallbackName}) {
+  /// If [isCurrentUser] is true or [rawPhone] is the current user's phone,
+  /// formatting preferences are ignored and the full [fallbackName] is returned.
+  String? resolveFullProfileName(
+    String? rawPhone, {
+    String? fallbackName,
+    bool isCurrentUser = false,
+  }) {
     return resolveFormattedName(
       rawPhone,
       fallbackName: fallbackName,
       format: _fullProfileFormat,
+      isCurrentUser: isCurrentUser,
     );
   }
 
   /// Formats a fallback display name using the active [miniProfileFormat].
-  String formatMiniProfileFallback(String? fallbackName) {
+  /// If [isCurrentUser] is true, formatting preferences are ignored and
+  /// the full [fallbackName] is returned as entered.
+  String formatMiniProfileFallback(
+    String? fallbackName, {
+    bool isCurrentUser = false,
+  }) {
+    if (fallbackName == null || fallbackName.trim().isEmpty) return '';
+    if (isCurrentUser) {
+      return fallbackName.trim();
+    }
     return ContactHelper.formatName(fallbackName, _miniProfileFormat);
   }
 
   /// Formats a fallback display name using the active [fullProfileFormat].
-  String formatFullProfileFallback(String? fallbackName) {
+  /// If [isCurrentUser] is true, formatting preferences are ignored and
+  /// the full [fallbackName] is returned as entered.
+  String formatFullProfileFallback(
+    String? fallbackName, {
+    bool isCurrentUser = false,
+  }) {
+    if (fallbackName == null || fallbackName.trim().isEmpty) return '';
+    if (isCurrentUser) {
+      return fallbackName.trim();
+    }
     return ContactHelper.formatName(fallbackName, _fullProfileFormat);
   }
 
@@ -493,6 +579,7 @@ class ContactResolver extends ChangeNotifier {
     _miniProfileFormat = DisplayNameFormat.firstName;
     _fullProfileFormat = DisplayNameFormat.fullName;
     _currentUserPhone = null;
+    _currentUserId = null;
     _hasWarmedUp = false;
     notifyListeners();
   }

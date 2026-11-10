@@ -335,12 +335,21 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
       if (weightA != weightB) {
         return weightA.compareTo(weightB);
       }
-      final nameA = (ContactResolver.instance.resolveMiniProfileName(a['phoneNumber'], fallbackName: a['displayName']) ??
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      final nameA = (ContactResolver.instance.resolveMiniProfileName(
+                a['phoneNumber'],
+                fallbackName: a['displayName'],
+                isCurrentUser: currentUid != null && a['uid'] == currentUid,
+              ) ??
               a['displayName'] ??
               '')
           .toString()
           .toLowerCase();
-      final nameB = (ContactResolver.instance.resolveMiniProfileName(b['phoneNumber'], fallbackName: b['displayName']) ??
+      final nameB = (ContactResolver.instance.resolveMiniProfileName(
+                b['phoneNumber'],
+                fallbackName: b['displayName'],
+                isCurrentUser: currentUid != null && b['uid'] == currentUid,
+              ) ??
               b['displayName'] ??
               '')
           .toString()
@@ -833,6 +842,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                         ? ContactResolver.instance
                                             .formatMiniProfileFallback(
                                             fallbackHost,
+                                            isCurrentUser: true,
                                           )
                                         : (ContactResolver.instance
                                                 .resolveMiniProfileName(

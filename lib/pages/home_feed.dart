@@ -455,7 +455,7 @@ class _HomePageState extends State<HomePage> {
             SharedSliverAppBar(
               title: "the i's",
               collapsedTitle: "thanks for the invite",
-              subtitle: "$greeting, ${feedSnapshot.firstName}",
+              subtitle: "$greeting, ${feedSnapshot.displayName}",
               expandedHeight: isLandscape ? 56.0 : 140.0,
               hasBackButton: false,
               actions: [
