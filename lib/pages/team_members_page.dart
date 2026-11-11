@@ -181,12 +181,9 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        top: true,
-        bottom: false,
-        child: user == null
-            ? const Center(child: CircularProgressIndicator())
-            : ListenableBuilder(
+      body: user == null
+          ? const Center(child: CircularProgressIndicator())
+          : ListenableBuilder(
                 listenable: ContactResolver.instance,
                 builder: (context, _) {
                   return StreamBuilder<DocumentSnapshot>(
@@ -623,7 +620,6 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                   );
                 },
               ),
-      ),
     );
   }
 }
