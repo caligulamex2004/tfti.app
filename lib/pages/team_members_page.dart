@@ -292,7 +292,7 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                       children: [
                                         Icon(
                                           Icons.people,
-                                          color: primaryColor.withValues(
+                                          color: Colors.white.withValues(
                                             alpha: 0.8,
                                           ),
                                           size: 16,
@@ -300,8 +300,8 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                         const SizedBox(width: 6),
                                         Text(
                                           "${profiles.length} Members",
-                                          style: TextStyle(
-                                            color: primaryColor,
+                                          style: const TextStyle(
+                                            color: Colors.white,
                                             fontSize: 14,
                                             fontWeight: FontWeight.w500,
                                           ),

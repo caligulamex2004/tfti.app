@@ -147,6 +147,30 @@ void main() {
       expect(ePluribusGradient.colors[2], const Color(0xFF1E3A63)); // Constitutional navy
     });
 
+    test('Royal is distinctly configured with Tyrian Imperial Purple and Antique Gold, differentiated from Lavender Haze', () {
+      final provider = ThemeProvider();
+
+      // Royal theme verification
+      provider.setTheme(AppTheme.royalPurple);
+      final royalGradient = provider.appGradient;
+      expect(royalGradient.colors, const [Color(0xFF2E1065), Color(0xFF581C87)]);
+      expect(provider.themeData.colorScheme.primary, const Color(0xFF2E1065));
+      expect(provider.themeData.colorScheme.secondary, const Color(0xFFD4AF37));
+      expect(provider.themeData.colorScheme.tertiary, const Color(0xFFF59E0B));
+      expect(provider.themeData.colorScheme.secondaryContainer, const Color(0xFFFEF3C7));
+      expect(provider.themeData.scaffoldBackgroundColor, const Color(0xFFFAF8F5));
+      expect(provider.onPrimaryColor, Colors.white);
+      expect(provider.pillTextColor, Colors.white);
+      expect(provider.onGradientColor, Colors.white);
+
+      // Verify clear differentiation from Lavender Haze
+      provider.setTheme(AppTheme.lavenderHaze);
+      expect(provider.themeData.colorScheme.primary, const Color(0xFF7B61FF));
+      expect(provider.themeData.colorScheme.secondary, const Color(0xFF9D84FF));
+      expect(provider.themeData.colorScheme.secondaryContainer, const Color(0xFFE6E6FA));
+      expect(provider.themeData.scaffoldBackgroundColor, const Color(0xFFF5F3FA));
+    });
+
     test('setTheme notifies listeners and persists index to SharedPreferences', () async {
       final provider = ThemeProvider();
       bool notified = false;

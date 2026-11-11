@@ -38,7 +38,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
     {
       'name': 'Royal',
       'theme': AppTheme.royalPurple,
-      'color': Colors.deepPurple,
+      'color': const Color(0xFF2E1065),
       'isDark': false,
     },
     {

@@ -212,7 +212,6 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
     if (user == null) return const SizedBox.shrink();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape = context.isWideScreen;
 
     return Scaffold(
@@ -313,14 +312,14 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
                     Icon(
                       Symbols.star,
                       fill: 1.0,
-                      color: primaryColor.withValues(alpha: 0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       size: 16,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       "${sortedPlaces.length} Saved",
-                      style: TextStyle(
-                        color: primaryColor,
+                      style: const TextStyle(
+                        color: Colors.white,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),

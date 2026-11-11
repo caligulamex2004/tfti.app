@@ -45,7 +45,7 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.royalPurple => const LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [Color(0xFF4A00E0), Color(0xFF8E2DE2)],
+      colors: [Color(0xFF2E1065), Color(0xFF581C87)],
     ),
     AppTheme.lipGloss => const LinearGradient(
       begin: Alignment.topLeft,
@@ -327,15 +327,16 @@ class ThemeProvider extends ChangeNotifier {
     ),
     AppTheme.royalPurple => _buildTheme(
       brightness: Brightness.light,
-      scaffoldBackgroundColor: const Color(0xFFF0F2F5),
+      scaffoldBackgroundColor: const Color(0xFFFAF8F5),
       cardColor: Colors.white,
       appBarElevation: 4,
       colorScheme: const ColorScheme.light(
-        primary: Color(0xFF4A00E0),
+        primary: Color(0xFF2E1065),
         onPrimary: Colors.white,
-        secondary: Color(0xFF8E2DE2),
-        tertiary: Color(0xFFD500F9),
-        secondaryContainer: Color(0xFFE1BEE7),
+        secondary: Color(0xFFD4AF37),
+        tertiary: Color(0xFFF59E0B),
+        secondaryContainer: Color(0xFFFEF3C7),
+        surfaceTint: Color(0xFF2E1065),
       ),
     ),
     AppTheme.lipGloss => _buildTheme(

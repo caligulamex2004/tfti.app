@@ -59,7 +59,7 @@ class _AccountPageState extends State<AccountPage> {
     const Color(0xFFEE0909), // Beyond Dark
     const Color(0xFF1C8D6C), // Jade Edge
     const Color(0xFFFFAB00), // Electric Amber
-    Colors.deepPurple, // Royal Purple
+    const Color(0xFF2E1065), // Royal Purple
     const Color(0xFF00E5FF), // Cyber Punk
     const Color(0xFFFF9A9E), // Lip Gloss
     Colors.black,
