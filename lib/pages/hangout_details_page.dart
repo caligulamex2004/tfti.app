@@ -403,7 +403,6 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
       return const SizedBox();
     }
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape = context.isWideScreen;
 
@@ -894,8 +893,8 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                           const SizedBox(width: 8),
                                           Text(
                                             "Led by $hostDisplayName",
-                                            style: TextStyle(
-                                              color: primaryColor,
+                                            style: const TextStyle(
+                                              color: Colors.white,
                                               fontSize: 14,
                                               fontWeight: FontWeight.w500,
                                             ),
@@ -907,9 +906,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                               child: Icon(
                                                 Icons.contact_phone_outlined,
                                                 size: 13,
-                                                color: isDark
-                                                    ? Colors.grey.shade400
-                                                    : Colors.grey.shade600,
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.8,
+                                                ),
                                               ),
                                             ),
                                           ],
