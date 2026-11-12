@@ -11,8 +11,8 @@ void main() {
   });
 
   group('ThemeProvider Tests', () {
-    test('All 14 AppTheme enum values are defined and partitioned into 7 light and 7 dark', () {
-      expect(AppTheme.values.length, 14);
+    test('All 15 AppTheme enum values are defined and partitioned into 8 light and 7 dark', () {
+      expect(AppTheme.values.length, 15);
 
       const lightThemes = [
         AppTheme.original,
@@ -22,6 +22,7 @@ void main() {
         AppTheme.lavenderHaze,
         AppTheme.goldenHour,
         AppTheme.ePluribus,
+        AppTheme.lycheeLily,
       ];
 
       const darkThemes = [
@@ -171,6 +172,30 @@ void main() {
       expect(provider.themeData.scaffoldBackgroundColor, const Color(0xFFF5F3FA));
     });
 
+    test('Lychee Lily is correctly configured with coral pink, peach, and soft lavender', () {
+      final provider = ThemeProvider();
+
+      provider.setTheme(AppTheme.lycheeLily);
+      final gradient = provider.appGradient;
+      expect(gradient.colors.length, 3);
+      expect(gradient.colors[0], const Color(0xFFFF6584)); // Coral pink
+      expect(gradient.colors[1], const Color(0xFFFFB094)); // Juicy peach
+      expect(gradient.colors[2], const Color(0xFF9E86F0)); // Soft lilac / lavender
+      expect(gradient.stops, const [0.0, 0.5, 1.0]);
+
+      expect(provider.themeData.brightness, Brightness.light);
+      expect(provider.themeData.colorScheme.primary, const Color(0xFF8F75E8)); // Royal lilac
+      expect(provider.themeData.colorScheme.secondary, const Color(0xFFFF6584)); // Coral pink pop
+      expect(provider.themeData.colorScheme.tertiary, const Color(0xFFFFB094)); // Warm peach
+      expect(provider.themeData.colorScheme.secondaryContainer, const Color(0xFFFFE8E0));
+      expect(provider.themeData.scaffoldBackgroundColor, const Color(0xFFFFF7F4));
+      expect(provider.onPrimaryColor, Colors.white);
+      expect(provider.pillTextColor, Colors.white);
+      expect(provider.onGradientColor, Colors.white);
+      expect(provider.chipUnselectedBackgroundColor, Colors.white);
+      expect(provider.chipUnselectedTextColor, Colors.black87);
+    });
+
     test('setTheme notifies listeners and persists index to SharedPreferences', () async {
       final provider = ThemeProvider();
       bool notified = false;
@@ -184,6 +209,10 @@ void main() {
 
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getInt('selected_theme'), AppTheme.goldenHour.index);
+
+      await provider.setTheme(AppTheme.lycheeLily);
+      expect(provider.currentTheme, AppTheme.lycheeLily);
+      expect(prefs.getInt('selected_theme'), AppTheme.lycheeLily.index);
     });
   });
 }

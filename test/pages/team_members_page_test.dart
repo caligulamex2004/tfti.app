@@ -14,7 +14,7 @@ void main() {
   });
 
   group('TeamMembersPage & SharedSliverAppBar Layout Tests', () {
-    testWidgets('TeamMembersPage configures SafeArea(top: true, bottom: false) for device notch clearance', (tester) async {
+    testWidgets('TeamMembersPage renders Scaffold body directly without SafeArea wrapper so SharedSliverAppBar extends into notch', (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.0;
       tester.view.padding = const FakeViewPadding(top: 48, left: 0, right: 0, bottom: 48); // 24 logical px status bar
@@ -34,16 +34,12 @@ void main() {
         ),
       );
 
-      // Verify SafeArea is present with top: true and bottom: false
+      // Verify Scaffold does not wrap body in SafeArea so SharedSliverAppBar extends behind status bar / notch
       final safeAreaFinder = find.descendant(
         of: find.byType(Scaffold),
         matching: find.byType(SafeArea),
       );
-      expect(safeAreaFinder, findsOneWidget);
-
-      final safeArea = tester.widget<SafeArea>(safeAreaFinder);
-      expect(safeArea.top, isTrue);
-      expect(safeArea.bottom, isFalse);
+      expect(safeAreaFinder, findsNothing);
     });
 
     testWidgets('Uncollapsed title in portrait is spaced to right of back button (x >= 56.0) when hasBackButton is true', (tester) async {

@@ -23,6 +23,9 @@ enum AppTheme {
 
   // Additional Dark Theme (ordered at end to maintain stored SharedPreferences ordinal compatibility)
   elGrito,
+
+  // Additional Light Theme (ordered at end to maintain stored SharedPreferences ordinal compatibility)
+  lycheeLily,
 }
 
 class ThemeProvider extends ChangeNotifier {
@@ -117,6 +120,16 @@ class ThemeProvider extends ChangeNotifier {
       ],
       stops: [0.0, 0.5, 1.0],
     ),
+    AppTheme.lycheeLily => const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Color(0xFFFF6584), // Vibrant coral pink (lychee rind)
+        Color(0xFFFFB094), // Juicy warm peach (sweet nectar)
+        Color(0xFF9E86F0), // Soft royal lilac / lavender (lily blossom)
+      ],
+      stops: [0.0, 0.5, 1.0],
+    ),
   };
 
   // Standardized foreground color on primary backgrounds (buttons, pills, selected chips)
@@ -130,6 +143,7 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.lavenderHaze ||
     AppTheme.goldenHour ||
     AppTheme.ePluribus ||
+    AppTheme.lycheeLily ||
     AppTheme.darkBlue ||
     AppTheme.dark ||
     AppTheme.beyondDark ||
@@ -154,7 +168,8 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.jadeEdge ||
     AppTheme.lavenderHaze ||
     AppTheme.goldenHour ||
-    AppTheme.ePluribus => Colors.white,
+    AppTheme.ePluribus ||
+    AppTheme.lycheeLily => Colors.white,
     AppTheme.darkBlue => const Color(0xFF1E293B),
     AppTheme.velvetDust => const Color(0xFF2D1626),
     AppTheme.elGrito => const Color(0xFF1A2620),
@@ -172,7 +187,8 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.jadeEdge ||
     AppTheme.lavenderHaze ||
     AppTheme.goldenHour ||
-    AppTheme.ePluribus => Colors.black87,
+    AppTheme.ePluribus ||
+    AppTheme.lycheeLily => Colors.black87,
     AppTheme.darkBlue ||
     AppTheme.dark ||
     AppTheme.electricAmber ||
@@ -190,7 +206,8 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.jadeEdge ||
     AppTheme.lavenderHaze ||
     AppTheme.goldenHour ||
-    AppTheme.ePluribus => const Color(0xFFE0E0E0),
+    AppTheme.ePluribus ||
+    AppTheme.lycheeLily => const Color(0xFFE0E0E0),
     AppTheme.darkBlue ||
     AppTheme.dark ||
     AppTheme.electricAmber ||
@@ -209,6 +226,7 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.lavenderHaze ||
     AppTheme.goldenHour ||
     AppTheme.ePluribus ||
+    AppTheme.lycheeLily ||
     AppTheme.darkBlue ||
     AppTheme.dark ||
     AppTheme.electricAmber ||
@@ -486,6 +504,19 @@ class ThemeProvider extends ChangeNotifier {
         tertiary: Color(0xFFD49B5A),
         secondaryContainer: Color(0xFF1A382B),
         surfaceTint: Color(0xFF228358),
+      ),
+    ),
+    AppTheme.lycheeLily => _buildTheme(
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: const Color(0xFFFFF7F4),
+      cardColor: Colors.white,
+      colorScheme: const ColorScheme.light(
+        primary: Color(0xFF8F75E8),
+        onPrimary: Colors.white,
+        secondary: Color(0xFFFF6584),
+        tertiary: Color(0xFFFFB094),
+        secondaryContainer: Color(0xFFFFE8E0),
+        surfaceTint: Color(0xFF8F75E8),
       ),
     ),
   };

@@ -28,7 +28,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
   }
   // Theme metadata for the new visual selector
   final List<Map<String, dynamic>> _themeOptions = [
-    // --- 7 LIGHT THEMES ---
+    // --- 8 LIGHT THEMES ---
     {
       'name': 'Daylight',
       'theme': AppTheme.original,
@@ -69,6 +69,12 @@ class _PreferencesPageState extends State<PreferencesPage> {
       'name': 'E Pluribus',
       'theme': AppTheme.ePluribus,
       'color': const Color(0xFF1E3A63),
+      'isDark': false,
+    },
+    {
+      'name': 'Lychee Lily',
+      'theme': AppTheme.lycheeLily,
+      'color': const Color(0xFFFF6584),
       'isDark': false,
     },
 
