@@ -135,6 +135,29 @@ void main() {
       expect(addedUser?['uid'], equals('user-brock'));
     });
 
+    testWidgets('Renders Added state when user is in addedUids', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SuggestedSquadRail(
+              isDark: false,
+              primaryColor: Colors.deepPurple,
+              isLandscape: false,
+              suggestions: sampleSuggestions,
+              hasContactsPermission: true,
+              addedUids: const {'user-brock'},
+              onRequestContacts: () {},
+              onSquadUp: (_) {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Added'), findsOneWidget);
+      expect(find.text('+ Add'), findsOneWidget);
+      expect(find.byIcon(Icons.check), findsOneWidget);
+    });
+
     testWidgets('Renders sync banner when suggestions empty and no permission', (WidgetTester tester) async {
       bool syncRequested = false;
 

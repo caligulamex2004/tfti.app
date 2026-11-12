@@ -217,7 +217,7 @@ class SuggestedSquadRail extends StatelessWidget {
                                     Icon(Icons.check, size: 14, color: Colors.green),
                                     SizedBox(width: 4),
                                     Text(
-                                      "Sent",
+                                      "Added",
                                       style: TextStyle(
                                         color: Colors.green,
                                         fontWeight: FontWeight.bold,

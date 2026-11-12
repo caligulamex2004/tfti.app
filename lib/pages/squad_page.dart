@@ -442,21 +442,42 @@ class _SquadPageState extends State<SquadPage> {
     final myUid = FirebaseAuth.instance.currentUser!.uid;
     final targetUid = user['uid'] as String;
     final username = user['username'] as String? ?? '';
+    final phone = user['phoneNumber'] as String?;
+    final contactName = user['contactName'] as String?;
+    final displayName = user['displayName'] as String? ?? '';
 
     setState(() {
       _suggestedAddedUids.add(targetUid);
+      _removedFriendUids.remove(targetUid);
     });
 
-    await FriendService.sendSquadRequest(
-      fromUid: myUid,
-      toUid: targetUid,
-      source: 'suggested',
+    // If the user already sent an incoming squad request, accept it to clean it up
+    final hasIncoming = await FriendService.hasPendingRequest(
+      fromUid: targetUid,
+      toUid: myUid,
     );
+    if (hasIncoming) {
+      await FriendService.acceptSquadRequest(
+        myUid: myUid,
+        requesterUid: targetUid,
+      );
+    } else {
+      await FriendService.addFriend(
+        myUid: myUid,
+        friendUid: targetUid,
+        phoneNumber: phone,
+      );
+    }
 
     if (!mounted) return;
+    final resolvedName = (contactName != null && contactName.isNotEmpty)
+        ? contactName
+        : (displayName.isNotEmpty
+            ? displayName
+            : (username.isNotEmpty ? '@$username' : 'friend'));
+
     setState(() {
-      _statusMessage =
-          "Squad request sent${username.isNotEmpty ? ' to @$username' : ''}!";
+      _statusMessage = "Added $resolvedName to the squad!";
     });
     _clearStatusAfterDelay();
   }
