@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import '../../services/app_toast.dart';
 
 class TipJarSheet extends StatelessWidget {
   const TipJarSheet({super.key});
@@ -103,13 +104,8 @@ class TipJarSheet extends StatelessWidget {
 
                               if (context.mounted) {
                                 Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      "Thank you so much for the support! 🚀",
-                                    ),
-                                    backgroundColor: Colors.green,
-                                  ),
+                                AppToast.success(
+                                  "Thank you so much for the support! 🚀",
                                 );
                               }
                             } on PlatformException catch (e) {
@@ -117,15 +113,7 @@ class TipJarSheet extends StatelessWidget {
                                   PurchasesErrorHelper.getErrorCode(e);
                               if (errorCode !=
                                   PurchasesErrorCode.purchaseCancelledError) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        "Purchase failed: ${e.message}",
-                                      ),
-                                    ),
-                                  );
-                                }
+                                AppToast.error("Purchase failed: ${e.message}");
                               }
                             }
                           },

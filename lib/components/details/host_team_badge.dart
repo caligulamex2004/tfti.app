@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../models/team_model.dart';
 import '../../models/user_profile.dart';
 import '../../pages/team_members_page.dart';
+import '../../services/app_toast.dart';
 import '../../services/contact_resolver.dart';
 import '../../services/team_service.dart';
 import '../../services/user_cache_repository.dart';
@@ -220,28 +221,15 @@ class HostTeamBadge extends StatelessWidget {
                   : () {
                       HapticFeedback.lightImpact();
                       if (isAll) {
-                        ScaffoldMessenger.of(context)
-                          ..hideCurrentSnackBar()
-                          ..showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                "Entire Squad is selected — everyone is already invited!",
-                              ),
-                            ),
-                          );
+                        AppToast.info(
+                          "Entire Squad is selected — everyone is already invited!",
+                        );
                         return;
                       }
                       if (circleIds.isEmpty) {
-                        ScaffoldMessenger.of(context)
-                          ..hideCurrentSnackBar()
-                          ..showSnackBar(
-                            const SnackBar(
-                              content: Text("Please select a Team first."),
-                            ),
-                          );
+                        AppToast.info("Please select a Team first.");
                         return;
                       }
-                      final messenger = ScaffoldMessenger.of(context);
                       LastMinuteInviteSheet.show(
                         context,
                         userUid: currentUserId,
@@ -254,17 +242,11 @@ class HostTeamBadge extends StatelessWidget {
                             lastMinuteInviteIds: updatedIds,
                             isMainHost: isMainHost,
                           );
-                          messenger
-                            ..hideCurrentSnackBar()
-                            ..showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  updatedIds.isEmpty
-                                      ? "Last minute invites cleared."
-                                      : "Last minute invites updated (${updatedIds.length})!",
-                                ),
-                              ),
-                            );
+                          AppToast.success(
+                            updatedIds.isEmpty
+                                ? "Last minute invites cleared."
+                                : "Last minute invites updated (${updatedIds.length})!",
+                          );
                         },
                       );
                     },

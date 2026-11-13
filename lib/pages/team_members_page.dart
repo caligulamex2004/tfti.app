@@ -7,6 +7,7 @@ import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/shared/user_profile_sheet.dart';
 import '../components/teams/add_team_members_sheet.dart';
 import '../components/teams/team_member_tile.dart';
+import '../services/app_toast.dart';
 import '../services/contact_resolver.dart';
 import '../services/contact_service.dart';
 import '../services/team_service.dart';
@@ -148,9 +149,7 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
           await EventService.syncEventInvitesWithTeams(widget.eventId!);
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("$friendName removed from team!")),
-          );
+          AppToast.info("$friendName removed from team!");
         }
         return true;
       }

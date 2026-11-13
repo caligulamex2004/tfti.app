@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/app_toast.dart';
 import '../../services/notification_service.dart';
 
 class WebNotificationPromptBanner extends StatefulWidget {
@@ -65,12 +66,7 @@ class _WebNotificationPromptBannerState
     if (!mounted) return;
 
     if (granted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("✅ Browser push notifications enabled!"),
-          duration: Duration(seconds: 3),
-        ),
-      );
+      AppToast.success("Browser push notifications enabled!");
     }
     await _dismiss();
   }

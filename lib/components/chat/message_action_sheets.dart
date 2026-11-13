@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import '../../services/app_toast.dart';
 import '../../services/contact_resolver.dart';
 import '../../services/contact_service.dart';
 import '../shared/app_avatar.dart';
@@ -205,9 +206,7 @@ class MessageOptionsSheet extends StatelessWidget {
               onTap: () {
                 Clipboard.setData(ClipboardData(text: data['text']));
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Copied to clipboard")),
-                );
+                AppToast.success("Copied to clipboard");
               },
             ),
 
@@ -467,22 +466,13 @@ class MessageOptionsSheet extends StatelessWidget {
                   });
 
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text(
-                          "Report sent. Thank you for keeping tfti safe.",
-                        ),
-                        backgroundColor: isDark
-                            ? Colors.green.shade700
-                            : Colors.green,
-                      ),
+                    AppToast.success(
+                      "Report sent. Thank you for keeping tfti safe.",
                     );
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Error sending report.")),
-                    );
+                    AppToast.error("Error sending report.");
                   }
                 }
               },

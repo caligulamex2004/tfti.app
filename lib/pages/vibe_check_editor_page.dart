@@ -17,7 +17,7 @@ import '../models/vibe_check_submission_request.dart';
 import '../utils/event_service.dart';
 import '../utils/theme_provider.dart';
 import '../utils/responsive_layout.dart';
-import '../services/notification_service.dart';
+import '../services/app_toast.dart';
 import 'places_search_page.dart';
 
 class VibeCheckEditorPage extends StatefulWidget {
@@ -174,9 +174,7 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
 
   void _addOption() {
     if (_pollOptions.length >= 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Maximum of 5 options allowed.")),
-      );
+      AppToast.warning("Maximum of 5 options allowed.");
       return;
     }
     setState(() {
@@ -250,11 +248,7 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
     }
 
     if (validOptions < 2 && _isMainHost) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please provide at least two Activity Options."),
-        ),
-      );
+      AppToast.warning("Please provide at least two Activity Options.");
       return;
     }
 
@@ -285,21 +279,16 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
       onSuccess: () {
         if (mounted) {
           Navigator.pop(context);
-          NotificationService.instance.showLocalNotification(
-            title: isEditing ? "Changes saved! 💾" : "Feeler sent out! 🎣",
-            body: isEditing
+          AppToast.success(
+            isEditing
                 ? "Your event details have been updated."
                 : "Your crew has been polled! 📨",
-            type: 'success',
+            title: isEditing ? "Changes saved! 💾" : "Feeler sent out! 🎣",
           );
         }
       },
       onError: (msg) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Error: $msg")),
-          );
-        }
+        AppToast.error("Error: $msg");
       },
     );
   }
@@ -358,15 +347,9 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
     }
 
     if (validOptions.length < 2) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Please provide at least two Activity Options before converting.",
-            ),
-          ),
-        );
-      }
+      AppToast.warning(
+        "Please provide at least two Activity Options before converting.",
+      );
       return;
     }
 
@@ -488,11 +471,7 @@ class _VibeCheckEditorPageState extends State<VibeCheckEditorPage> {
         }
       },
       onError: (msg) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $msg')),
-          );
-        }
+        AppToast.error('Error: $msg');
       },
     );
   }

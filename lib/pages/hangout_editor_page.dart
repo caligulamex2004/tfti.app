@@ -25,7 +25,7 @@ import '../models/hangout_submission_request.dart';
 import '../utils/event_service.dart';
 import '../utils/theme_provider.dart';
 import '../utils/responsive_layout.dart';
-import '../services/notification_service.dart';
+import '../services/app_toast.dart';
 
 class HangoutEditorPage extends StatefulWidget {
   final String? eventId;
@@ -339,21 +339,16 @@ class _HangoutEditorPageState extends State<HangoutEditorPage> {
       onSuccess: () {
         if (mounted) {
           Navigator.pop(context);
-          NotificationService.instance.showLocalNotification(
-            title: isEditing ? "Changes saved! 💾" : "It's official! 🚀",
-            body: isEditing
+          AppToast.success(
+            isEditing
                 ? "Your event details have been updated."
                 : "Your crew has been notified! 📨",
-            type: 'success',
+            title: isEditing ? "Changes saved! 💾" : "It's official! 🚀",
           );
         }
       },
       onError: (msg) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $msg')),
-          );
-        }
+        AppToast.error('Error: $msg');
       },
     );
   }

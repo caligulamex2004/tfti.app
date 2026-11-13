@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 // ignore: depend_on_referenced_packages
 import 'package:firebase_core_platform_interface/test.dart';
 import 'package:tftiapp/components/forms/last_minute_invite_field.dart';
+import 'package:tftiapp/components/shared/in_app_notification_toast.dart';
 
 void main() {
   setUpAll(() async {
@@ -34,10 +35,13 @@ void main() {
     );
 
     testWidgets(
-      'Disabled (opacity 0.5) when inviteAll is true and shows snackbar on tap',
+      'Disabled (opacity 0.5) when inviteAll is true and shows toast on tap',
       (WidgetTester tester) async {
         await tester.pumpWidget(
           MaterialApp(
+            builder: (context, child) => InAppNotificationToastWrapper(
+              child: child ?? const SizedBox.shrink(),
+            ),
             home: Scaffold(
               body: LastMinuteInviteField(
                 userUidOverride: 'user_123',
@@ -63,14 +67,18 @@ void main() {
           find.text('Entire Squad is selected — everyone is already invited!'),
           findsOneWidget,
         );
+        await tester.pump(const Duration(seconds: 4));
       },
     );
 
     testWidgets(
-      'Disabled (opacity 0.5) when selectedCircleIds is empty and shows snackbar on tap',
+      'Disabled (opacity 0.5) when selectedCircleIds is empty and shows toast on tap',
       (WidgetTester tester) async {
         await tester.pumpWidget(
           MaterialApp(
+            builder: (context, child) => InAppNotificationToastWrapper(
+              child: child ?? const SizedBox.shrink(),
+            ),
             home: Scaffold(
               body: LastMinuteInviteField(
                 userUidOverride: 'user_123',
@@ -93,6 +101,7 @@ void main() {
         await tester.pump();
 
         expect(find.text('Please select a Team first.'), findsOneWidget);
+        await tester.pump(const Duration(seconds: 4));
       },
     );
 
@@ -101,6 +110,9 @@ void main() {
       (WidgetTester tester) async {
         await tester.pumpWidget(
           MaterialApp(
+            builder: (context, child) => InAppNotificationToastWrapper(
+              child: child ?? const SizedBox.shrink(),
+            ),
             home: Scaffold(
               body: LastMinuteInviteField(
                 userUidOverride: 'user_123',
@@ -126,6 +138,7 @@ void main() {
           find.text('Select one or more to join the Crew on this one.'),
           findsOneWidget,
         );
+        await tester.pump(const Duration(seconds: 4));
       },
     );
 

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tftiapp/components/squad/add_friend_section.dart';
 import 'package:tftiapp/components/squad/suggested_squad_rail.dart';
 import 'package:tftiapp/components/squad/qr_duo_sheet.dart';
+import 'package:tftiapp/pages/squad_page.dart';
 
 void main() {
   group('AddFriendSection Widget Tests', () {
@@ -19,7 +20,6 @@ void main() {
               primaryColor: Colors.deepPurple,
               myUid: 'my-uid-123',
               myFriendUids: const {},
-              statusMessage: '',
               onOpenQrDuo: () => qrOpened = true,
               onShareLink: () => linkShared = true,
               onImportContacts: () => contactsOpened = true,
@@ -58,7 +58,6 @@ void main() {
               primaryColor: Colors.deepPurple,
               myUid: 'my-uid-123',
               myFriendUids: const {},
-              statusMessage: '',
               onOpenQrDuo: () {},
               onShareLink: () {},
               onImportContacts: () {},
@@ -240,6 +239,40 @@ void main() {
       await tester.pump();
 
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('reconcileSuggestedSquadState Tests', () {
+    test('clears Added flag when friend is confirmed and when friend is removed', () {
+      final suggestedUsers = <Map<String, dynamic>>[
+        {'uid': 'user-brock', 'displayName': 'Brock'},
+        {'uid': 'user-misty', 'displayName': 'Misty'},
+      ];
+      final suggestedAddedUids = <String>{'user-brock'};
+
+      // Step 1: Firestore confirms user-brock was added as a friend
+      final removedOnAdd = reconcileSuggestedSquadState(
+        previousFriendUids: const {},
+        updatedFriendUids: const {'user-brock'},
+        suggestedAddedUids: suggestedAddedUids,
+        suggestedUsers: suggestedUsers,
+      );
+
+      expect(removedOnAdd, isEmpty);
+      expect(suggestedAddedUids, isNot(contains('user-brock')));
+      expect(suggestedUsers.map((u) => u['uid']), equals(['user-misty']));
+
+      // Step 2: Simulate stale Added flag before removal snapshot arrives
+      suggestedAddedUids.add('user-brock');
+      final removedOnDelete = reconcileSuggestedSquadState(
+        previousFriendUids: const {'user-brock'},
+        updatedFriendUids: const {},
+        suggestedAddedUids: suggestedAddedUids,
+        suggestedUsers: suggestedUsers,
+      );
+
+      expect(removedOnDelete, equals({'user-brock'}));
+      expect(suggestedAddedUids, isNot(contains('user-brock')));
     });
   });
 }

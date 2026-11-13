@@ -16,6 +16,7 @@ import '../components/feed/contextual_empty_card.dart';
 import '../components/feed/carousel_feed_list.dart';
 import '../components/feed/web_notification_prompt_banner.dart';
 import '../models/feed_snapshot.dart';
+import '../services/app_toast.dart';
 import '../services/feed_service.dart';
 import '../services/friend_service.dart';
 import '../services/user_service.dart';
@@ -189,17 +190,10 @@ class _HomePageState extends State<HomePage> {
         uid: user.uid,
         currentlyHidden: currentlyHidden,
       );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              currentlyHidden ? "Event unhidden." : "Event hidden.",
-            ),
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      AppToast.info(
+        currentlyHidden ? "Event unhidden." : "Event hidden.",
+        duration: const Duration(seconds: 2),
+      );
     }
   }
 

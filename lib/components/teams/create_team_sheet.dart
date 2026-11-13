@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import '../../services/app_toast.dart';
 import '../../utils/theme_provider.dart';
 
 /// Modal bottom sheet for creating or renaming a team circle.
@@ -139,9 +140,7 @@ class _CreateTeamSheetState extends State<CreateTeamSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
-        );
+        AppToast.error("Error: $e");
       }
     }
   }

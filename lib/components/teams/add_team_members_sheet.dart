@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:tftiapp/services/app_toast.dart';
 import 'package:tftiapp/services/contact_resolver.dart';
 import 'package:tftiapp/services/contact_service.dart';
 import 'package:tftiapp/services/team_service.dart';
@@ -28,8 +29,6 @@ class AddTeamMembersSheet extends StatefulWidget {
     required String userUid,
     VoidCallback? onMembersAdded,
   }) async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
     final allFriendsSnapshot = await FirebaseFirestore.instance
         .collection('users')
         .doc(userUid)
@@ -47,9 +46,7 @@ class AddTeamMembersSheet extends StatefulWidget {
     if (!context.mounted) return;
 
     if (availableFriendDocs.isEmpty) {
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text("Everyone is already in here!")),
-      );
+      AppToast.info("Everyone is already in here!");
       return;
     }
 
@@ -373,15 +370,9 @@ class _AddTeamMembersSheetState extends State<AddTeamMembersSheet> {
                             memberUids: _selectedIds.toList(),
                           );
                           widget.onMembersAdded?.call();
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  "Added ${_selectedIds.length} friends!",
-                                ),
-                              ),
-                            );
-                          }
+                          AppToast.success(
+                            "Added ${_selectedIds.length} friends!",
+                          );
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryColor,

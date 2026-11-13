@@ -5,6 +5,7 @@ import 'package:material_symbols_icons/symbols.dart';
 
 import 'custom_input_field.dart';
 import '../../pages/places_search_page.dart';
+import '../../services/app_toast.dart';
 import '../../services/place_service.dart';
 
 class LocationInputField extends StatefulWidget {
@@ -71,9 +72,7 @@ class _LocationInputFieldState extends State<LocationInputField> {
         _isLocFavorite = false;
         _favoriteDocId = null;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Removed from VIP Places")));
+      AppToast.info("Removed from VIP Places");
     } else {
       final isDark = Theme.of(context).brightness == Brightness.dark;
       final defaultName = widget.controller.text.split(',').first;
@@ -142,9 +141,7 @@ class _LocationInputFieldState extends State<LocationInputField> {
         _isLocFavorite = true;
         _favoriteDocId = placeId;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Added to VIP Places!")));
+      AppToast.success("Added to VIP Places!");
     }
   }
 
