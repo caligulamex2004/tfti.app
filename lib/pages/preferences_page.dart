@@ -78,7 +78,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
       'isDark': false,
     },
 
-    // --- 7 DARK THEMES ---
+    // --- 8 DARK THEMES ---
     {
       'name': 'Vigilante',
       'theme': AppTheme.darkBlue,
@@ -92,9 +92,9 @@ class _PreferencesPageState extends State<PreferencesPage> {
       'isDark': true,
     },
     {
-      'name': 'Electric',
+      'name': 'Electric Amber',
       'theme': AppTheme.electricAmber,
-      'color': const Color(0xFFFFAB00),
+      'color': const Color(0xFFFF6D00),
       'isDark': true,
     },
     {
@@ -119,6 +119,12 @@ class _PreferencesPageState extends State<PreferencesPage> {
       'name': 'El Grito',
       'theme': AppTheme.elGrito,
       'color': const Color(0xFF228358),
+      'isDark': true,
+    },
+    {
+      'name': 'Yellowjacket',
+      'theme': AppTheme.yellowjacket,
+      'color': const Color(0xFFEAB308),
       'isDark': true,
     },
   ];

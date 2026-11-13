@@ -11,8 +11,8 @@ void main() {
   });
 
   group('ThemeProvider Tests', () {
-    test('All 15 AppTheme enum values are defined and partitioned into 8 light and 7 dark', () {
-      expect(AppTheme.values.length, 15);
+    test('All 16 AppTheme enum values are defined and partitioned into 8 light and 8 dark', () {
+      expect(AppTheme.values.length, 16);
 
       const lightThemes = [
         AppTheme.original,
@@ -33,6 +33,7 @@ void main() {
         AppTheme.beyondDark,
         AppTheme.velvetDust,
         AppTheme.elGrito,
+        AppTheme.yellowjacket,
       ];
 
       final provider = ThemeProvider();
@@ -68,17 +69,24 @@ void main() {
     test('onPrimaryColor and pillTextColor match colorScheme.onPrimary across all themes', () {
       final provider = ThemeProvider();
 
-      // CyberPunk & Electric Amber use dark text on bright primary colors
-      for (final theme in [AppTheme.cyberPunk, AppTheme.electricAmber]) {
+      // CyberPunk, Electric Amber & Yellowjacket use dark text on bright/gold primary colors
+      for (final theme in [
+        AppTheme.cyberPunk,
+        AppTheme.electricAmber,
+        AppTheme.yellowjacket,
+      ]) {
         provider.setTheme(theme);
         expect(provider.onPrimaryColor, const Color(0xDD000000));
         expect(provider.pillTextColor, const Color(0xDD000000));
         expect(provider.themeData.colorScheme.onPrimary, const Color(0xDD000000));
       }
 
-      // All other 12 themes use white text on primary colors
+      // All other 13 themes use white text on primary colors
       final whiteTextThemes = AppTheme.values.where(
-        (t) => t != AppTheme.cyberPunk && t != AppTheme.electricAmber,
+        (t) =>
+            t != AppTheme.cyberPunk &&
+            t != AppTheme.electricAmber &&
+            t != AppTheme.yellowjacket,
       );
       for (final theme in whiteTextThemes) {
         provider.setTheme(theme);
@@ -98,6 +106,11 @@ void main() {
 
         expect(provider.pillBackgroundColor, provider.themeData.colorScheme.primary);
         expect(provider.pillTextColor, provider.onPrimaryColor);
+        expect(
+          provider.themeData.chipTheme.checkmarkColor,
+          provider.themeData.colorScheme.onPrimary,
+          reason: '$theme chipTheme.checkmarkColor should match colorScheme.onPrimary',
+        );
 
         if (isDark) {
           expect(provider.chipUnselectedTextColor, Colors.white);
@@ -196,6 +209,58 @@ void main() {
       expect(provider.chipUnselectedTextColor, Colors.black87);
     });
 
+    test('Yellowjacket is configured with pure black surfaces and deep wasp gold accents', () {
+      final provider = ThemeProvider();
+
+      provider.setTheme(AppTheme.yellowjacket);
+      final gradient = provider.appGradient;
+      expect(gradient.colors, const [
+        Color(0xFF0A0A0B),
+        Color(0xFF2B2100),
+        Color(0xFF080809),
+      ]);
+      expect(gradient.stops, const [0.0, 0.5, 1.0]);
+
+      expect(provider.themeData.brightness, Brightness.dark);
+      expect(provider.themeData.scaffoldBackgroundColor, const Color(0xFF000000));
+      expect(provider.themeData.cardColor, const Color(0xFF111113));
+      expect(provider.themeData.colorScheme.primary, const Color(0xFFEAB308));
+      expect(provider.themeData.colorScheme.secondary, const Color(0xFFFACC15));
+      expect(provider.themeData.colorScheme.tertiary, const Color(0xFFFDE047));
+      expect(provider.themeData.colorScheme.secondaryContainer, const Color(0xFF2B2305));
+      expect(provider.onPrimaryColor, const Color(0xDD000000));
+      expect(provider.pillTextColor, const Color(0xDD000000));
+      expect(provider.onGradientColor, Colors.white);
+      expect(provider.chipUnselectedBackgroundColor, const Color(0xFF1C1C1F));
+      expect(provider.chipUnselectedTextColor, Colors.white);
+    });
+
+    test('Electric Amber is configured with smoked bronze surfaces and electric tangerine accents distinct from Yellowjacket', () {
+      final provider = ThemeProvider();
+
+      provider.setTheme(AppTheme.electricAmber);
+      final gradient = provider.appGradient;
+      expect(gradient.colors, const [
+        Color(0xFF1A0B02),
+        Color(0xFF4A1E04),
+        Color(0xFF120802),
+      ]);
+      expect(gradient.stops, const [0.0, 0.5, 1.0]);
+
+      expect(provider.themeData.brightness, Brightness.dark);
+      expect(provider.themeData.scaffoldBackgroundColor, const Color(0xFF140D07));
+      expect(provider.themeData.cardColor, const Color(0xFF1F150D));
+      expect(provider.themeData.colorScheme.primary, const Color(0xFFFF6D00));
+      expect(provider.themeData.colorScheme.secondary, const Color(0xFFFF9100));
+      expect(provider.themeData.colorScheme.tertiary, const Color(0xFFFF9E40));
+      expect(provider.themeData.colorScheme.secondaryContainer, const Color(0xFF3D1E08));
+      expect(provider.onPrimaryColor, const Color(0xDD000000));
+      expect(provider.pillTextColor, const Color(0xDD000000));
+      expect(provider.onGradientColor, Colors.white);
+      expect(provider.chipUnselectedBackgroundColor, const Color(0xFF281B11));
+      expect(provider.chipUnselectedTextColor, Colors.white);
+    });
+
     test('setTheme notifies listeners and persists index to SharedPreferences', () async {
       final provider = ThemeProvider();
       bool notified = false;
@@ -213,6 +278,10 @@ void main() {
       await provider.setTheme(AppTheme.lycheeLily);
       expect(provider.currentTheme, AppTheme.lycheeLily);
       expect(prefs.getInt('selected_theme'), AppTheme.lycheeLily.index);
+
+      await provider.setTheme(AppTheme.yellowjacket);
+      expect(provider.currentTheme, AppTheme.yellowjacket);
+      expect(prefs.getInt('selected_theme'), AppTheme.yellowjacket.index);
     });
   });
 }

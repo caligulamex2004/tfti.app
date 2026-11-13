@@ -132,5 +132,78 @@ void main() {
       final expandedTitleRect = titleRects.firstWhere((r) => r.left == 20.0);
       expect(expandedTitleRect.left, equals(20.0));
     });
+
+    testWidgets('SharedSliverAppBar transitions back button and action icon colors from white when expanded to black87 when collapsed in light mode', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      tester.view.padding = const FakeViewPadding(top: 48, left: 0, right: 0, bottom: 48);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        tester.view.resetPadding();
+      });
+
+      final navKey = GlobalKey<NavigatorState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          navigatorKey: navKey,
+          theme: ThemeData.light(useMaterial3: true),
+          home: const Scaffold(body: Text('Root')),
+        ),
+      );
+
+      navKey.currentState!.push(
+        MaterialPageRoute(
+          builder: (context) => Scaffold(
+            body: CustomScrollView(
+              slivers: [
+                SharedSliverAppBar(
+                  title: 'Hangout Event',
+                  collapsedTitle: 'Hangout Event',
+                  expandedHeight: 240.0,
+                  expandedTitleColor: Colors.white,
+                  expandedIconColor: Colors.white,
+                  hasBackButton: true,
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: () {},
+                    ),
+                  ],
+                ),
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => SizedBox(
+                      height: 80,
+                      child: Text('Item $index'),
+                    ),
+                    childCount: 30,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      Color renderedIconColor(IconData iconData) {
+        final iconElement = tester.element(find.byIcon(iconData));
+        return IconTheme.of(iconElement).color!;
+      }
+
+      // Expanded: both back arrow and edit icon use expandedIconColor (white)
+      expect(find.byType(BackButton), findsOneWidget);
+      expect(renderedIconColor(Icons.edit), Colors.white);
+      expect(tester.widget<BackButton>(find.byType(BackButton)).color, Colors.white);
+
+      // Scroll until fully collapsed
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
+      await tester.pumpAndSettle();
+
+      // Collapsed on light frosted glass: both back arrow and edit icon switch to black87
+      expect(renderedIconColor(Icons.edit), Colors.black87);
+      expect(tester.widget<BackButton>(find.byType(BackButton)).color, Colors.black87);
+    });
   });
 }

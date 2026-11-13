@@ -42,31 +42,27 @@ class SharedSliverAppBar extends StatelessWidget {
         (hasCustomBg
             ? (isDark ? Colors.white : Colors.black87)
             : themeProvider.onGradientColor);
+    final Color resolvedExpandedIconColor =
+        expandedIconColor ??
+        (hasCustomBg
+            ? (isDark ? Colors.white : Colors.black87)
+            : themeProvider.onGradientColor);
+    final Color collapsedIconColor = isDark ? Colors.white : Colors.black87;
+    final ModalRoute<dynamic>? parentRoute = ModalRoute.of(context);
+    final bool showBackButton =
+        hasBackButton && (parentRoute?.impliesAppBarDismissal ?? false);
+    final bool useCloseButton =
+        parentRoute is PageRoute && parentRoute.fullscreenDialog;
 
     return SliverAppBar(
       expandedHeight: expandedHeight,
       pinned: true,
       stretch: false,
+      automaticallyImplyLeading: false,
       backgroundColor: isDark
           ? Colors.black.withValues(alpha: 0.6)
           : Colors.white.withValues(alpha: 0.7),
       elevation: 0,
-      iconTheme: IconThemeData(
-        color:
-            expandedIconColor ??
-            (hasCustomBg
-                ? (isDark ? Colors.white : Colors.black87)
-                : themeProvider.onGradientColor),
-        shadows: [
-          if (!hasCustomBg)
-            const Shadow(
-              color: Colors.black45,
-              blurRadius: 4,
-              offset: Offset(0, 1),
-            ),
-        ],
-      ),
-      actions: actionsBuilder != null ? null : actions,
       flexibleSpace: ClipRect(
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
@@ -89,6 +85,24 @@ class SharedSliverAppBar extends StatelessWidget {
                   (expandRatio - 0.5).clamp(0.0, 0.5) * 2.0;
               final double collapsedOpacity =
                   (0.5 - expandRatio).clamp(0.0, 0.5) * 2.0;
+
+              final Color currentIconColor = Color.lerp(
+                collapsedIconColor,
+                resolvedExpandedIconColor,
+                expandRatio,
+              )!;
+              final List<Shadow> currentIconShadows =
+                  (!hasCustomBg && expandRatio > 0.0)
+                  ? [
+                      Shadow(
+                        color: Colors.black.withValues(
+                          alpha: 0.45 * expandRatio,
+                        ),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ]
+                  : const [];
 
               final builtActions = actionsBuilder?.call(expandRatio);
 
@@ -215,6 +229,44 @@ class SharedSliverAppBar extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: builtActions,
+                      ),
+                    ),
+
+                  // Pinned toolbar controls (leading back button & actions)
+                  // Rendered inside LayoutBuilder so icon colors transition smoothly
+                  // from expandedIconColor to collapsedIconColor on collapse.
+                  if (showBackButton || (builtActions == null && actions != null))
+                    Positioned(
+                      top: topPadding,
+                      left: leftPadding,
+                      right: rightPadding,
+                      height: kToolbarHeight,
+                      child: IconTheme(
+                        data: IconThemeData(
+                          color: currentIconColor,
+                          shadows: currentIconShadows,
+                        ),
+                        child: IconButtonTheme(
+                          data: IconButtonThemeData(
+                            style: IconButton.styleFrom(
+                              foregroundColor: currentIconColor,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              if (showBackButton)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 4.0),
+                                  child: useCloseButton
+                                      ? CloseButton(color: currentIconColor)
+                                      : BackButton(color: currentIconColor),
+                                ),
+                              const Spacer(),
+                              if (builtActions == null && actions != null)
+                                ...actions!,
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                 ],
