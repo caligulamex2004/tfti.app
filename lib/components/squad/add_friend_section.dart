@@ -17,7 +17,6 @@ class AddFriendSection extends StatefulWidget {
   final bool isLandscape;
   final String myUid;
   final Set<String> myFriendUids;
-  final String statusMessage;
   final VoidCallback onOpenQrDuo;
   final VoidCallback onShareLink;
   final VoidCallback onImportContacts;
@@ -32,7 +31,6 @@ class AddFriendSection extends StatefulWidget {
     this.isLandscape = false,
     required this.myUid,
     required this.myFriendUids,
-    required this.statusMessage,
     required this.onOpenQrDuo,
     required this.onShareLink,
     required this.onImportContacts,
@@ -246,47 +244,14 @@ class _AddFriendSectionState extends State<AddFriendSection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "Grow the Squad",
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 20,
-                  letterSpacing: -0.5,
-                  color: (useGradient || isDark) ? Colors.white : Colors.black87,
-                ),
-              ),
-              if (widget.statusMessage.isNotEmpty)
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: (widget.statusMessage.contains("Added") ||
-                              widget.statusMessage.contains("prepared") ||
-                              widget.statusMessage.contains("sent"))
-                          ? Colors.green.withValues(alpha: 0.15)
-                          : Colors.red.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      widget.statusMessage,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: (widget.statusMessage.contains("Added") ||
-                                widget.statusMessage.contains("prepared") ||
-                                widget.statusMessage.contains("sent"))
-                            ? (isDark ? Colors.greenAccent : Colors.green)
-                            : (isDark ? Colors.redAccent : Colors.red),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-            ],
+          Text(
+            "Grow the Squad",
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 20,
+              letterSpacing: -0.5,
+              color: (useGradient || isDark) ? Colors.white : Colors.black87,
+            ),
           ),
           const SizedBox(height: 12),
 

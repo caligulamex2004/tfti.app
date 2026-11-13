@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -32,7 +32,6 @@ class SquadPage extends StatefulWidget {
 }
 
 class _SquadPageState extends State<SquadPage> {
-  String _statusMessage = "";
   bool _sortByScore = true;
 
   final Set<String> _removedFriendUids = {};
@@ -48,6 +47,7 @@ class _SquadPageState extends State<SquadPage> {
   // Suggested Squad state
   List<Map<String, dynamic>> _suggestedUsers = [];
   final Set<String> _suggestedAddedUids = {};
+  final Set<String> _addingSuggestedUids = {};
   bool _isLoadingSuggestions = false;
 
   @override
@@ -106,15 +106,28 @@ class _SquadPageState extends State<SquadPage> {
         .snapshots()
         .listen((snap) {
       if (!mounted) return;
+      final updatedFriendUids = snap.docs.map((doc) => doc.id).toSet();
+      late final Set<String> removedUids;
       setState(() {
-        _myFriendUids = snap.docs.map((doc) => doc.id).toSet();
+        removedUids = reconcileSuggestedSquadState(
+          previousFriendUids: _myFriendUids,
+          updatedFriendUids: updatedFriendUids,
+          suggestedAddedUids: _suggestedAddedUids,
+          suggestedUsers: _suggestedUsers,
+        );
+        _myFriendUids = updatedFriendUids;
       });
-      // Re-filter suggestions so friends don't appear in suggested squad
-      if (_suggestedUsers.isNotEmpty) {
-        setState(() {
-          _suggestedUsers.removeWhere((u) => _myFriendUids.contains(u['uid']));
-        });
+
+      if (removedUids.isNotEmpty) {
+        _loadSuggestedContacts();
       }
+    });
+  }
+
+  void _handleFriendRemoved(String uid) {
+    setState(() {
+      _removedFriendUids.add(uid);
+      _suggestedAddedUids.remove(uid);
     });
   }
 
@@ -160,20 +173,18 @@ class _SquadPageState extends State<SquadPage> {
       if (!mounted) return;
       setState(() {
         _suggestedUsers = matches;
+        for (final match in matches) {
+          final uid = match['uid'] as String?;
+          if (uid != null && !_addingSuggestedUids.contains(uid)) {
+            _suggestedAddedUids.remove(uid);
+          }
+        }
       });
     } catch (e) {
       debugPrint("Error loading suggested contacts: $e");
     } finally {
       _isLoadingSuggestions = false;
     }
-  }
-
-  void _clearStatusAfterDelay() {
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        setState(() => _statusMessage = "");
-      }
-    });
   }
 
   void _openQrDuo() {
@@ -308,6 +319,7 @@ class _SquadPageState extends State<SquadPage> {
           onFriendAdded: (uid) {
             setState(() {
               _removedFriendUids.remove(uid);
+              _suggestedAddedUids.remove(uid);
             });
             _loadSuggestedContacts();
           },
@@ -353,21 +365,18 @@ class _SquadPageState extends State<SquadPage> {
     final targetUid = await FriendService.findUidByUsername(input);
     if (!mounted) return;
     if (targetUid == null) {
-      setState(() => _statusMessage = "Username @$input not found.");
-      _clearStatusAfterDelay();
+      AppToast.error("Username @$input not found.");
       return;
     }
 
     if (targetUid == myUid) {
-      setState(() => _statusMessage = "You can't add yourself!");
-      _clearStatusAfterDelay();
+      AppToast.warning("You can't add yourself!");
       return;
     }
 
     final myFriends = await FriendService.getFriendUids(myUid);
     if (myFriends.contains(targetUid)) {
-      setState(() => _statusMessage = "@$input is already in your squad!");
-      _clearStatusAfterDelay();
+      AppToast.info("@$input is already in your squad!");
       return;
     }
 
@@ -386,9 +395,8 @@ class _SquadPageState extends State<SquadPage> {
       if (!mounted) return;
       setState(() {
         _removedFriendUids.remove(targetUid);
-        _statusMessage = "Added @$input to the squad!";
       });
-      _clearStatusAfterDelay();
+      AppToast.success("Added @$input to the squad!");
     } else {
       await FriendService.sendSquadRequest(
         fromUid: myUid,
@@ -397,10 +405,7 @@ class _SquadPageState extends State<SquadPage> {
       );
 
       if (!mounted) return;
-      setState(() {
-        _statusMessage = "Squad request sent to @$input!";
-      });
-      _clearStatusAfterDelay();
+      AppToast.success("Squad request sent to @$input!");
     }
   }
 
@@ -411,11 +416,7 @@ class _SquadPageState extends State<SquadPage> {
       toUid: targetUid,
       source: 'search',
     );
-    if (!mounted) return;
-    setState(() {
-      _statusMessage = "Squad request sent to @$username!";
-    });
-    _clearStatusAfterDelay();
+    AppToast.success("Squad request sent to @$username!");
   }
 
   Future<void> _handleSuggestedSquadUp(Map<String, dynamic> user) async {
@@ -427,39 +428,48 @@ class _SquadPageState extends State<SquadPage> {
     final displayName = user['displayName'] as String? ?? '';
 
     setState(() {
+      _addingSuggestedUids.add(targetUid);
       _suggestedAddedUids.add(targetUid);
       _removedFriendUids.remove(targetUid);
     });
 
-    // If the user already sent an incoming squad request, accept it to clean it up
-    final hasIncoming = await FriendService.hasPendingRequest(
-      fromUid: targetUid,
-      toUid: myUid,
-    );
-    if (hasIncoming) {
-      await FriendService.acceptSquadRequest(
-        myUid: myUid,
-        requesterUid: targetUid,
+    try {
+      // If the user already sent an incoming squad request, accept it to clean it up
+      final hasIncoming = await FriendService.hasPendingRequest(
+        fromUid: targetUid,
+        toUid: myUid,
       );
-    } else {
-      await FriendService.addFriend(
-        myUid: myUid,
-        friendUid: targetUid,
-        phoneNumber: phone,
-      );
+      if (hasIncoming) {
+        await FriendService.acceptSquadRequest(
+          myUid: myUid,
+          requesterUid: targetUid,
+        );
+      } else {
+        await FriendService.addFriend(
+          myUid: myUid,
+          friendUid: targetUid,
+          phoneNumber: phone,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _suggestedAddedUids.remove(targetUid);
+        });
+      }
+      AppToast.error("Could not add friend. Please try again.");
+      return;
+    } finally {
+      _addingSuggestedUids.remove(targetUid);
     }
 
-    if (!mounted) return;
     final resolvedName = (contactName != null && contactName.isNotEmpty)
         ? contactName
         : (displayName.isNotEmpty
             ? displayName
             : (username.isNotEmpty ? '@$username' : 'friend'));
 
-    setState(() {
-      _statusMessage = "Added $resolvedName to the squad!";
-    });
-    _clearStatusAfterDelay();
+    AppToast.success("Added $resolvedName to the squad!");
   }
 
   @override
@@ -533,7 +543,6 @@ class _SquadPageState extends State<SquadPage> {
                             isLandscape: true,
                             myUid: myUid,
                             myFriendUids: _myFriendUids,
-                            statusMessage: _statusMessage,
                             onOpenQrDuo: _openQrDuo,
                             onShareLink: _shareInviteLink,
                             onImportContacts: _importContacts,
@@ -585,9 +594,7 @@ class _SquadPageState extends State<SquadPage> {
                       HapticFeedback.lightImpact();
                       setState(() => _sortByScore = !_sortByScore);
                     },
-                    onFriendRemoved: (uid) {
-                      setState(() => _removedFriendUids.add(uid));
-                    },
+                    onFriendRemoved: _handleFriendRemoved,
                   ),
                 ),
               ],
@@ -613,7 +620,6 @@ class _SquadPageState extends State<SquadPage> {
                     isLandscape: false,
                     myUid: myUid,
                     myFriendUids: _myFriendUids,
-                    statusMessage: _statusMessage,
                     onOpenQrDuo: _openQrDuo,
                     onShareLink: _shareInviteLink,
                     onImportContacts: _importContacts,
@@ -639,9 +645,7 @@ class _SquadPageState extends State<SquadPage> {
                 HapticFeedback.lightImpact();
                 setState(() => _sortByScore = !_sortByScore);
               },
-              onFriendRemoved: (uid) {
-                setState(() => _removedFriendUids.add(uid));
-              },
+              onFriendRemoved: _handleFriendRemoved,
             ),
     );
   }
@@ -661,38 +665,52 @@ class _SquadPageState extends State<SquadPage> {
               myUid: myUid,
               requesterUid: req.fromUid,
             );
-            if (!mounted) return;
-            setState(() {
-              _removedFriendUids.remove(req.fromUid);
-              _statusMessage =
-                  "Squadded up with ${req.displayName.isNotEmpty ? req.displayName : '@${req.username}'}!";
-            });
-            _clearStatusAfterDelay();
+            if (mounted) {
+              setState(() {
+                _removedFriendUids.remove(req.fromUid);
+              });
+            }
+            AppToast.success(
+              "Squadded up with ${req.displayName.isNotEmpty ? req.displayName : '@${req.username}'}!",
+            );
           },
           onPass: (req) async {
             await FriendService.passSquadRequest(
               myUid: myUid,
               requesterUid: req.fromUid,
             );
-            if (!mounted) return;
-            setState(() {
-              _statusMessage = "Passed on squad request.";
-            });
-            _clearStatusAfterDelay();
+            AppToast.info("Passed on squad request.");
           },
           onBlock: (req) async {
             await FriendService.blockSquadRequest(
               myUid: myUid,
               requesterUid: req.fromUid,
             );
-            if (!mounted) return;
-            setState(() {
-              _statusMessage = "Blocked user.";
-            });
-            _clearStatusAfterDelay();
+            AppToast.info("Blocked user.");
           },
         );
       },
     );
   }
+}
+
+/// Reconciles local Suggested Squad state when the user's friends set updates,
+/// clearing any stale optimistic "Added" flags and filtering confirmed friends.
+/// Returns the set of friend UIDs that were removed since [previousFriendUids].
+@visibleForTesting
+Set<String> reconcileSuggestedSquadState({
+  required Set<String> previousFriendUids,
+  required Set<String> updatedFriendUids,
+  required Set<String> suggestedAddedUids,
+  required List<Map<String, dynamic>> suggestedUsers,
+}) {
+  final removedUids = previousFriendUids.difference(updatedFriendUids);
+  if (removedUids.isNotEmpty) {
+    suggestedAddedUids.removeAll(removedUids);
+  }
+  suggestedAddedUids.removeWhere(updatedFriendUids.contains);
+  if (suggestedUsers.isNotEmpty) {
+    suggestedUsers.removeWhere((u) => updatedFriendUids.contains(u['uid']));
+  }
+  return removedUids;
 }
