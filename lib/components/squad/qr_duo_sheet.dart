@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../services/app_toast.dart';
 import '../shared/app_avatar.dart';
 
 class QrDuoSheet extends StatefulWidget {
@@ -31,11 +32,7 @@ class QrDuoSheet extends StatefulWidget {
     bool initialScanTab = false,
   }) {
     if (username.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please set a username in Account first to use QR!"),
-        ),
-      );
+      AppToast.warning("Please set a username in Account first to use QR!");
       return;
     }
 
@@ -81,18 +78,9 @@ class _QrDuoSheetState extends State<QrDuoSheet> {
     final link = "https://tfti-app.web.app/add/@${widget.username}";
     Clipboard.setData(ClipboardData(text: link));
     HapticFeedback.lightImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: const [
-            Icon(Icons.check_circle, color: Colors.greenAccent, size: 20),
-            SizedBox(width: 8),
-            Text("Invite link copied to clipboard!"),
-          ],
-        ),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
+    AppToast.success(
+      "Invite link copied to clipboard!",
+      duration: const Duration(seconds: 2),
     );
   }
 

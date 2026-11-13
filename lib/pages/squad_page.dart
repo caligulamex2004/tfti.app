@@ -16,6 +16,7 @@ import '../components/squad/qr_duo_sheet.dart';
 import '../components/squad/friend_list_feed.dart';
 import '../components/squad/contact_import_sheet.dart';
 import '../components/squad/squad_requests_section.dart';
+import '../services/app_toast.dart';
 import '../services/contact_service.dart';
 import '../services/contact_resolver.dart';
 import '../services/friend_service.dart';
@@ -193,28 +194,15 @@ class _SquadPageState extends State<SquadPage> {
     Clipboard.setData(ClipboardData(text: link));
     HapticFeedback.lightImpact();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: const [
-            Icon(Icons.check_circle, color: Colors.greenAccent, size: 20),
-            SizedBox(width: 8),
-            Text("Invite link copied to clipboard!"),
-          ],
-        ),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
+    AppToast.success(
+      "Invite link copied to clipboard!",
+      duration: const Duration(seconds: 2),
     );
   }
 
   Future<void> _importContacts() async {
     if (kIsWeb) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Contact import is only available on mobile devices."),
-        ),
-      );
+      AppToast.info("Contact import is only available on mobile devices.");
       return;
     }
 
@@ -229,9 +217,7 @@ class _SquadPageState extends State<SquadPage> {
       if (contacts == null) {
         if (!mounted) return;
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Permission denied for contacts.")),
-        );
+        AppToast.warning("Permission denied for contacts.");
         return;
       }
 
@@ -346,16 +332,10 @@ class _SquadPageState extends State<SquadPage> {
     );
     try {
       if (!await launchUrl(smsLaunchUri) && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not launch SMS app.")),
-        );
+        AppToast.error("Could not launch SMS app.");
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Could not launch SMS.")));
-      }
+      AppToast.error("Could not launch SMS.");
     }
   }
 

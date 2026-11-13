@@ -16,6 +16,7 @@ import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/shared/tcg_profile_card.dart';
 import '../components/shared/web_camera_photo_dialog.dart';
 import '../pages/preferences_page.dart';
+import '../services/app_toast.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../utils/phone_formatter.dart';
@@ -297,11 +298,7 @@ class _AccountPageState extends State<AccountPage> {
       }
     } catch (e) {
       debugPrint("Error uploading avatar: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to upload photo")),
-        );
-      }
+      AppToast.error("Failed to upload photo");
     } finally {
       if (mounted) setState(() => _isUploadingAvatar = false);
     }
@@ -482,11 +479,7 @@ class _AccountPageState extends State<AccountPage> {
       await UserService.deleteAccount(user);
     } catch (e) {
       debugPrint("Fatal Account Deletion Error: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error deleting account: $e")),
-        );
-      }
+      AppToast.error("Error deleting account: $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

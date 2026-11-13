@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tftiapp/models/user_profile.dart';
+import 'package:tftiapp/services/app_toast.dart';
 import 'package:tftiapp/services/contact_resolver.dart';
 import 'package:tftiapp/services/user_cache_repository.dart';
 import 'last_minute_invite_sheet.dart';
@@ -28,15 +29,7 @@ class LastMinuteInviteField extends StatelessWidget {
 
   static void showInfoMessage(BuildContext context) {
     HapticFeedback.lightImpact();
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text("Select one or more to join the Crew on this one."),
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 3),
-        ),
-      );
+    AppToast.info("Select one or more to join the Crew on this one.");
   }
 
   Future<String> _resolveSelectedNames(List<String> uids) async {
@@ -91,25 +84,13 @@ class LastMinuteInviteField extends StatelessWidget {
             ? null
             : () {
                 if (inviteAll) {
-                  ScaffoldMessenger.of(context)
-                    ..hideCurrentSnackBar()
-                    ..showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          "Entire Squad is selected — everyone is already invited!",
-                        ),
-                      ),
-                    );
+                  AppToast.info(
+                    "Entire Squad is selected — everyone is already invited!",
+                  );
                   return;
                 }
                 if (selectedCircleIds.isEmpty) {
-                  ScaffoldMessenger.of(context)
-                    ..hideCurrentSnackBar()
-                    ..showSnackBar(
-                      const SnackBar(
-                        content: Text("Please select a Team first."),
-                      ),
-                    );
+                  AppToast.info("Please select a Team first.");
                   return;
                 }
                 HapticFeedback.lightImpact();

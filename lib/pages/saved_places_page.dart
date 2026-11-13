@@ -8,6 +8,7 @@ import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/places/goated_place_card.dart';
 import '../components/places/place_summary_sheet.dart';
 import '../models/place_model.dart';
+import '../services/app_toast.dart';
 import '../services/place_service.dart';
 import '../utils/theme_provider.dart';
 import '../utils/responsive_layout.dart';
@@ -83,9 +84,7 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
         );
 
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("Renamed to '$newName'")));
+          AppToast.success("Renamed to '$newName'");
         }
       }
     }
@@ -127,9 +126,7 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
         );
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("'$placeName' removed from VIP Places")),
-          );
+          AppToast.info("'$placeName' removed from VIP Places");
         }
       }
     }
@@ -193,14 +190,7 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
         }
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                "Added to VIP Places!",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          );
+          AppToast.success("Added to VIP Places!");
         }
       }
     }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import '../../services/app_toast.dart';
 import '../shared/app_avatar.dart';
 
 class QrCodeSheet extends StatelessWidget {
@@ -24,11 +25,7 @@ class QrCodeSheet extends StatelessWidget {
     required int avatarColor,
   }) {
     if (username.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please set a username first to generate a QR code!"),
-        ),
-      );
+      AppToast.warning("Please set a username first to generate a QR code!");
       return;
     }
 

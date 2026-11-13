@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 // ignore: depend_on_referenced_packages
 import 'package:firebase_core_platform_interface/test.dart';
 import 'package:tftiapp/components/details/host_team_badge.dart';
+import 'package:tftiapp/components/shared/in_app_notification_toast.dart';
 
 void main() {
   setUpAll(() async {
@@ -125,8 +126,11 @@ void main() {
         'Host with specific team selected renders Last Minute Invite chip and info button',
         (WidgetTester tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+          builder: (context, child) => InAppNotificationToastWrapper(
+            child: child ?? const SizedBox.shrink(),
+          ),
+          home: const Scaffold(
             body: HostTeamBadge(
               currentUserId: 'host_123',
               hostId: 'host_123',
@@ -153,6 +157,7 @@ void main() {
         find.text('Select one or more to join the Crew on this one.'),
         findsOneWidget,
       );
+      await tester.pump(const Duration(seconds: 4));
     });
 
     testWidgets(
@@ -183,11 +188,14 @@ void main() {
     });
 
     testWidgets(
-        'Tapping Last Minute Invite chip when inviteAll is true or circles empty shows guidance snackbar',
+        'Tapping Last Minute Invite chip when inviteAll is true or circles empty shows guidance toast',
         (WidgetTester tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+          builder: (context, child) => InAppNotificationToastWrapper(
+            child: child ?? const SizedBox.shrink(),
+          ),
+          home: const Scaffold(
             body: HostTeamBadge(
               currentUserId: 'host_123',
               hostId: 'host_123',
@@ -208,6 +216,7 @@ void main() {
         find.text('Entire Squad is selected — everyone is already invited!'),
         findsOneWidget,
       );
+      await tester.pump(const Duration(seconds: 4));
     });
   });
 }

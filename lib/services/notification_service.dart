@@ -41,6 +41,7 @@ class NotificationService {
         'title': title,
         'body': body,
         'type': type,
+        'isLocal': 'true',
         ...?data,
       },
     );

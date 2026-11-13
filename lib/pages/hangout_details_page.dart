@@ -28,6 +28,7 @@ import '../components/shared/app_banner_image.dart';
 import '../components/feed/empty_feed_states.dart';
 import '../components/shared/user_profile_sheet.dart';
 import '../components/shared/event_type_pill.dart';
+import '../services/app_toast.dart';
 import '../services/contact_resolver.dart';
 import '../services/badge_service.dart';
 
@@ -192,9 +193,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
       await EventService.syncActiveEventsForUser(user.uid);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("$guestName joined your squad!")),
-        );
+        AppToast.success("$guestName joined your squad!");
       }
     } catch (e) {
       debugPrint("Error adding friend: $e");
@@ -245,22 +244,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
         'status': 'pending',
         'type': 'user_report',
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              "Report sent. Thank you for keeping tfti safe.",
-            ),
-            backgroundColor: isDark ? Colors.green.shade700 : Colors.green,
-          ),
-        );
-      }
+      AppToast.success("Report sent. Thank you for keeping tfti safe.");
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Error sending report.")));
-      }
+      AppToast.error("Error sending report.");
     }
   }
 

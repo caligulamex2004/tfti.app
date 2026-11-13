@@ -8,6 +8,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:tftiapp/components/dialogs/season_dialogs.dart';
 import 'package:tftiapp/models/hangout_submission_request.dart';
 import 'package:tftiapp/models/vibe_check_submission_request.dart';
+import 'package:tftiapp/services/app_toast.dart';
 
 class EventService {
   /// Notifies listeners whenever an event has been deleted permanently.
@@ -1280,7 +1281,6 @@ class EventService {
 
     onLoadingChanged(true);
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
 
     try {
       await deleteEvent(
@@ -1292,15 +1292,9 @@ class EventService {
       );
 
       navigator.popUntil((route) => route.isFirst);
-      messenger.showSnackBar(
-        SnackBar(content: Text(successMessage), backgroundColor: Colors.red),
-      );
+      AppToast.success(successMessage);
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error deleting: $e")));
-      }
+      AppToast.error("Error deleting: $e");
     } finally {
       if (context.mounted) {
         onLoadingChanged(false);

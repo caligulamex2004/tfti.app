@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../utils/theme_provider.dart';
 import '../utils/auth_service.dart';
+import '../services/app_toast.dart';
 import '../components/auth/auth_ui_components.dart';
 import '../components/dialogs/mobile_waitlist_dialog.dart';
 import '../components/shared/app_logo.dart';
@@ -103,16 +104,12 @@ class _LoginPageState extends State<LoginPage> {
     // 1. Validation for Sign Up mode
     if (!_isLoginMode && !isResend) {
       if (_nameController.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please tell us what to call you.")),
-        );
+        AppToast.warning("Please tell us what to call you.");
         return;
       }
 
       if (_usernameController.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please pick a username.")),
-        );
+        AppToast.warning("Please pick a username.");
         return;
       }
 
@@ -123,23 +120,15 @@ class _LoginPageState extends State<LoginPage> {
 
       final regex = RegExp(r'^[a-z0-9.\-_]{3,20}$');
       if (!regex.hasMatch(cleanName)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Username must be 3-20 characters: letters, numbers, periods, dashes, or underscores.",
-            ),
-          ),
+        AppToast.warning(
+          "Username must be 3-20 characters: letters, numbers, periods, dashes, or underscores.",
         );
         return;
       }
 
       if (!_agreedToToS || !_agreedToPrivacy) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "You must agree to the Terms and Privacy Policy to sign up.",
-            ),
-          ),
+        AppToast.warning(
+          "You must agree to the Terms and Privacy Policy to sign up.",
         );
         return;
       }
@@ -148,9 +137,7 @@ class _LoginPageState extends State<LoginPage> {
     // 2. Phone validation and Pre-flight DB checks
     if (!isResend) {
       if (_completePhoneNumber.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please enter a valid phone number.")),
-        );
+        AppToast.warning("Please enter a valid phone number.");
         return;
       }
 
@@ -172,12 +159,9 @@ class _LoginPageState extends State<LoginPage> {
             _isLoginMode = false;
           });
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("No account found! Please sign up first."),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 4),
-            ),
+          AppToast.warning(
+            "No account found! Please sign up first.",
+            duration: const Duration(seconds: 4),
           );
           return;
         } else if (!_isLoginMode && accountExists) {
@@ -189,12 +173,9 @@ class _LoginPageState extends State<LoginPage> {
             _usernameController.clear();
           });
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Account already exists! Please log in."),
-              backgroundColor: Colors.blue,
-              duration: Duration(seconds: 4),
-            ),
+          AppToast.info(
+            "Account already exists! Please log in.",
+            duration: const Duration(seconds: 4),
           );
           return;
         } else if (!_isLoginMode && !accountExists) {
@@ -209,12 +190,7 @@ class _LoginPageState extends State<LoginPage> {
             setState(() {
               _isLoading = false;
             });
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("That username is already taken!"),
-                backgroundColor: Colors.red,
-              ),
-            );
+            AppToast.error("That username is already taken!");
             return;
           }
         }
@@ -224,9 +200,7 @@ class _LoginPageState extends State<LoginPage> {
           _isLoading = false;
         });
         debugPrint("Error during pre-flight check: $e");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Network error. Please try again.")),
-        );
+        AppToast.error("Network error. Please try again.");
         return;
       }
     }
@@ -241,14 +215,9 @@ class _LoginPageState extends State<LoginPage> {
         setState(() {
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Verification timed out. Check your connection and try again.",
-            ),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 4),
-          ),
+        AppToast.warning(
+          "Verification timed out. Check your connection and try again.",
+          duration: const Duration(seconds: 4),
         );
       }
     });
@@ -297,13 +266,7 @@ class _LoginPageState extends State<LoginPage> {
           msg = "Whoa! Too many tries. Wait a bit.";
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
+        AppToast.error(msg, duration: const Duration(seconds: 5));
       },
 
       codeSent: (String verificationId, int? resendToken) {
@@ -371,9 +334,7 @@ class _LoginPageState extends State<LoginPage> {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Invalid Code. Try again.")));
+      AppToast.error("Invalid Code. Try again.");
     }
   }
 

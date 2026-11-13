@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import '../../services/app_toast.dart';
 import '../shared/app_avatar.dart';
 
 class CoCaptainSelector extends StatelessWidget {
@@ -213,13 +214,7 @@ class CoCaptainSelector extends StatelessWidget {
             ? null
             : () {
                 if (!inviteAll && selectedCircleIds.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        "Please select a Team or Entire Squad first.",
-                      ),
-                    ),
-                  );
+                  AppToast.info("Please select a Team or Entire Squad first.");
                   return;
                 }
                 _showSelectionSheet(context);

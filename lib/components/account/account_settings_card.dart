@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../services/app_toast.dart';
 
 class AccountSettingsCard extends StatelessWidget {
   final VoidCallback onPreferencesTap;
@@ -19,11 +20,7 @@ class AccountSettingsCard extends StatelessWidget {
         await launchUrl(uri, mode: LaunchMode.platformDefault);
       }
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not open legal link.")),
-        );
-      }
+      AppToast.error("Could not open legal link.");
     }
   }
 

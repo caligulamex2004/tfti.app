@@ -8,6 +8,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/place_model.dart';
+import '../../services/app_toast.dart';
 import '../../services/place_service.dart';
 import '../../utils/theme_provider.dart';
 
@@ -370,9 +371,7 @@ class _PlaceSummarySheetState extends State<PlaceSummarySheet> {
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open Maps application.')),
-        );
+        AppToast.error('Could not open Maps application.');
       }
     }
   }
@@ -402,9 +401,7 @@ class _PlaceSummarySheetState extends State<PlaceSummarySheet> {
           _savedDocId = null;
           _isSavingVip = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Removed from VIP Places')),
-        );
+        AppToast.info('Removed from VIP Places');
       } else {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final categoryVisuals = PlaceCategoryVisuals.fromTypes(
@@ -428,14 +425,7 @@ class _PlaceSummarySheetState extends State<PlaceSummarySheet> {
           _savedDocId = docId;
           _isSavingVip = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Added to VIP Places',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-        );
+        AppToast.success('Added to VIP Places');
       }
     } catch (_) {
       if (mounted) {
@@ -1006,11 +996,9 @@ class _PlaceSummarySheetState extends State<PlaceSummarySheet> {
                               Clipboard.setData(
                                 ClipboardData(text: _currentSelectionString),
                               );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Address copied to clipboard'),
-                                  duration: Duration(seconds: 1),
-                                ),
+                              AppToast.success(
+                                'Address copied to clipboard',
+                                duration: const Duration(seconds: 2),
                               );
                             },
                             child: Padding(

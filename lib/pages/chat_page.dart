@@ -17,6 +17,7 @@ import '../components/chat/mentions_overlay.dart';
 import '../components/chat/whisper_recipient_sheet.dart';
 import '../components/chat/chat_action_dialogs.dart';
 import '../components/chat/chat_feed.dart';
+import '../services/app_toast.dart';
 import '../services/user_cache_repository.dart';
 import '../services/badge_service.dart';
 import '../services/notification_service.dart';
@@ -201,15 +202,11 @@ class _ChatPageState extends State<ChatPage> {
       }, SetOptions(merge: true));
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isCurrentlyMuted
-                  ? "Sender unmuted in this chat."
-                  : "Sender muted in this chat.",
-            ),
-            duration: const Duration(seconds: 2),
-          ),
+        AppToast.info(
+          isCurrentlyMuted
+              ? "Sender unmuted in this chat."
+              : "Sender muted in this chat.",
+          duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
@@ -363,11 +360,7 @@ class _ChatPageState extends State<ChatPage> {
 
       await _sendMessage(imageUrl: downloadUrl);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Image upload failed: $e')));
-      }
+      AppToast.error('Image upload failed: $e');
     } finally {
       if (mounted) {
         setState(() => _isUploadingImage = false);

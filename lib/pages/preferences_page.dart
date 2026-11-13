@@ -9,6 +9,7 @@ import 'saved_places_page.dart';
 import '../utils/theme_provider.dart';
 import '../utils/responsive_layout.dart';
 import '../components/shared/shared_sliver_app_bar.dart';
+import '../services/app_toast.dart';
 import '../services/notification_service.dart';
 import '../services/contact_resolver.dart';
 import '../services/contact_service.dart';
@@ -138,11 +139,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
             .doc(user.uid)
             .update({'notificationSettings.$key': newValue});
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("Error saving setting: $e")));
-        }
+        AppToast.error("Error saving setting: $e");
       }
     }
   }
@@ -483,12 +480,8 @@ class _PreferencesPageState extends State<PreferencesPage> {
               if (context.mounted) {
                 setState(() {});
                 if (!granted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        "Permission not granted or blocked by browser settings.",
-                      ),
-                    ),
+                  AppToast.warning(
+                    "Permission not granted or blocked by browser settings.",
                   );
                 }
               }

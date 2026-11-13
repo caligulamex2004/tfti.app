@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:tftiapp/services/app_toast.dart';
 import 'package:tftiapp/services/user_cache_repository.dart';
 import 'package:tftiapp/services/contact_resolver.dart';
 import 'package:tftiapp/services/contact_service.dart';
@@ -351,9 +352,6 @@ class FriendListFeed extends StatelessWidget {
                                     },
                                     onDismissed: (direction) {
                                       onFriendRemoved(uid);
-                                      final messenger = ScaffoldMessenger.of(
-                                        context,
-                                      );
 
                                       FirebaseFirestore.instance
                                           .collection('users')
@@ -365,14 +363,8 @@ class FriendListFeed extends StatelessWidget {
                                             EventService.syncActiveEventsForUser(
                                               myUid,
                                             );
-                                            messenger.showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  "$displayName was removed from your squad.",
-                                                ),
-                                                behavior:
-                                                    SnackBarBehavior.floating,
-                                              ),
+                                            AppToast.info(
+                                              "$displayName was removed from your squad.",
                                             );
                                           });
                                     },

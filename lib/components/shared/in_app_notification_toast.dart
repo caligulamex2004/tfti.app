@@ -4,13 +4,42 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import '../../services/app_toast.dart';
 import '../../services/badge_service.dart';
 import '../../services/notification_service.dart';
 
+class _ToastBannerData {
+  final String keyId;
+  final String? title;
+  final String body;
+  final String? pushType;
+  final AppToastType? toastType;
+  final bool isWhisper;
+  final bool isPushNotification;
+  final Map<String, dynamic>? pushData;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final Duration duration;
+
+  const _ToastBannerData({
+    required this.keyId,
+    required this.title,
+    required this.body,
+    this.pushType,
+    this.toastType,
+    this.isWhisper = false,
+    this.isPushNotification = false,
+    this.pushData,
+    this.actionLabel,
+    this.onAction,
+    this.duration = const Duration(milliseconds: 4500),
+  });
+}
+
 /// Wraps the application widget tree to present a polished, top-anchored toast
-/// whenever an authorized notification arrives in the foreground.
+/// whenever an authorized push notification or [AppToast] feedback event arrives.
 ///
-/// Automatically enforces privacy rules:
+/// Automatically enforces privacy rules for incoming push notifications:
 /// - Suppresses redundant banners for active on-screen chats.
 /// - Blocks notifications from being shown to the message sender.
 /// - Validates whisper and visibleTo privacy restrictions so uninvited users never see them.
@@ -36,8 +65,10 @@ class _InAppNotificationToastWrapperState
     extends State<InAppNotificationToastWrapper>
     with SingleTickerProviderStateMixin {
   StreamSubscription<RemoteMessage>? _messageSub;
-  RemoteMessage? _currentMessage;
+  StreamSubscription<AppToastMessage>? _toastSub;
+  _ToastBannerData? _currentBanner;
   Timer? _dismissTimer;
+  int _pushCounter = 0;
 
   late AnimationController _animController;
   late Animation<Offset> _slideAnimation;
@@ -48,7 +79,7 @@ class _InAppNotificationToastWrapperState
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 280),
     );
 
     _slideAnimation = Tween<Offset>(
@@ -68,6 +99,23 @@ class _InAppNotificationToastWrapperState
     _messageSub = NotificationService.instance.onForegroundMessage.listen(
       _handleIncomingMessage,
     );
+    _toastSub = AppToast.onToast.listen(_handleAppToast);
+  }
+
+  void _handleAppToast(AppToastMessage toast) {
+    if (!mounted) return;
+    _presentBanner(
+      _ToastBannerData(
+        keyId: toast.id,
+        title: toast.title,
+        body: toast.message,
+        toastType: toast.type,
+        isPushNotification: false,
+        actionLabel: toast.actionLabel,
+        onAction: toast.onAction,
+        duration: toast.duration,
+      ),
+    );
   }
 
   Future<void> _handleIncomingMessage(RemoteMessage message) async {
@@ -76,20 +124,58 @@ class _InAppNotificationToastWrapperState
 
     if (title == null && body == null) return;
 
-    // Enforce privacy and suppression checks before presenting toast
-    final allowed = await _isNotificationAllowed(message);
-    if (!allowed || !mounted) return;
+    final isLocal = message.data['isLocal'] == 'true';
 
+    // Enforce privacy and suppression checks for incoming push notifications
+    if (!isLocal) {
+      final allowed = await _isNotificationAllowed(message);
+      if (!allowed || !mounted) return;
+    } else if (!mounted) {
+      return;
+    }
+
+    final type = message.data['type'] as String?;
+    final isWhisper =
+        message.data['isWhisper'] == 'true' ||
+        type == 'whisper' ||
+        (message.data['whisperRecipientId'] != null &&
+            message.data['whisperRecipientId'].toString().isNotEmpty);
+
+    _pushCounter++;
+    _presentBanner(
+      _ToastBannerData(
+        keyId: message.messageId ?? 'push_$_pushCounter',
+        title: title?.toString() ?? 'TFTI Alert',
+        body: body?.toString() ?? '',
+        pushType: type,
+        toastType: isLocal && type == 'success' ? AppToastType.success : null,
+        isWhisper: isWhisper,
+        isPushNotification: !isLocal,
+        pushData: message.data,
+        duration: isLocal
+            ? const Duration(seconds: 3)
+            : const Duration(milliseconds: 4500),
+      ),
+    );
+  }
+
+  void _presentBanner(_ToastBannerData banner) {
     _dismissTimer?.cancel();
+    final wasVisible = _currentBanner != null &&
+        (_animController.status == AnimationStatus.completed ||
+            _animController.status == AnimationStatus.forward);
 
     setState(() {
-      _currentMessage = message;
+      _currentBanner = banner;
     });
 
-    _animController.forward(from: 0.0);
+    if (wasVisible) {
+      _animController.forward(from: 0.65);
+    } else {
+      _animController.forward(from: 0.0);
+    }
 
-    // Auto-dismiss after 4.5 seconds
-    _dismissTimer = Timer(const Duration(milliseconds: 4500), _dismissToast);
+    _dismissTimer = Timer(banner.duration, _dismissToast);
   }
 
   Future<bool> _isNotificationAllowed(RemoteMessage message) async {
@@ -223,8 +309,9 @@ class _InAppNotificationToastWrapperState
               final inviteData = inviteDoc.data();
               final isMuted = inviteData?['isMuted'] ?? false;
               if (isMuted) return false;
-              final mutedSenders =
-                  List<String>.from(inviteData?['mutedSenderUids'] ?? []);
+              final mutedSenders = List<String>.from(
+                inviteData?['mutedSenderUids'] ?? [],
+              );
               final sender = msgData['senderId'] as String?;
               if (sender != null && mutedSenders.contains(sender)) {
                 return false;
@@ -240,35 +327,60 @@ class _InAppNotificationToastWrapperState
     return true;
   }
 
-  void _dismissToast() {
+  void _dismissToast({bool immediate = false}) {
     _dismissTimer?.cancel();
-    BadgeService.instance.clearBadge();
+    if (_currentBanner?.isPushNotification == true) {
+      BadgeService.instance.clearBadge();
+    }
     if (!mounted) return;
+    if (immediate) {
+      _animController.reset();
+      setState(() {
+        _currentBanner = null;
+      });
+      return;
+    }
     _animController.reverse().then((_) {
       if (mounted) {
         setState(() {
-          _currentMessage = null;
+          _currentBanner = null;
         });
       }
     });
   }
 
   void _onToastTap() {
-    if (_currentMessage != null) {
-      final data = _currentMessage!.data;
-      BadgeService.instance.clearBadge();
+    final banner = _currentBanner;
+    if (banner == null) return;
+
+    if (banner.isPushNotification &&
+        banner.pushData != null &&
+        widget.onNotificationTap != null) {
+      final data = banner.pushData!;
       _dismissToast();
-      if (widget.onNotificationTap != null) {
-        widget.onNotificationTap!(data);
-      }
+      widget.onNotificationTap!(data);
+    } else if (banner.onAction != null && banner.actionLabel == null) {
+      final callback = banner.onAction!;
+      _dismissToast();
+      callback();
+    } else {
+      _dismissToast();
     }
   }
 
-  IconData _getIconForType(String? type, {bool isWhisper = false}) {
-    if (isWhisper) {
+  IconData _resolveIcon(_ToastBannerData banner) {
+    if (banner.isWhisper) {
       return Icons.hearing_outlined;
     }
-    switch (type) {
+    if (banner.toastType != null) {
+      return switch (banner.toastType!) {
+        AppToastType.success => Icons.check_circle_outline_rounded,
+        AppToastType.error => Icons.error_outline_rounded,
+        AppToastType.warning => Icons.warning_amber_rounded,
+        AppToastType.info => Icons.info_outline_rounded,
+      };
+    }
+    switch (banner.pushType) {
       case 'success':
         return Icons.check_circle_outline_rounded;
       case 'chat':
@@ -289,45 +401,65 @@ class _InAppNotificationToastWrapperState
     }
   }
 
+  Color _resolveAccentColor(BuildContext context, _ToastBannerData banner, bool isDark) {
+    if (banner.isWhisper) {
+      return isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569);
+    }
+    if (banner.toastType != null) {
+      return switch (banner.toastType!) {
+        AppToastType.success =>
+          isDark ? const Color(0xFF34D399) : const Color(0xFF16A34A),
+        AppToastType.error =>
+          isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626),
+        AppToastType.warning =>
+          isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706),
+        AppToastType.info => Theme.of(context).colorScheme.primary,
+      };
+    }
+    return Theme.of(context).colorScheme.primary;
+  }
+
   @override
   void dispose() {
     _dismissTimer?.cancel();
     _messageSub?.cancel();
+    _toastSub?.cancel();
     _animController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final banner = _currentBanner;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final type = _currentMessage?.data['type'] as String?;
-    final isWhisper = _currentMessage?.data['isWhisper'] == 'true' ||
-        type == 'whisper' ||
-        (_currentMessage?.data['whisperRecipientId'] != null &&
-            _currentMessage!.data['whisperRecipientId']!
-                .toString()
-                .isNotEmpty);
-
-    final title =
-        _currentMessage?.notification?.title ??
-        _currentMessage?.data['title'] ??
-        'TFTI Alert';
-    final body =
-        _currentMessage?.notification?.body ??
-        _currentMessage?.data['body'] ??
-        '';
-
-    final Color accentColor = isWhisper
-        ? (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569))
+    final accentColor = banner != null
+        ? _resolveAccentColor(context, banner, isDark)
         : Theme.of(context).colorScheme.primary;
+    final hasTitle = banner?.title != null && banner!.title!.isNotEmpty;
+
+    final Color borderColor;
+    if (banner != null && banner.isWhisper) {
+      borderColor = isDark
+          ? const Color(0xFF475569).withValues(alpha: 0.6)
+          : const Color(0xFFCBD5E1);
+    } else if (banner?.toastType == AppToastType.error ||
+        banner?.toastType == AppToastType.warning ||
+        banner?.toastType == AppToastType.success) {
+      borderColor = accentColor.withValues(alpha: isDark ? 0.4 : 0.25);
+    } else {
+      borderColor = isDark
+          ? Colors.white.withValues(alpha: 0.1)
+          : Colors.black.withValues(alpha: 0.08);
+    }
 
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Stack(
         children: [
           widget.child,
-          if (_currentMessage != null)
+          if (banner != null)
             SafeArea(
+              bottom: false,
               child: Align(
                 alignment: Alignment.topCenter,
                 child: Padding(
@@ -340,9 +472,9 @@ class _InAppNotificationToastWrapperState
                     child: FadeTransition(
                       opacity: _fadeAnimation,
                       child: Dismissible(
-                        key: ValueKey(_currentMessage!.messageId ?? title),
+                        key: ValueKey(banner.keyId),
                         direction: DismissDirection.up,
-                        onDismissed: (_) => _dismissToast(),
+                        onDismissed: (_) => _dismissToast(immediate: true),
                         child: Material(
                           elevation: 10,
                           shadowColor: Colors.black.withValues(alpha: 0.3),
@@ -354,24 +486,12 @@ class _InAppNotificationToastWrapperState
                             child: Container(
                               constraints: const BoxConstraints(maxWidth: 480),
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
+                                horizontal: 14,
+                                vertical: 11,
                               ),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: isDark
-                                      ? (isWhisper
-                                          ? const Color(0xFF475569).withValues(
-                                              alpha: 0.6,
-                                            )
-                                          : Colors.white.withValues(alpha: 0.1))
-                                      : (isWhisper
-                                          ? const Color(0xFFCBD5E1)
-                                          : Colors.black.withValues(
-                                              alpha: 0.08,
-                                            )),
-                                ),
+                                border: Border.all(color: borderColor),
                               ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -385,12 +505,9 @@ class _InAppNotificationToastWrapperState
                                       shape: BoxShape.circle,
                                     ),
                                     child: Icon(
-                                      _getIconForType(
-                                        type,
-                                        isWhisper: isWhisper,
-                                      ),
+                                      _resolveIcon(banner),
                                       color: accentColor,
-                                      size: 22,
+                                      size: 20,
                                     ),
                                   ),
                                   const SizedBox(width: 12),
@@ -400,107 +517,108 @@ class _InAppNotificationToastWrapperState
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Row(
-                                          children: [
-                                            Flexible(
-                                              child: Text(
-                                                title,
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: isDark
-                                                      ? Colors.white
-                                                      : Colors.black87,
-                                                ),
-                                                maxLines: 1,
-                                                overflow:
-                                                    TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            if (isWhisper) ...[
-                                              const SizedBox(width: 6),
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 6,
-                                                      vertical: 2,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: isDark
-                                                      ? const Color(0xFF1E293B)
-                                                      : const Color(0xFFF1F5F9),
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
-                                                  border: Border.all(
+                                        if (hasTitle) ...[
+                                          Row(
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  banner.title!,
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.bold,
                                                     color: isDark
-                                                        ? const Color(0xFF475569)
-                                                        : const Color(0xFFCBD5E1),
-                                                    width: 0.8,
+                                                        ? Colors.white
+                                                        : Colors.black87,
                                                   ),
-                                                ),
-                                                child: Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    Icon(
-                                                      Icons.hearing_outlined,
-                                                      size: 10,
-                                                      color: isDark
-                                                          ? const Color(
-                                                              0xFF94A3B8,
-                                                            )
-                                                          : const Color(
-                                                              0xFF334155,
-                                                            ),
-                                                    ),
-                                                    const SizedBox(width: 3),
-                                                    Text(
-                                                      'Whisper',
-                                                      style: TextStyle(
-                                                        fontSize: 10,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        color: isDark
-                                                            ? const Color(
-                                                                0xFF94A3B8,
-                                                              )
-                                                            : const Color(
-                                                                0xFF334155,
-                                                              ),
-                                                      ),
-                                                    ),
-                                                  ],
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
+                                              if (banner.isWhisper) ...[
+                                                const SizedBox(width: 6),
+                                                _WhisperChip(isDark: isDark),
+                                              ],
                                             ],
-                                          ],
-                                        ),
-                                        if (body.isNotEmpty) ...[
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            body,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: isDark
-                                                  ? Colors.grey.shade400
-                                                  : Colors.grey.shade700,
+                                          ),
+                                          if (banner.body.isNotEmpty) ...[
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              banner.body,
+                                              style: TextStyle(
+                                                fontSize: 12.5,
+                                                color: isDark
+                                                    ? Colors.grey.shade400
+                                                    : Colors.grey.shade700,
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
-                                            maxLines: 2,
+                                          ],
+                                        ] else
+                                          Text(
+                                            banner.body,
+                                            style: TextStyle(
+                                              fontSize: 13.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: isDark
+                                                  ? Colors.white
+                                                  : Colors.black87,
+                                            ),
+                                            maxLines: 3,
                                             overflow: TextOverflow.ellipsis,
                                           ),
-                                        ],
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  if (banner.actionLabel != null &&
+                                      banner.onAction != null) ...[
+                                    const SizedBox(width: 8),
+                                    TextButton(
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: accentColor,
+                                        backgroundColor: accentColor.withValues(
+                                          alpha: 0.12,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 6,
+                                        ),
+                                        minimumSize: Size.zero,
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                      ),
+                                      onPressed: () {
+                                        final callback = banner.onAction!;
+                                        _dismissToast();
+                                        callback();
+                                      },
+                                      child: Text(
+                                        banner.actionLabel!,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(width: 6),
                                   IconButton(
                                     icon: const Icon(Icons.close, size: 18),
                                     padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
+                                    constraints: const BoxConstraints.tightFor(
+                                      width: 28,
+                                      height: 28,
+                                    ),
                                     color: isDark
                                         ? Colors.grey.shade400
                                         : Colors.grey.shade600,
-                                    onPressed: _dismissToast,
+                                    onPressed: () => _dismissToast(),
                                   ),
                                 ],
                               ),
@@ -513,6 +631,47 @@ class _InAppNotificationToastWrapperState
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WhisperChip extends StatelessWidget {
+  final bool isDark;
+
+  const _WhisperChip({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.hearing_outlined,
+            size: 10,
+            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF334155),
+          ),
+          const SizedBox(width: 3),
+          Text(
+            'Whisper',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color:
+                  isDark ? const Color(0xFF94A3B8) : const Color(0xFF334155),
+            ),
+          ),
         ],
       ),
     );
