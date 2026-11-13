@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/Firebase-Auth_%7C_Firestore_%7C_FCM_%7C_Storage_%7C_Hosting-FFCA28?logo=firebase&logoColor=black" alt="Firebase" />
   <img src="https://img.shields.io/badge/Google_Maps-Places_API-4285F4?logo=googlemaps&logoColor=white" alt="Google Maps" />
   <img src="https://img.shields.io/badge/Platforms-iOS_15%2B_%7C_Android_5.0%2B_%7C_Web-brightgreen" alt="Platforms" />
-  <img src="https://img.shields.io/badge/Tests-311_Passing-success" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-317_Passing-success" alt="Tests" />
   <img src="https://img.shields.io/badge/License-Proprietary-blue" alt="License" />
 </p>
 
@@ -106,6 +106,7 @@ A multi-layered defense system that blocks random phone scraping and unsolicited
 ### 7. Adaptive UI & Smart Badges
 - **Orientation & Multi-Window Support**: Seamlessly transitions between a portrait bottom `NavigationBar` with single-column feed and a landscape `NavigationRail` with dual-pane split screens for foldables and tablets.
 - **Ghost Badge Prevention**: App badge counters cross-reference real-time RSVP deadlines to eliminate phantom unread notification badges.
+- **Unified Top-Anchored Toast Banners (`AppToast`)**: Centralized, context-free notification service rendering semantic (`success`, `error`, `warning`, `info`) and actionable top-anchored toast banners via `InAppNotificationToastWrapper` across all pages and flows.
 
 ### 8. Web App & App Store Compliance
 - **Firebase Web Hosting**: Fully integrated web client deployed directly via Firebase Hosting at `https://tfti-app.web.app`.
@@ -196,7 +197,7 @@ tftiapp/
 │   │   ├── login_page.dart       # Phone number OTP login & account registration
 │   │   ├── squad_page.dart       # Squad requests, friend list, circles, and QR scanner
 │   │   └── vibe_check_editor_page.dart # Democratic polling setup wizard
-│   ├── services/                 # FriendService, UserService, PlaceService, FeedService
+│   ├── services/                 # AppToast, FriendService, UserService, PlaceService, FeedService
 │   ├── utils/                    # AuthService, EventService, CalendarExportHelper, PhoneFormatter
 │   ├── firebase_options.dart     # Firebase Flutter configuration
 │   └── main.dart                 # App entry point, MainShell, orientation listener
@@ -288,7 +289,7 @@ tftiapp/
 
 ## 🧪 Testing & Quality Assurance
 
-This codebase enforces strict automated testing for logic, models, privacy controls, UI components, responsive layouts, and web store compliance. **311 automated tests** run across the test suite with 100% pass rate.
+This codebase enforces strict automated testing for logic, models, privacy controls, UI components, responsive layouts, and web store compliance. **317 automated tests** run across the test suite with 100% pass rate.
 
 ### Run the Test Suite
 ```bash
@@ -322,6 +323,7 @@ flutter analyze
   - `onboarding_tutorial_test.dart`: Multi-slide carousel progression and landscape stability.
   - `orientation_layout_test.dart`: NavigationRail / NavigationBar switching, app bar shrinkage (140px to 56px), and form state persistence across orientation flips.
 - **Service & Utility Tests (`test/services/`, `test/utils/`)**:
+  - `app_toast_test.dart`: Semantic toast dispatch (`success`, `error`, `warning`, `info`), optional action pill triggers, and push badge preservation inside `InAppNotificationToastWrapper`.
   - `contact_service_test.dart`: Normalization of 10-digit, 11-digit, and international numbers; web safety guards.
   - `calendar_export_helper_test.dart`: Google Calendar template URL construction, ISO timestamp formatting, and special character/emoji encoding.
   - `phone_formatter_test.dart`: Local and international beautification logic.
