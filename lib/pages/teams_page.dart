@@ -177,7 +177,6 @@ class _TeamsPageState extends State<TeamsPage> {
     String uid,
     bool isLandscape,
     bool isDark,
-    Color primaryColor,
   ) {
     return StreamBuilder<List<TeamCircle>>(
       stream: TeamService.teamsStream(uid),
@@ -237,14 +236,14 @@ class _TeamsPageState extends State<TeamsPage> {
                 children: [
                   Icon(
                     Symbols.circles,
-                    color: primaryColor.withValues(alpha: 0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                     size: 16,
                   ),
                   const SizedBox(width: 6),
                   Text(
                     "${teams.length} ${teams.length == 1 ? 'Team' : 'Teams'}",
-                    style: TextStyle(
-                      color: primaryColor,
+                    style: const TextStyle(
+                      color: Colors.white,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -315,7 +314,6 @@ class _TeamsPageState extends State<TeamsPage> {
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape = context.isWideScreen;
 
     final listContent = _buildTeamsList(
@@ -323,7 +321,6 @@ class _TeamsPageState extends State<TeamsPage> {
       user.uid,
       isLandscape,
       isDark,
-      primaryColor,
     );
 
     return Scaffold(

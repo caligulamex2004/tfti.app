@@ -59,6 +59,7 @@ class FeedFilterBar extends StatelessWidget {
                 ),
               ),
               selected: isSelected,
+              checkmarkColor: themeProvider.pillTextColor,
               selectedColor: themeProvider.pillBackgroundColor,
               backgroundColor: themeProvider.chipUnselectedBackgroundColor,
               side: BorderSide(

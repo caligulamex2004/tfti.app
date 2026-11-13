@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum AppTheme {
-  // 6 Light Themes
+  // Light Themes
   original,
   royalPurple,
   lipGloss,
@@ -10,13 +10,25 @@ enum AppTheme {
   lavenderHaze,
   goldenHour,
 
-  // 6 Dark Themes
+  // Dark Themes
   darkBlue,
   dark,
   electricAmber,
   cyberPunk,
   beyondDark,
   velvetDust,
+
+  // Additional Light Theme (ordered at end to maintain stored SharedPreferences ordinal compatibility)
+  ePluribus,
+
+  // Additional Dark Theme (ordered at end to maintain stored SharedPreferences ordinal compatibility)
+  elGrito,
+
+  // Additional Light Theme (ordered at end to maintain stored SharedPreferences ordinal compatibility)
+  lycheeLily,
+
+  // Additional Dark Theme (ordered at end to maintain stored SharedPreferences ordinal compatibility)
+  yellowjacket,
 }
 
 class ThemeProvider extends ChangeNotifier {
@@ -39,7 +51,7 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.royalPurple => const LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [Color(0xFF4A00E0), Color(0xFF8E2DE2)],
+      colors: [Color(0xFF2E1065), Color(0xFF581C87)],
     ),
     AppTheme.lipGloss => const LinearGradient(
       begin: Alignment.topLeft,
@@ -74,7 +86,12 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.electricAmber => const LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [Color(0xFF1F1400), Color(0xFF3E2800), Color(0xFF140D00)],
+      colors: [
+        Color(0xFF1A0B02), // Deep roasted espresso
+        Color(0xFF4A1E04), // Molten copper-amber glow
+        Color(0xFF120802), // Dark smoked umber
+      ],
+      stops: [0.0, 0.5, 1.0],
     ),
     AppTheme.cyberPunk => const LinearGradient(
       begin: Alignment.topLeft,
@@ -91,26 +108,73 @@ class ThemeProvider extends ChangeNotifier {
       end: Alignment.bottomRight,
       colors: [Color(0xFF2A0845), Color(0xFF170B14)],
     ),
+    AppTheme.ePluribus => const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Color(0xFF9E2C38), // Vintage muted crimson
+        Color(0xFFEDF2F7), // Parchment alabaster
+        Color(0xFF1E3A63), // Constitutional slate navy
+      ],
+      stops: [0.0, 0.5, 1.0],
+    ),
+    AppTheme.elGrito => const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Color(0xFF1B553D), // Agave emerald
+        Color(0xFFEDE8DD), // Refined warm ivory / bone
+        Color(0xFF9E2A38), // Mexican carmine red
+      ],
+      stops: [0.0, 0.5, 1.0],
+    ),
+    AppTheme.lycheeLily => const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Color(0xFFFF6584), // Vibrant coral pink (lychee rind)
+        Color(0xFFFFB094), // Juicy warm peach (sweet nectar)
+        Color(0xFF9E86F0), // Soft royal lilac / lavender (lily blossom)
+      ],
+      stops: [0.0, 0.5, 1.0],
+    ),
+    AppTheme.yellowjacket => const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Color(0xFF0A0A0B), // Smoked obsidian black
+        Color(0xFF2B2100), // Deep wasp gold shadow
+        Color(0xFF080809), // Jet black
+      ],
+      stops: [0.0, 0.5, 1.0],
+    ),
   };
 
   // Standardized foreground color on primary backgrounds (buttons, pills, selected chips)
   Color get onPrimaryColor => switch (_currentTheme) {
     AppTheme.electricAmber ||
-    AppTheme.cyberPunk => const Color(0xDD000000),
+    AppTheme.cyberPunk ||
+    AppTheme.yellowjacket => const Color(0xDD000000),
     AppTheme.original ||
     AppTheme.royalPurple ||
     AppTheme.lipGloss ||
     AppTheme.jadeEdge ||
     AppTheme.lavenderHaze ||
     AppTheme.goldenHour ||
+    AppTheme.ePluribus ||
+    AppTheme.lycheeLily ||
     AppTheme.darkBlue ||
     AppTheme.dark ||
     AppTheme.beyondDark ||
-    AppTheme.velvetDust => Colors.white,
+    AppTheme.velvetDust ||
+    AppTheme.elGrito => Colors.white,
   };
 
   // Standardized background color for action pills and selected chips
   Color get pillBackgroundColor => themeData.colorScheme.primary;
+
+  // Standardized secondary accent color
+  Color get secondaryColor => themeData.colorScheme.secondary;
 
   // Standardized text & icon color for action pills and selected chips
   Color get pillTextColor => onPrimaryColor;
@@ -122,11 +186,15 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.lipGloss ||
     AppTheme.jadeEdge ||
     AppTheme.lavenderHaze ||
-    AppTheme.goldenHour => Colors.white,
+    AppTheme.goldenHour ||
+    AppTheme.ePluribus ||
+    AppTheme.lycheeLily => Colors.white,
     AppTheme.darkBlue => const Color(0xFF1E293B),
     AppTheme.velvetDust => const Color(0xFF2D1626),
+    AppTheme.elGrito => const Color(0xFF1A2620),
+    AppTheme.yellowjacket => const Color(0xFF1C1C1F),
+    AppTheme.electricAmber => const Color(0xFF281B11),
     AppTheme.dark ||
-    AppTheme.electricAmber ||
     AppTheme.cyberPunk ||
     AppTheme.beyondDark => const Color(0xFF1E1E1E),
   };
@@ -138,13 +206,17 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.lipGloss ||
     AppTheme.jadeEdge ||
     AppTheme.lavenderHaze ||
-    AppTheme.goldenHour => Colors.black87,
+    AppTheme.goldenHour ||
+    AppTheme.ePluribus ||
+    AppTheme.lycheeLily => Colors.black87,
     AppTheme.darkBlue ||
     AppTheme.dark ||
     AppTheme.electricAmber ||
     AppTheme.cyberPunk ||
     AppTheme.beyondDark ||
-    AppTheme.velvetDust => Colors.white,
+    AppTheme.velvetDust ||
+    AppTheme.elGrito ||
+    AppTheme.yellowjacket => Colors.white,
   };
 
   // Standardized border color for unselected chips and surface pills
@@ -154,13 +226,17 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.lipGloss ||
     AppTheme.jadeEdge ||
     AppTheme.lavenderHaze ||
-    AppTheme.goldenHour => const Color(0xFFE0E0E0),
+    AppTheme.goldenHour ||
+    AppTheme.ePluribus ||
+    AppTheme.lycheeLily => const Color(0xFFE0E0E0),
     AppTheme.darkBlue ||
     AppTheme.dark ||
     AppTheme.electricAmber ||
     AppTheme.cyberPunk ||
     AppTheme.beyondDark ||
-    AppTheme.velvetDust => const Color(0xFF424242),
+    AppTheme.velvetDust ||
+    AppTheme.elGrito ||
+    AppTheme.yellowjacket => const Color(0xFF424242),
   };
 
   // Standardized foreground color for text/icons rendered directly on appGradient
@@ -171,12 +247,16 @@ class ThemeProvider extends ChangeNotifier {
     AppTheme.jadeEdge ||
     AppTheme.lavenderHaze ||
     AppTheme.goldenHour ||
+    AppTheme.ePluribus ||
+    AppTheme.lycheeLily ||
     AppTheme.darkBlue ||
     AppTheme.dark ||
     AppTheme.electricAmber ||
     AppTheme.cyberPunk ||
     AppTheme.beyondDark ||
-    AppTheme.velvetDust => Colors.white,
+    AppTheme.velvetDust ||
+    AppTheme.elGrito ||
+    AppTheme.yellowjacket => Colors.white,
   };
 
   // --- THEME DATA HELPER ---
@@ -203,6 +283,7 @@ class ThemeProvider extends ChangeNotifier {
         backgroundColor: chipUnselectedBackgroundColor,
         selectedColor: colorScheme.primary,
         secondarySelectedColor: colorScheme.primary,
+        checkmarkColor: colorScheme.onPrimary,
         labelStyle: TextStyle(
           color: chipUnselectedTextColor,
           fontWeight: FontWeight.bold,
@@ -288,15 +369,16 @@ class ThemeProvider extends ChangeNotifier {
     ),
     AppTheme.royalPurple => _buildTheme(
       brightness: Brightness.light,
-      scaffoldBackgroundColor: const Color(0xFFF0F2F5),
+      scaffoldBackgroundColor: const Color(0xFFFAF8F5),
       cardColor: Colors.white,
       appBarElevation: 4,
       colorScheme: const ColorScheme.light(
-        primary: Color(0xFF4A00E0),
+        primary: Color(0xFF2E1065),
         onPrimary: Colors.white,
-        secondary: Color(0xFF8E2DE2),
-        tertiary: Color(0xFFD500F9),
-        secondaryContainer: Color(0xFFE1BEE7),
+        secondary: Color(0xFFD4AF37),
+        tertiary: Color(0xFFF59E0B),
+        secondaryContainer: Color(0xFFFEF3C7),
+        surfaceTint: Color(0xFF2E1065),
       ),
     ),
     AppTheme.lipGloss => _buildTheme(
@@ -375,14 +457,15 @@ class ThemeProvider extends ChangeNotifier {
     ),
     AppTheme.electricAmber => _buildTheme(
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: const Color(0xFF121212),
-      cardColor: const Color(0xFF1E1E1E),
+      scaffoldBackgroundColor: const Color(0xFF140D07),
+      cardColor: const Color(0xFF1F150D),
       colorScheme: const ColorScheme.dark(
-        primary: Color(0xFFFFAB00),
+        primary: Color(0xFFFF6D00), // Electric tangerine amber
         onPrimary: Color(0xDD000000),
-        secondary: Colors.orangeAccent,
-        tertiary: Color(0xFFFFD740),
-        secondaryContainer: Color(0xFF4E342E),
+        secondary: Color(0xFFFF9100), // Vivid ember orange
+        tertiary: Color(0xFFFF9E40), // Luminous warm tangerine
+        secondaryContainer: Color(0xFF3D1E08), // Deep copper-amber tint
+        surfaceTint: Color(0xFFFF6D00),
       ),
     ),
     AppTheme.cyberPunk => _buildTheme(
@@ -420,6 +503,58 @@ class ThemeProvider extends ChangeNotifier {
         tertiary: Color(0xFFFF8AAE),
         secondaryContainer: Color(0xFF4A233C),
         surfaceTint: Color(0xFFFF2A7A),
+      ),
+    ),
+    AppTheme.ePluribus => _buildTheme(
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: const Color(0xFFF4F6F9),
+      cardColor: Colors.white,
+      colorScheme: const ColorScheme.light(
+        primary: Color(0xFF1E3A63),
+        onPrimary: Colors.white,
+        secondary: Color(0xFFA83845),
+        tertiary: Color(0xFF4A6FA5),
+        secondaryContainer: Color(0xFFE2EAF4),
+        surfaceTint: Color(0xFF1E3A63),
+      ),
+    ),
+    AppTheme.elGrito => _buildTheme(
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: const Color(0xFF0E1512),
+      cardColor: const Color(0xFF16221D),
+      colorScheme: const ColorScheme.dark(
+        primary: Color(0xFF228358),
+        onPrimary: Colors.white,
+        secondary: Color(0xFFC43C4A),
+        tertiary: Color(0xFFD49B5A),
+        secondaryContainer: Color(0xFF1A382B),
+        surfaceTint: Color(0xFF228358),
+      ),
+    ),
+    AppTheme.lycheeLily => _buildTheme(
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: const Color(0xFFFFF7F4),
+      cardColor: Colors.white,
+      colorScheme: const ColorScheme.light(
+        primary: Color(0xFF8F75E8),
+        onPrimary: Colors.white,
+        secondary: Color(0xFFFF6584),
+        tertiary: Color(0xFFFFB094),
+        secondaryContainer: Color(0xFFFFE8E0),
+        surfaceTint: Color(0xFF8F75E8),
+      ),
+    ),
+    AppTheme.yellowjacket => _buildTheme(
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: const Color(0xFF000000),
+      cardColor: const Color(0xFF111113),
+      colorScheme: const ColorScheme.dark(
+        primary: Color(0xFFEAB308), // Deep wasp gold
+        onPrimary: Color(0xDD000000),
+        secondary: Color(0xFFFACC15), // Crisp signal yellow
+        tertiary: Color(0xFFFDE047), // Luminous highlight gold
+        secondaryContainer: Color(0xFF2B2305), // Deep honey-obsidian tint
+        surfaceTint: Color(0xFFEAB308),
       ),
     ),
   };

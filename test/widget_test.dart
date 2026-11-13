@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tftiapp/components/feed/carousel_feed_list.dart';
 import 'package:tftiapp/components/feed/contextual_empty_card.dart';
 import 'package:tftiapp/components/feed/feed_filter_bar.dart';
 import 'package:tftiapp/components/details/event_vitals_card.dart';
 import 'package:tftiapp/components/forms/recurring_season_toggle.dart';
+import 'package:tftiapp/utils/theme_provider.dart';
 
 void main() {
   testWidgets('ContextualEmptyCard renders title and message', (WidgetTester tester) async {
@@ -52,6 +54,43 @@ void main() {
     await tester.tap(find.text('⭐ VIP'));
     await tester.pump();
     expect(selected, FeedFilter.vip);
+  });
+
+  testWidgets('FeedFilterBar sets ChoiceChip checkmarkColor to match pillTextColor', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await themeProvider.setTheme(AppTheme.original);
+    addTearDown(() => themeProvider.setTheme(AppTheme.original));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: themeProvider.themeData,
+        home: Scaffold(
+          body: FeedFilterBar(
+            selectedFilter: FeedFilter.all,
+            onFilterChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    ChoiceChip chip = tester.widget<ChoiceChip>(find.byType(ChoiceChip).first);
+    expect(chip.checkmarkColor, Colors.white);
+
+    await themeProvider.setTheme(AppTheme.yellowjacket);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: themeProvider.themeData,
+        home: Scaffold(
+          body: FeedFilterBar(
+            selectedFilter: FeedFilter.all,
+            onFilterChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    chip = tester.widget<ChoiceChip>(find.byType(ChoiceChip).first);
+    expect(chip.checkmarkColor, const Color(0xDD000000));
   });
 
   testWidgets('CarouselFeedList renders items safely without assertion error', (WidgetTester tester) async {

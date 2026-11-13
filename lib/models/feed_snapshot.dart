@@ -9,22 +9,24 @@ class RawFeedEvent {
 }
 
 class FeedSnapshot {
-  final String firstName;
+  final String displayName;
+  String get firstName => displayName;
   final List<String> blockedUids;
   final List<String> goatedUids;
   final Map<String, Map<String, dynamic>> myInvitesMap;
   final List<RawFeedEvent> events;
 
   const FeedSnapshot({
-    required this.firstName,
+    String? displayName,
+    String? firstName,
     required this.blockedUids,
     required this.goatedUids,
     required this.myInvitesMap,
     required this.events,
-  });
+  }) : displayName = displayName ?? firstName ?? "there";
 
   static const FeedSnapshot empty = FeedSnapshot(
-    firstName: "there",
+    displayName: "there",
     blockedUids: [],
     goatedUids: [],
     myInvitesMap: {},

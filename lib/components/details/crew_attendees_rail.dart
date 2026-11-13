@@ -279,14 +279,20 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
           final bool hasContact =
               contactName != null && contactName.trim().isNotEmpty;
           final contactFirstName = isMe
-              ? ContactResolver.instance.formatMiniProfileFallback(displayName)
+              ? ContactResolver.instance.formatMiniProfileFallback(
+                  displayName,
+                  isCurrentUser: true,
+                )
               : ContactResolver.instance.resolveMiniProfileName(
                   guestPhone,
                   fallbackName: displayName,
                 );
           final String primaryName =
               contactFirstName ??
-              ContactResolver.instance.formatMiniProfileFallback(displayName);
+              ContactResolver.instance.formatMiniProfileFallback(
+                displayName,
+                isCurrentUser: isMe,
+              );
 
           final bool isHost = guestUid == widget.hostId;
           final bool isCoHost = guestUid == widget.coHostId;
@@ -584,6 +590,7 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
             final contactFirstName = isMe
                 ? ContactResolver.instance.formatMiniProfileFallback(
                     guestDisplayName,
+                    isCurrentUser: true,
                   )
                 : ContactResolver.instance.resolveMiniProfileName(
                     guestPhone,
@@ -593,6 +600,7 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
                 contactFirstName ??
                 ContactResolver.instance.formatMiniProfileFallback(
                   guestDisplayName,
+                  isCurrentUser: isMe,
                 );
 
             return InkWell(

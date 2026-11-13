@@ -11,6 +11,7 @@ class HomeActionFab extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
+    final secondaryColor = Theme.of(context).colorScheme.secondary;
 
     return FloatingActionButton(
       backgroundColor: primaryColor,
@@ -77,7 +78,7 @@ class HomeActionFab extends StatelessWidget {
                     leading: Icon(
                       Symbols.earthquake,
                       size: 28,
-                      color: primaryColor,
+                      color: secondaryColor,
                     ),
                     title: const Text(
                       "Vibe Check",

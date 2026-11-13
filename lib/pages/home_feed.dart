@@ -80,6 +80,7 @@ class _HomePageState extends State<HomePage> {
   void _showAddMenu() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
+    final secondaryColor = Theme.of(context).colorScheme.secondary;
 
     showModalBottomSheet(
       context: context,
@@ -127,7 +128,7 @@ class _HomePageState extends State<HomePage> {
                 leading: Icon(
                   Symbols.earthquake,
                   size: 28,
-                  color: primaryColor,
+                  color: secondaryColor,
                 ),
                 title: const Text(
                   "Vibe Check",
@@ -454,7 +455,7 @@ class _HomePageState extends State<HomePage> {
             SharedSliverAppBar(
               title: "the i's",
               collapsedTitle: "thanks for the invite",
-              subtitle: "$greeting, ${feedSnapshot.firstName}",
+              subtitle: "$greeting, ${feedSnapshot.displayName}",
               expandedHeight: isLandscape ? 56.0 : 140.0,
               hasBackButton: false,
               actions: [

@@ -335,12 +335,21 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
       if (weightA != weightB) {
         return weightA.compareTo(weightB);
       }
-      final nameA = (ContactResolver.instance.resolveMiniProfileName(a['phoneNumber'], fallbackName: a['displayName']) ??
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      final nameA = (ContactResolver.instance.resolveMiniProfileName(
+                a['phoneNumber'],
+                fallbackName: a['displayName'],
+                isCurrentUser: currentUid != null && a['uid'] == currentUid,
+              ) ??
               a['displayName'] ??
               '')
           .toString()
           .toLowerCase();
-      final nameB = (ContactResolver.instance.resolveMiniProfileName(b['phoneNumber'], fallbackName: b['displayName']) ??
+      final nameB = (ContactResolver.instance.resolveMiniProfileName(
+                b['phoneNumber'],
+                fallbackName: b['displayName'],
+                isCurrentUser: currentUid != null && b['uid'] == currentUid,
+              ) ??
               b['displayName'] ??
               '')
           .toString()
@@ -394,7 +403,6 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
       return const SizedBox();
     }
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isLandscape = context.isWideScreen;
 
@@ -639,7 +647,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                               ),
                             ),
                             backgroundColor: wasMentioned
-                                ? Colors.redAccent
+                                ? Theme.of(context).colorScheme.secondary
                                 : Colors.orangeAccent,
                             offset: const Offset(-4, 4),
                             largeSize: 20,
@@ -693,10 +701,10 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                         : "Untitled Event"),
                                 expandedTitleColor: hasBanner
                                     ? Colors.white
-                                    : (isDark ? Colors.white : Colors.black87),
+                                    : themeProvider.onGradientColor,
                                 expandedIconColor: hasBanner
                                     ? Colors.white
-                                    : null,
+                                    : themeProvider.onGradientColor,
                                 expandedHeight: hasBanner
                                     ? (isLandscape
                                           ? 220.0
@@ -833,6 +841,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                         ? ContactResolver.instance
                                             .formatMiniProfileFallback(
                                             fallbackHost,
+                                            isCurrentUser: true,
                                           )
                                         : (ContactResolver.instance
                                                 .resolveMiniProfileName(
@@ -884,8 +893,8 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                           const SizedBox(width: 8),
                                           Text(
                                             "Led by $hostDisplayName",
-                                            style: TextStyle(
-                                              color: primaryColor,
+                                            style: const TextStyle(
+                                              color: Colors.white,
                                               fontSize: 14,
                                               fontWeight: FontWeight.w500,
                                             ),
@@ -897,9 +906,9 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                                               child: Icon(
                                                 Icons.contact_phone_outlined,
                                                 size: 13,
-                                                color: isDark
-                                                    ? Colors.grey.shade400
-                                                    : Colors.grey.shade600,
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.8,
+                                                ),
                                               ),
                                             ),
                                           ],

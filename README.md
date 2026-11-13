@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/Firebase-Auth_%7C_Firestore_%7C_FCM_%7C_Storage_%7C_Hosting-FFCA28?logo=firebase&logoColor=black" alt="Firebase" />
   <img src="https://img.shields.io/badge/Google_Maps-Places_API-4285F4?logo=googlemaps&logoColor=white" alt="Google Maps" />
   <img src="https://img.shields.io/badge/Platforms-iOS_15%2B_%7C_Android_5.0%2B_%7C_Web-brightgreen" alt="Platforms" />
-  <img src="https://img.shields.io/badge/Tests-300_Passing-success" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-311_Passing-success" alt="Tests" />
   <img src="https://img.shields.io/badge/License-Proprietary-blue" alt="License" />
 </p>
 
@@ -288,7 +288,7 @@ tftiapp/
 
 ## 🧪 Testing & Quality Assurance
 
-This codebase enforces strict automated testing for logic, models, privacy controls, UI components, responsive layouts, and web store compliance. **300 automated tests** run across the test suite with 100% pass rate.
+This codebase enforces strict automated testing for logic, models, privacy controls, UI components, responsive layouts, and web store compliance. **311 automated tests** run across the test suite with 100% pass rate.
 
 ### Run the Test Suite
 ```bash
@@ -317,7 +317,7 @@ flutter analyze
   - `swipe_rsvp_widget_test.dart` & `critical_alert_banner_test.dart`: Haptic RSVP swipe mechanics and urgent notification banners.
 - **Page & Layout Tests (`test/pages/`, `test/`)**:
   - `places_search_page_test.dart`: Search bar interactions, clear button handling, fallback coordinate acceptance, and `onPlaceSelected` VIP callback integration.
-  - `team_members_page_test.dart`: SafeArea notch clearance and `SharedSliverAppBar` expanded title offset spacing relative to back buttons.
+  - `team_members_page_test.dart`: Notch status bar clearance and `SharedSliverAppBar` expanded title offset spacing relative to back buttons.
   - `login_page_validation_test.dart`: Phone number OTP validation, responsive maxWidth constraint (440px on web/desktop/tablets), and mobile viewport overflow safety.
   - `onboarding_tutorial_test.dart`: Multi-slide carousel progression and landscape stability.
   - `orientation_layout_test.dart`: NavigationRail / NavigationBar switching, app bar shrinkage (140px to 56px), and form state persistence across orientation flips.

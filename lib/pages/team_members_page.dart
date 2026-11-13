@@ -81,7 +81,10 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
       final phone = item['phoneNumber'] as String?;
       final fallback = (item['displayName'] ?? '').toString();
       final firstName = isMe
-          ? ContactResolver.instance.formatMiniProfileFallback(fallback)
+          ? ContactResolver.instance.formatMiniProfileFallback(
+              fallback,
+              isCurrentUser: true,
+            )
           : ContactResolver.instance.resolveMiniProfileName(
               phone,
               fallbackName: fallback,
@@ -178,12 +181,9 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        top: true,
-        bottom: false,
-        child: user == null
-            ? const Center(child: CircularProgressIndicator())
-            : ListenableBuilder(
+      body: user == null
+          ? const Center(child: CircularProgressIndicator())
+          : ListenableBuilder(
                 listenable: ContactResolver.instance,
                 builder: (context, _) {
                   return StreamBuilder<DocumentSnapshot>(
@@ -289,7 +289,7 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                       children: [
                                         Icon(
                                           Icons.people,
-                                          color: primaryColor.withValues(
+                                          color: Colors.white.withValues(
                                             alpha: 0.8,
                                           ),
                                           size: 16,
@@ -297,8 +297,8 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                         const SizedBox(width: 6),
                                         Text(
                                           "${profiles.length} Members",
-                                          style: TextStyle(
-                                            color: primaryColor,
+                                          style: const TextStyle(
+                                            color: Colors.white,
                                             fontSize: 14,
                                             fontWeight: FontWeight.w500,
                                           ),
@@ -506,6 +506,7 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                                               ? ContactResolver.instance
                                                   .formatMiniProfileFallback(
                                                   displayName,
+                                                  isCurrentUser: true,
                                                 )
                                               : (ContactResolver.instance
                                                       .resolveMiniProfileName(
@@ -619,7 +620,6 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
                   );
                 },
               ),
-      ),
     );
   }
 }

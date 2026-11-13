@@ -334,5 +334,64 @@ void main() {
 
       ContactResolver.instance.clearForTest();
     });
+
+    test('ignores mini profile format for current user and preserves full display name', () async {
+      ContactResolver.instance.clearForTest();
+      ContactResolver.instance.setCurrentUserPhone('+15550001111');
+      await ContactResolver.instance.setMiniProfileFormat(
+        DisplayNameFormat.firstNameLastInitial,
+      );
+
+      // Current user by phone number
+      expect(
+        ContactResolver.instance.resolveMiniProfileName(
+          '+15550001111',
+          fallbackName: 'Mi Rey',
+        ),
+        equals('Mi Rey'),
+      );
+
+      // Current user by isCurrentUser flag
+      expect(
+        ContactResolver.instance.resolveMiniProfileName(
+          null,
+          fallbackName: 'Mi Rey',
+          isCurrentUser: true,
+        ),
+        equals('Mi Rey'),
+      );
+
+      expect(
+        ContactResolver.instance.formatMiniProfileFallback(
+          'Mi Rey',
+          isCurrentUser: true,
+        ),
+        equals('Mi Rey'),
+      );
+
+      expect(
+        ContactResolver.instance.resolveFirstName(
+          '+15550001111',
+          fallbackName: 'Mi Rey',
+        ),
+        equals('Mi Rey'),
+      );
+
+      // Non-current user should still be formatted per mini profile preference
+      expect(
+        ContactResolver.instance.resolveMiniProfileName(
+          '+15559998888',
+          fallbackName: 'Mi Rey',
+        ),
+        equals('Mi R.'),
+      );
+
+      expect(
+        ContactResolver.instance.formatMiniProfileFallback('Mi Rey'),
+        equals('Mi R.'),
+      );
+
+      ContactResolver.instance.clearForTest();
+    });
   });
 }

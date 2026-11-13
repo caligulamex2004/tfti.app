@@ -113,7 +113,7 @@ class FeedService {
       (userSnap, friendsSnap, invitesSnap, eventsSnap) {
         // 1. User doc details
         List<String> blockedUids = [];
-        String firstName = "there";
+        String displayName = "there";
         if (userSnap.exists) {
           final userData = userSnap.data();
           if (userData != null) {
@@ -121,9 +121,16 @@ class FeedService {
               blockedUids = List<String>.from(userData['blockedUids']);
             }
             if (userData['displayName'] != null) {
-              final String name = userData['displayName'] as String;
-              if (name.trim().isNotEmpty) {
-                firstName = name.trim().split(' ')[0];
+              final String name = (userData['displayName'] as String).trim();
+              if (name.isNotEmpty) {
+                displayName = name;
+              }
+            }
+            if (displayName == "there" && userData['username'] != null) {
+              final String username = (userData['username'] as String).trim();
+              if (username.isNotEmpty) {
+                displayName =
+                    username.startsWith('@') ? username : '@$username';
               }
             }
           }
@@ -151,7 +158,7 @@ class FeedService {
         }).toList();
 
         return FeedSnapshot(
-          firstName: firstName,
+          displayName: displayName,
           blockedUids: blockedUids,
           goatedUids: goatedUids,
           myInvitesMap: myInvitesMap,

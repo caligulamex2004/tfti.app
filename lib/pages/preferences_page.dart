@@ -28,7 +28,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
   }
   // Theme metadata for the new visual selector
   final List<Map<String, dynamic>> _themeOptions = [
-    // --- 6 LIGHT THEMES ---
+    // --- 8 LIGHT THEMES ---
     {
       'name': 'Daylight',
       'theme': AppTheme.original,
@@ -38,7 +38,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
     {
       'name': 'Royal',
       'theme': AppTheme.royalPurple,
-      'color': Colors.deepPurple,
+      'color': const Color(0xFF2E1065),
       'isDark': false,
     },
     {
@@ -65,8 +65,20 @@ class _PreferencesPageState extends State<PreferencesPage> {
       'color': const Color(0xFFFF7E5F),
       'isDark': false,
     },
+    {
+      'name': 'E Pluribus',
+      'theme': AppTheme.ePluribus,
+      'color': const Color(0xFF1E3A63),
+      'isDark': false,
+    },
+    {
+      'name': 'Lychee Lily',
+      'theme': AppTheme.lycheeLily,
+      'color': const Color(0xFFFF6584),
+      'isDark': false,
+    },
 
-    // --- 6 DARK THEMES ---
+    // --- 8 DARK THEMES ---
     {
       'name': 'Vigilante',
       'theme': AppTheme.darkBlue,
@@ -80,9 +92,9 @@ class _PreferencesPageState extends State<PreferencesPage> {
       'isDark': true,
     },
     {
-      'name': 'Electric',
+      'name': 'Electric Amber',
       'theme': AppTheme.electricAmber,
-      'color': const Color(0xFFFFAB00),
+      'color': const Color(0xFFFF6D00),
       'isDark': true,
     },
     {
@@ -101,6 +113,18 @@ class _PreferencesPageState extends State<PreferencesPage> {
       'name': 'Velvet Dust',
       'theme': AppTheme.velvetDust,
       'color': const Color(0xFFFF2A7A),
+      'isDark': true,
+    },
+    {
+      'name': 'El Grito',
+      'theme': AppTheme.elGrito,
+      'color': const Color(0xFF228358),
+      'isDark': true,
+    },
+    {
+      'name': 'Yellowjacket',
+      'theme': AppTheme.yellowjacket,
+      'color': const Color(0xFFEAB308),
       'isDark': true,
     },
   ];
@@ -764,7 +788,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
                 width: 12,
                 height: 12,
                 decoration: BoxDecoration(
-                  color: opt['color'],
+                  color: opt['color'] as Color,
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: isSelected
