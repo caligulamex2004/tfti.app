@@ -1,7 +1,8 @@
 {
+    "id": "/",
     "name": "thanks for the invite",
     "short_name": "tfti",
-    "start_url": ".",
+    "start_url": "/",
     "display": "standalone",
     "background_color": "#1D73CB",
     "theme_color": "#1D73CB",
@@ -30,6 +31,60 @@
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Plan Hangout",
+            "short_name": "Hangout",
+            "description": "Create a new hangout invite",
+            "url": "/?shortcut=plan_hangout",
+            "icons": [
+                {
+                    "src": "icons/shortcut-hangout.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ]
+        },
+        {
+            "name": "Vibe Check",
+            "short_name": "Vibe Check",
+            "description": "Start a poll for the squad",
+            "url": "/?shortcut=vibe_check",
+            "icons": [
+                {
+                    "src": "icons/shortcut-vibe.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ]
+        },
+        {
+            "name": "Scan QR Code",
+            "short_name": "Scan QR",
+            "description": "Scan a friend's TFTI QR code",
+            "url": "/?shortcut=scan_qr",
+            "icons": [
+                {
+                    "src": "icons/shortcut-qr.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ]
+        },
+        {
+            "name": "My Squad",
+            "short_name": "Squad",
+            "description": "View your squad and friend requests",
+            "url": "/?shortcut=squad",
+            "icons": [
+                {
+                    "src": "icons/shortcut-squad.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ]
         }
     ]
 }

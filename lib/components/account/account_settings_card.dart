@@ -1,16 +1,21 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/app_toast.dart';
+import '../../services/pwa_install_service.dart';
+import '../shared/pwa_install_guide_sheet.dart';
 
 class AccountSettingsCard extends StatelessWidget {
   final VoidCallback onPreferencesTap;
   final VoidCallback onTipJarTap;
+  final bool? isWebOverride;
 
   const AccountSettingsCard({
     super.key,
     required this.onPreferencesTap,
     required this.onTipJarTap,
+    this.isWebOverride,
   });
 
   Future<void> _launchLegalUrl(BuildContext context, String url) async {
@@ -27,6 +32,7 @@ class AccountSettingsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool runningOnWeb = isWebOverride ?? kIsWeb;
 
     return Container(
       decoration: BoxDecoration(
@@ -155,6 +161,65 @@ class AccountSettingsCard extends StatelessWidget {
               trailing: const Icon(Icons.chevron_right, size: 16),
               onTap: onTipJarTap,
             ),
+            if (runningOnWeb)
+              ListenableBuilder(
+                listenable: PwaInstallService.instance,
+                builder: (context, _) {
+                  final mode = PwaInstallService.instance.resolveMode(
+                    isWebOverride: runningOnWeb,
+                  );
+                  if (mode == PwaInstallMode.none) {
+                    return const SizedBox.shrink();
+                  }
+                  final bool isIos = mode == PwaInstallMode.iosSafariGuide ||
+                      mode == PwaInstallMode.iosOtherBrowserGuide;
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Divider(
+                        height: 1,
+                        color: isDark
+                            ? Colors.grey.shade800
+                            : Colors.grey.shade200,
+                        indent: 60,
+                      ),
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 8,
+                        ),
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isIos
+                                ? Icons.ios_share
+                                : Icons.install_mobile_rounded,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        title: Text(
+                          isIos ? 'Add to Home Screen' : 'Install TFTI App',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          isIos
+                              ? 'Step-by-step iPhone / iPad setup'
+                              : 'Add to Home Screen or Dock',
+                        ),
+                        trailing: const Icon(Icons.chevron_right, size: 16),
+                        onTap: () =>
+                            PwaInstallGuideSheet.triggerOrShow(context, mode),
+                      ),
+                    ],
+                  );
+                },
+              ),
           ],
         ),
       ),

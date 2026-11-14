@@ -12,6 +12,7 @@ class QrDuoSheet extends StatefulWidget {
   final String? avatarUrl;
   final int avatarColor;
   final Function(String scannedUsername) onScanned;
+  final bool initialScanTab;
 
   const QrDuoSheet({
     super.key,
@@ -20,6 +21,7 @@ class QrDuoSheet extends StatefulWidget {
     this.avatarUrl,
     required this.avatarColor,
     required this.onScanned,
+    this.initialScanTab = false,
   });
 
   static void show(
@@ -49,6 +51,7 @@ class QrDuoSheet extends StatefulWidget {
         avatarUrl: avatarUrl,
         avatarColor: avatarColor,
         onScanned: onScanned,
+        initialScanTab: initialScanTab,
       ),
     );
   }
@@ -58,13 +61,14 @@ class QrDuoSheet extends StatefulWidget {
 }
 
 class _QrDuoSheetState extends State<QrDuoSheet> {
-  int _selectedTabIndex = 0; // 0 = My Code, 1 = Scan
+  late int _selectedTabIndex; // 0 = My Code, 1 = Scan
   bool _hasScanned = false;
   MobileScannerController? _scannerController;
 
   @override
   void initState() {
     super.initState();
+    _selectedTabIndex = widget.initialScanTab ? 1 : 0;
     _scannerController = MobileScannerController();
   }
 

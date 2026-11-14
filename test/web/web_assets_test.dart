@@ -19,6 +19,8 @@ void main() {
 
         expect(json['name'], contains('thanks for the invite'));
         expect(json['short_name'], 'tfti');
+        expect(json['id'], '/');
+        expect(json['start_url'], '/');
         expect(json['theme_color'], '#1D73CB');
         expect(json['background_color'], '#1D73CB');
 
@@ -27,6 +29,30 @@ void main() {
         final iconSrcs = icons.map((e) => e['src']).toList();
         expect(iconSrcs, contains('icons/Icon-192.png'));
         expect(iconSrcs, contains('icons/Icon-512.png'));
+
+        final List<dynamic> shortcuts = json['shortcuts'];
+        expect(shortcuts.length, equals(4));
+        expect(
+          shortcuts.map((s) => s['url']).toList(),
+          equals([
+            '/?shortcut=plan_hangout',
+            '/?shortcut=vibe_check',
+            '/?shortcut=scan_qr',
+            '/?shortcut=squad',
+          ]),
+        );
+        for (final shortcut in shortcuts) {
+          final sIcons = shortcut['icons'] as List<dynamic>;
+          expect(sIcons, isNotEmpty);
+          final iconPath = 'web/${sIcons.first['src']}';
+          final iconFile = File(iconPath);
+          expect(
+            iconFile.existsSync(),
+            isTrue,
+            reason: '$iconPath must exist for manifest shortcut',
+          );
+          expect(iconFile.lengthSync(), greaterThan(200));
+        }
       },
     );
 
@@ -51,6 +77,10 @@ void main() {
         expect(html, contains('favicon.ico'));
         expect(html, contains('.grecaptcha-badge'));
         expect(html, contains('opacity: 0.01;'));
+        expect(html, contains('pwa-install-script'));
+        expect(html, contains('beforeinstallprompt'));
+        expect(html, contains('navigator.install'));
+        expect(html, contains('__tftiPwaInstall'));
       },
     );
 
@@ -218,6 +248,34 @@ void main() {
       final Map<String, dynamic> json = jsonDecode(content);
       expect(json, contains('FCM_WEB_VAPID_KEY'));
       expect(json, contains('PLACES_API_KEY'));
+    });
+
+    test('Native Android and iOS shortcut icon assets exist', () {
+      const names = [
+        'shortcut_hangout',
+        'shortcut_vibe',
+        'shortcut_qr',
+        'shortcut_squad',
+      ];
+      for (final name in names) {
+        final androidDrawable = File(
+          'android/app/src/main/res/drawable/$name.xml',
+        );
+        expect(
+          androidDrawable.existsSync(),
+          isTrue,
+          reason: 'Android drawable $name.xml must exist',
+        );
+
+        final iosContents = File(
+          'ios/Runner/Assets.xcassets/$name.imageset/Contents.json',
+        );
+        expect(
+          iosContents.existsSync(),
+          isTrue,
+          reason: 'iOS imageset $name must exist',
+        );
+      }
     });
   });
 }

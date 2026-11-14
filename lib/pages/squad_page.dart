@@ -16,6 +16,7 @@ import '../components/squad/qr_duo_sheet.dart';
 import '../components/squad/friend_list_feed.dart';
 import '../components/squad/contact_import_sheet.dart';
 import '../components/squad/squad_requests_section.dart';
+import '../services/app_shortcut_service.dart';
 import '../services/app_toast.dart';
 import '../services/contact_service.dart';
 import '../services/contact_resolver.dart';
@@ -49,12 +50,15 @@ class _SquadPageState extends State<SquadPage> {
   final Set<String> _suggestedAddedUids = {};
   final Set<String> _addingSuggestedUids = {};
   bool _isLoadingSuggestions = false;
+  bool _isLoadingProfile = false;
+  bool _pendingOpenScanQr = false;
 
   @override
   void initState() {
     super.initState();
     _loadCurrentUserProfile();
     _listenToFriends();
+    AppShortcutService.instance.scanQrTrigger.addListener(_onScanQrTriggered);
 
     if (!kIsWeb) {
       ContactResolver.instance.warmUpIfPermitted();
@@ -65,10 +69,22 @@ class _SquadPageState extends State<SquadPage> {
   @override
   void dispose() {
     _friendsSubscription?.cancel();
+    AppShortcutService.instance.scanQrTrigger.removeListener(
+      _onScanQrTriggered,
+    );
     if (!kIsWeb) {
       ContactResolver.instance.removeListener(_onContactResolverUpdated);
     }
     super.dispose();
+  }
+
+  void _onScanQrTriggered() {
+    if (!mounted) return;
+    if (_isLoadingProfile) {
+      _pendingOpenScanQr = true;
+      return;
+    }
+    _openQrDuo(initialScanTab: true);
   }
 
   void _onContactResolverUpdated() {
@@ -84,15 +100,26 @@ class _SquadPageState extends State<SquadPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final profile = await UserCacheRepository.instance.getUser(user.uid);
-    if (!mounted || profile == null) return;
+    _isLoadingProfile = true;
+    try {
+      final profile = await UserCacheRepository.instance.getUser(user.uid);
+      if (!mounted) return;
+      if (profile != null) {
+        setState(() {
+          _myUsername = profile.username;
+          _myDisplayName = profile.displayName;
+          _myAvatarUrl = profile.avatarUrl;
+          _myAvatarColor = profile.avatarColor ?? Colors.blue.toARGB32();
+        });
+      }
+    } finally {
+      _isLoadingProfile = false;
+    }
 
-    setState(() {
-      _myUsername = profile.username;
-      _myDisplayName = profile.displayName;
-      _myAvatarUrl = profile.avatarUrl;
-      _myAvatarColor = profile.avatarColor ?? Colors.blue.toARGB32();
-    });
+    if (mounted && _pendingOpenScanQr) {
+      _pendingOpenScanQr = false;
+      _openQrDuo(initialScanTab: true);
+    }
   }
 
   void _listenToFriends() {
@@ -187,13 +214,14 @@ class _SquadPageState extends State<SquadPage> {
     }
   }
 
-  void _openQrDuo() {
+  void _openQrDuo({bool initialScanTab = false}) {
     QrDuoSheet.show(
       context,
       username: _myUsername,
       displayName: _myDisplayName,
       avatarUrl: _myAvatarUrl,
       avatarColor: _myAvatarColor,
+      initialScanTab: initialScanTab,
       onScanned: (scannedUsername) {
         _addFriend(overrideUsername: scannedUsername, isFromQrCode: true);
       },

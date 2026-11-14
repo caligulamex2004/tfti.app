@@ -123,6 +123,129 @@
       document.body.style.background = "transparent";
     }
   </script>
+  <script id="pwa-install-script">
+    (function () {
+      const supportsWebInstall =
+        typeof Navigator !== "undefined" &&
+        Navigator.prototype &&
+        typeof Navigator.prototype.install === "function";
+      let deferredPrompt = null;
+
+      function isStandalone() {
+        return (
+          (window.matchMedia &&
+            window.matchMedia("(display-mode: standalone)").matches) ||
+          window.navigator.standalone === true
+        );
+      }
+
+      function getPlatformInfo() {
+        const ua = navigator.userAgent || "";
+        const isIos =
+          /iphone|ipad|ipod/i.test(ua) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+        const isInApp =
+          /fban|fbav|instagram|line|snapchat|twitter|micromessenger/i.test(ua);
+        const isIosSafari =
+          isIos &&
+          !isInApp &&
+          /safari/i.test(ua) &&
+          !/crios|fxios|opios|edgios|duckduckgo/i.test(ua);
+        return {
+          isStandalone: isStandalone(),
+          isIos: isIos,
+          isIosSafari: isIosSafari,
+          isInAppBrowser: isInApp,
+          supportsWebInstall: supportsWebInstall,
+          hasBeforeInstallPrompt: deferredPrompt !== null,
+        };
+      }
+
+      function notifyStateChange() {
+        window.dispatchEvent(new CustomEvent("tfti-pwa-install-state"));
+      }
+
+      window.addEventListener("beforeinstallprompt", function (event) {
+        event.preventDefault();
+        deferredPrompt = event;
+        notifyStateChange();
+      });
+
+      window.addEventListener("appinstalled", function () {
+        deferredPrompt = null;
+        notifyStateChange();
+      });
+
+      if (window.matchMedia) {
+        try {
+          window
+            .matchMedia("(display-mode: standalone)")
+            .addEventListener("change", notifyStateChange);
+        } catch (_) {}
+      }
+
+      window.__tftiPwaInstall = {
+        getState: getPlatformInfo,
+        canNativePrompt: function () {
+          return (
+            !isStandalone() &&
+            (supportsWebInstall || deferredPrompt !== null)
+          );
+        },
+        promptInstall: function (onDone) {
+          var finish = function (outcome) {
+            if (typeof onDone === "function") {
+              try {
+                onDone(outcome);
+              } catch (_) {}
+            }
+            return outcome;
+          };
+          if (isStandalone()) return Promise.resolve(finish("already_installed"));
+          if (supportsWebInstall) {
+            try {
+              return navigator.install()
+                .then(function () {
+                  notifyStateChange();
+                  return finish("accepted");
+                })
+                .catch(function (err) {
+                  return finish(
+                    err && err.name === "AbortError" ? "dismissed" : "unavailable"
+                  );
+                });
+            } catch (_) {
+              return Promise.resolve(finish("unavailable"));
+            }
+          }
+          if (deferredPrompt) {
+            var promptEvent = deferredPrompt;
+            deferredPrompt = null;
+            notifyStateChange();
+            try {
+              return Promise.resolve(promptEvent.prompt())
+                .then(function () {
+                  return promptEvent.userChoice;
+                })
+                .then(function (choice) {
+                  return finish(
+                    choice && choice.outcome === "accepted"
+                      ? "accepted"
+                      : "dismissed"
+                  );
+                })
+                .catch(function () {
+                  return finish("unavailable");
+                });
+            } catch (_) {
+              return Promise.resolve(finish("unavailable"));
+            }
+          }
+          return Promise.resolve(finish("unavailable"));
+        },
+      };
+    })();
+  </script>
 </head>
 <body>
   <!--

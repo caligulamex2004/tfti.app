@@ -1469,6 +1469,8 @@ PODS:
     - PurchasesHybridCommon (= 19.17.0)
   - PurchasesHybridCommon (19.17.0):
     - RevenueCat (= 5.99.0)
+  - quick_actions_ios (0.0.1):
+    - Flutter
   - RecaptchaEnterprise (18.9.1):
     - RecaptchaEnterpriseSDK (= 18.9.1)
     - RecaptchaInterop (~> 101.0.0)
@@ -1508,6 +1510,7 @@ DEPENDENCIES:
   - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
   - mobile_scanner (from `.symlinks/plugins/mobile_scanner/darwin`)
   - purchases_flutter (from `.symlinks/plugins/purchases_flutter/ios`)
+  - quick_actions_ios (from `.symlinks/plugins/quick_actions_ios/ios`)
   - RecaptchaEnterprise
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
   - sqflite_darwin (from `.symlinks/plugins/sqflite_darwin/darwin`)
@@ -1583,6 +1586,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/mobile_scanner/darwin"
   purchases_flutter:
     :path: ".symlinks/plugins/purchases_flutter/ios"
+  quick_actions_ios:
+    :path: ".symlinks/plugins/quick_actions_ios/ios"
   shared_preferences_foundation:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
   sqflite_darwin:
@@ -1634,6 +1639,7 @@ SPEC CHECKSUMS:
   PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
   purchases_flutter: 8816e152bcf4d8e6222decc5c2234235d630f0cf
   PurchasesHybridCommon: 46a92170257b674766b5ed5366be53c9d1603bbd
+  quick_actions_ios: 500fcc11711d9f646739093395c4ae8eec25f779
   RecaptchaEnterprise: a28429a5366cc0f687ac5e93a44c5caa2c685aa9
   RecaptchaEnterpriseSDK: 72239ea30c486d9093918c7b31eb85629eff1a50
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba

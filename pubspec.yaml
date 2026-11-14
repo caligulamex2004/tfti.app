@@ -39,6 +39,7 @@ dependencies:
   image_cropper: ^12.1.1
   smooth_page_indicator: ^2.0.1
   shimmer: ^3.0.0
+  quick_actions: ^1.1.1
 
 dev_dependencies:
   flutter_test:

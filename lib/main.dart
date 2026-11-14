@@ -13,6 +13,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'pages/login_page.dart';
 import 'pages/chat_page.dart';
 import 'pages/hangout_details_page.dart';
+import 'pages/hangout_editor_page.dart';
+import 'pages/vibe_check_editor_page.dart';
 import 'pages/squad_page.dart';
 import 'pages/teams_page.dart';
 import 'pages/account_page.dart';
@@ -23,6 +25,8 @@ import 'services/contact_resolver.dart';
 import 'services/web_update_service.dart';
 import 'services/notification_service.dart';
 import 'services/badge_service.dart';
+import 'services/app_shortcut_service.dart';
+import 'services/pwa_install_service.dart';
 import 'components/shared/web_update_banner.dart';
 import 'components/shared/in_app_notification_toast.dart';
 import 'pages/onboarding_tutorial.dart';
@@ -81,6 +85,9 @@ void main() async {
   // Initialize notification service listeners
   await NotificationService.instance.init();
 
+  // Initialize home-screen / Dock / PWA app icon shortcuts
+  await AppShortcutService.instance.init();
+
   // Handle Web Push launch routing via URL query parameters
   if (kIsWeb) {
     final params = Uri.base.queryParameters;
@@ -89,6 +96,7 @@ void main() async {
         handleNotificationRouting(params);
       });
     }
+    unawaited(PwaInstallService.instance.init());
   }
 
   // Start background update checker for Web/PWA clients
@@ -173,18 +181,59 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     BadgeService.instance.addListener(_onBadgeServiceChanged);
+    AppShortcutService.instance.pendingAction.addListener(_onShortcutPending);
     _clearAppBadge();
     _silentProfileRefresh();
     _checkTutorialStatus();
     _listenToPendingInvites(); // Initialize the smart badge listener
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _consumePendingShortcut();
+    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     BadgeService.instance.removeListener(_onBadgeServiceChanged);
+    AppShortcutService.instance.pendingAction.removeListener(
+      _onShortcutPending,
+    );
     _pendingInvitesSub?.cancel(); // Clean up the listener
     super.dispose();
+  }
+
+  void _onShortcutPending() {
+    if (!mounted) return;
+    _consumePendingShortcut();
+  }
+
+  void _consumePendingShortcut() {
+    final action = AppShortcutService.instance.consumePendingAction();
+    if (action == null || !mounted) return;
+
+    Navigator.of(context).popUntil((route) => route.isFirst);
+
+    switch (action) {
+      case AppShortcutAction.planHangout:
+        setState(() => _selectedIndex = 0);
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const HangoutEditorPage()),
+        );
+        break;
+      case AppShortcutAction.vibeCheck:
+        setState(() => _selectedIndex = 0);
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const VibeCheckEditorPage()),
+        );
+        break;
+      case AppShortcutAction.scanQr:
+        setState(() => _selectedIndex = 2);
+        AppShortcutService.instance.requestOpenQrScanner();
+        break;
+      case AppShortcutAction.squad:
+        setState(() => _selectedIndex = 2);
+        break;
+    }
   }
 
   void _onBadgeServiceChanged() {
