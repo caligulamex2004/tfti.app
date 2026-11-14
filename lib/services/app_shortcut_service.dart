@@ -41,7 +41,7 @@ class AppShortcutService {
   static const List<ShortcutItem> nativeShortcutItems = <ShortcutItem>[
     ShortcutItem(
       type: 'plan_hangout',
-      localizedTitle: 'Plan Hangout',
+      localizedTitle: 'Hangout',
       icon: 'shortcut_hangout',
     ),
     ShortcutItem(
