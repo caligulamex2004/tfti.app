@@ -257,7 +257,15 @@ void main() {
         'shortcut_qr',
         'shortcut_squad',
       ];
+      final androidKeepFile = File('android/app/src/main/res/raw/keep.xml');
+      expect(
+        androidKeepFile.existsSync(),
+        isTrue,
+        reason: 'Android keep.xml must preserve dynamic shortcut drawables in release builds',
+      );
+      final keepContent = androidKeepFile.readAsStringSync();
       for (final name in names) {
+        expect(keepContent, contains('@drawable/$name'));
         final androidDrawable = File(
           'android/app/src/main/res/drawable/$name.xml',
         );
