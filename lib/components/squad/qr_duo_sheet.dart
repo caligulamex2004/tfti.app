@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../models/user_profile.dart';
 import '../../services/app_toast.dart';
 import '../shared/app_avatar.dart';
 
@@ -13,6 +15,7 @@ class QrDuoSheet extends StatefulWidget {
   final int avatarColor;
   final Function(String scannedUsername) onScanned;
   final bool initialScanTab;
+  final ValueListenable<UserProfile?>? profileListenable;
 
   const QrDuoSheet({
     super.key,
@@ -22,6 +25,7 @@ class QrDuoSheet extends StatefulWidget {
     required this.avatarColor,
     required this.onScanned,
     this.initialScanTab = false,
+    this.profileListenable,
   });
 
   static void show(
@@ -32,8 +36,12 @@ class QrDuoSheet extends StatefulWidget {
     required int avatarColor,
     required Function(String scannedUsername) onScanned,
     bool initialScanTab = false,
+    ValueListenable<UserProfile?>? profileListenable,
   }) {
-    if (username.isEmpty) {
+    final liveUsername = profileListenable?.value?.username ?? '';
+    final effectiveUsername =
+        liveUsername.isNotEmpty ? liveUsername : username;
+    if (!initialScanTab && effectiveUsername.isEmpty) {
       AppToast.warning("Please set a username in Account first to use QR!");
       return;
     }
@@ -52,6 +60,7 @@ class QrDuoSheet extends StatefulWidget {
         avatarColor: avatarColor,
         onScanned: onScanned,
         initialScanTab: initialScanTab,
+        profileListenable: profileListenable,
       ),
     );
   }
@@ -78,8 +87,9 @@ class _QrDuoSheetState extends State<QrDuoSheet> {
     super.dispose();
   }
 
-  void _copyInviteLink() {
-    final link = "https://tfti-app.web.app/add/@${widget.username}";
+  void _copyInviteLink(String username) {
+    if (username.isEmpty) return;
+    final link = "https://tfti-app.web.app/add/@$username";
     Clipboard.setData(ClipboardData(text: link));
     HapticFeedback.lightImpact();
     AppToast.success(
@@ -88,11 +98,190 @@ class _QrDuoSheetState extends State<QrDuoSheet> {
     );
   }
 
+  Widget _buildMyCodeTab(
+    BuildContext context, {
+    required bool isDark,
+    required Color primaryColor,
+  }) {
+    final listenable = widget.profileListenable;
+    if (listenable == null) {
+      return _buildMyCodeContent(
+        context,
+        isDark: isDark,
+        primaryColor: primaryColor,
+        username: widget.username,
+        displayName: widget.displayName,
+        avatarUrl: widget.avatarUrl,
+        avatarColor: widget.avatarColor,
+      );
+    }
+
+    return ValueListenableBuilder<UserProfile?>(
+      valueListenable: listenable,
+      builder: (context, profile, _) {
+        final username = (profile?.username.isNotEmpty ?? false)
+            ? profile!.username
+            : widget.username;
+        final displayName = (profile?.displayName.isNotEmpty ?? false)
+            ? profile!.displayName
+            : widget.displayName;
+        final avatarUrl = profile?.avatarUrl ?? widget.avatarUrl;
+        final avatarColor = profile?.avatarColor ?? widget.avatarColor;
+        return _buildMyCodeContent(
+          context,
+          isDark: isDark,
+          primaryColor: primaryColor,
+          username: username,
+          displayName: displayName,
+          avatarUrl: avatarUrl,
+          avatarColor: avatarColor,
+        );
+      },
+    );
+  }
+
+  Widget _buildMyCodeContent(
+    BuildContext context, {
+    required bool isDark,
+    required Color primaryColor,
+    required String username,
+    required String displayName,
+    required String? avatarUrl,
+    required int avatarColor,
+  }) {
+    if (username.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.qr_code_2,
+              size: 56,
+              color: isDark ? Colors.grey.shade500 : Colors.grey.shade400,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              "Please set a username in Account first to share your QR code.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final qrData = "tfti://add/@$username";
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // User avatar
+        Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Color(avatarColor).withValues(alpha: 0.35),
+                blurRadius: 12,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: AppAvatar.fromColorValue(
+            radius: 30,
+            avatarColor: avatarColor,
+            avatarUrl: avatarUrl,
+            displayName: displayName,
+            fontSize: 22,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          displayName.isNotEmpty ? displayName : "Me",
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        Text(
+          "@$username",
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: primaryColor,
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // QR Box
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: QrImageView(
+            data: qrData,
+            version: QrVersions.auto,
+            size: 190.0,
+            eyeStyle: QrEyeStyle(
+              eyeShape: QrEyeShape.square,
+              color: primaryColor,
+            ),
+            dataModuleStyle: QrDataModuleStyle(
+              dataModuleShape: QrDataModuleShape.circle,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          "Hold this up for a friend to scan and squad up!",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 14),
+        OutlinedButton.icon(
+          onPressed: () => _copyInviteLink(username),
+          icon: const Icon(Icons.link, size: 18),
+          label: const Text(
+            "Copy My Invite Link",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          ),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: primaryColor,
+            side: BorderSide(color: primaryColor.withValues(alpha: 0.4)),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final qrData = "tfti://add/@${widget.username}";
 
     return SafeArea(
       child: Container(
@@ -227,103 +416,13 @@ class _QrDuoSheetState extends State<QrDuoSheet> {
             const SizedBox(height: 20),
 
             // Tab Content
-            if (_selectedTabIndex == 0) ...[
-              // User avatar
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(widget.avatarColor).withValues(alpha: 0.35),
-                      blurRadius: 12,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: AppAvatar.fromColorValue(
-                  radius: 30,
-                  avatarColor: widget.avatarColor,
-                  avatarUrl: widget.avatarUrl,
-                  displayName: widget.displayName,
-                  fontSize: 22,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                widget.displayName.isNotEmpty ? widget.displayName : "Me",
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              Text(
-                "@${widget.username}",
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // QR Box
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: QrImageView(
-                  data: qrData,
-                  version: QrVersions.auto,
-                  size: 190.0,
-                  eyeStyle: QrEyeStyle(
-                    eyeShape: QrEyeShape.square,
-                    color: primaryColor,
-                  ),
-                  dataModuleStyle: QrDataModuleStyle(
-                    dataModuleShape: QrDataModuleShape.circle,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                "Hold this up for a friend to scan and squad up!",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 14),
-              OutlinedButton.icon(
-                onPressed: _copyInviteLink,
-                icon: const Icon(Icons.link, size: 18),
-                label: const Text(
-                  "Copy My Invite Link",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: primaryColor,
-                  side: BorderSide(color: primaryColor.withValues(alpha: 0.4)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ] else ...[
+            if (_selectedTabIndex == 0)
+              _buildMyCodeTab(
+                context,
+                isDark: isDark,
+                primaryColor: primaryColor,
+              )
+            else ...[
               // Scan tab (enabled on Web and Mobile)
               ClipRRect(
                 borderRadius: BorderRadius.circular(20),

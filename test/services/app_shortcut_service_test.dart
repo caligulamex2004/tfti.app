@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quick_actions/quick_actions.dart';
 import 'package:tftiapp/components/squad/qr_duo_sheet.dart';
+import 'package:tftiapp/models/user_profile.dart';
 import 'package:tftiapp/services/app_shortcut_service.dart';
+import 'package:tftiapp/services/app_toast.dart';
 
 class _FakeQuickActions implements QuickActions {
   QuickActionHandler? capturedHandler;
@@ -115,5 +118,136 @@ void main() {
       expect(find.text('Copy My Invite Link'), findsNothing);
       expect(find.text('Scan Code'), findsOneWidget);
     });
+
+    testWidgets(
+      'QrDuoSheet.show opens Scan Code tab without warning when initialScanTab is true and username is empty',
+      (WidgetTester tester) async {
+        final toasts = <AppToastMessage>[];
+        final StreamSubscription<AppToastMessage> sub = AppToast.onToast.listen(
+          toasts.add,
+        );
+        addTearDown(sub.cancel);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      QrDuoSheet.show(
+                        context,
+                        username: '',
+                        displayName: '',
+                        avatarColor: Colors.blue.toARGB32(),
+                        initialScanTab: true,
+                        onScanned: (_) {},
+                      );
+                    },
+                    child: const Text('Open Scan'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Open Scan'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(QrDuoSheet), findsOneWidget);
+        expect(find.text("Point at a friend's TFTI QR Code"), findsOneWidget);
+        expect(toasts, isEmpty);
+      },
+    );
+
+    testWidgets(
+      'QrDuoSheet.show warns and stays closed when initialScanTab is false and username is empty',
+      (WidgetTester tester) async {
+        final toasts = <AppToastMessage>[];
+        final StreamSubscription<AppToastMessage> sub = AppToast.onToast.listen(
+          toasts.add,
+        );
+        addTearDown(sub.cancel);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      QrDuoSheet.show(
+                        context,
+                        username: '',
+                        displayName: '',
+                        avatarColor: Colors.blue.toARGB32(),
+                        initialScanTab: false,
+                        onScanned: (_) {},
+                      );
+                    },
+                    child: const Text('Open QR'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Open QR'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(QrDuoSheet), findsNothing);
+        expect(toasts.length, equals(1));
+        expect(
+          toasts.single.message,
+          equals('Please set a username in Account first to use QR!'),
+        );
+      },
+    );
+
+    testWidgets(
+      'QrDuoSheet updates My Code tab reactively when profileListenable resolves',
+      (WidgetTester tester) async {
+        final profileNotifier = ValueNotifier<UserProfile?>(null);
+        addTearDown(profileNotifier.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: QrDuoSheet(
+                username: '',
+                displayName: '',
+                avatarColor: Colors.blue.toARGB32(),
+                initialScanTab: true,
+                profileListenable: profileNotifier,
+                onScanned: (_) {},
+              ),
+            ),
+          ),
+        );
+
+        // Switch to My Code tab while profile is still loading/empty
+        await tester.tap(find.text('My Code'));
+        await tester.pump();
+        expect(
+          find.text(
+            'Please set a username in Account first to share your QR code.',
+          ),
+          findsOneWidget,
+        );
+
+        // Profile arrives asynchronously
+        profileNotifier.value = const UserProfile(
+          uid: 'u1',
+          displayName: 'Alex Rivera',
+          username: 'arivera',
+        );
+        await tester.pump();
+
+        expect(find.text('@arivera'), findsOneWidget);
+        expect(find.text('Copy My Invite Link'), findsOneWidget);
+      },
+    );
   });
 }

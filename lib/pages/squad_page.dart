@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 // --- COMPONENTS & UTILITIES ---
 import '../models/squad_request_model.dart';
+import '../models/user_profile.dart';
 import '../components/squad/add_friend_section.dart';
 import '../components/squad/suggested_squad_rail.dart';
 import '../components/squad/qr_duo_sheet.dart';
@@ -38,6 +39,9 @@ class _SquadPageState extends State<SquadPage> {
   final Set<String> _removedFriendUids = {};
   Set<String> _myFriendUids = {};
   StreamSubscription? _friendsSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _profileSubscription;
+  final ValueNotifier<UserProfile?> _myProfileNotifier =
+      ValueNotifier<UserProfile?>(null);
 
   // Current user profile details for QR and Link sharing
   String _myUsername = "";
@@ -50,13 +54,12 @@ class _SquadPageState extends State<SquadPage> {
   final Set<String> _suggestedAddedUids = {};
   final Set<String> _addingSuggestedUids = {};
   bool _isLoadingSuggestions = false;
-  bool _isLoadingProfile = false;
-  bool _pendingOpenScanQr = false;
 
   @override
   void initState() {
     super.initState();
     _loadCurrentUserProfile();
+    _listenToCurrentUserProfile();
     _listenToFriends();
     AppShortcutService.instance.scanQrTrigger.addListener(_onScanQrTriggered);
 
@@ -69,6 +72,8 @@ class _SquadPageState extends State<SquadPage> {
   @override
   void dispose() {
     _friendsSubscription?.cancel();
+    _profileSubscription?.cancel();
+    _myProfileNotifier.dispose();
     AppShortcutService.instance.scanQrTrigger.removeListener(
       _onScanQrTriggered,
     );
@@ -80,10 +85,6 @@ class _SquadPageState extends State<SquadPage> {
 
   void _onScanQrTriggered() {
     if (!mounted) return;
-    if (_isLoadingProfile) {
-      _pendingOpenScanQr = true;
-      return;
-    }
     _openQrDuo(initialScanTab: true);
   }
 
@@ -96,30 +97,48 @@ class _SquadPageState extends State<SquadPage> {
     }
   }
 
-  Future<void> _loadCurrentUserProfile() async {
+  void _applyCurrentUserProfile(UserProfile profile) {
+    _myProfileNotifier.value = profile;
+    if (!mounted) return;
+    setState(() {
+      _myUsername = profile.username;
+      _myDisplayName = profile.displayName;
+      _myAvatarUrl = profile.avatarUrl;
+      _myAvatarColor = profile.avatarColor ?? Colors.blue.toARGB32();
+    });
+  }
+
+  Future<void> _loadCurrentUserProfile({bool forceRefresh = false}) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    _isLoadingProfile = true;
-    try {
-      final profile = await UserCacheRepository.instance.getUser(user.uid);
-      if (!mounted) return;
-      if (profile != null) {
-        setState(() {
-          _myUsername = profile.username;
-          _myDisplayName = profile.displayName;
-          _myAvatarUrl = profile.avatarUrl;
-          _myAvatarColor = profile.avatarColor ?? Colors.blue.toARGB32();
-        });
-      }
-    } finally {
-      _isLoadingProfile = false;
-    }
+    final profile = await UserCacheRepository.instance.getUser(
+      user.uid,
+      forceRefresh: forceRefresh,
+    );
+    if (!mounted || profile == null) return;
+    _applyCurrentUserProfile(profile);
+  }
 
-    if (mounted && _pendingOpenScanQr) {
-      _pendingOpenScanQr = false;
-      _openQrDuo(initialScanTab: true);
-    }
+  void _listenToCurrentUserProfile() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    _profileSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .snapshots()
+        .listen(
+          (doc) {
+            if (!mounted || !doc.exists) return;
+            final profile = UserProfile.fromFirestore(doc);
+            UserCacheRepository.instance.putUser(profile);
+            _applyCurrentUserProfile(profile);
+          },
+          onError: (e) {
+            debugPrint("Error listening to current user profile: $e");
+          },
+        );
   }
 
   void _listenToFriends() {
@@ -215,6 +234,20 @@ class _SquadPageState extends State<SquadPage> {
   }
 
   void _openQrDuo({bool initialScanTab = false}) {
+    if (!initialScanTab && _myUsername.isEmpty) {
+      unawaited(_reloadProfileAndOpenQrDuo());
+      return;
+    }
+    _showQrDuoSheet(initialScanTab: initialScanTab);
+  }
+
+  Future<void> _reloadProfileAndOpenQrDuo() async {
+    await _loadCurrentUserProfile(forceRefresh: true);
+    if (!mounted) return;
+    _showQrDuoSheet(initialScanTab: false);
+  }
+
+  void _showQrDuoSheet({required bool initialScanTab}) {
     QrDuoSheet.show(
       context,
       username: _myUsername,
@@ -222,6 +255,7 @@ class _SquadPageState extends State<SquadPage> {
       avatarUrl: _myAvatarUrl,
       avatarColor: _myAvatarColor,
       initialScanTab: initialScanTab,
+      profileListenable: _myProfileNotifier,
       onScanned: (scannedUsername) {
         _addFriend(overrideUsername: scannedUsername, isFromQrCode: true);
       },
