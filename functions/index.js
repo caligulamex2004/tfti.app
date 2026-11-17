@@ -5,6 +5,7 @@ const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const fs = require("fs");
 const path = require("path");
+const {handleInvitationRsvpChange} = require("./rsvp_handlers");
 
 /**
  * Zero-RAM on-disk binary search over geoip-lite's data file.
@@ -302,6 +303,23 @@ exports.sendInviteNotification = onDocumentCreated("events/{eventId}/invitations
         logger.error(`Failed to update visibleTo: ${e}`);
     }
 
+    const createdData = event.data?.data();
+    if (createdData && createdData.respondedAt && (createdData.status === "going" || createdData.status === "declined")) {
+        await handleInvitationRsvpChange({
+            db,
+            FieldValue: admin.firestore.FieldValue,
+            eventId,
+            userId,
+            beforeData: null,
+            afterData: createdData,
+            getUserTokens,
+            createWebPushConfig,
+            sendMulticastToTokens,
+            logger,
+        });
+        return;
+    }
+
     const eventDoc = await db.collection("events").doc(eventId).get();
     const eventData = eventDoc.data() || {};
     const hostId = eventData.hostId;
@@ -351,6 +369,26 @@ exports.sendInviteNotification = onDocumentCreated("events/{eventId}/invitations
     };
 
     await sendMulticastToTokens(tokens, payload);
+});
+
+// --- 3B. SMART POSTMAN: Host & Co-Host RSVP Notification + Squad Needs Auto-Release ---
+exports.notifyHostOnRsvpChange = onDocumentUpdated("events/{eventId}/invitations/{userId}", async (event) => {
+    const beforeData = event.data?.before?.data();
+    const afterData = event.data?.after?.data();
+    if (!beforeData || !afterData) return;
+
+    await handleInvitationRsvpChange({
+        db,
+        FieldValue: admin.firestore.FieldValue,
+        eventId: event.params.eventId,
+        userId: event.params.userId,
+        beforeData,
+        afterData,
+        getUserTokens,
+        createWebPushConfig,
+        sendMulticastToTokens,
+        logger,
+    });
 });
 
 // --- 4. SMART POSTMAN: Event Update Notification ---

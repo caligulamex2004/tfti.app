@@ -133,17 +133,21 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
       return;
     }
 
+    final releasedCount = await EventService.updateRsvpStatus(
+      eventId: widget.eventId,
+      userId: user.uid,
+      status: status,
+    );
+
+    if (releasedCount > 0 && mounted) {
+      AppToast.info(
+        "Released $releasedCount Squad ${releasedCount == 1 ? 'Need' : 'Needs'}",
+      );
+    }
+
     final eventRef = FirebaseFirestore.instance
         .collection('events')
         .doc(widget.eventId);
-    final inviteRef = eventRef.collection('invitations').doc(user.uid);
-
-    await inviteRef.set({
-      'uid': user.uid,
-      'status': status,
-      'respondedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
     final evSnap = await eventRef.get();
     if (evSnap.exists) {
       final evData = evSnap.data() as Map<String, dynamic>;
@@ -529,6 +533,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                           eventId: widget.eventId,
                           hostId: data['hostId'],
                           isPast: isPast,
+                          myStatus: myStatus,
                         );
 
                         final rsvpCardWidget = EventRsvpCard(

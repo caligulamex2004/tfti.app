@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/app_toast.dart';
+import '../../utils/event_service.dart';
 
 // --- SQUAD DIBS SHEET ---
 class SquadDibsSheet extends StatelessWidget {
@@ -46,66 +48,99 @@ class SquadDibsSheet extends StatelessWidget {
           ),
           const Divider(height: 1),
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
+            child: StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('events')
                   .doc(eventId)
-                  .collection('roles')
+                  .collection('invitations')
+                  .doc(currentUser.uid)
                   .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+              builder: (context, inviteSnapshot) {
+                final inviteData =
+                    inviteSnapshot.data?.data() as Map<String, dynamic>?;
+                final myStatus = (inviteData?['status'] ?? 'pending')
+                    .toString();
+                final canClaim =
+                    inviteSnapshot.hasData &&
+                    EventService.canClaimSquadNeed(myStatus);
 
-                final roles = snapshot.data!.docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return data['claimedByUid'] == null;
-                }).toList();
+                return StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('events')
+                      .doc(eventId)
+                      .collection('roles')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData || !inviteSnapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-                if (roles.isEmpty) {
-                  return const Center(child: Text("Everything is covered! 🎉"));
-                }
-
-                return ListView.builder(
-                  itemCount: roles.length,
-                  itemBuilder: (context, index) {
-                    final roleDoc = roles[index];
-                    final roleData = roleDoc.data() as Map<String, dynamic>;
-
-                    return ListTile(
-                      leading: Icon(Icons.pan_tool, color: primaryColor),
-                      title: Text(
-                        roleData['title'],
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      trailing: ElevatedButton(
-                        onPressed: () async {
-                          HapticFeedback.mediumImpact();
-                          Navigator.pop(context); // Close the sheet
-
-                          final userDoc = await FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(currentUser.uid)
-                              .get();
-                          final myName =
-                              userDoc.data()?['displayName'] ?? "Someone";
-
-                          // Update the role in the database
-                          await roleDoc.reference.update({
-                            'claimedByUid': currentUser.uid,
-                            'claimedByName': myName,
-                          });
-
-                          // Tell the chat page to send the announcement message
-                          onClaimed(roleData['title']);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryColor,
-                          foregroundColor: Colors.white,
-                          visualDensity: VisualDensity.compact,
+                    if (!canClaim) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24.0),
+                          child: Text(
+                            "RSVP \"Count Me In\" on the event details page to claim Squad Needs.",
+                            textAlign: TextAlign.center,
+                          ),
                         ),
-                        child: const Text("Claim"),
-                      ),
+                      );
+                    }
+
+                    final roles = snapshot.data!.docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return data['claimedByUid'] == null;
+                    }).toList();
+
+                    if (roles.isEmpty) {
+                      return const Center(
+                        child: Text("Everything is covered! 🎉"),
+                      );
+                    }
+
+                    return ListView.builder(
+                      itemCount: roles.length,
+                      itemBuilder: (context, index) {
+                        final roleDoc = roles[index];
+                        final roleData =
+                            roleDoc.data() as Map<String, dynamic>;
+
+                        return ListTile(
+                          leading: Icon(Icons.pan_tool, color: primaryColor),
+                          title: Text(
+                            roleData['title'],
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          trailing: ElevatedButton(
+                            onPressed: () async {
+                              HapticFeedback.mediumImpact();
+                              Navigator.pop(context); // Close the sheet
+
+                              final userDoc = await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(currentUser.uid)
+                                  .get();
+                              final myName =
+                                  userDoc.data()?['displayName'] ?? "Someone";
+
+                              // Update the role in the database
+                              await roleDoc.reference.update({
+                                'claimedByUid': currentUser.uid,
+                                'claimedByName': myName,
+                              });
+
+                              // Tell the chat page to send the announcement message
+                              onClaimed(roleData['title']);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryColor,
+                              foregroundColor: Colors.white,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            child: const Text("Claim"),
+                          ),
+                        );
+                      },
                     );
                   },
                 );
@@ -168,6 +203,21 @@ class _BringItemDialogState extends State<BringItemDialog> {
 
             final currentUser = FirebaseAuth.instance.currentUser;
             if (currentUser == null) {
+              return;
+            }
+
+            final inviteDoc = await FirebaseFirestore.instance
+                .collection('events')
+                .doc(widget.eventId)
+                .collection('invitations')
+                .doc(currentUser.uid)
+                .get();
+            final myStatus =
+                (inviteDoc.data()?['status'] ?? 'pending').toString();
+            if (!EventService.canClaimSquadNeed(myStatus)) {
+              AppToast.info(
+                'RSVP "Count Me In" on the event details page to claim Squad Needs.',
+              );
               return;
             }
 

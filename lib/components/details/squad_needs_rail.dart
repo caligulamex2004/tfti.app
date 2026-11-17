@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../utils/event_service.dart';
 import '../forms/squad_needs_sheet.dart';
 
 /// Horizontal task board carousel for event squad needs / roles.
@@ -14,6 +15,7 @@ class SquadNeedsRail extends StatelessWidget {
   final String hostId;
   final bool canEdit;
   final bool isPast;
+  final String myStatus;
 
   const SquadNeedsRail({
     super.key,
@@ -21,7 +23,10 @@ class SquadNeedsRail extends StatelessWidget {
     required this.hostId,
     required this.canEdit,
     required this.isPast,
+    this.myStatus = 'going',
   });
+
+  bool get _canClaim => EventService.canClaimSquadNeed(myStatus);
 
   void _openSquadNeedsSheet(BuildContext context) {
     HapticFeedback.lightImpact();
@@ -36,6 +41,7 @@ class SquadNeedsRail extends StatelessWidget {
         eventId: eventId,
         hostId: hostId,
         isPast: isPast,
+        canClaim: _canClaim,
       ),
     );
   }
@@ -99,6 +105,7 @@ class SquadNeedsRail extends StatelessWidget {
     DocumentSnapshot roleDoc,
     User currentUser,
   ) async {
+    if (!_canClaim) return;
     HapticFeedback.lightImpact();
     final userDoc = await FirebaseFirestore.instance
         .collection('users')
@@ -482,60 +489,16 @@ class SquadNeedsRail extends StatelessWidget {
                 ),
 
                 // Bottom: Action Button
-                if (!isClaimed && !isPast)
-                  SizedBox(
-                    width: double.infinity,
-                    height: 28,
-                    child: ElevatedButton(
-                      onPressed: () => _claimNeed(roleDoc, currentUser),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        "Claim",
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  )
-                else if (isMe && !isPast)
-                  SizedBox(
-                    width: double.infinity,
-                    height: 28,
-                    child: OutlinedButton(
-                      onPressed: () => _unclaimNeed(roleDoc),
-                      style: OutlinedButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        side: BorderSide(
-                          color: isDark
-                              ? Colors.grey.shade700
-                              : Colors.grey.shade300,
-                        ),
-                      ),
-                      child: Text(
-                        "Release",
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isDark
-                              ? Colors.grey.shade300
-                              : Colors.grey.shade700,
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  const SizedBox(height: 28),
+                SquadNeedCardAction(
+                  isClaimed: isClaimed,
+                  isMe: isMe,
+                  isPast: isPast,
+                  canClaim: _canClaim,
+                  primaryColor: primaryColor,
+                  isDark: isDark,
+                  onClaim: () => _claimNeed(roleDoc, currentUser),
+                  onRelease: () => _unclaimNeed(roleDoc),
+                ),
               ],
             ),
           );
@@ -590,5 +553,111 @@ class SquadNeedsRail extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Renders the bottom action control for an individual Squad Need card.
+class SquadNeedCardAction extends StatelessWidget {
+  final bool isClaimed;
+  final bool isMe;
+  final bool isPast;
+  final bool canClaim;
+  final Color primaryColor;
+  final bool isDark;
+  final VoidCallback onClaim;
+  final VoidCallback onRelease;
+
+  const SquadNeedCardAction({
+    super.key,
+    required this.isClaimed,
+    required this.isMe,
+    required this.isPast,
+    required this.canClaim,
+    required this.primaryColor,
+    required this.isDark,
+    required this.onClaim,
+    required this.onRelease,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isClaimed && !isPast) {
+      if (canClaim) {
+        return SizedBox(
+          width: double.infinity,
+          height: 28,
+          child: ElevatedButton(
+            onPressed: onClaim,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              elevation: 0,
+            ),
+            child: const Text(
+              "Claim",
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        );
+      }
+      return SizedBox(
+        width: double.infinity,
+        height: 28,
+        child: OutlinedButton(
+          onPressed: null,
+          style: OutlinedButton.styleFrom(
+            padding: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            side: BorderSide(
+              color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
+          ),
+          child: Text(
+            "RSVP In",
+            style: TextStyle(
+              fontSize: 11,
+              color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (isMe && !isPast) {
+      return SizedBox(
+        width: double.infinity,
+        height: 28,
+        child: OutlinedButton(
+          onPressed: onRelease,
+          style: OutlinedButton.styleFrom(
+            padding: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            side: BorderSide(
+              color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
+          ),
+          child: Text(
+            "Release",
+            style: TextStyle(
+              fontSize: 11,
+              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return const SizedBox(height: 28);
   }
 }

@@ -9,12 +9,14 @@ class SquadNeedsSheet extends StatefulWidget {
   final String eventId;
   final String hostId;
   final bool isPast;
+  final bool canClaim;
 
   const SquadNeedsSheet({
     super.key,
     required this.eventId,
     required this.hostId,
     required this.isPast,
+    this.canClaim = true,
   });
 
   @override
@@ -223,36 +225,52 @@ class _SquadNeedsSheetState extends State<SquadNeedsSheet> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               if (!isClaimed && canEdit)
-                                ElevatedButton(
-                                  onPressed: () async {
-                                    HapticFeedback.lightImpact();
-                                    final userDoc = await FirebaseFirestore
-                                        .instance
-                                        .collection('users')
-                                        .doc(currentUser.uid)
-                                        .get();
-                                    await roleDoc.reference.update({
-                                      'claimedByUid': currentUser.uid,
-                                      'claimedByName':
-                                          userDoc.data()?['displayName'] ??
-                                          "Someone",
-                                    });
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: primaryColor,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                  child: const Text(
-                                    "Claim",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                )
+                                widget.canClaim
+                                    ? ElevatedButton(
+                                        onPressed: () async {
+                                          HapticFeedback.lightImpact();
+                                          final userDoc = await FirebaseFirestore
+                                              .instance
+                                              .collection('users')
+                                              .doc(currentUser.uid)
+                                              .get();
+                                          await roleDoc.reference.update({
+                                            'claimedByUid': currentUser.uid,
+                                            'claimedByName':
+                                                userDoc
+                                                    .data()?['displayName'] ??
+                                                "Someone",
+                                          });
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: primaryColor,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                        child: const Text(
+                                          "Claim",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      )
+                                    : OutlinedButton(
+                                        onPressed: null,
+                                        style: OutlinedButton.styleFrom(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                        child: const Text("RSVP In"),
+                                      )
                               else if ((isMe || canManageItem) && canEdit)
                                 OutlinedButton(
                                   onPressed: () async {

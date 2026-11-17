@@ -8,6 +8,7 @@ class EventSquadNeedsCard extends StatelessWidget {
   final String eventId;
   final String hostId;
   final bool isPast;
+  final String myStatus;
 
   const EventSquadNeedsCard({
     super.key,
@@ -16,6 +17,7 @@ class EventSquadNeedsCard extends StatelessWidget {
     required this.eventId,
     required this.hostId,
     required this.isPast,
+    this.myStatus = 'going',
   });
 
   @override
@@ -30,6 +32,7 @@ class EventSquadNeedsCard extends StatelessWidget {
       hostId: hostId,
       canEdit: canEdit,
       isPast: isPast,
+      myStatus: myStatus,
     );
   }
 }

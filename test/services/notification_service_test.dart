@@ -148,5 +148,39 @@ void main() {
         expect(find.text('Stay in the loop'), findsNothing);
       },
     );
+
+    testWidgets(
+      'InAppNotificationToastWrapper renders rsvp_update toast with registration icon',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: InAppNotificationToastWrapper(
+              privacyFilter: (_) async => true,
+              child: const Scaffold(
+                body: Center(child: Text('Main Content')),
+              ),
+            ),
+          ),
+        );
+
+        NotificationService.instance.emitForegroundMessageForTesting(
+          const RemoteMessage(
+            data: {
+              'type': 'rsvp_update',
+              'eventId': 'event-rsvp',
+              'title': 'RSVP Update ✅',
+              'body': 'Alice is going to Game Night',
+            },
+          ),
+        );
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
+
+        expect(find.text('RSVP Update ✅'), findsOneWidget);
+        expect(find.text('Alice is going to Game Night'), findsOneWidget);
+        expect(find.byIcon(Icons.how_to_reg_rounded), findsOneWidget);
+      },
+    );
   });
 }

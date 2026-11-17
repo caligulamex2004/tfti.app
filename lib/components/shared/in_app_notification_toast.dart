@@ -396,6 +396,8 @@ class _InAppNotificationToastWrapperState
         return Icons.schedule_rounded;
       case 'event_update':
         return Icons.event_note_rounded;
+      case 'rsvp_update':
+        return Icons.how_to_reg_rounded;
       default:
         return Icons.notifications_active_outlined;
     }
