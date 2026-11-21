@@ -2,6 +2,9 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
     RSVP_COOLDOWN_MS,
+    MAX_NOTIF_BODY_CHARS,
+    clipText,
+    buildPersonNotificationPayload,
     handleInvitationRsvpChange,
 } = require("../rsvp_handlers");
 
@@ -9,7 +12,10 @@ function createFakeFirestore({
     eventData = {},
     roles = [],
     users = {},
+    notifStates = {},
     inviteUpdates = [],
+    notifStateWrites = [],
+    metrics = {rolesQueries: 0, getAllCalls: 0},
 } = {}) {
     const deletedSentinel = Symbol("FieldValue.delete");
     const serverTsSentinel = Symbol("FieldValue.serverTimestamp");
@@ -28,6 +34,10 @@ function createFakeFirestore({
     const batchOps = [];
 
     const db = {
+        async getAll(...refs) {
+            metrics.getAllCalls = (metrics.getAllCalls || 0) + 1;
+            return Promise.all(refs.map((ref) => ref.get()));
+        },
         batch() {
             const ops = [];
             return {
@@ -69,6 +79,7 @@ function createFakeFirestore({
                                             assert.equal(op, "==");
                                             return {
                                                 async get() {
+                                                    metrics.rolesQueries = (metrics.rolesQueries || 0) + 1;
                                                     const matched = roleDocs.filter(
                                                         (d) => d.data().claimedByUid === val
                                                     );
@@ -88,6 +99,26 @@ function createFakeFirestore({
                                             return {
                                                 async update(data) {
                                                     inviteUpdates.push({uid, data});
+                                                },
+                                            };
+                                        },
+                                    };
+                                }
+                                if (sub === "rsvpNotifState") {
+                                    return {
+                                        doc(uid) {
+                                            return {
+                                                async get() {
+                                                    const state = notifStates[uid];
+                                                    if (!state) return {exists: false};
+                                                    return {exists: true, data: () => state};
+                                                },
+                                                async set(data, options) {
+                                                    notifStateWrites.push({uid, data, options});
+                                                    notifStates[uid] = {
+                                                        ...(notifStates[uid] || {}),
+                                                        ...data,
+                                                    };
                                                 },
                                             };
                                         },
@@ -116,7 +147,7 @@ function createFakeFirestore({
         },
     };
 
-    return {db, FieldValue, roleDocs, batchOps, inviteUpdates, serverTsSentinel};
+    return {db, FieldValue, roleDocs, batchOps, inviteUpdates, notifStateWrites, notifStates, metrics, serverTsSentinel};
 }
 
 function defaultHelpers(sentPayloads) {
@@ -170,7 +201,9 @@ test("releases claimed Squad Needs when transitioning from going to pending or d
 
 test("notifies both host and co-host when guest RSVPs going or declined before deadline", async () => {
     const inviteUpdates = [];
-    const {db, FieldValue} = createFakeFirestore({
+    const notifStateWrites = [];
+    const notifStates = {};
+    const {db, FieldValue, metrics} = createFakeFirestore({
         eventData: {
             hostId: "host1",
             coHostId: "cohost1",
@@ -181,9 +214,11 @@ test("notifies both host and co-host when guest RSVPs going or declined before d
         users: {
             host1: {fcmTokens: ["t-host"]},
             cohost1: {fcmTokens: ["t-cohost"]},
-            guest1: {displayName: "Alice"},
+            guest1: {displayName: "Bob", phoneNumber: "+15551234567"},
         },
+        notifStates,
         inviteUpdates,
+        notifStateWrites,
     });
     const sent = [];
 
@@ -201,11 +236,26 @@ test("notifies both host and co-host when guest RSVPs going or declined before d
     assert.deepEqual(res1.notifiedRecipients, ["host1", "cohost1"]);
     assert.equal(sent.length, 1);
     assert.deepEqual(sent[0].tokens, ["t-host", "t-cohost"]);
-    assert.equal(sent[0].payload.notification.body, "Alice is going to Game Night");
+    assert.equal(sent[0].payload.notification, undefined);
+    assert.equal(sent[0].payload.android.notification, undefined);
+    assert.equal(sent[0].payload.apns.payload.aps.alert.body, "Bob is going to Game Night");
+    assert.equal(sent[0].payload.webpush.notification.body, "Bob is going to Game Night");
     assert.equal(sent[0].payload.data.type, "rsvp_update");
-    assert.equal(inviteUpdates[0].data.lastNotifiedRsvpStatus, "going");
+    assert.equal(sent[0].payload.data.actorName, "Bob");
+    assert.equal(sent[0].payload.data.actorPhone, "+15551234567");
+    assert.equal(sent[0].payload.data.eventTitle, "Game Night");
+    assert.equal(sent[0].payload.data.body, "Bob is going to Game Night");
+    // Cooldown/dedup state is written to isolated rsvpNotifState, NEVER back to invitations
+    assert.equal(inviteUpdates.length, 0);
+    assert.equal(notifStateWrites.length, 1);
+    assert.equal(notifStateWrites[0].data.lastNotifiedRsvpStatus, "going");
+    // Used batched getAll RPCs (event+notifState, then recipients+responder)
+    assert.equal(metrics.getAllCalls, 2);
 
-    // Later (past 60s cooldown), guest1 declines
+    // Simulate serverTimestamp stored as millis for next call
+    notifStates.guest1.lastRsvpNotifiedAt = 2000;
+
+    // Later (past 60s cooldown), guest1 declines from pending -> should NOT query roles!
     const res2 = await handleInvitationRsvpChange({
         db,
         FieldValue,
@@ -214,22 +264,23 @@ test("notifies both host and co-host when guest RSVPs going or declined before d
         beforeData: {
             status: "pending",
             respondedAt: 2000 + RSVP_COOLDOWN_MS,
-            lastNotifiedRsvpStatus: "going",
-            lastRsvpNotifiedAt: 2000,
         },
         afterData: {
             status: "declined",
             respondedAt: 2000 + RSVP_COOLDOWN_MS + 5000,
-            lastNotifiedRsvpStatus: "going",
-            lastRsvpNotifiedAt: 2000,
         },
         nowMs: 2000 + RSVP_COOLDOWN_MS + 5000,
         ...defaultHelpers(sent),
     });
 
+    assert.equal(metrics.rolesQueries, 0);
     assert.deepEqual(res2.notifiedRecipients, ["host1", "cohost1"]);
     assert.equal(sent.length, 2);
-    assert.equal(sent[1].payload.notification.body, "Alice can't make it to Game Night");
+    assert.equal(sent[1].payload.data.body, "Bob can't make it to Game Night");
+    assert.equal(sent[1].payload.apns.payload.aps.alert.body, "Bob can't make it to Game Night");
+    assert.equal(inviteUpdates.length, 0);
+    assert.equal(notifStateWrites.length, 2);
+    assert.equal(notifStateWrites[1].data.lastNotifiedRsvpStatus, "declined");
 });
 
 test("skips going -> pending -> going when effective status did not change", async () => {
@@ -365,4 +416,84 @@ test("excludes self, blocked users, and recipients with notificationSettings.rsv
     });
     assert.deepEqual(res2.notifiedRecipients, ["cohost1"]);
     assert.deepEqual(sent[0].tokens, ["t-cohost"]);
+});
+
+test("buildPersonNotificationPayload builds Android data-only + APNs/WebPush alerts for chat types", () => {
+    const payload = buildPersonNotificationPayload({
+        type: "chat_mention",
+        eventId: "ev1",
+        eventTitle: "Pool Hangout",
+        title: "Bob mentioned you in Pool Hangout",
+        body: "Bring towels!",
+        actorUid: "u1",
+        actorName: "Bob",
+        actorPhone: "+15551234567",
+        channelId: "high_importance_channel",
+        androidPriority: "high",
+        extraData: {messageText: "Bring towels!", isWhisper: false},
+        createWebPushConfig: (t, b, e, ty) => ({notification: {title: t, body: b}, fcmOptions: {link: `${e}:${ty}`}}),
+    });
+
+    assert.equal(payload.notification, undefined);
+    assert.equal(payload.android.priority, "high");
+    assert.equal(payload.android.notification, undefined);
+    assert.equal(payload.apns.payload.aps.alert.title, "Bob mentioned you in Pool Hangout");
+    assert.equal(payload.webpush.notification.body, "Bring towels!");
+    assert.equal(payload.data.actorPhone, "+15551234567");
+    assert.equal(payload.data.actorName, "Bob");
+    assert.equal(payload.data.messageText, "Bring towels!");
+    assert.equal(payload.data.isWhisper, "false");
+});
+
+test("skips rsvpNotifState write when no eligible tokens exist and clips oversized chat payloads", async () => {
+    const notifStateWrites = [];
+    const {db, FieldValue} = createFakeFirestore({
+        eventData: {
+            hostId: "host1",
+            title: "Tacos",
+            time: {toMillis: () => 5000000},
+        },
+        users: {
+            host1: {fcmTokens: ["t-host"], notificationSettings: {rsvp: false}},
+            guest1: {displayName: "Alice"},
+        },
+        notifStateWrites,
+    });
+    const sent = [];
+
+    const res = await handleInvitationRsvpChange({
+        db,
+        FieldValue,
+        eventId: "ev1",
+        userId: "guest1",
+        beforeData: {status: "pending"},
+        afterData: {status: "going", respondedAt: 2000},
+        nowMs: 1000000,
+        ...defaultHelpers(sent),
+    });
+
+    assert.equal(res.skippedReason, "no_eligible_tokens");
+    assert.equal(notifStateWrites.length, 0);
+
+    const hugeText = "A".repeat(2000);
+    const payload = buildPersonNotificationPayload({
+        type: "chat",
+        eventId: "ev1",
+        eventTitle: "Pool",
+        title: "Pool",
+        body: `Bob: ${hugeText}`,
+        actorUid: "u1",
+        actorName: "Bob",
+        actorPhone: "+15551234567",
+        channelId: "chat_channel",
+        androidPriority: "normal",
+        extraData: {messageText: hugeText},
+        createWebPushConfig: (t, b, e, ty) => ({notification: {title: t, body: b}, fcmOptions: {link: `${e}:${ty}`}}),
+    });
+
+    assert.equal(payload.data.body.length, MAX_NOTIF_BODY_CHARS);
+    assert.equal(payload.apns.payload.aps.alert.body.length, MAX_NOTIF_BODY_CHARS);
+    assert.equal(payload.webpush.notification.body.length, MAX_NOTIF_BODY_CHARS);
+    assert.equal(payload.data.messageText.length, MAX_NOTIF_BODY_CHARS);
+    assert.equal(clipText("short", 10), "short");
 });

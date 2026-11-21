@@ -1674,11 +1674,17 @@ class EventService {
   /// Updates [userId]'s RSVP [status] on [eventId] and automatically releases
   /// any Squad Needs claimed by [userId] when [status] is no longer `'going'`.
   ///
+  /// Pass [checkClaimedRoles] = `false` when the caller already knows from live
+  /// state that [userId] holds no claimed roles (e.g. previous status wasn't
+  /// `'going'` or the roles snapshot has no items claimed by [userId]), saving
+  /// an unnecessary Firestore query before committing.
+  ///
   /// Returns the number of Squad Needs items released.
   static Future<int> updateRsvpStatus({
     required String eventId,
     required String userId,
     required String status,
+    bool checkClaimedRoles = true,
     FirebaseFirestore? firestore,
   }) async {
     final db = firestore ?? FirebaseFirestore.instance;
@@ -1693,7 +1699,7 @@ class EventService {
     }, SetOptions(merge: true));
 
     int releasedCount = 0;
-    if (!canClaimSquadNeed(status)) {
+    if (!canClaimSquadNeed(status) && checkClaimedRoles) {
       final claimedRolesSnap = await eventRef
           .collection('roles')
           .where('claimedByUid', isEqualTo: userId)

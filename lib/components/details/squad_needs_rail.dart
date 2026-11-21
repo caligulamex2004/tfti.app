@@ -4,18 +4,23 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../services/user_cache_repository.dart';
 import '../../utils/event_service.dart';
 import '../forms/squad_needs_sheet.dart';
 
 /// Horizontal task board carousel for event squad needs / roles.
 /// Allows attendees to claim or release needs directly on the details page,
 /// and allows hosts/co-hosts to add needs on the fly.
-class SquadNeedsRail extends StatelessWidget {
+class SquadNeedsRail extends StatefulWidget {
   final String eventId;
   final String hostId;
   final bool canEdit;
   final bool isPast;
   final String myStatus;
+
+  /// Optional pre-fetched/streamed roles from the parent page so we avoid
+  /// opening a duplicate Firestore listener or recreating streams on rebuild.
+  final List<QueryDocumentSnapshot>? roles;
 
   const SquadNeedsRail({
     super.key,
@@ -24,9 +29,46 @@ class SquadNeedsRail extends StatelessWidget {
     required this.canEdit,
     required this.isPast,
     this.myStatus = 'going',
+    this.roles,
   });
 
-  bool get _canClaim => EventService.canClaimSquadNeed(myStatus);
+  @override
+  State<SquadNeedsRail> createState() => _SquadNeedsRailState();
+}
+
+class _SquadNeedsRailState extends State<SquadNeedsRail> {
+  Stream<QuerySnapshot>? _rolesStream;
+
+  bool get _canClaim => EventService.canClaimSquadNeed(widget.myStatus);
+
+  @override
+  void initState() {
+    super.initState();
+    _initFallbackStreamIfNeeded();
+  }
+
+  @override
+  void didUpdateWidget(covariant SquadNeedsRail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.roles != null) {
+      _rolesStream = null;
+    } else if (oldWidget.eventId != widget.eventId || _rolesStream == null) {
+      _initFallbackStreamIfNeeded();
+    }
+  }
+
+  void _initFallbackStreamIfNeeded() {
+    if (widget.roles != null || Firebase.apps.isEmpty) {
+      _rolesStream = null;
+      return;
+    }
+    _rolesStream = FirebaseFirestore.instance
+        .collection('events')
+        .doc(widget.eventId)
+        .collection('roles')
+        .orderBy('createdAt')
+        .snapshots();
+  }
 
   void _openSquadNeedsSheet(BuildContext context) {
     HapticFeedback.lightImpact();
@@ -38,9 +80,9 @@ class SquadNeedsRail extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => SquadNeedsSheet(
-        eventId: eventId,
-        hostId: hostId,
-        isPast: isPast,
+        eventId: widget.eventId,
+        hostId: widget.hostId,
+        isPast: widget.isPast,
         canClaim: _canClaim,
       ),
     );
@@ -80,7 +122,7 @@ class SquadNeedsRail extends StatelessWidget {
 
               await FirebaseFirestore.instance
                   .collection('events')
-                  .doc(eventId)
+                  .doc(widget.eventId)
                   .collection('roles')
                   .add({
                     'title': text,
@@ -107,13 +149,14 @@ class SquadNeedsRail extends StatelessWidget {
   ) async {
     if (!_canClaim) return;
     HapticFeedback.lightImpact();
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUser.uid)
-        .get();
+    final cachedUser = await UserCacheRepository.instance.getUser(
+      currentUser.uid,
+    );
 
-    final displayName =
-        userDoc.data()?['displayName'] ?? currentUser.displayName ?? "Someone";
+    final cachedName = cachedUser?.displayName.trim();
+    final displayName = (cachedName != null && cachedName.isNotEmpty)
+        ? cachedName
+        : (currentUser.displayName ?? "Someone");
 
     await roleDoc.reference.update({
       'claimedByUid': currentUser.uid,
@@ -141,155 +184,173 @@ class SquadNeedsRail extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
 
+    if (widget.roles != null) {
+      return _buildCard(
+        context,
+        widget.roles!,
+        currentUser,
+        isDark,
+        primaryColor,
+      );
+    }
+
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('events')
-          .doc(eventId)
-          .collection('roles')
-          .orderBy('createdAt')
-          .snapshots(),
+      stream: _rolesStream,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const SizedBox.shrink();
         }
-
-        final roles = snapshot.data!.docs;
-
-        // If no roles exist and user cannot edit, collapse cleanly
-        if (roles.isEmpty && !canEdit) {
-          return const SizedBox.shrink();
-        }
-
-        final int claimedCount = roles.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return data['claimedByUid'] != null;
-        }).length;
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 24, left: 20, right: 20),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Row
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(7),
-                      decoration: BoxDecoration(
-                        color: primaryColor.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.check_box_outlined,
-                        color: primaryColor,
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Text(
-                            "SQUAD NEEDS",
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.8,
-                              color: isDark ? Colors.white : Colors.black87,
-                            ),
-                          ),
-                          if (roles.isNotEmpty) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 7,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: claimedCount == roles.length
-                                    ? Colors.green.withValues(alpha: 0.15)
-                                    : primaryColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                "$claimedCount/${roles.length} Claimed",
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: claimedCount == roles.length
-                                      ? Colors.green
-                                      : primaryColor,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => _openSquadNeedsSheet(context),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            "Manage",
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: primaryColor,
-                            ),
-                          ),
-                          const SizedBox(width: 2),
-                          Icon(
-                            Icons.arrow_forward_ios,
-                            size: 11,
-                            color: primaryColor,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Divider(
-                height: 1,
-                color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-              ),
-
-              // Horizontal Rail Content
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: roles.isEmpty
-                    ? _buildEmptyPrompt(context, isDark, primaryColor)
-                    : _buildRolesRail(
-                        context,
-                        roles,
-                        currentUser,
-                        isDark,
-                        primaryColor,
-                      ),
-              ),
-            ],
-          ),
+        return _buildCard(
+          context,
+          snapshot.data!.docs,
+          currentUser,
+          isDark,
+          primaryColor,
         );
       },
+    );
+  }
+
+  Widget _buildCard(
+    BuildContext context,
+    List<QueryDocumentSnapshot> roles,
+    User currentUser,
+    bool isDark,
+    Color primaryColor,
+  ) {
+    // If no roles exist and user cannot edit, collapse cleanly
+    if (roles.isEmpty && !widget.canEdit) {
+      return const SizedBox.shrink();
+    }
+
+    final int claimedCount = roles.where((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      return data['claimedByUid'] != null;
+    }).length;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24, left: 20, right: 20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.check_box_outlined,
+                    color: primaryColor,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Text(
+                        "SQUAD NEEDS",
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.8,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      if (roles.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: claimedCount == roles.length
+                                ? Colors.green.withValues(alpha: 0.15)
+                                : primaryColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            "$claimedCount/${roles.length} Claimed",
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: claimedCount == roles.length
+                                  ? Colors.green
+                                  : primaryColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => _openSquadNeedsSheet(context),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        "Manage",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: primaryColor,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: 11,
+                        color: primaryColor,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(
+            height: 1,
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+          ),
+
+          // Horizontal Rail Content
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: roles.isEmpty
+                ? _buildEmptyPrompt(context, isDark, primaryColor)
+                : _buildRolesRail(
+                    context,
+                    roles,
+                    currentUser,
+                    isDark,
+                    primaryColor,
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -354,7 +415,7 @@ class SquadNeedsRail extends StatelessWidget {
     Color primaryColor,
   ) {
     // Add 1 extra slot for [+ Add Need] card if user can edit
-    final int itemCount = roles.length + (canEdit && !isPast ? 1 : 0);
+    final int itemCount = roles.length + (widget.canEdit && !widget.isPast ? 1 : 0);
 
     return SizedBox(
       height: 136,
@@ -492,7 +553,7 @@ class SquadNeedsRail extends StatelessWidget {
                 SquadNeedCardAction(
                   isClaimed: isClaimed,
                   isMe: isMe,
-                  isPast: isPast,
+                  isPast: widget.isPast,
                   canClaim: _canClaim,
                   primaryColor: primaryColor,
                   isDark: isDark,

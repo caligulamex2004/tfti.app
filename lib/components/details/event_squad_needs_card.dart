@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import 'squad_needs_rail.dart';
@@ -9,6 +10,7 @@ class EventSquadNeedsCard extends StatelessWidget {
   final String hostId;
   final bool isPast;
   final String myStatus;
+  final List<QueryDocumentSnapshot>? roles;
 
   const EventSquadNeedsCard({
     super.key,
@@ -18,6 +20,7 @@ class EventSquadNeedsCard extends StatelessWidget {
     required this.hostId,
     required this.isPast,
     this.myStatus = 'going',
+    this.roles,
   });
 
   @override
@@ -33,6 +36,7 @@ class EventSquadNeedsCard extends StatelessWidget {
       canEdit: canEdit,
       isPast: isPast,
       myStatus: myStatus,
+      roles: roles,
     );
   }
 }
