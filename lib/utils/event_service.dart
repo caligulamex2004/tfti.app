@@ -1667,4 +1667,55 @@ class EventService {
 
     await batch.commit();
   }
+
+  /// Returns whether a user with [status] is eligible to claim Squad Needs.
+  static bool canClaimSquadNeed(String status) => status == 'going';
+
+  /// Updates [userId]'s RSVP [status] on [eventId] and automatically releases
+  /// any Squad Needs claimed by [userId] when [status] is no longer `'going'`.
+  ///
+  /// Pass [checkClaimedRoles] = `false` when the caller already knows from live
+  /// state that [userId] holds no claimed roles (e.g. previous status wasn't
+  /// `'going'` or the roles snapshot has no items claimed by [userId]), saving
+  /// an unnecessary Firestore query before committing.
+  ///
+  /// Returns the number of Squad Needs items released.
+  static Future<int> updateRsvpStatus({
+    required String eventId,
+    required String userId,
+    required String status,
+    bool checkClaimedRoles = true,
+    FirebaseFirestore? firestore,
+  }) async {
+    final db = firestore ?? FirebaseFirestore.instance;
+    final eventRef = db.collection('events').doc(eventId);
+    final inviteRef = eventRef.collection('invitations').doc(userId);
+
+    final batch = db.batch();
+    batch.set(inviteRef, {
+      'uid': userId,
+      'status': status,
+      'respondedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    int releasedCount = 0;
+    if (!canClaimSquadNeed(status) && checkClaimedRoles) {
+      final claimedRolesSnap = await eventRef
+          .collection('roles')
+          .where('claimedByUid', isEqualTo: userId)
+          .get();
+
+      for (final roleDoc in claimedRolesSnap.docs) {
+        batch.update(roleDoc.reference, {
+          'claimedByUid': FieldValue.delete(),
+          'claimedByName': FieldValue.delete(),
+          'claimedAt': FieldValue.delete(),
+        });
+        releasedCount++;
+      }
+    }
+
+    await batch.commit();
+    return releasedCount;
+  }
 }

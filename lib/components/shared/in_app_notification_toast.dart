@@ -119,20 +119,22 @@ class _InAppNotificationToastWrapperState
   }
 
   Future<void> _handleIncomingMessage(RemoteMessage message) async {
-    final title = message.notification?.title ?? message.data['title'];
-    final body = message.notification?.body ?? message.data['body'];
-
-    if (title == null && body == null) return;
-
     final isLocal = message.data['isLocal'] == 'true';
 
-    // Enforce privacy and suppression checks for incoming push notifications
+    // Enforce privacy and suppression checks BEFORE resolving contact names
+    // so suppressed messages (e.g., active chat or own message) do zero extra work.
     if (!isLocal) {
       final allowed = await _isNotificationAllowed(message);
       if (!allowed || !mounted) return;
     } else if (!mounted) {
       return;
     }
+
+    final resolved = NotificationService.resolveNotificationContent(message);
+    final title = resolved.title;
+    final body = resolved.body;
+
+    if (title == null && body == null) return;
 
     final type = message.data['type'] as String?;
     final isWhisper =
@@ -245,35 +247,47 @@ class _InAppNotificationToastWrapperState
       }
     }
 
-    // 4. Fallback verification against Firestore for chat messages
-    // (Handles legacy backend push where privacy flags were omitted from payload)
-    if ((type == 'chat' || type == 'chat_mention') &&
+    // 4. Fallback verification against Firestore for legacy chat pushes ONLY.
+    // Modern backend pushes already include `isWhisper` + `senderId` (and have
+    // already enforced mute/visibility checks server-side), so skip the 2
+    // Firestore reads when those flags are present.
+    final bool hasModernPrivacyMetadata =
+        data.containsKey('isWhisper') && data.containsKey('senderId');
+
+    if (!hasModernPrivacyMetadata &&
+        (type == 'chat' || type == 'chat_mention') &&
         eventId != null &&
         currentUid != null) {
       try {
         final messageId = data['messageId'] as String?;
-        DocumentSnapshot<Map<String, dynamic>>? msgDoc;
+        final Future<DocumentSnapshot<Map<String, dynamic>>?> msgFuture =
+            (messageId != null && messageId.isNotEmpty)
+                ? FirebaseFirestore.instance
+                    .collection('events')
+                    .doc(eventId)
+                    .collection('messages')
+                    .doc(messageId)
+                    .get()
+                : FirebaseFirestore.instance
+                    .collection('events')
+                    .doc(eventId)
+                    .collection('messages')
+                    .orderBy('timestamp', descending: true)
+                    .limit(1)
+                    .get()
+                    .then((snap) => snap.docs.isNotEmpty ? snap.docs.first : null);
 
-        if (messageId != null && messageId.isNotEmpty) {
-          msgDoc = await FirebaseFirestore.instance
-              .collection('events')
-              .doc(eventId)
-              .collection('messages')
-              .doc(messageId)
-              .get();
-        } else {
-          // Query the newest message in this chat
-          final snap = await FirebaseFirestore.instance
-              .collection('events')
-              .doc(eventId)
-              .collection('messages')
-              .orderBy('timestamp', descending: true)
-              .limit(1)
-              .get();
-          if (snap.docs.isNotEmpty) {
-            msgDoc = snap.docs.first;
-          }
-        }
+        final Future<DocumentSnapshot<Map<String, dynamic>>> inviteFuture =
+            FirebaseFirestore.instance
+                .collection('events')
+                .doc(eventId)
+                .collection('invitations')
+                .doc(currentUid)
+                .get();
+
+        final results = await Future.wait<dynamic>([msgFuture, inviteFuture]);
+        final msgDoc = results[0] as DocumentSnapshot<Map<String, dynamic>>?;
+        final inviteDoc = results[1] as DocumentSnapshot<Map<String, dynamic>>;
 
         if (msgDoc != null && msgDoc.exists) {
           final msgData = msgDoc.data();
@@ -299,12 +313,6 @@ class _InAppNotificationToastWrapperState
             }
 
             // Check if the current user muted this sender in this event chat
-            final inviteDoc = await FirebaseFirestore.instance
-                .collection('events')
-                .doc(eventId)
-                .collection('invitations')
-                .doc(currentUid)
-                .get();
             if (inviteDoc.exists) {
               final inviteData = inviteDoc.data();
               final isMuted = inviteData?['isMuted'] ?? false;
@@ -396,6 +404,8 @@ class _InAppNotificationToastWrapperState
         return Icons.schedule_rounded;
       case 'event_update':
         return Icons.event_note_rounded;
+      case 'rsvp_update':
+        return Icons.how_to_reg_rounded;
       default:
         return Icons.notifications_active_outlined;
     }

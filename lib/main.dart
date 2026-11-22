@@ -84,6 +84,11 @@ void main() async {
 
   // Initialize notification service listeners
   await NotificationService.instance.init();
+  unawaited(
+    NotificationService.instance.registerNotificationTapHandler(
+      handleNotificationRouting,
+    ),
+  );
 
   // Initialize home-screen / Dock / PWA app icon shortcuts
   await AppShortcutService.instance.init();
@@ -542,16 +547,24 @@ Future<void> handleNotificationRouting(Map<String, dynamic> data) async {
     final eventData = doc.data() as Map<String, dynamic>;
     final eventTitle = eventData['title'] ?? 'Event';
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    // Only wait briefly on cold start while Navigator mounts; navigate immediately when warm.
+    if (navigatorKey.currentState == null) {
+      for (int i = 0; i < 10 && navigatorKey.currentState == null; i++) {
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
+    }
 
-    if (type == 'chat' || type == 'chat_mention') {
-      navigatorKey.currentState?.push(
+    final nav = navigatorKey.currentState;
+    if (nav == null) return;
+
+    if (type == 'chat' || type == 'chat_mention' || type == 'whisper') {
+      nav.push(
         MaterialPageRoute(
           builder: (_) => ChatPage(eventId: eventId, eventTitle: eventTitle),
         ),
       );
     } else {
-      navigatorKey.currentState?.push(
+      nav.push(
         MaterialPageRoute(
           builder: (_) =>
               HangoutDetailsPage(eventId: eventId, eventData: eventData),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/user_cache_repository.dart';
 
 // A standalone widget you can pass to showModalBottomSheet. It manages its own
 // stream and strictly enforces the security rules we built earlier.
@@ -9,12 +10,14 @@ class SquadNeedsSheet extends StatefulWidget {
   final String eventId;
   final String hostId;
   final bool isPast;
+  final bool canClaim;
 
   const SquadNeedsSheet({
     super.key,
     required this.eventId,
     required this.hostId,
     required this.isPast,
+    this.canClaim = true,
   });
 
   @override
@@ -23,6 +26,30 @@ class SquadNeedsSheet extends StatefulWidget {
 
 class _SquadNeedsSheetState extends State<SquadNeedsSheet> {
   final _roleController = TextEditingController();
+  late Stream<QuerySnapshot> _rolesStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _rolesStream = _createRolesStream();
+  }
+
+  @override
+  void didUpdateWidget(covariant SquadNeedsSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.eventId != widget.eventId) {
+      _rolesStream = _createRolesStream();
+    }
+  }
+
+  Stream<QuerySnapshot> _createRolesStream() {
+    return FirebaseFirestore.instance
+        .collection('events')
+        .doc(widget.eventId)
+        .collection('roles')
+        .orderBy('createdAt')
+        .snapshots();
+  }
 
   @override
   void dispose() {
@@ -100,12 +127,7 @@ class _SquadNeedsSheetState extends State<SquadNeedsSheet> {
               // The Stream
               Flexible(
                 child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('events')
-                      .doc(widget.eventId)
-                      .collection('roles')
-                      .orderBy('createdAt')
-                      .snapshots(),
+                  stream: _rolesStream,
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) {
                       return const Center(child: CircularProgressIndicator());
@@ -223,36 +245,56 @@ class _SquadNeedsSheetState extends State<SquadNeedsSheet> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               if (!isClaimed && canEdit)
-                                ElevatedButton(
-                                  onPressed: () async {
-                                    HapticFeedback.lightImpact();
-                                    final userDoc = await FirebaseFirestore
-                                        .instance
-                                        .collection('users')
-                                        .doc(currentUser.uid)
-                                        .get();
-                                    await roleDoc.reference.update({
-                                      'claimedByUid': currentUser.uid,
-                                      'claimedByName':
-                                          userDoc.data()?['displayName'] ??
-                                          "Someone",
-                                    });
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: primaryColor,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                  child: const Text(
-                                    "Claim",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                )
+                                widget.canClaim
+                                    ? ElevatedButton(
+                                        onPressed: () async {
+                                          HapticFeedback.lightImpact();
+                                          final cachedUser =
+                                              await UserCacheRepository.instance
+                                                  .getUser(currentUser.uid);
+                                          final cachedName = cachedUser
+                                              ?.displayName
+                                              .trim();
+                                          final displayName =
+                                              (cachedName != null &&
+                                                  cachedName.isNotEmpty)
+                                              ? cachedName
+                                              : (currentUser.displayName ??
+                                                    "Someone");
+                                          await roleDoc.reference.update({
+                                            'claimedByUid': currentUser.uid,
+                                            'claimedByName': displayName,
+                                          });
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: primaryColor,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                        child: const Text(
+                                          "Claim",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      )
+                                    : OutlinedButton(
+                                        onPressed: null,
+                                        style: OutlinedButton.styleFrom(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                        child: const Text("RSVP In"),
+                                      )
                               else if ((isMe || canManageItem) && canEdit)
                                 OutlinedButton(
                                   onPressed: () async {

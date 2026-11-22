@@ -17,7 +17,8 @@ class CrewAttendeesRail extends StatefulWidget {
   final String? coHostId;
   final Function(String uid, String phone, String name) onAddFriend;
   final Function(String uid, String name) onReportUser;
-  final Stream<DocumentSnapshot> Function(String guestUid)? friendStreamProvider;
+  final Stream<DocumentSnapshot> Function(String guestUid)?
+  friendStreamProvider;
 
   const CrewAttendeesRail({
     super.key,
@@ -57,8 +58,7 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
         showAddButton: showAddButton,
         isGoated: isGoated,
         currentUserId: widget.currentUserId,
-        onAddFriend: (uid, phone, name) =>
-            widget.onAddFriend(uid, phone, name),
+        onAddFriend: (uid, phone, name) => widget.onAddFriend(uid, phone, name),
         onReportUser: (uid, name) => widget.onReportUser(uid, name),
       ),
     );
@@ -84,12 +84,15 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
 
-    final goingCount =
-        widget.guests.where((g) => g['status'] == 'going').length;
-    final pendingCount =
-        widget.guests.where((g) => g['status'] == 'pending').length;
-    final declinedCount =
-        widget.guests.where((g) => g['status'] == 'declined').length;
+    final goingCount = widget.guests
+        .where((g) => g['status'] == 'going')
+        .length;
+    final pendingCount = widget.guests
+        .where((g) => g['status'] == 'pending')
+        .length;
+    final declinedCount = widget.guests
+        .where((g) => g['status'] == 'declined')
+        .length;
 
     List<Map<String, dynamic>> filteredGuests = widget.guests;
     if (_selectedFilter != 'all') {
@@ -312,12 +315,8 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
 
               return InkWell(
                 borderRadius: BorderRadius.circular(18),
-                onTap: () => _openUserProfile(
-                  context,
-                  guest,
-                  showAddButton,
-                  isGoated,
-                ),
+                onTap: () =>
+                    _openUserProfile(context, guest, showAddButton, isGoated),
                 child: Container(
                   width: 122,
                   padding: const EdgeInsets.all(10),
@@ -479,10 +478,7 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
         color: Colors.black.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(
-        emoji,
-        style: const TextStyle(fontSize: 10),
-      ),
+      child: Text(emoji, style: const TextStyle(fontSize: 10)),
     );
   }
 
@@ -515,11 +511,7 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: fg,
-        ),
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: fg),
       ),
     );
   }
@@ -555,16 +547,12 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
 
         IconData badgeIcon = status == 'going'
             ? Icons.check_circle
-            : (status == 'declined'
-                  ? Icons.cancel
-                  : Icons.hourglass_empty);
+            : (status == 'declined' ? Icons.cancel : Icons.hourglass_empty);
         Color badgeColor = status == 'going'
             ? Colors.green
             : (status == 'declined'
                   ? Colors.red
-                  : (isDark
-                        ? Colors.grey.shade400
-                        : Colors.grey.shade700));
+                  : (isDark ? Colors.grey.shade400 : Colors.grey.shade700));
 
         return StreamBuilder<DocumentSnapshot>(
           stream: _getFriendStream(guestUid),
@@ -585,8 +573,8 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
                 : ContactResolver.instance.resolveName(guestPhone);
             final bool hasContact =
                 contactName != null && contactName.trim().isNotEmpty;
-            final String guestDisplayName =
-                (guest['displayName'] ?? '').toString();
+            final String guestDisplayName = (guest['displayName'] ?? '')
+                .toString();
             final contactFirstName = isMe
                 ? ContactResolver.instance.formatMiniProfileFallback(
                     guestDisplayName,
@@ -604,18 +592,11 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
                 );
 
             return InkWell(
-              onTap: () => _openUserProfile(
-                context,
-                guest,
-                showAddButton,
-                isGoated,
-              ),
+              onTap: () =>
+                  _openUserProfile(context, guest, showAddButton, isGoated),
               borderRadius: BorderRadius.circular(12),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 8,
-                  horizontal: 4,
-                ),
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                 child: Row(
                   children: [
                     Stack(
@@ -705,7 +686,7 @@ class _CrewAttendeesRailState extends State<CrewAttendeesRail> {
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
-                                    "Host",
+                                    "Captain",
                                     style: TextStyle(
                                       color: primaryColor,
                                       fontSize: 10,

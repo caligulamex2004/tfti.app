@@ -89,3 +89,9 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    val firebaseSdkVersion = rootProject.project(":firebase_core").findProperty("FirebaseSDKVersion") as String
+    implementation(platform("com.google.firebase:firebase-bom:$firebaseSdkVersion"))
+    implementation("com.google.firebase:firebase-messaging")
+}

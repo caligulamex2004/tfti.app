@@ -268,6 +268,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
       builder: (context, snapshot) {
         bool notifyInvites = true;
         bool notifyUpdates = true;
+        bool notifyRsvp = true;
         bool notifyChat = true;
         bool notifyMentions = true;
         bool notifyReminderHour = true;
@@ -280,6 +281,7 @@ class _PreferencesPageState extends State<PreferencesPage> {
             final settings = data['notificationSettings'] ?? {};
             notifyInvites = settings['invites'] ?? true;
             notifyUpdates = settings['updates'] ?? true;
+            notifyRsvp = settings['rsvp'] ?? true;
             notifyChat = settings['chat'] ?? true;
             notifyMentions = settings['mentions'] ?? true;
             notifyReminderHour = settings['reminder_hour'] ?? true;
@@ -312,6 +314,17 @@ class _PreferencesPageState extends State<PreferencesPage> {
                 iconColor: Colors.orange,
                 value: notifyUpdates,
                 onChanged: (val) => _toggleNotification('updates', val),
+                isDark: isDark,
+                primaryColor: primaryColor,
+              ),
+              _buildDivider(isDark),
+              _buildModernSwitch(
+                title: "Crew RSVPs",
+                subtitle: "When guests RSVP or change plans",
+                icon: Icons.how_to_reg_rounded,
+                iconColor: Colors.teal,
+                value: notifyRsvp,
+                onChanged: (val) => _toggleNotification('rsvp', val),
                 isDark: isDark,
                 primaryColor: primaryColor,
               ),

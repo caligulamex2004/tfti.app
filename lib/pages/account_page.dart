@@ -12,6 +12,7 @@ import '../components/account/account_edit_card.dart';
 import '../components/account/account_settings_card.dart';
 import '../components/account/qr_code_sheet.dart';
 import '../components/account/tip_jar_sheet.dart';
+import '../components/shared/image_cropper_dialog.dart';
 import '../components/shared/shared_sliver_app_bar.dart';
 import '../components/shared/tcg_profile_card.dart';
 import '../components/shared/web_camera_photo_dialog.dart';
@@ -269,10 +270,19 @@ class _AccountPageState extends State<AccountPage> {
 
   Future<void> _handleTakePhoto() async {
     if (kIsWeb) {
-      final bytes = await WebCameraPhotoDialog.show(context);
-      if (bytes != null) {
-        await _uploadAvatarBytes(bytes);
-      }
+      final rawBytes = await WebCameraPhotoDialog.show(context);
+      if (rawBytes == null || !mounted) return;
+      final croppedBytes = await ImageCropperDialog.show(
+        context,
+        imageBytes: rawBytes,
+        aspectRatio: 1.0,
+        isCircle: true,
+        title: 'Adjust Profile Photo',
+        outputWidth: 1024,
+        outputHeight: 1024,
+      );
+      if (croppedBytes == null || !mounted) return;
+      await _uploadAvatarBytes(croppedBytes);
     } else {
       await _uploadAvatar(ImageSource.camera);
     }
@@ -313,7 +323,18 @@ class _AccountPageState extends State<AccountPage> {
 
     Uint8List? imageBytes;
     if (kIsWeb) {
-      imageBytes = await pickedFile.readAsBytes();
+      final rawBytes = await pickedFile.readAsBytes();
+      if (!mounted) return;
+      imageBytes = await ImageCropperDialog.show(
+        context,
+        imageBytes: rawBytes,
+        aspectRatio: 1.0,
+        isCircle: true,
+        title: 'Adjust Profile Photo',
+        outputWidth: 1024,
+        outputHeight: 1024,
+      );
+      if (imageBytes == null || !mounted) return;
     } else {
       final croppedFile = await ImageCropper().cropImage(
         sourcePath: pickedFile.path,

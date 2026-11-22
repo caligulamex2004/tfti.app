@@ -31,6 +31,7 @@ import '../components/shared/event_type_pill.dart';
 import '../services/app_toast.dart';
 import '../services/contact_resolver.dart';
 import '../services/badge_service.dart';
+import '../services/user_cache_repository.dart';
 
 class HangoutDetailsPage extends StatefulWidget {
   final String eventId;
@@ -59,10 +60,16 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
   Future<List<Map<String, dynamic>>>? _cachedCrewFuture;
   int _lastCrewHash = 0;
 
+  Map<String, dynamic>? _latestEventData;
+  String _latestMyStatus = 'pending';
+  List<QueryDocumentSnapshot> _latestRolesDocs = const [];
+  bool _hasRolesSnapshot = false;
+
   @override
   void initState() {
     super.initState();
     BadgeService.instance.clearBadge();
+    _latestEventData = widget.eventData;
 
     final user = FirebaseAuth.instance.currentUser;
     _eventStream = FirebaseFirestore.instance
@@ -73,7 +80,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
         .collection('events')
         .doc(widget.eventId)
         .collection('roles')
-        .limit(1)
+        .orderBy('createdAt')
         .snapshots();
     _crewStream = FirebaseFirestore.instance
         .collection('events')
@@ -133,33 +140,40 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
       return;
     }
 
-    final eventRef = FirebaseFirestore.instance
-        .collection('events')
-        .doc(widget.eventId);
-    final inviteRef = eventRef.collection('invitations').doc(user.uid);
+    final bool hasClaimedRole = _latestRolesDocs.any((doc) {
+      final d = doc.data() as Map<String, dynamic>?;
+      return d?['claimedByUid'] == user.uid;
+    });
+    final bool shouldCheckClaimedRoles =
+        _latestMyStatus == 'going' && (!_hasRolesSnapshot || hasClaimedRole);
 
-    await inviteRef.set({
-      'uid': user.uid,
-      'status': status,
-      'respondedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    final releasedCount = await EventService.updateRsvpStatus(
+      eventId: widget.eventId,
+      userId: user.uid,
+      status: status,
+      checkClaimedRoles: shouldCheckClaimedRoles,
+    );
 
-    final evSnap = await eventRef.get();
-    if (evSnap.exists) {
-      final evData = evSnap.data() as Map<String, dynamic>;
-      if (evData['type'] == 'vibe_check' &&
-          evData['isTieBreakerNeeded'] == true) {
-        await eventRef.update({'isTieBreakerNeeded': false});
-      }
+    if (releasedCount > 0 && mounted) {
+      AppToast.info(
+        "Released $releasedCount Squad ${releasedCount == 1 ? 'Need' : 'Needs'}",
+      );
+    }
+
+    final evData = _latestEventData;
+    if (evData != null &&
+        evData['type'] == 'vibe_check' &&
+        evData['isTieBreakerNeeded'] == true) {
+      await FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.eventId)
+          .update({'isTieBreakerNeeded': false});
     }
 
     if (status == 'going') {
       try {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-        if (userDoc.data()?['autoExportCalendar'] == true) {
+        final profile = await UserCacheRepository.instance.getUser(user.uid);
+        if (profile?.autoExportCalendar == true) {
           _pushToCalendar();
         }
       } catch (e) {
@@ -429,6 +443,7 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
         if (eventSnapshot.hasData && eventSnapshot.data!.data() != null) {
           data = eventSnapshot.data!.data() as Map<String, dynamic>;
         }
+        _latestEventData = data;
 
         return StreamBuilder<DocumentSnapshot>(
           stream: _myInviteStream,
@@ -439,11 +454,14 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
               myInviteData = inviteSnap.data!.data() as Map<String, dynamic>;
               myStatus = myInviteData['status'] ?? 'pending';
             }
+            _latestMyStatus = myStatus;
 
             return StreamBuilder<QuerySnapshot>(
               stream: _rolesStream,
               builder: (context, roleSnap) {
                 final rolesDocs = roleSnap.data?.docs ?? [];
+                _hasRolesSnapshot = roleSnap.hasData;
+                _latestRolesDocs = rolesDocs;
 
                 return StreamBuilder<QuerySnapshot>(
                   stream: _crewStream,
@@ -529,6 +547,8 @@ class _HangoutDetailsPageState extends State<HangoutDetailsPage> {
                           eventId: widget.eventId,
                           hostId: data['hostId'],
                           isPast: isPast,
+                          myStatus: myStatus,
+                          roles: rolesDocs,
                         );
 
                         final rsvpCardWidget = EventRsvpCard(

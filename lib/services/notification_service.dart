@@ -1,13 +1,19 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'badge_service.dart';
+import 'contact_resolver.dart';
 
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
+
+  static const MethodChannel _tapChannel = MethodChannel(
+    'com.bearmoose.tftiapp/notification_taps',
+  );
 
   // Loaded at build/runtime via --dart-define-from-file=secrets.json
   static const String vapidKey = String.fromEnvironment('FCM_WEB_VAPID_KEY');
@@ -50,6 +56,126 @@ class NotificationService {
 
   StreamSubscription<String>? _tokenRefreshSub;
   bool _initialized = false;
+  Future<void> Function(Map<String, dynamic> data)? _onNotificationTap;
+
+  /// Registers a handler for notification taps forwarded from native Android
+  /// locally-posted notifications and processes any pending launch tap.
+  Future<void> registerNotificationTapHandler(
+    Future<void> Function(Map<String, dynamic> data) onTap,
+  ) async {
+    _onNotificationTap = onTap;
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+
+    _tapChannel.setMethodCallHandler((call) async {
+      if (call.method == 'onNotificationTap' && call.arguments is Map) {
+        final data = Map<String, dynamic>.from(call.arguments as Map);
+        await _onNotificationTap?.call(data);
+      }
+    });
+
+    try {
+      final initial = await _tapChannel.invokeMethod<dynamic>(
+        'getInitialNotificationTap',
+      );
+      if (initial is Map && initial.isNotEmpty) {
+        await _onNotificationTap?.call(Map<String, dynamic>.from(initial));
+      }
+    } catch (e) {
+      debugPrint('Error reading initial native notification tap: $e');
+    }
+  }
+
+  /// Resolves localized notification title and body for person-centric push
+  /// payloads (`rsvp_update`, `chat`, `chat_mention`, `whisper`) using the
+  /// recipient's local address book ([ContactResolver]) and Mini Profile format.
+  static ({String? title, String? body}) resolveNotificationContent(
+    RemoteMessage message,
+  ) {
+    final data = message.data;
+    final rawTitle = message.notification?.title ?? data['title']?.toString();
+    final rawBody = message.notification?.body ?? data['body']?.toString();
+
+    final type = data['type']?.toString();
+    final actorName = data['actorName']?.toString();
+    final actorPhone = data['actorPhone']?.toString();
+    final actorUid =
+        (data['actorUid'] ?? data['senderId'] ?? data['responderId'])
+            ?.toString();
+
+    final bool hasActor =
+        (actorName != null && actorName.trim().isNotEmpty) ||
+        (actorPhone != null && actorPhone.trim().isNotEmpty);
+
+    if (!hasActor ||
+        (type != 'rsvp_update' &&
+            type != 'chat' &&
+            type != 'chat_mention' &&
+            type != 'whisper')) {
+      return (title: rawTitle, body: rawBody);
+    }
+
+    final bool isSelf = ContactResolver.instance.isCurrentUserId(actorUid);
+    final resolvedName =
+        ContactResolver.instance.resolveMiniProfileName(
+          actorPhone,
+          fallbackName: actorName,
+          isCurrentUser: isSelf,
+        ) ??
+        ContactResolver.instance.formatMiniProfileFallback(
+          actorName,
+          isCurrentUser: isSelf,
+        );
+
+    if (resolvedName.trim().isEmpty) {
+      return (title: rawTitle, body: rawBody);
+    }
+
+    final eventTitle = data['eventTitle']?.toString().trim() ?? '';
+    final isWhisper =
+        data['isWhisper'] == 'true' ||
+        type == 'whisper' ||
+        (data['whisperRecipientId'] != null &&
+            data['whisperRecipientId'].toString().isNotEmpty);
+
+    if (type == 'rsvp_update') {
+      final rsvpStatus = data['rsvpStatus']?.toString();
+      final targetEvent =
+          eventTitle.isNotEmpty ? eventTitle : 'your hangout';
+      if (rsvpStatus == 'going') {
+        return (
+          title: 'RSVP Update ✅',
+          body: '$resolvedName is going to $targetEvent',
+        );
+      }
+      return (
+        title: 'RSVP Update',
+        body: "$resolvedName can't make it to $targetEvent",
+      );
+    }
+
+    if (isWhisper) {
+      return (
+        title: eventTitle.isNotEmpty ? eventTitle : (rawTitle ?? 'Event Chat'),
+        body: '🤫 $resolvedName sent you a whisper',
+      );
+    }
+
+    if (type == 'chat_mention') {
+      final targetEvent = eventTitle.isNotEmpty ? eventTitle : 'Event Chat';
+      final msgText = data['messageText']?.toString() ?? rawBody ?? '';
+      return (
+        title: '$resolvedName mentioned you in $targetEvent',
+        body: msgText,
+      );
+    }
+
+    // Standard chat message
+    final msgText = data['messageText']?.toString() ?? '';
+    return (
+      title: eventTitle.isNotEmpty ? eventTitle : (rawTitle ?? 'Event Chat'),
+      body: msgText.isNotEmpty ? '$resolvedName: $msgText' : (rawBody ?? ''),
+    );
+  }
 
   /// Initializes listeners for foreground notifications and token refresh.
   Future<void> init() async {

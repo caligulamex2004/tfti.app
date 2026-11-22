@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'image_cropper_dialog.dart';
+import 'web_camera_photo_dialog.dart';
 
 // stateful widget manages its own image cropping and picking, and simply tells
 // the parent page when a new image is ready or if the current one was removed
@@ -68,10 +70,12 @@ class _BannerPickerState extends State<BannerPicker> {
               title: const Text("Take a Photo"),
               onTap: () {
                 Navigator.pop(ctx);
-                _pickAndCropBanner(ImageSource.camera);
+                _handleTakeBannerPhoto();
               },
             ),
-            if (_localBannerPath != null || hasExistingUrl) ...[
+            if (_localBannerPath != null ||
+                _localBannerBytes != null ||
+                hasExistingUrl) ...[
               const Divider(),
               ListTile(
                 leading: const Icon(Icons.delete, color: Colors.red),
@@ -101,6 +105,39 @@ class _BannerPickerState extends State<BannerPicker> {
     );
   }
 
+  Future<void> _handleTakeBannerPhoto() async {
+    if (kIsWeb) {
+      final rawBytes = await WebCameraPhotoDialog.show(
+        context,
+        title: 'Take Banner Photo',
+        aspectRatio: 16 / 9,
+        showCircleGuide: false,
+      );
+      if (rawBytes == null || !mounted) return;
+      final croppedBytes = await ImageCropperDialog.show(
+        context,
+        imageBytes: rawBytes,
+        aspectRatio: 16 / 9,
+        isCircle: false,
+        title: 'Adjust Banner',
+        outputWidth: 1280,
+        outputHeight: 720,
+      );
+      if (croppedBytes == null || !mounted) return;
+      final syntheticPath =
+          'web-camera-banner-${DateTime.now().millisecondsSinceEpoch}.png';
+      setState(() {
+        _localBannerPath = syntheticPath;
+        _localBannerBytes = croppedBytes;
+        _removeBanner = false;
+      });
+      widget.onImageChanged(_localBannerPath, false);
+      widget.onBytesChanged?.call(croppedBytes);
+    } else {
+      await _pickAndCropBanner(ImageSource.camera);
+    }
+  }
+
   Future<void> _pickAndCropBanner(ImageSource source) async {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final picker = ImagePicker();
@@ -109,15 +146,25 @@ class _BannerPickerState extends State<BannerPicker> {
     if (pickedFile == null) return;
 
     if (kIsWeb) {
-      final bytes = await pickedFile.readAsBytes();
+      final rawBytes = await pickedFile.readAsBytes();
       if (!mounted) return;
+      final croppedBytes = await ImageCropperDialog.show(
+        context,
+        imageBytes: rawBytes,
+        aspectRatio: 16 / 9,
+        isCircle: false,
+        title: 'Adjust Banner',
+        outputWidth: 1280,
+        outputHeight: 720,
+      );
+      if (croppedBytes == null || !mounted) return;
       setState(() {
         _localBannerPath = pickedFile.path;
-        _localBannerBytes = bytes;
+        _localBannerBytes = croppedBytes;
         _removeBanner = false;
       });
       widget.onImageChanged(_localBannerPath, false);
-      widget.onBytesChanged?.call(bytes);
+      widget.onBytesChanged?.call(croppedBytes);
       return;
     }
 
@@ -164,7 +211,8 @@ class _BannerPickerState extends State<BannerPicker> {
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     final hasExistingUrl = widget.existingImageUrl != null && !_removeBanner;
-    final hasLocalImage = _localBannerPath != null;
+    final hasLocalImage =
+        _localBannerPath != null || _localBannerBytes != null;
     final hasImage = hasExistingUrl || hasLocalImage;
 
     DecorationImage? imageDecoration;

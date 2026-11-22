@@ -5,6 +5,12 @@ const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const fs = require("fs");
 const path = require("path");
+const {
+    handleInvitationRsvpChange,
+    extractUserPhone,
+    buildPersonNotificationPayload,
+    fetchDocsByRefs,
+} = require("./rsvp_handlers");
 
 /**
  * Zero-RAM on-disk binary search over geoip-lite's data file.
@@ -245,17 +251,17 @@ exports.dailyCleanup = onSchedule({
             }
         }
 
-        // Wipe Messages
-        const messages = await doc.ref.collection("messages").get();
+        // Wipe Messages, Invitations, Roles, and RSVP Notification State in parallel
+        const [messages, invitations, roles, rsvpNotifState] = await Promise.all([
+            doc.ref.collection("messages").get(),
+            doc.ref.collection("invitations").get(),
+            doc.ref.collection("roles").get(),
+            doc.ref.collection("rsvpNotifState").get(),
+        ]);
         messages.forEach(msg => batch.delete(msg.ref));
-
-        // Wipe Invitations
-        const invitations = await doc.ref.collection("invitations").get();
         invitations.forEach(invite => batch.delete(invite.ref));
-
-        // --- Wipe Squad Needs / Roles ---
-        const roles = await doc.ref.collection("roles").get();
         roles.forEach(role => batch.delete(role.ref));
+        rsvpNotifState.forEach(stateDoc => batch.delete(stateDoc.ref));
 
         // Delete the Parent Event
         batch.delete(doc.ref);
@@ -293,16 +299,39 @@ exports.sendInviteNotification = onDocumentCreated("events/{eventId}/invitations
     const userId = event.params.userId;
     const eventId = event.params.eventId;
 
-    try {
-        await db.collection("events").doc(eventId).update({
-            visibleTo: admin.firestore.FieldValue.arrayUnion(userId)
-        });
+    const visibleToUpdatePromise = db.collection("events").doc(eventId).update({
+        visibleTo: admin.firestore.FieldValue.arrayUnion(userId)
+    }).then(() => {
         logger.log(`Added ${userId} to visibleTo for event ${eventId}`);
-    } catch (e) {
+    }).catch((e) => {
         logger.error(`Failed to update visibleTo: ${e}`);
+    });
+
+    const createdData = event.data?.data();
+    if (createdData && createdData.respondedAt && (createdData.status === "going" || createdData.status === "declined")) {
+        await Promise.all([
+            visibleToUpdatePromise,
+            handleInvitationRsvpChange({
+                db,
+                FieldValue: admin.firestore.FieldValue,
+                eventId,
+                userId,
+                beforeData: null,
+                afterData: createdData,
+                getUserTokens,
+                createWebPushConfig,
+                sendMulticastToTokens,
+                logger,
+            }),
+        ]);
+        return;
     }
 
-    const eventDoc = await db.collection("events").doc(eventId).get();
+    const [, eventDoc, userDoc] = await Promise.all([
+        visibleToUpdatePromise,
+        db.collection("events").doc(eventId).get(),
+        db.collection("users").doc(userId).get(),
+    ]);
     const eventData = eventDoc.data() || {};
     const hostId = eventData.hostId;
     const eventTitle = eventData.title || "New Event";
@@ -312,7 +341,6 @@ exports.sendInviteNotification = onDocumentCreated("events/{eventId}/invitations
         return;
     }
 
-    const userDoc = await db.collection("users").doc(userId).get();
     const userData = userDoc.data();
     const tokens = getUserTokens(userData);
 
@@ -351,6 +379,26 @@ exports.sendInviteNotification = onDocumentCreated("events/{eventId}/invitations
     };
 
     await sendMulticastToTokens(tokens, payload);
+});
+
+// --- 3B. SMART POSTMAN: Host & Co-Host RSVP Notification + Squad Needs Auto-Release ---
+exports.notifyHostOnRsvpChange = onDocumentUpdated("events/{eventId}/invitations/{userId}", async (event) => {
+    const beforeData = event.data?.before?.data();
+    const afterData = event.data?.after?.data();
+    if (!beforeData || !afterData) return;
+
+    await handleInvitationRsvpChange({
+        db,
+        FieldValue: admin.firestore.FieldValue,
+        eventId: event.params.eventId,
+        userId: event.params.userId,
+        beforeData,
+        afterData,
+        getUserTokens,
+        createWebPushConfig,
+        sendMulticastToTokens,
+        logger,
+    });
 });
 
 // --- 4. SMART POSTMAN: Event Update Notification ---
@@ -450,8 +498,8 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
 
     const messageData = snapshot.data();
     const senderId = messageData.senderId;
-    const senderName = messageData.senderName || "Someone";
-    const text = messageData.text;
+    const rawSenderName = messageData.senderName || "Someone";
+    const text = typeof messageData.text === "string" ? messageData.text : "";
     const eventId = event.params.eventId;
     const messageId = event.params.messageId;
     const visibleTo = Array.isArray(messageData.visibleTo) ? messageData.visibleTo : null;
@@ -460,16 +508,26 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
     if (!whisperRecipientId && visibleTo) {
         whisperRecipientId = visibleTo.find(uid => uid !== senderId);
     }
-    
-    const eventDoc = await db.collection("events").doc(eventId).get();
-    const eventTitle = eventDoc.data()?.title || "Event Chat";
+
+    const eventRef = db.collection("events").doc(eventId);
 
     // --- WHISPER NOTIFICATION HANDLING ---
     if (isWhisper) {
         if (!whisperRecipientId || whisperRecipientId === senderId) return;
 
-        const userDoc = await db.collection("users").doc(whisperRecipientId).get();
-        const userData = userDoc.data();
+        // Fetch event, recipient user, recipient invite, and optional sender user in one batched RPC.
+        const whisperRefs = [
+            eventRef,
+            db.collection("users").doc(whisperRecipientId),
+            eventRef.collection("invitations").doc(whisperRecipientId),
+        ];
+        if (senderId) {
+            whisperRefs.push(db.collection("users").doc(senderId));
+        }
+
+        const [eventDoc, userDoc, inviteDoc, senderDoc] = await fetchDocsByRefs(db, whisperRefs);
+
+        const userData = userDoc?.exists ? userDoc.data() : null;
         const userTokens = getUserTokens(userData);
         if (userTokens.length === 0) return;
 
@@ -482,87 +540,110 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
         if (!wantsChat) return;
 
         // Local invitation check (chat mute & sender mute)
-        const inviteDoc = await db.collection(`events/${eventId}/invitations`).doc(whisperRecipientId).get();
-        const inviteData = inviteDoc.data();
+        const inviteData = inviteDoc?.exists ? inviteDoc.data() : null;
         const isChatMuted = inviteData?.isMuted ?? false;
         if (isChatMuted) return;
 
         const mutedSenderUids = inviteData?.mutedSenderUids || [];
         if (mutedSenderUids.includes(senderId)) return;
 
-        const whisperPayload = {
-            notification: {
-                title: eventTitle,
-                body: `🤫 ${senderName} sent you a whisper`
-            },
-            data: { 
-                type: "chat", 
-                eventId: eventId, 
+        const eventTitle = eventDoc?.data()?.title || "Event Chat";
+        const senderData = senderDoc?.exists ? (senderDoc.data() || {}) : {};
+        const senderName = rawSenderName !== "Someone" ? rawSenderName : (senderData.displayName || "Someone");
+        const senderPhone = extractUserPhone(senderData);
+
+        const whisperPayload = buildPersonNotificationPayload({
+            type: "chat",
+            eventId,
+            eventTitle,
+            title: eventTitle,
+            body: `🤫 ${senderName} sent you a whisper`,
+            actorUid: senderId,
+            actorName: senderName,
+            actorPhone: senderPhone,
+            channelId: "chat_channel",
+            androidPriority: "normal",
+            extraData: {
                 messageId: messageId || "",
-                senderId: senderId,
+                senderId: senderId || "",
                 isWhisper: "true",
                 whisperRecipientId: whisperRecipientId || "",
-                visibleTo: visibleTo ? JSON.stringify(visibleTo) : JSON.stringify([senderId, whisperRecipientId])
+                visibleTo: visibleTo ? JSON.stringify(visibleTo) : JSON.stringify([senderId, whisperRecipientId]),
             },
-            android: {
-                priority: "normal", 
-                notification: { channelId: "chat_channel" } 
-            },
-            apns: {
-                payload: { aps: { sound: "default" } }
-            },
-            webpush: createWebPushConfig(eventTitle, `🤫 ${senderName} sent you a whisper`, eventId, "chat")
-        };
+            createWebPushConfig,
+        });
 
         await sendMulticastToTokens(userTokens, whisperPayload);
         return;
     }
 
-    const mentionedUids = messageData.mentionedUids || [];
+    const mentionedUids = Array.isArray(messageData.mentionedUids) ? messageData.mentionedUids : [];
+    const mentionedSet = new Set(mentionedUids);
+    const visibleToSet = visibleTo ? new Set(visibleTo) : null;
 
-    const invitationsSnap = await db.collection(`events/${eventId}/invitations`).get();
-    
+    // Fetch event doc and invitations in parallel.
+    const [eventDoc, invitationsSnap] = await Promise.all([
+        eventRef.get(),
+        eventRef.collection("invitations").get(),
+    ]);
+
+    // Filter out ineligible recipients using inviteData BEFORE reading any user docs.
+    const candidates = [];
+    for (const invite of invitationsSnap.docs) {
+        const userId = invite.id;
+        if (userId === senderId) continue;
+
+        if (visibleToSet && !visibleToSet.has(userId)) {
+            continue;
+        }
+
+        const inviteData = invite.data() || {};
+        const mutedSenderUids = inviteData.mutedSenderUids || [];
+        if (mutedSenderUids.includes(senderId)) {
+            continue;
+        }
+
+        const isMentioned = mentionedSet.has(userId);
+        const isChatMuted = inviteData.isMuted ?? false;
+        if (!isMentioned && isChatMuted) {
+            continue;
+        }
+
+        candidates.push({userId, isMentioned, isChatMuted});
+    }
+
+    if (candidates.length === 0) return;
+
+    // Batch-fetch all candidate recipients (+ sender for phone lookup) in one RPC.
+    const userRefs = candidates.map(c => db.collection("users").doc(c.userId));
+    if (senderId) {
+        userRefs.push(db.collection("users").doc(senderId));
+    }
+    const userDocs = await fetchDocsByRefs(db, userRefs);
+    const senderDoc = senderId ? userDocs[candidates.length] : null;
+
     const standardTokens = [];
     const mentionedTokens = [];
 
-    for (const invite of invitationsSnap.docs) {
-        const userId = invite.id;
-        const inviteData = invite.data();
-        
-        if (userId === senderId) continue; 
+    for (let i = 0; i < candidates.length; i++) {
+        const {isMentioned, isChatMuted} = candidates[i];
+        const userDoc = userDocs[i];
+        if (!userDoc?.exists) continue;
 
-        // Privacy check: If message has visibleTo restrictions, ignore any user not in visibleTo
-        if (visibleTo && !visibleTo.includes(userId)) {
-            continue;
-        } 
-
-        const userDoc = await db.collection("users").doc(userId).get();
         const userData = userDoc.data();
         const userTokens = getUserTokens(userData);
         if (userTokens.length === 0) continue;
 
-        // --- NEW: SHADOW BAN CHECK ---
+        // Shadow Ban Check
         const blockedUids = userData?.blockedUids || [];
         if (blockedUids.includes(senderId)) {
-            continue; // Shadow Ban: Completely ignore this message/mention for this user
+            continue;
         }
 
-        // --- MUTE THIS SENDER CHECK ---
-        const mutedSenderUids = inviteData?.mutedSenderUids || [];
-        if (mutedSenderUids.includes(senderId)) {
-            continue; // Mute This Sender: Completely ignore this message/mention for this user in this chat
-        }
-
-        const isMentioned = mentionedUids.includes(userId);
-        
         // Global User Preferences
         const wantsChat = userData?.notificationSettings?.chat ?? true;
         const wantsMentions = userData?.notificationSettings?.mentions ?? true;
-        
-        // Local Event Setting (From the mute button!)
-        const isChatMuted = inviteData?.isMuted ?? false;
 
-        // Route the tokens based on global AND local preferences
         if (isMentioned && wantsMentions) {
             mentionedTokens.push(...userTokens);
         } else if (wantsChat && !isChatMuted && !isMentioned) {
@@ -570,59 +651,66 @@ exports.notifyNewChatMessage = onDocumentCreated("events/{eventId}/messages/{mes
         }
     }
 
+    if (mentionedTokens.length === 0 && standardTokens.length === 0) return;
+
+    const eventTitle = eventDoc.data()?.title || "Event Chat";
+    const senderData = senderDoc?.exists ? (senderDoc.data() || {}) : {};
+    const senderName = rawSenderName !== "Someone" ? rawSenderName : (senderData.displayName || "Someone");
+    const senderPhone = extractUserPhone(senderData);
+
+    const sendTasks = [];
+
     // 1. Send High-Priority Mention Notifications
     if (mentionedTokens.length > 0) {
-        const mentionPayload = {
-            notification: {
-                title: `${senderName} mentioned you in ${eventTitle}`,
-                body: text
-            },
-            data: { 
-                type: "chat_mention", 
-                eventId: eventId,
+        const mentionPayload = buildPersonNotificationPayload({
+            type: "chat_mention",
+            eventId,
+            eventTitle,
+            title: `${senderName} mentioned you in ${eventTitle}`,
+            body: text,
+            actorUid: senderId,
+            actorName: senderName,
+            actorPhone: senderPhone,
+            channelId: "high_importance_channel",
+            androidPriority: "high",
+            extraData: {
                 messageId: messageId || "",
-                senderId: senderId,
-                isWhisper: "false"
+                senderId: senderId || "",
+                isWhisper: "false",
+                messageText: text,
             },
-            android: {
-                priority: "high", 
-                notification: { channelId: "high_importance_channel" } 
-            },
-            apns: {
-                payload: { aps: { sound: "default" } }
-            },
-            webpush: createWebPushConfig(`${senderName} mentioned you in ${eventTitle}`, text, eventId, "chat_mention")
-        };
+            createWebPushConfig,
+        });
 
-        await sendMulticastToTokens(mentionedTokens, mentionPayload);
+        sendTasks.push(sendMulticastToTokens(mentionedTokens, mentionPayload));
     }
 
     // 2. Send Standard Chat Notifications
     if (standardTokens.length > 0) {
-        const standardPayload = {
-            notification: {
-                title: eventTitle,
-                body: `${senderName}: ${text}`
-            },
-            data: { 
-                type: "chat", 
-                eventId: eventId,
+        const standardPayload = buildPersonNotificationPayload({
+            type: "chat",
+            eventId,
+            eventTitle,
+            title: eventTitle,
+            body: `${senderName}: ${text}`,
+            actorUid: senderId,
+            actorName: senderName,
+            actorPhone: senderPhone,
+            channelId: "chat_channel",
+            androidPriority: "normal",
+            extraData: {
                 messageId: messageId || "",
-                senderId: senderId,
-                isWhisper: "false"
+                senderId: senderId || "",
+                isWhisper: "false",
+                messageText: text,
             },
-            android: {
-                priority: "normal", 
-                notification: { channelId: "chat_channel" } 
-            },
-            apns: {
-                payload: { aps: { sound: "default" } }
-            },
-            webpush: createWebPushConfig(eventTitle, `${senderName}: ${text}`, eventId, "chat")
-        };
+            createWebPushConfig,
+        });
 
-        await sendMulticastToTokens(standardTokens, standardPayload);
+        sendTasks.push(sendMulticastToTokens(standardTokens, standardPayload));
     }
+
+    await Promise.all(sendTasks);
 });
 
 // --- 6. THE REMINDER: Better Get Going Notification ---
