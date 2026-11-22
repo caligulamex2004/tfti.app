@@ -5,16 +5,33 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
-Future<Uint8List?> showWebCameraPhotoDialog(BuildContext context) async {
+Future<Uint8List?> showWebCameraPhotoDialog(
+  BuildContext context, {
+  String title = 'Take Profile Photo',
+  double aspectRatio = 1.0,
+  bool showCircleGuide = true,
+}) async {
   return showDialog<Uint8List>(
     context: context,
     barrierDismissible: true,
-    builder: (ctx) => const _WebCameraDialog(),
+    builder: (ctx) => _WebCameraDialog(
+      title: title,
+      aspectRatio: aspectRatio,
+      showCircleGuide: showCircleGuide,
+    ),
   );
 }
 
 class _WebCameraDialog extends StatefulWidget {
-  const _WebCameraDialog();
+  final String title;
+  final double aspectRatio;
+  final bool showCircleGuide;
+
+  const _WebCameraDialog({
+    required this.title,
+    required this.aspectRatio,
+    required this.showCircleGuide,
+  });
 
   @override
   State<_WebCameraDialog> createState() => _WebCameraDialogState();
@@ -55,10 +72,15 @@ class _WebCameraDialogState extends State<_WebCameraDialog> {
       final video = html.VideoElement()
         ..autoplay = true
         ..muted = true
+        ..setAttribute('playsinline', 'true')
+        ..setAttribute('webkit-playsinline', 'true')
         ..style.width = '100%'
         ..style.height = '100%'
         ..style.objectFit = 'cover'
         ..srcObject = stream;
+      try {
+        await video.play();
+      } catch (_) {}
 
       _videoElement = video;
       final viewId = 'webcam-capture-${DateTime.now().millisecondsSinceEpoch}';
@@ -95,22 +117,15 @@ class _WebCameraDialogState extends State<_WebCameraDialog> {
       final vWidth = video.videoWidth > 0 ? video.videoWidth : 640;
       final vHeight = video.videoHeight > 0 ? video.videoHeight : 480;
 
-      // Crop to a square centered on the video for the avatar
-      final int size = vWidth < vHeight ? vWidth : vHeight;
-      final int startX = (vWidth - size) ~/ 2;
-      final int startY = (vHeight - size) ~/ 2;
-
-      final canvas = html.CanvasElement(width: size, height: size);
-      canvas.context2D.drawImageScaledFromSource(
+      // Capture the full video frame so the user can pan, zoom, and crop freely
+      // in the follow-up cropper dialog.
+      final canvas = html.CanvasElement(width: vWidth, height: vHeight);
+      canvas.context2D.drawImageScaled(
         video,
-        startX,
-        startY,
-        size,
-        size,
         0,
         0,
-        size,
-        size,
+        vWidth,
+        vHeight,
       );
 
       final dataUrl = canvas.toDataUrl('image/jpeg', 0.95);
@@ -143,21 +158,27 @@ class _WebCameraDialogState extends State<_WebCameraDialog> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
 
+    final previewWidth = widget.aspectRatio >= 1.2 ? 320.0 : 280.0;
+    final previewHeight = previewWidth / widget.aspectRatio;
+
     return Dialog(
       backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Container(
         padding: const EdgeInsets.all(20),
-        constraints: const BoxConstraints(maxWidth: 380),
+        constraints: const BoxConstraints(maxWidth: 400),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  "Take Profile Photo",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                Text(
+                  widget.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close_rounded),
@@ -169,8 +190,8 @@ class _WebCameraDialogState extends State<_WebCameraDialog> {
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: Container(
-                width: 280,
-                height: 280,
+                width: previewWidth,
+                height: previewHeight,
                 color: Colors.black,
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
@@ -213,18 +234,19 @@ class _WebCameraDialogState extends State<_WebCameraDialog> {
                             children: [
                               if (_viewType != null)
                                 HtmlElementView(viewType: _viewType!),
-                              // Circular avatar guide overlay
-                              Container(
-                                width: 240,
-                                height: 240,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.8),
-                                    width: 3,
+                              if (widget.showCircleGuide)
+                                // Circular avatar guide overlay
+                                Container(
+                                  width: 240,
+                                  height: 240,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white.withValues(alpha: 0.8),
+                                      width: 3,
+                                    ),
                                   ),
                                 ),
-                              ),
                             ],
                           ),
               ),
